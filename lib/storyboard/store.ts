@@ -11,6 +11,10 @@ import {
   AnnotationConfig,
   DEFAULT_ANNOTATION_CONFIG,
 } from "@/lib/whiteboard-animation/schema";
+import type {
+  AudioTrack,
+  TranscriptCue,
+} from "@/lib/whiteboard-animation/audio/types";
 
 export interface MediaItem {
   id: string;
@@ -51,6 +55,8 @@ export interface WhiteboardConfig {
   // choix d'EXPORT — l'apercu rend toujours au petit cote 720.
   annotations: Annotation[];
   annotationConfig: AnnotationConfig;
+  audio: AudioTrack | null;
+  transcript: TranscriptCue[];
 }
 
 export interface StoryboardStoreState {
@@ -82,6 +88,9 @@ export interface StoryboardStoreState {
   removeAnnotation: (id: string) => void;
   setAnnotations: (annotations: Annotation[]) => void;
   setAnnotationConfig: (config: Partial<AnnotationConfig>) => void;
+  setAudioTrack: (track: AudioTrack | null) => void;
+  setTranscript: (cues: TranscriptCue[]) => void;
+  linkTranscriptCue: (cueId: string, annotationId: string) => void;
 
   loadDemoData: () => void;
   resetWorkflow: () => void;
@@ -107,6 +116,8 @@ const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
   canvasBg: "white",
   annotations: [],
   annotationConfig: DEFAULT_ANNOTATION_CONFIG,
+  audio: null,
+  transcript: [],
 };
 
 export const useStoryboardStore = create<StoryboardStoreState>()(
@@ -189,6 +200,26 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
               ...state.whiteboardConfig.annotationConfig,
               ...config,
             },
+          },
+        })),
+
+      setAudioTrack: (track: AudioTrack | null) =>
+        set((state) => ({
+          whiteboardConfig: { ...state.whiteboardConfig, audio: track },
+        })),
+
+      setTranscript: (cues: TranscriptCue[]) =>
+        set((state) => ({
+          whiteboardConfig: { ...state.whiteboardConfig, transcript: cues },
+        })),
+
+      linkTranscriptCue: (cueId: string, annotationId: string) =>
+        set((state) => ({
+          whiteboardConfig: {
+            ...state.whiteboardConfig,
+            transcript: state.whiteboardConfig.transcript.map((c) =>
+              c.id === cueId ? { ...c, annotationId } : c
+            ),
           },
         })),
 
@@ -314,6 +345,8 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           canvasBg: state.whiteboardConfig.canvasBg,
           annotations: state.whiteboardConfig.annotations,
           annotationConfig: state.whiteboardConfig.annotationConfig,
+          audio: state.whiteboardConfig.audio,
+          transcript: state.whiteboardConfig.transcript,
         },
       }),
     },
