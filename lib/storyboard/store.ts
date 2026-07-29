@@ -120,6 +120,30 @@ const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
   transcript: [],
 };
 
+/**
+ * Zustand's default persist merge is shallow (`{ ...current, ...persisted }`):
+ * a persisted `whiteboardConfig` object REPLACES the default wholesale, so a
+ * field added after a project was saved (audio, transcript, or any future
+ * field) comes back `undefined` instead of defaulting — this crashed
+ * TranscriptPanel on `transcript.length` for any project saved before the
+ * audio system existed. Merging `whiteboardConfig` one level deeper keeps new
+ * fields defaulted until the user actually sets them.
+ */
+export function mergeStoryboardStorePersistedState(
+  persistedState: unknown,
+  currentState: StoryboardStoreState
+): StoryboardStoreState {
+  const persisted = persistedState as Partial<StoryboardStoreState> | undefined;
+  return {
+    ...currentState,
+    ...persisted,
+    whiteboardConfig: {
+      ...currentState.whiteboardConfig,
+      ...(persisted?.whiteboardConfig ?? {}),
+    },
+  };
+}
+
 export const useStoryboardStore = create<StoryboardStoreState>()(
   persist(
     (set, get) => ({
@@ -331,6 +355,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
     {
       name: "storyboard-workflow-store",
       storage: createJSONStorage(() => sessionStorage),
+      merge: mergeStoryboardStorePersistedState,
       partialize: (state: StoryboardStoreState) => ({
         step: state.step,
         projectTitle: state.projectTitle,

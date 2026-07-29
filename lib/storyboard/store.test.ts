@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useStoryboardStore } from "./store";
+import { useStoryboardStore, mergeStoryboardStorePersistedState } from "./store";
 import type { AudioTrack, TranscriptCue } from "@/lib/whiteboard-animation/audio/types";
+import type { StoryboardStoreState } from "./store";
 
 function resetStore() {
   useStoryboardStore.setState({
@@ -71,5 +72,63 @@ describe("whiteboardConfig.transcript", () => {
     const transcript = useStoryboardStore.getState().whiteboardConfig.transcript;
     expect(transcript.find((c) => c.id === "cue-1")?.annotationId).toBe("ann-1");
     expect(transcript.find((c) => c.id === "cue-2")?.annotationId).toBeUndefined();
+  });
+});
+
+describe("mergeStoryboardStorePersistedState", () => {
+  beforeEach(resetStore);
+
+  function makeCurrentState(): StoryboardStoreState {
+    return useStoryboardStore.getState();
+  }
+
+  it("fills in audio and transcript when the persisted project predates them", () => {
+    // Simulates sessionStorage written by a browser session from before the
+    // audio system existed: whiteboardConfig has no audio/transcript keys.
+    const legacyPersisted = {
+      whiteboardConfig: {
+        animStyle: "chunkjump",
+        handStyle: "custom1",
+        canvasBg: "white",
+        annotations: [],
+        annotationConfig: { enabled: true, speed: 1, defaultStyle: { strokeColor: "#000000", strokeWidth: 2 } },
+        // no audio, no transcript
+      },
+    };
+
+    const merged = mergeStoryboardStorePersistedState(legacyPersisted, makeCurrentState());
+
+    expect(merged.whiteboardConfig.audio).toBeNull();
+    expect(merged.whiteboardConfig.transcript).toEqual([]);
+  });
+
+  it("keeps persisted audio and transcript when present", () => {
+    const track: AudioTrack = {
+      id: "audio-1", url: "blob:fake", source: "upload",
+      volume: 0.5, muted: false, offsetMs: 0, durationMs: 3000,
+    };
+    const cues: TranscriptCue[] = [{ id: "cue-1", startMs: 0, endMs: 1000, text: "Hi" }];
+    const persisted = {
+      whiteboardConfig: {
+        animStyle: "chunkjump",
+        handStyle: "custom1",
+        canvasBg: "white",
+        annotations: [],
+        annotationConfig: { enabled: true, speed: 1, defaultStyle: { strokeColor: "#000000", strokeWidth: 2 } },
+        audio: track,
+        transcript: cues,
+      },
+    };
+
+    const merged = mergeStoryboardStorePersistedState(persisted, makeCurrentState());
+
+    expect(merged.whiteboardConfig.audio).toEqual(track);
+    expect(merged.whiteboardConfig.transcript).toEqual(cues);
+  });
+
+  it("falls back to current state entirely when nothing was persisted", () => {
+    const merged = mergeStoryboardStorePersistedState(undefined, makeCurrentState());
+    expect(merged.whiteboardConfig.audio).toBeNull();
+    expect(merged.whiteboardConfig.transcript).toEqual([]);
   });
 });
