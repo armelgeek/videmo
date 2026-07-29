@@ -3,6 +3,7 @@
 import { useRef, useEffect } from 'react';
 import { WhiteboardConfigPanel } from './whiteboard-config-panel';
 import { AudioPanel } from './audio-panel';
+import { TranscriptPanel } from './transcript-panel';
 import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
@@ -162,6 +163,7 @@ export function WhiteboardEditorStep({
         />
 
         <AudioPanel />
+        <TranscriptPanel />
 
         {/* Navigation Buttons */}
         <div className="flex gap-2 sticky bottom-0 bg-background pt-4 border-t">
