@@ -38,6 +38,7 @@ const nextConfig: NextConfig = {
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://us-assets.i.posthog.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' blob: data: https:",
+              "media-src 'self' blob: https:",
               "font-src 'self' data:",
               "connect-src 'self' https:",
               "object-src 'none'",

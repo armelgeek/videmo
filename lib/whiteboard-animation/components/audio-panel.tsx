@@ -4,12 +4,14 @@ import { useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useStoryboardStore } from '@/lib/storyboard/store';
+import { useToastContext } from '@/components/ui/sonner';
 import type { AudioTrack } from '../audio/types';
 
 export function AudioPanel() {
   const audio = useStoryboardStore((s) => s.whiteboardConfig.audio);
   const setAudioTrack = useStoryboardStore((s) => s.setAudioTrack);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToastContext();
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -28,6 +30,14 @@ export function AudioPanel() {
         durationMs: el.duration * 1000,
       };
       setAudioTrack(track);
+    });
+    // Without this, a load failure (bad codec, blocked by CSP, network
+    // error) leaves the panel silently stuck on the upload input forever —
+    // see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md's
+    // error table ("Échec de chargement -> Toast d'erreur").
+    el.addEventListener('error', () => {
+      URL.revokeObjectURL(url);
+      toast.error('Failed to load audio file');
     });
   };
 
