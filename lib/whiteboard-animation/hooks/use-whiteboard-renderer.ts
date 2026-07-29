@@ -69,6 +69,9 @@ export interface UseWhiteboardRendererProps {
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
+  /** 0..1. Muted still plays silently: it must keep driving the clock. */
+  audioVolume?: number;
+  audioMuted?: boolean;
 }
 
 export function useWhiteboardRenderer({
@@ -78,6 +81,8 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
   audioUrl = null,
+  audioVolume = 1,
+  audioMuted = false,
 }: UseWhiteboardRendererProps) {
   const {
     progress,
@@ -115,6 +120,13 @@ export function useWhiteboardRenderer({
   // Last audio-clock reading consumed by the rAF loop. Distinct from
   // engineTimeRef, which tracks what the engine itself has rendered to.
   const lastAudioMsRef = useRef(0);
+
+  // Muted still plays (silently) to keep serving as the clock — only volume
+  // and the mute flag change, never whether it plays.
+  useEffect(() => {
+    audioClock.manager?.setVolume(audioVolume);
+    audioClock.manager?.setMuted(audioMuted);
+  }, [audioClock.manager, audioVolume, audioMuted]);
   const [imageLoaded, setImageLoaded] = useState(false);
   // Vrai pendant qu'on scrube. Le seek ne "joue" pas — isPlaying reste faux —
   // mais l'utilisateur regarde le dessin, pas les cadres : le calque doit
@@ -414,6 +426,12 @@ export function useWhiteboardRenderer({
     const manager = audioClock.manager;
     if (manager) {
       lastAudioMsRef.current = manager.getCurrentMs();
+      // The audio element is the clock this loop reads from every frame —
+      // without starting it, getCurrentMs() stays frozen at 0 forever and
+      // the engine never advances.
+      manager.play().catch((err) => {
+        console.error('Failed to start audio playback:', err);
+      });
     }
     const step = (now: number) => {
       if (stoppedRef.current) return;
@@ -453,6 +471,7 @@ export function useWhiteboardRenderer({
     return () => {
       stoppedRef.current = true;
       cancelAnimationFrame(frame);
+      manager?.pause();
     };
   }, [isPlaying, imageLoaded, audioClock.manager]);
 

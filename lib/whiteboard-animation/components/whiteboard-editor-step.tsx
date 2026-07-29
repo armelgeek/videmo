@@ -60,6 +60,11 @@ export function WhiteboardEditorStep({
     canvasHeight,
     handCanvasRef,
     annotationCanvasRef,
+    // Muted still plays (silently) to keep serving as the clock — only the
+    // absence of a track falls back to wall-clock timing.
+    audioUrl: config.audio?.url ?? null,
+    audioVolume: config.audio?.volume ?? 1,
+    audioMuted: config.audio?.muted ?? false,
   });
 
   // Sync config with engine (Zustand setters are stable, safe to use without listing as deps)
