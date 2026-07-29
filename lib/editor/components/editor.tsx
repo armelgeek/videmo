@@ -1603,19 +1603,6 @@ const EditorInner: React.FC<EditorProps> = ({
                   onHandStyleChange={(h) =>
                     setWhiteboardConfig((prev) => ({ ...prev, handStyle: h }))
                   }
-                  revealSpeed={whiteboardConfig.revealSpeed}
-                  onRevealSpeedChange={(sp) =>
-                    setWhiteboardConfig((prev) => ({ ...prev, revealSpeed: sp }))
-                  }
-                  handSpeed={whiteboardConfig.handSpeed}
-                  onHandSpeedChange={(sp) =>
-                    setWhiteboardConfig((prev) => ({ ...prev, handSpeed: sp }))
-                  }
-                  chunks={whiteboardConfig.chunks}
-                  onChunksChange={(c) =>
-                    setWhiteboardConfig((prev) => ({ ...prev, chunks: c }))
-                  }
-                  aspectRatio={videoConfig.aspectRatio}
                   onGenerateAnimation={() => {}}
                 />
               </PanelErrorBoundary>

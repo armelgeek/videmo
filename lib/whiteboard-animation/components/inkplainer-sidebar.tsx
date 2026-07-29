@@ -10,20 +10,8 @@ interface InkplainerSidebarProps {
   onAnimStyleChange: (style: string) => void;
   handStyle: string;
   onHandStyleChange: (hand: string) => void;
-  revealSpeed: number;
-  onRevealSpeedChange: (speed: number) => void;
-  handSpeed: number;
-  onHandSpeedChange: (speed: number) => void;
-  chunks?: number;
-  onChunksChange?: (chunks: number) => void;
-  aspectRatio?: string;
-  onAspectRatioChange?: (ratio: string) => void;
-  resolution?: string;
-  onResolutionChange?: (res: string) => void;
   activeTab?: 'animation' | 'drawing' | 'scenes' | 'annotation';
   onActiveTabChange?: (tab: 'animation' | 'drawing' | 'scenes' | 'annotation') => void;
-  useAnnotation?: boolean;
-  onToggleAnnotation?: (enabled: boolean) => void;
   annotations?: any[];
   onGenerateAnimation: () => void;
 }
@@ -34,20 +22,8 @@ export const InkplainerSidebar: React.FC<InkplainerSidebarProps> = ({
   onAnimStyleChange,
   handStyle,
   onHandStyleChange,
-  revealSpeed,
-  onRevealSpeedChange,
-  handSpeed,
-  onHandSpeedChange,
-  chunks = 30,
-  onChunksChange,
-  aspectRatio = '16:9',
-  onAspectRatioChange,
-  resolution = '720p',
-  onResolutionChange,
   activeTab: controlledActiveTab,
   onActiveTabChange,
-  useAnnotation = false,
-  onToggleAnnotation,
   annotations = [],
   onGenerateAnimation,
 }) => {
@@ -157,85 +133,6 @@ export const InkplainerSidebar: React.FC<InkplainerSidebarProps> = ({
               </select>
             </div>
 
-            {/* Speed Controls */}
-            <div className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-medium">
-                  <span>Reveal Speed</span>
-                  <span className="text-muted-foreground">{revealSpeed}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="10"
-                  max="100"
-                  value={revealSpeed}
-                  onChange={(e) => onRevealSpeedChange(Number(e.target.value))}
-                  className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs font-medium">
-                  <span>Hand Speed</span>
-                  <span className="text-muted-foreground">{handSpeed}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="10"
-                  value={handSpeed}
-                  onChange={(e) => onHandSpeedChange(Number(e.target.value))}
-                  className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                />
-              </div>
-
-              {onChunksChange && (
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span>Stroke Chunks</span>
-                    <span className="text-muted-foreground">{chunks}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="5"
-                    max="100"
-                    value={chunks}
-                    onChange={(e) => onChunksChange(Number(e.target.value))}
-                    className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Canvas Settings */}
-            <div className="space-y-3 border-t border-border pt-4">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
-                Format & Resolution
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {onAspectRatioChange && (
-                  <select
-                    value={aspectRatio}
-                    onChange={(e) => onAspectRatioChange(e.target.value)}
-                    className="bg-background border border-border rounded-md px-2 py-1.5 text-xs font-medium"
-                  >
-                    <option value="16:9">16:9 Landscape</option>
-                    <option value="9:16">9:16 Portrait</option>
-                    <option value="1:1">1:1 Square</option>
-                  </select>
-                )}
-                {onResolutionChange && (
-                  <select
-                    value={resolution}
-                    onChange={(e) => onResolutionChange(e.target.value)}
-                    className="bg-background border border-border rounded-md px-2 py-1.5 text-xs font-medium"
-                  >
-                    <option value="720p">720p HD</option>
-                    <option value="1080p">1080p Full HD</option>
-                  </select>
-                )}
-              </div>
-            </div>
           </>
         )}
 
@@ -257,20 +154,12 @@ export const InkplainerSidebar: React.FC<InkplainerSidebarProps> = ({
 
         {activeTab === 'annotation' && (
           <div className="space-y-4 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-foreground">Enable Annotations</span>
-              <input
-                type="checkbox"
-                checked={useAnnotation}
-                onChange={(e) => onToggleAnnotation?.(e.target.checked)}
-                className="w-4 h-4 accent-primary rounded cursor-pointer"
-              />
-            </div>
+            <p className="text-xs font-medium text-foreground">Active Annotations</p>
 
             {annotations.length > 0 ? (
-              <div className="space-y-2 border-t border-border pt-3">
+              <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase">
-                  Active Annotations ({annotations.length})
+                  ({annotations.length} annotations)
                 </p>
                 {annotations.map((ann, idx) => (
                   <div key={idx} className="p-2 border border-border rounded bg-muted/10 text-xs">

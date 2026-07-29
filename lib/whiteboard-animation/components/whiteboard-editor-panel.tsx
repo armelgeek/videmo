@@ -31,21 +31,9 @@ export const WhiteboardEditorPanel: React.FC<WhiteboardEditorPanelProps> = ({
     setAnimStyle,
     handStyle,
     setHandStyle,
-    revealSpeed,
-    setRevealSpeed,
-    handSpeed,
-    setHandSpeed,
-    chunks,
-    setChunks,
-    aspectRatio,
-    setAspectRatio,
-    resolution,
-    setResolution,
     canvasBg,
     setCanvasBg,
     layers,
-    useAnnotation,
-    setUseAnnotation,
     annotations,
     setCurrentTime,
   } = useUnifiedEngine();
@@ -77,20 +65,8 @@ export const WhiteboardEditorPanel: React.FC<WhiteboardEditorPanelProps> = ({
           onAnimStyleChange={setAnimStyle}
           handStyle={handStyle}
           onHandStyleChange={setHandStyle}
-          revealSpeed={revealSpeed}
-          onRevealSpeedChange={setRevealSpeed}
-          handSpeed={handSpeed}
-          onHandSpeedChange={setHandSpeed}
-          chunks={chunks}
-          onChunksChange={setChunks}
-          aspectRatio={aspectRatio}
-          onAspectRatioChange={setAspectRatio}
-          resolution={resolution}
-          onResolutionChange={setResolution}
           activeTab={sidebarTab}
           onActiveTabChange={setSidebarTab}
-          useAnnotation={useAnnotation}
-          onToggleAnnotation={setUseAnnotation}
           annotations={annotations}
           onGenerateAnimation={togglePlay}
         />
@@ -105,11 +81,9 @@ export const WhiteboardEditorPanel: React.FC<WhiteboardEditorPanelProps> = ({
           animStyleLabel={animStyle.toUpperCase()}
           isPlaying={isPlaying}
           progress={progress}
-          useAnnotation={useAnnotation}
           onTogglePlay={togglePlay}
           onResetAnimation={resetAnimation}
           onOpenAnnotate={() => {
-            setUseAnnotation(!useAnnotation);
             setSidebarTab('annotation');
           }}
         />
@@ -119,7 +93,6 @@ export const WhiteboardEditorPanel: React.FC<WhiteboardEditorPanelProps> = ({
           canvasBg={canvasBg}
           onCanvasBgChange={setCanvasBg}
           layers={layers}
-          onLayersChange={setLayers}
         />
       </div>
 

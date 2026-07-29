@@ -78,6 +78,7 @@ export interface PreviewPlayerProps {
   whiteboardCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   whiteboardHandCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   whiteboardAnnotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  whiteboardAspectRatio?: "16:9" | "9:16" | "1:1";
   onCancelRender: () => void;
   onPlay: () => void;
   onSeek: (time: number) => void;
@@ -89,6 +90,25 @@ export interface PreviewPlayerProps {
   onToggleCinemaMode: () => void;
   onLoadFFmpeg: () => void;
   onRenderPreview: () => void;
+}
+
+function computeCanvasSize(
+  aspectRatio: "16:9" | "9:16" | "1:1" = "16:9"
+): { width: number; height: number } {
+  // Base size: 1280×720 for 16:9, scaled to other ratios
+  const baseWidth = 1280;
+  const baseHeight = 720;
+
+  if (aspectRatio === "9:16") {
+    // Portrait: maintain width, scale height
+    return { width: baseWidth, height: Math.round((baseWidth * 16) / 9) };
+  }
+  if (aspectRatio === "1:1") {
+    // Square: use minimum dimension
+    return { width: baseWidth, height: baseWidth };
+  }
+  // 16:9 landscape (default)
+  return { width: baseWidth, height: baseHeight };
 }
 
 export const PreviewPlayer = memo(function PreviewPlayer({
@@ -116,6 +136,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
   whiteboardCanvasRef,
   whiteboardHandCanvasRef,
   whiteboardAnnotationCanvasRef,
+  whiteboardAspectRatio = "16:9",
   onPlay,
   onLoadFFmpeg,
   onTogglePlay,
@@ -129,6 +150,8 @@ export const PreviewPlayer = memo(function PreviewPlayer({
 }: PreviewPlayerProps) {
   const [isSavingFrame, setIsSavingFrame] = useState(false);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  const whiteboardSize = computeCanvasSize(whiteboardAspectRatio);
   const [containerSize, setContainerSize] = useState({
     width: 1920,
     height: 1080,
@@ -295,23 +318,23 @@ export const PreviewPlayer = memo(function PreviewPlayer({
             <div className="absolute inset-0 w-full h-full bg-black z-20 flex items-center justify-center overflow-hidden">
               <canvas
                 ref={whiteboardCanvasRef as React.RefObject<HTMLCanvasElement>}
-                width={1920}
-                height={1080}
+                width={whiteboardSize.width}
+                height={whiteboardSize.height}
                 className="w-full h-full object-contain absolute inset-0 z-10"
               />
               {whiteboardHandCanvasRef && (
                 <canvas
                   ref={whiteboardHandCanvasRef as React.RefObject<HTMLCanvasElement>}
-                  width={1920}
-                  height={1080}
+                  width={whiteboardSize.width}
+                  height={whiteboardSize.height}
                   className="w-full h-full object-contain absolute inset-0 z-20 pointer-events-none"
                 />
               )}
               {whiteboardAnnotationCanvasRef && (
                 <canvas
                   ref={whiteboardAnnotationCanvasRef as React.RefObject<HTMLCanvasElement>}
-                  width={1920}
-                  height={1080}
+                  width={whiteboardSize.width}
+                  height={whiteboardSize.height}
                   className="w-full h-full object-contain absolute inset-0 z-30 pointer-events-none"
                 />
               )}
