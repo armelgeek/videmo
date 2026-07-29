@@ -11,6 +11,8 @@ import { rectContenu, reprojeterRegion, type RectContenu } from '../canvas-size'
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { normalizeGaps } from '../timeline/normalize-gaps';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
+import { computeAudioDelta } from './audio-delta';
+import { useAudioClock } from '../audio/use-audio-clock';
 
 const AnimationFactory = require('../lib/index');
 const { CUSTOM_HANDS } = require('../lib/hands');
@@ -64,6 +66,9 @@ export interface UseWhiteboardRendererProps {
   canvasHeight: number;
   handCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   annotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  /** Narration URL. When set, the audio clock drives engine timing instead
+   *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
+  audioUrl?: string | null;
 }
 
 export function useWhiteboardRenderer({
@@ -72,6 +77,7 @@ export function useWhiteboardRenderer({
   canvasHeight,
   handCanvasRef,
   annotationCanvasRef,
+  audioUrl = null,
 }: UseWhiteboardRendererProps) {
   const {
     progress,
@@ -105,6 +111,10 @@ export function useWhiteboardRenderer({
   // Dernier currentTime ECRIT par le moteur. Sert a distinguer un seek de
   // l'utilisateur d'une simple progression de lecture.
   const engineTimeRef = useRef(0);
+  const audioClock = useAudioClock(audioUrl);
+  // Last audio-clock reading consumed by the rAF loop. Distinct from
+  // engineTimeRef, which tracks what the engine itself has rendered to.
+  const lastAudioMsRef = useRef(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   // Vrai pendant qu'on scrube. Le seek ne "joue" pas — isPlaying reste faux —
   // mais l'utilisateur regarde le dessin, pas les cadres : le calque doit
@@ -401,11 +411,40 @@ export function useWhiteboardRenderer({
 
     stoppedRef.current = false;
     let last = performance.now();
+    const manager = audioClock.manager;
+    if (manager) {
+      lastAudioMsRef.current = manager.getCurrentMs();
+    }
     const step = (now: number) => {
       if (stoppedRef.current) return;
-      const delta = Math.min(100, now - last);
+
+      if (manager) {
+        const audioNowMs = manager.getCurrentMs();
+        const { deltaMs, nextLastAudioMs, needsResync, resyncTargetMs } =
+          computeAudioDelta({
+            audioNowMs,
+            lastAudioMs: lastAudioMsRef.current,
+            engineTimeMs: engineTimeRef.current,
+          });
+        lastAudioMsRef.current = nextLastAudioMs;
+
+        if (needsResync) {
+          // Re-sync via the existing bounded seek path: writing currentTime
+          // through the store re-triggers the seek effect below, which
+          // replays only the active region (14-34ms), not the whole timeline.
+          useUnifiedEngineStore.getState().setCurrentTime(resyncTargetMs);
+        } else if (deltaMs > 0) {
+          animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, deltaMs);
+          engineTimeRef.current += deltaMs;
+        }
+      } else {
+        // No audio loaded: fall back to wall-clock timing, unchanged from
+        // before this task.
+        const delta = Math.min(100, now - last);
+        animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
+      }
+
       last = now;
-      animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
       if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
@@ -415,7 +454,7 @@ export function useWhiteboardRenderer({
       stoppedRef.current = true;
       cancelAnimationFrame(frame);
     };
-  }, [isPlaying, imageLoaded]);
+  }, [isPlaying, imageLoaded, audioClock.manager]);
 
   // ---- seek ---------------------------------------------------------------
 
