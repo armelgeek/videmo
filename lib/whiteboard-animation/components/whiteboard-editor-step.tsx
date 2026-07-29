@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import { WhiteboardConfigPanel } from './whiteboard-config-panel';
+import { AudioPanel } from './audio-panel';
 import { Button } from '@/components/ui/button';
 import { RotateCcw } from 'lucide-react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
@@ -159,6 +160,8 @@ export function WhiteboardEditorStep({
             if (updates.canvasBg) setCanvasBg(updates.canvasBg);
           }}
         />
+
+        <AudioPanel />
 
         {/* Navigation Buttons */}
         <div className="flex gap-2 sticky bottom-0 bg-background pt-4 border-t">
