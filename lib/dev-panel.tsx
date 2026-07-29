@@ -60,6 +60,7 @@ export function DevPanel({
   };
 
   const session = loadSession();
+  const masterData = storyboardData?.storyboard?.masterData;
 
   if (!isOpen) {
     return (

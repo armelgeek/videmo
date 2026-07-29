@@ -33,6 +33,8 @@ export function PanelProcessor({
   const [regenerating, setRegenerating] = useState<number[]>([]);
   const processingRef = useRef(false);
 
+  const panelCount = storyboard?.clipOutlines?.length || 0;
+
   const extractPanel = async (index: number): Promise<string | null> => {
     const row = Math.floor(index / 3) + 1;
     const col = (index % 3) + 1;

@@ -7,7 +7,7 @@ import { getZoomConfig } from "../utils/timeline-scale"
 interface TimelineRulerProps {
   duration: number
   zoomLevel: number
-  scrollContainerRef: React.RefObject<HTMLDivElement>
+  scrollContainerRef: React.RefObject<HTMLDivElement | null>
   onClick?: (time: number) => void
 }
 
