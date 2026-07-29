@@ -38,11 +38,14 @@ export interface TimelineClip {
 export interface WhiteboardConfig {
   animStyle: string;
   handStyle: string;
-  revealSpeed: number;
-  handSpeed: number;
-  chunks: number;
   canvasBg: string;
-  useAnnotation: boolean;
+  // Legacy fields kept for backward compatibility with saved projects.
+  // These are ignored at runtime but preserved when loading old projects.
+  // Zustand merges persisted state, so old projects won't break.
+  revealSpeed?: number;
+  handSpeed?: number;
+  chunks?: number;
+  useAnnotation?: boolean;
   // Ni aspectRatio ni resolution ici : le ratio appartient a projectParams
   // (choisi des l'etape Prompt, une seule source), et la resolution est un
   // choix d'EXPORT — l'apercu rend toujours au petit cote 720.
@@ -101,11 +104,7 @@ const DEFAULT_PROJECT_PARAMS: ProjectParams = {
 const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
   animStyle: "chunkjump",
   handStyle: "custom1",
-  revealSpeed: 40,
-  handSpeed: 6,
-  chunks: 30,
   canvasBg: "white",
-  useAnnotation: true,
   annotations: [],
   annotationConfig: DEFAULT_ANNOTATION_CONFIG,
 };
@@ -310,7 +309,9 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
         storyboardPanels: state.storyboardPanels,
         selectedVoice: state.selectedVoice,
         whiteboardConfig: {
-          ...state.whiteboardConfig,
+          animStyle: state.whiteboardConfig.animStyle,
+          handStyle: state.whiteboardConfig.handStyle,
+          canvasBg: state.whiteboardConfig.canvasBg,
           annotations: state.whiteboardConfig.annotations,
           annotationConfig: state.whiteboardConfig.annotationConfig,
         },
