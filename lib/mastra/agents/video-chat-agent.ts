@@ -19,5 +19,5 @@ When extracting parameters:
 - Language: Detect from context or ask if unclear
 
 Always be helpful and suggest reasonable defaults.`,
-  model: "gpt-4o",
+  model: "openai/gpt-4o",
 });
