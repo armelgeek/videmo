@@ -188,11 +188,11 @@ export function VideoChatPro() {
           content: "🎬 Generating your video... This may take a few minutes.",
         });
       } else {
-        // Continue conversation
+        // Continue conversation with options
         addMessage({
           role: "assistant",
           content: data.response,
-          options: data.nextStep?.options,
+          options: data.nextStep?.options || data.options,
         });
       }
     } catch (error) {
