@@ -1,9 +1,5 @@
-import { VideoChat } from "@/components/video-generation/video-chat";
+import { VideoChatPro } from "@/components/video-generation/video-chat-pro";
 
 export default function VideoChatPage() {
-  return (
-    <div className="h-screen">
-      <VideoChat />
-    </div>
-  );
+  return <VideoChatPro />;
 }
