@@ -13,13 +13,31 @@ const LANGUAGES = [
   "en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl",
   "cs", "ar", "zh", "ja", "ko", "hi",
 ];
+const NARRATORS = [
+  "david", "sarah", "michael", "emma", "james", "sophia", "alex", "oliver"
+];
+
+type ConversationStep =
+  | "collecting-params"
+  | "params-complete"
+  | "generating-script"
+  | "validating-script"
+  | "generating-storyboard"
+  | "validating-storyboard"
+  | "generating-images"
+  | "choosing-narrator"
+  | "generating-video";
 
 type ConversationState = {
+  step?: ConversationStep;
   content?: string;
   format?: string;
   style?: string;
   aspectRatio?: string;
   language?: string;
+  script?: string;
+  storyboard?: string;
+  narrator?: string;
 };
 
 // Store conversation history per session
@@ -46,120 +64,258 @@ export async function POST(request: NextRequest) {
     }
 
     // Get or create conversation state
-    const state = conversationHistory.get(sessionId) || {};
+    let state = conversationHistory.get(sessionId) || {
+      step: "collecting-params",
+    };
 
-    // First message - extract content
-    if (!state.content) {
-      state.content = message;
+    // ===== STEP 1: Collect Parameters =====
+    if (!state.step || state.step === "collecting-params") {
+      // First message - extract content
+      if (!state.content) {
+        state.content = message;
+        state.step = "collecting-params";
+        conversationHistory.set(sessionId, state);
+
+        return NextResponse.json({
+          complete: false,
+          response: `Perfect! I'll help you create a video about: "${message}"\n\nNow, what format would you like?`,
+          currentParams: state,
+          nextStep: {
+            field: "format",
+            options: FORMATS,
+          },
+        });
+      }
+
+      // Call agent to extract parameter
+      const nextParam = getNextParameter(state);
+
+      if (!nextParam) {
+        // All params collected - move to next step
+        state.step = "params-complete";
+        conversationHistory.set(sessionId, state);
+
+        return NextResponse.json({
+          complete: false,
+          response: `Excellent! All parameters set:
+• Format: ${state.format}
+• Style: ${state.style}
+• Aspect Ratio: ${state.aspectRatio}
+• Language: ${state.language}
+
+Now I'll generate your script. This may take a moment...`,
+          currentParams: state,
+          step: "params-complete",
+        });
+      }
+
+      // Extract the parameter value using agent
+      const agentResult = await videoChatAgent.generate(
+        `User: "${message}"
+State: ${JSON.stringify(state)}
+Collect: ${nextParam}
+Valid: ${
+          nextParam === "format"
+            ? FORMATS.join(", ")
+            : nextParam === "style"
+              ? STYLES.join(", ")
+              : nextParam === "aspectRatio"
+                ? ASPECT_RATIOS.join(", ")
+                : LANGUAGES.join(", ")
+        }
+Respond ONLY the valid option value.`
+      );
+
+      const extractedValue = agentResult.text.trim().toLowerCase();
+      const validOptions =
+        nextParam === "format"
+          ? FORMATS
+          : nextParam === "style"
+            ? STYLES
+            : nextParam === "aspectRatio"
+              ? ASPECT_RATIOS
+              : LANGUAGES;
+
+      const normalizedValue = validOptions.find(
+        (opt) => opt.toLowerCase() === extractedValue
+      );
+
+      if (!normalizedValue) {
+        return NextResponse.json({
+          complete: false,
+          response: `I didn't catch that. Please choose: ${validOptions.join(", ")}`,
+          currentParams: state,
+          nextStep: {
+            field: nextParam,
+            options: validOptions,
+          },
+        });
+      }
+
+      (state as any)[nextParam] = normalizedValue;
       conversationHistory.set(sessionId, state);
 
-      // Ask for format
+      const nextStep = getNextParameter(state);
+      const stepQuestions: Record<string, string> = {
+        format: "Choose format: explainer or brief?",
+        style: `Pick a style: ${STYLES.slice(0, 6).join(", ")} ...`,
+        aspectRatio: "Pick ratio: 16:9 or 9:16?",
+        language: `Pick language: ${LANGUAGES.slice(0, 6).join(", ")} ...`,
+      };
+
       return NextResponse.json({
         complete: false,
-        response: `Perfect! I'll help you create a video about: "${message}"\n\nNow, what format would you like?`,
+        response: `✓ ${nextParam}: **${normalizedValue}**\n\n${nextStep ? stepQuestions[nextStep] : ""}`,
         currentParams: state,
+        nextStep: nextStep
+          ? {
+              field: nextStep,
+              options:
+                nextStep === "format"
+                  ? FORMATS
+                  : nextStep === "style"
+                    ? STYLES
+                    : nextStep === "aspectRatio"
+                      ? ASPECT_RATIOS
+                      : LANGUAGES,
+            }
+          : null,
+      });
+    }
+
+    // ===== STEP 2: Generate Script =====
+    if (state.step === "params-complete") {
+      state.step = "generating-script";
+      state.script = `[Script for ${state.format} video about ${(state.content || "").substring(0, 50)}...]`;
+      conversationHistory.set(sessionId, state);
+
+      return NextResponse.json({
+        complete: false,
+        response: `📝 Script generated! Preview:\n\n${state.script}\n\nDoes this script work for you?`,
+        currentParams: state,
+        step: "validating-script",
         nextStep: {
-          field: "format",
-          options: FORMATS,
-          question: "Choose format: explainer or brief?",
+          field: "validate-script",
+          options: ["yes", "regenerate"],
         },
       });
     }
 
-    // Call Mastra agent to intelligently extract the parameter
-    const nextParam = getNextParameter(state);
+    // ===== STEP 3: Validate & Generate Storyboard =====
+    if (state.step === "validating-script") {
+      if (message.toLowerCase() !== "yes" && message.toLowerCase() !== "regenerate") {
+        return NextResponse.json({
+          complete: false,
+          response: `Please say "yes" to approve or "regenerate" to try again.`,
+          currentParams: state,
+          nextStep: {
+            field: "validate-script",
+            options: ["yes", "regenerate"],
+          },
+        });
+      }
 
-    if (!nextParam) {
-      return NextResponse.json({
-        complete: true,
-        params: state,
-        response: `Perfect! All parameters set. Generating your video...`,
-      });
-    }
+      if (message.toLowerCase() === "regenerate") {
+        // In a real scenario, regenerate the script
+        state.script = `[Regenerated script...]`;
+        return NextResponse.json({
+          complete: false,
+          response: `📝 New script:\n\n${state.script}\n\nBetter?`,
+          currentParams: state,
+          nextStep: {
+            field: "validate-script",
+            options: ["yes", "regenerate"],
+          },
+        });
+      }
 
-    // Use agent to interpret the user input for the current parameter
-    const agentResult = await videoChatAgent.generate(
-      `User message: "${message}"
-Current conversation state: ${JSON.stringify(state)}
-We're currently collecting: ${nextParam}
+      // Approved - move to storyboard
+      state.step = "validating-storyboard";
+      state.storyboard = `[Storyboard frames for ${state.style} style...]`;
+      conversationHistory.set(sessionId, state);
 
-Valid options for ${nextParam}:
-${nextParam === "format"
-  ? FORMATS.join(", ")
-  : nextParam === "style"
-    ? STYLES.join(", ")
-    : nextParam === "aspectRatio"
-      ? ASPECT_RATIOS.join(", ")
-      : LANGUAGES.join(", ")
-}
-
-Extract what the user is trying to set for ${nextParam}. Respond with ONLY the valid option value (e.g., "anime", "16:9", "en"). If the user input is ambiguous or doesn't match any option, suggest the best match or ask for clarification.`
-    );
-
-    const extractedValue = agentResult.text.trim().toLowerCase();
-
-    // Validate the extracted value
-    const validOptions =
-      nextParam === "format"
-        ? FORMATS
-        : nextParam === "style"
-          ? STYLES
-          : nextParam === "aspectRatio"
-            ? ASPECT_RATIOS
-            : LANGUAGES;
-
-    const normalizedValue = validOptions.find(
-      (opt) => opt.toLowerCase() === extractedValue
-    );
-
-    if (!normalizedValue) {
       return NextResponse.json({
         complete: false,
-        response: `I didn't quite understand. Could you clarify your choice for ${nextParam}?\n\nAvailable options: ${validOptions.join(", ")}`,
+        response: `🎨 Storyboard created in ${state.style} style!\n\n${state.storyboard}\n\nApprove this storyboard?`,
         currentParams: state,
+        nextStep: {
+          field: "validate-storyboard",
+          options: ["yes", "regenerate"],
+        },
       });
     }
 
-    // Update state with the new parameter
-    state[nextParam as keyof ConversationState] = normalizedValue;
-    conversationHistory.set(sessionId, state);
+    // ===== STEP 4: Validate Storyboard =====
+    if (state.step === "validating-storyboard") {
+      if (message.toLowerCase() !== "yes" && message.toLowerCase() !== "regenerate") {
+        return NextResponse.json({
+          complete: false,
+          response: `Please say "yes" to approve or "regenerate".`,
+          nextStep: {
+            field: "validate-storyboard",
+            options: ["yes", "regenerate"],
+          },
+        });
+      }
 
-    // Check if all parameters are collected
-    const nextStep = getNextParameter(state);
+      if (message.toLowerCase() === "regenerate") {
+        state.storyboard = `[Regenerated storyboard...]`;
+        return NextResponse.json({
+          complete: false,
+          response: `🎨 New storyboard ready. Looks good?`,
+          nextStep: {
+            field: "validate-storyboard",
+            options: ["yes", "regenerate"],
+          },
+        });
+      }
 
-    if (!nextStep) {
+      // Approved - move to narrator choice
+      state.step = "choosing-narrator";
+      conversationHistory.set(sessionId, state);
+
+      return NextResponse.json({
+        complete: false,
+        response: `🎤 Great! Now choose a narrator voice for your ${state.language} video.`,
+        currentParams: state,
+        nextStep: {
+          field: "narrator",
+          options: NARRATORS,
+        },
+      });
+    }
+
+    // ===== STEP 5: Choose Narrator =====
+    if (state.step === "choosing-narrator") {
+      const validNarrators = NARRATORS;
+      const normalizedNarrator = validNarrators.find(
+        (n) => n.toLowerCase() === message.toLowerCase()
+      );
+
+      if (!normalizedNarrator) {
+        return NextResponse.json({
+          complete: false,
+          response: `Please choose a narrator: ${validNarrators.join(", ")}`,
+          nextStep: {
+            field: "narrator",
+            options: validNarrators,
+          },
+        });
+      }
+
+      state.narrator = normalizedNarrator;
+      state.step = "generating-video";
+      conversationHistory.set(sessionId, state);
+
       return NextResponse.json({
         complete: true,
         params: state,
-        response: `Excellent! All set. Ready to create your video with these parameters:`,
+        response: `Perfect! Ready to generate your final video with narrator: **${normalizedNarrator}**.`,
       });
     }
 
-    // Ask for next parameter
-    const questionText =
-      nextStep === "format"
-        ? "What format would you like? (explainer or brief)"
-        : nextStep === "style"
-          ? `What visual style? Options: ${STYLES.join(", ")}`
-          : nextStep === "aspectRatio"
-            ? "What aspect ratio? (16:9 for widescreen or 9:16 for vertical)"
-            : `What language for narration? (${LANGUAGES.join(", ")})`;
-
     return NextResponse.json({
-      complete: false,
-      response: `Great! ${nextParam} set to: **${normalizedValue}**\n\n${questionText}`,
-      currentParams: state,
-      nextStep: {
-        field: nextStep,
-        options:
-          nextStep === "format"
-            ? FORMATS
-            : nextStep === "style"
-              ? STYLES
-              : nextStep === "aspectRatio"
-                ? ASPECT_RATIOS
-                : LANGUAGES,
-      },
+      error: "Unknown state",
     });
   } catch (error) {
     console.error("Chat error:", error);
