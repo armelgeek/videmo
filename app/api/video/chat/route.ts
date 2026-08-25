@@ -91,21 +91,24 @@ export async function POST(request: NextRequest) {
       const nextParam = getNextParameter(state);
 
       if (!nextParam) {
-        // All params collected - move to next step
+        // All params collected - update step and show summary with continue button
         state.step = "params-complete";
         conversationHistory.set(sessionId, state);
 
         return NextResponse.json({
           complete: false,
-          response: `Excellent! All parameters set:
+          response: `Perfect! All parameters are set:
 • Format: ${state.format}
 • Style: ${state.style}
 • Aspect Ratio: ${state.aspectRatio}
 • Language: ${state.language}
 
-Now I'll generate your script. This may take a moment...`,
+Ready to generate your script?`,
           currentParams: state,
-          step: "params-complete",
+          nextStep: {
+            field: "proceed",
+            options: ["continue"],
+          },
         });
       }
 
