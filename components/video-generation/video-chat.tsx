@@ -103,11 +103,12 @@ export function VideoChat() {
       // First time - extract and confirm params
       if (Object.keys(params).length === 0) {
         // Parse user input to extract content
-        setParams({ content: input });
+        const newParams = { content: input };
+        setParams(newParams);
 
         addMessage({
           role: "assistant",
-          content: "Great! Let me help you create this video. I need a few more details:",
+          content: "Great! I'll help you create this video. Let me gather a few details...",
           type: "text",
         });
 
@@ -123,7 +124,7 @@ export function VideoChat() {
               current: "explainer",
             },
           });
-        }, 500);
+        }, 300);
       }
     } catch (error) {
       toast.error(
@@ -172,13 +173,16 @@ export function VideoChat() {
     currentParams: Partial<VideoGenerationRequest>
   ) => {
     if (!currentParams.format) {
-      return { field: "format", question: "select a visual style", options: STYLES };
+      return { field: "format", question: "What format would you like?", options: FORMATS };
     }
     if (!currentParams.style) {
-      return { field: "style", question: "choose an aspect ratio (16:9 or 9:16)?", options: ASPECT_RATIOS };
+      return { field: "style", question: "Which visual style?", options: STYLES };
     }
     if (!currentParams.aspectRatio) {
-      return { field: "aspectRatio", question: "what language for narration?", options: LANGUAGES };
+      return { field: "aspectRatio", question: "Choose an aspect ratio (16:9 widescreen or 9:16 vertical)?", options: ASPECT_RATIOS };
+    }
+    if (!currentParams.language) {
+      return { field: "language", question: "What language for narration?", options: LANGUAGES };
     }
     return null;
   };
@@ -193,7 +197,7 @@ export function VideoChat() {
   };
 
   const handleConfirmGenerate = async () => {
-    if (Object.keys(params).length < 4) {
+    if (!params.content || !params.format || !params.style || !params.aspectRatio || !params.language) {
       toast.error("Please complete all parameters");
       return;
     }
@@ -205,10 +209,10 @@ export function VideoChat() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: params.content,
-          format: params.format || "explainer",
-          style: params.style || "anime",
-          aspectRatio: params.aspectRatio || "16:9",
-          language: params.language || "en",
+          format: params.format,
+          style: params.style,
+          aspectRatio: params.aspectRatio,
+          language: params.language,
         } as VideoGenerationRequest),
       });
 
