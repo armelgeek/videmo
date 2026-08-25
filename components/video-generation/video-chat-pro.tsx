@@ -13,10 +13,24 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  isStreaming?: boolean;
+  displayContent?: string;
   params?: Record<string, string>;
   isThinking?: boolean;
+  options?: string[];
 };
+
+const FORMATS = ["explainer", "brief"];
+const STYLES = [
+  "watercolor", "anime", "retro", "whiteboard", "classic", "cinematic",
+  "isometric", "flat", "comic", "neon", "oil", "sketch", "papercut", "popart",
+  "storybook", "pixel", "minimalist", "infographic", "documentary", "gothic",
+  "pastel", "3b1b", "corporate", "presentation", "tech",
+];
+const ASPECT_RATIOS = ["16:9", "9:16"];
+const LANGUAGES = [
+  "en", "es", "fr", "de", "it", "pt", "pl", "tr", "ru", "nl",
+  "cs", "ar", "zh", "ja", "ko", "hi",
+];
 
 export function VideoChatPro() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -26,10 +40,35 @@ export function VideoChatPro() {
   const [progress, setProgress] = useState<GenerationProgress | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Typing effect for assistant messages
+  useEffect(() => {
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== "assistant" || lastMsg.isThinking || lastMsg.displayContent === lastMsg.content) {
+      return;
+    }
+
+    const nextIndex = (lastMsg.displayContent?.length ?? 0) + 1;
+    typingTimeoutRef.current = setTimeout(() => {
+      setMessages((prev) => {
+        const updated = [...prev];
+        const lastMessage = updated[updated.length - 1];
+        if (lastMessage && lastMessage.role === "assistant") {
+          lastMessage.displayContent = lastMessage.content.slice(0, nextIndex);
+        }
+        return updated;
+      });
+    }, 20);
+
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
   }, [messages]);
 
   // Poll progress
@@ -47,13 +86,19 @@ export function VideoChatPro() {
           data.progress.status === "error"
         ) {
           clearInterval(interval);
-          addMessage({
-            role: "assistant",
-            content:
-              data.progress.status === "completed"
-                ? "✨ Your video is ready! Here it is:"
-                : "❌ Generation failed: " + (data.progress.error || "Unknown error"),
-          });
+          const finalContent =
+            data.progress.status === "completed"
+              ? "✨ Your video is ready! Here it is:"
+              : "❌ Generation failed: " + (data.progress.error || "Unknown error");
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now().toString(),
+              role: "assistant",
+              content: finalContent,
+              displayContent: finalContent,
+            },
+          ]);
         }
       } catch (error) {
         console.error("Progress polling error:", error);
@@ -63,11 +108,29 @@ export function VideoChatPro() {
   }, [jobId]);
 
   const addMessage = (msg: Omit<Message, "id">) => {
-    setMessages((prev) => [...prev, { ...msg, id: Date.now().toString() }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        ...msg,
+        id: Date.now().toString(),
+        displayContent: msg.role === "user" ? msg.content : "",
+      },
+    ]);
+  };
+
+  const handleOptionClick = async (option: string) => {
+    addMessage({ role: "user", content: option });
+    setIsLoading(true);
+
+    try {
+      await streamResponse(option);
+    } finally {
+      setIsLoading(false);
+      inputRef.current?.focus();
+    }
   };
 
   const streamResponse = async (userMessage: string) => {
-    // Add assistant thinking state with marker
     const thinkingMarker = `__thinking_${Date.now()}__`;
     setMessages((prev) => [
       ...prev,
@@ -75,6 +138,7 @@ export function VideoChatPro() {
         id: thinkingMarker,
         role: "assistant" as const,
         content: "",
+        displayContent: "",
         isThinking: true,
       },
     ]);
@@ -128,7 +192,7 @@ export function VideoChatPro() {
         addMessage({
           role: "assistant",
           content: data.response,
-          params: data.currentParams,
+          options: data.nextStep?.options,
         });
       }
     } catch (error) {
@@ -193,7 +257,7 @@ export function VideoChatPro() {
               }`}
             >
               {msg.role === "assistant" && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-none">
                   <Sparkles className="w-4 h-4 text-primary" />
                 </div>
               )}
@@ -212,12 +276,17 @@ export function VideoChatPro() {
                   </div>
                 ) : (
                   <>
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    <p className="whitespace-pre-wrap">
+                      {msg.displayContent ?? msg.content}
+                      {msg.displayContent !== msg.content && (
+                        <span className="animate-pulse">▌</span>
+                      )}
+                    </p>
 
                     {msg.params && (
                       <div className="mt-3 pt-3 border-t border-current/20 space-y-2">
                         <p className="text-xs font-medium opacity-70">
-                          Selected parameters:
+                          Selected:
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {Object.entries(msg.params).map(([key, value]) => (
@@ -261,8 +330,8 @@ export function VideoChatPro() {
               </div>
 
               {msg.role === "user" && (
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-sm font-medium">You</span>
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-none text-xs font-medium">
+                  You
                 </div>
               )}
             </div>
@@ -271,6 +340,39 @@ export function VideoChatPro() {
           <div ref={messagesEndRef} />
         </div>
       </div>
+
+      {/* Options - toujours visibles */}
+      {!jobId && messages.length > 0 && (
+        <div className="border-t p-4 bg-muted/50">
+          <div className="max-w-4xl mx-auto space-y-2">
+            {(() => {
+              const lastMsg = messages[messages.length - 1];
+              if (lastMsg?.role !== "assistant" || !lastMsg?.options) return null;
+
+              const optionsToShow = lastMsg.options.slice(0, 6);
+              return (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Choose an option:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {optionsToShow.map((opt) => (
+                      <Button
+                        key={opt}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOptionClick(opt)}
+                        disabled={isLoading}
+                        className="text-xs"
+                      >
+                        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Input */}
       {!jobId && (
@@ -281,8 +383,8 @@ export function VideoChatPro() {
                 ref={inputRef}
                 placeholder={
                   messages.length === 0
-                    ? "E.g., Create a 2-minute video about quantum computing in anime style..."
-                    : "Continue the conversation..."
+                    ? "E.g., Create a 2-minute video about quantum computing..."
+                    : "Or type your response..."
                 }
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
