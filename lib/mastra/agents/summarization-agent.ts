@@ -1,6 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 
 export const summarizationAgent = new Agent({
+  id: "summarization-agent",
   name: "Summarization Agent",
   instructions: `You are a context compaction specialist for video generation. Your summaries enable future clips to maintain perfect continuity.
 

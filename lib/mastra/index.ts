@@ -12,7 +12,7 @@ import { videoGenerationWorkflow } from './workflows/video-generation-workflow';
 
 
 export const mastra = new Mastra({
-  workflows: { weatherWorkflow, videoGenerationWorkflow },
+  workflows: { weatherWorkflow },
   agents: { weatherAgent, videoChatAgent, storyboardAgent, scriptEnhancerAgent, summarizationAgent },
   storage: new LibSQLStore({
     id: "mastra-storage",

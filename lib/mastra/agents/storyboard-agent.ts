@@ -1,6 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 
 export const storyboardAgent = new Agent({
+  id: "storyboard-agent",
   name: "Storyboard Agent",
   instructions: `You are an expert video storyboard creator for educational content. Your primary goal is to create cohesive, visually consistent videos that tell a compelling story.
 

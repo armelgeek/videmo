@@ -1,6 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 
 export const scriptEnhancerAgent = new Agent({
+  id: "script-enhancer-agent",
   name: "Script Enhancer Agent",
   instructions: `You are an AI assistant specializing in enhancing narration scripts for PROFESSIONAL VIDEO PRODUCTION with text-to-speech.
 

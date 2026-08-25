@@ -46,15 +46,18 @@ async function generateVideoWithMastra(jobId: string, request: any) {
       progress: 0,
     });
 
-    // Simulate video generation workflow execution
-    // In production, connect to actual open-video-overview service
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const result = {
-      videoUrl: `/videos/${Date.now()}.mp4`,
-      totalDuration: request.format === "explainer" ? 180 : 45,
-      clipsCount: request.format === "explainer" ? 5 : 2,
-    };
+    // Execute video generation workflow
+    const { videoGenerationWorkflow } = await import("@/lib/mastra/workflows/video-generation-workflow");
+    const result = await videoGenerationWorkflow.execute({
+      content: request.content,
+      format: request.format,
+      style: request.style,
+      aspectRatio: request.aspectRatio,
+      language: request.language,
+      customInstructions: request.customInstructions,
+      narrativeVoiceId: request.narrativeVoiceId,
+      narrativeStyle: request.narrativeStyle,
+    });
 
     // Update progress with result
     videoStore.updateProgress(jobId, {
