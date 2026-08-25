@@ -5,12 +5,15 @@ import { Observability, MastraStorageExporter, MastraPlatformExporter, Sensitive
 import { weatherWorkflow } from './workflows/weather-workflow';
 import { weatherAgent } from './agents/weather-agent';
 import { videoChatAgent } from './agents/video-chat-agent';
+import { storyboardAgent } from './agents/storyboard-agent';
+import { scriptEnhancerAgent } from './agents/script-enhancer-agent';
+import { summarizationAgent } from './agents/summarization-agent';
 import { videoGenerationWorkflow } from './workflows/video-generation-workflow';
 
 
 export const mastra = new Mastra({
   workflows: { weatherWorkflow, videoGenerationWorkflow },
-  agents: { weatherAgent, videoChatAgent },
+  agents: { weatherAgent, videoChatAgent, storyboardAgent, scriptEnhancerAgent, summarizationAgent },
   storage: new LibSQLStore({
     id: "mastra-storage",
     // Uses a hosted database when deployed (mastra env db create --kind turso),

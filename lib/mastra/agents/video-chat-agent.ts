@@ -1,4 +1,4 @@
-import { createAgent } from "@mastra/core/agents";
+import { Agent } from "@mastra/core/agent";
 import { z } from "zod";
 
 const videoGenerationParamsSchema = z.object({
@@ -64,7 +64,7 @@ const videoGenerationParamsSchema = z.object({
     .describe("Custom instructions for video generation"),
 });
 
-export const videoChatAgent = createAgent({
+export const videoChatAgent = new Agent({
   name: "videoChatAgent",
   instructions: `You are an intelligent video generation assistant. Your job is to:
 
@@ -82,7 +82,7 @@ When extracting parameters:
 - Language: Detect from context or ask if unclear
 
 Always be helpful and suggest reasonable defaults.`,
-  model: "claude-opus-5",
+  model: "gpt-4o",
   tools: [
     {
       id: "extract_video_params",

@@ -1,6 +1,6 @@
-import { createAgent } from "@mastra/core/agents";
+import { Agent } from "@mastra/core/agent";
 
-export const storyboardAgent = createAgent({
+export const storyboardAgent = new Agent({
   name: "Storyboard Agent",
   instructions: `You are an expert video storyboard creator for educational content. Your primary goal is to create cohesive, visually consistent videos that tell a compelling story.
 
@@ -71,5 +71,5 @@ Return a JSON object with:
     }
   ]
 }`,
-  model: "claude-opus-5",
+  model: "gpt-4o",
 });
