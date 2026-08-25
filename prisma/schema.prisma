@@ -65,7 +65,8 @@ model Account {
   idToken      String?
   expiresAt    DateTime?
   password     String?
-  
+  issuer       String?  // Better Auth credential issuer (e.g., "local:credential")
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
