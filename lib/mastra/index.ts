@@ -4,11 +4,13 @@ import { LibSQLStore } from '@mastra/libsql';
 import { Observability, MastraStorageExporter, MastraPlatformExporter, SensitiveDataFilter } from '@mastra/observability';
 import { weatherWorkflow } from './workflows/weather-workflow';
 import { weatherAgent } from './agents/weather-agent';
+import { videoChatAgent } from './agents/video-chat-agent';
+import { videoGenerationWorkflow } from './workflows/video-generation-workflow';
 
 
 export const mastra = new Mastra({
-  workflows: { weatherWorkflow },
-  agents: { weatherAgent },
+  workflows: { weatherWorkflow, videoGenerationWorkflow },
+  agents: { weatherAgent, videoChatAgent },
   storage: new LibSQLStore({
     id: "mastra-storage",
     // Uses a hosted database when deployed (mastra env db create --kind turso),
