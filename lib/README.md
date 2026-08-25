@@ -9,6 +9,7 @@ Core library modules for the application. Each subdirectory or module group has 
 - **[database/](./DATABASE.md)** - Database setup (Prisma, pg connection)
 - **[email/](./EMAIL.md)** - Email service & templating
 - **[config/](./CONFIG.md)** - Application configuration & environment variables
+- **[mastra/](./mastra/)** - AI agents, tools, and workflows (Mastra framework)
 - **[permissions/](./PERMISSIONS.md)** - Role-based access control (RBAC)
 - **[schemas/](./SCHEMAS.md)** - Zod validation schemas
 - **[security/](./SECURITY.md)** - Security utilities (rate limiting, audit logging)
