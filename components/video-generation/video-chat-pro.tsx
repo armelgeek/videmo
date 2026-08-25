@@ -59,7 +59,7 @@ export function VideoChatPro() {
       setMessages((prev) => {
         const updated = [...prev];
         const lastMessage = updated[updated.length - 1];
-        if (lastMessage && lastMessage.role === "assistant") {
+        if (lastMessage && lastMessage.role === "assistant" && lastMessage.content) {
           lastMessage.displayContent = lastMessage.content.slice(0, nextIndex);
         }
         return updated;
@@ -347,7 +347,7 @@ export function VideoChatPro() {
           <div className="max-w-4xl mx-auto space-y-2">
             {(() => {
               const lastMsg = messages[messages.length - 1];
-              if (lastMsg?.role !== "assistant" || !lastMsg?.options) return null;
+              if (lastMsg?.role !== "assistant" || !Array.isArray(lastMsg?.options)) return null;
 
               const optionsToShow = lastMsg.options.slice(0, 6);
               return (
