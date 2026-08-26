@@ -19,7 +19,7 @@ const waveformCache = new Map<string, WaveformData>()
  * Check if a URL is likely an audio file based on extension
  */
 function isLikelyAudioFile(url: string): boolean {
-  const audioExtensions = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac", ".webm"]
+  const audioExtensions = [".mp3", ".wav", ".ogg", ".aac", ".m4a", ".flac", ".webm", ".mp4"]
   const lowerUrl = url.toLowerCase()
   return audioExtensions.some((ext) => lowerUrl.includes(ext))
 }

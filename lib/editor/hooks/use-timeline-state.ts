@@ -7,6 +7,7 @@ import type { TimelineClip, Track, MediaItem, StoryboardPanel } from "../types"
 
 const INITIAL_TRACKS: Track[] = [
   { id: "v1", name: "Video 1", type: "video", volume: 1 },
+  { id: "a1", name: "Audio 1", type: "audio", volume: 1 },
 ]
 
 export interface UseTimelineStateOptions {
