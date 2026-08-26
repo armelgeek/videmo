@@ -123,44 +123,30 @@ export const TimelineToolbar = memo(function TimelineToolbar({
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="h-11 border-b border-[var(--border-default)] flex items-center justify-between px-4 bg-[var(--surface-0)] shrink-0 z-30 overflow-x-auto min-w-0 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="h-11 flex items-center justify-between px-4 bg-[var(--surface-0)] shrink-0 z-30 overflow-x-auto min-w-0 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="flex items-center gap-3 shrink-0">
           {onUndo && onRedo && (
             <>
               <div className="flex items-center gap-0.5 bg-[var(--hover-overlay)] rounded-md p-0.5 border border-[var(--border-default)]">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={`h-6 w-6 hover:bg-[var(--hover-overlay)] ${historyCount > 0 ? "text-[var(--text-primary)] hover:text-white" : "text-[var(--text-muted)] cursor-not-allowed"}`}
-                      onClick={onUndo}
-                      disabled={historyCount === 0}
-                    >
-                      <UndoIcon className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    Undo (Ctrl+Z) {historyCount > 0 && `• ${historyCount}`}
-                  </TooltipContent>
-                </Tooltip>
+                <Button
+                variant="ghost"
+                size="icon"
+                className={`h-6 w-6 hover:bg-[var(--hover-overlay)] ${historyCount > 0 ? "text-[var(--text-primary)] hover:text-white" : "text-[var(--text-muted)] cursor-not-allowed"}`}
+                onClick={onUndo}
+                disabled={historyCount === 0}
+              >
+                <UndoIcon className="h-3.5 w-3.5" />
+              </Button>
 
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={`h-6 w-6 hover:bg-[var(--hover-overlay)] ${futureCount > 0 ? "text-[var(--text-primary)] hover:text-white" : "text-[var(--text-muted)] cursor-not-allowed"}`}
-                      onClick={onRedo}
-                      disabled={futureCount === 0}
-                    >
-                      <RedoIcon className="h-3.5 w-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs">
-                    Redo (Ctrl+Shift+Z) {futureCount > 0 && `• ${futureCount}`}
-                  </TooltipContent>
-                </Tooltip>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-6 w-6 hover:bg-[var(--hover-overlay)] ${futureCount > 0 ? "text-[var(--text-primary)] hover:text-white" : "text-[var(--text-muted)] cursor-not-allowed"}`}
+                onClick={onRedo}
+                disabled={futureCount === 0}
+              >
+                <RedoIcon className="h-3.5 w-3.5" />
+              </Button>
               </div>
 
               <div className="h-4 w-px bg-[var(--border-default)]" />
@@ -168,95 +154,19 @@ export const TimelineToolbar = memo(function TimelineToolbar({
           )}
 
           <div className="flex items-center gap-0.5 bg-[var(--hover-overlay)] rounded-md p-0.5 border border-[var(--border-default)]">
-            {/* Jump to Start */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-[var(--text-tertiary)] hover:text-white hover:bg-[var(--hover-overlay)]"
-                  onClick={jumpToStart}
-                >
-                  <SkipBackIcon className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                Jump to Start (Home)
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Previous Frame */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-[var(--text-tertiary)] hover:text-white hover:bg-[var(--hover-overlay)]"
-                  onClick={() => stepFrame(-1)}
-                >
-                  <ChevronLeftIcon className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                Previous Frame (,)
-              </TooltipContent>
-            </Tooltip>
-
             {/* Play/Pause */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-white hover:bg-[var(--accent-bg-subtle)] hover:text-[var(--accent-text)]"
-                  onClick={onPlayPause}
-                >
-                  {isPlaying ? (
-                    <PauseIcon className="h-3.5 w-3.5" />
-                  ) : (
-                    <PlayIcon className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                {isPlaying ? "Pause (Space/K)" : "Play (Space/K)"}
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Next Frame */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-[var(--text-tertiary)] hover:text-white hover:bg-[var(--hover-overlay)]"
-                  onClick={() => stepFrame(1)}
-                >
-                  <ChevronRightIcon className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                Next Frame (.)
-              </TooltipContent>
-            </Tooltip>
-
-            {/* Jump to End */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-[var(--text-tertiary)] hover:text-white hover:bg-[var(--hover-overlay)]"
-                  onClick={jumpToEnd}
-                >
-                  <SkipForwardIcon className="h-3 w-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                Jump to End (End)
-              </TooltipContent>
-            </Tooltip>
-
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-white hover:bg-[var(--accent-bg-subtle)] hover:text-[var(--accent-text)]"
+              onClick={onPlayPause}
+            >
+              {isPlaying ? (
+                <PauseIcon className="h-3.5 w-3.5" />
+              ) : (
+                <PlayIcon className="h-3.5 w-3.5" />
+              )}
+            </Button>
           </div>
 
           {/* Timecode Display */}
@@ -285,22 +195,15 @@ export const TimelineToolbar = memo(function TimelineToolbar({
         <div className="flex items-center gap-3 shrink-0">
 
           {onShowShortcuts && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onShowShortcuts}
-                  className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.06] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-white/[0.06] transition-colors"
-                >
-                  <kbd className="text-[10px] font-mono bg-white/[0.06] px-1 rounded">
-                    ?
-                  </kbd>
-                  <span className="text-[10px] font-medium">Shortcuts</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="text-xs">
-                View Keyboard Shortcuts (?)
-              </TooltipContent>
-            </Tooltip>
+            <button
+              onClick={onShowShortcuts}
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.06] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-white/[0.06] transition-colors"
+            >
+              <kbd className="text-[10px] font-mono bg-white/[0.06] px-1 rounded">
+                ?
+              </kbd>
+              <span className="text-[10px] font-medium">Shortcuts</span>
+            </button>
           )}
 
           <div className="flex items-center gap-2 bg-[var(--hover-overlay)] rounded-md p-1 border border-[var(--border-default)]">
@@ -311,25 +214,13 @@ export const TimelineToolbar = memo(function TimelineToolbar({
               <ZoomOutIcon className="w-3.5 h-3.5" />
             </button>
             {onZoomToFit && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    onClick={onZoomToFit}
-                    className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-white/[0.06] rounded"
-                  >
-                    <MaximizeIcon className="w-3.5 h-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top" className="text-xs">
-                  Zoom to Fit (Shift+Z)
-                </TooltipContent>
-              </Tooltip>
+              <button
+                onClick={onZoomToFit}
+                className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-white/[0.06] rounded"
+              >
+                <MaximizeIcon className="w-3.5 h-3.5" />
+              </button>
             )}
-            <div className="w-20 px-2 flex items-center justify-center border-x border-[var(--border-default)]">
-              <span className="text-[10px] font-mono text-[var(--text-tertiary)]">
-                {Math.round(zoomLevel)}px/s
-              </span>
-            </div>
             <button
               onClick={() => onZoomChange(getNextZoom(zoomLevel))}
               className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-white/[0.06] rounded"

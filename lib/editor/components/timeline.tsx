@@ -137,14 +137,8 @@ export const Timeline = memo(function Timeline({
   const { scrollLeft, viewportWidth } = useScrollPosition(scrollContainerRef);
 
   const visibleTracks = useMemo(() => {
-    return tracks.filter((track) => {
-      if (track.type === "audio") {
-        const hasClips = clips.some((c) => c.trackId === track.id);
-        return hasClips;
-      }
-      return true;
-    });
-  }, [tracks, clips]);
+    return tracks;
+  }, [tracks]);
 
   const visibleClipsByTrack = useMemo(() => {
     const buffer = 200;
@@ -351,7 +345,7 @@ export const Timeline = memo(function Timeline({
 
   return (
     <div
-      className={`${className || ""} bg-[var(--surface-0)] flex flex-col h-full w-full flex-1 select-none relative z-10 transition-none overflow-hidden border-t border-[var(--border-subtle)]`}
+      className={`${className || ""} bg-[var(--surface-0)] flex flex-col h-full w-full flex-1 select-none relative z-10 transition-none overflow-hidden`}
       style={style || { height: "100%" }}
       role="region"
       aria-label="Video timeline"
@@ -513,9 +507,9 @@ export const Timeline = memo(function Timeline({
                   />
                   {/* Visual Line */}
                   <div
-                    className={`absolute left-0 w-px h-full bg-[var(--accent-primary)] pointer-events-none ${
+                    className={`absolute left-0 w-0.5 h-full bg-red-500 pointer-events-none shadow-[0_0_6px_rgba(239,68,68,0.6)] ${
                       isDraggingPlayhead
-                        ? "bg-white shadow-[0_0_8px_white]"
+                        ? "w-1 bg-red-400 shadow-[0_0_12px_rgba(239,68,68,1)]"
                         : ""
                     }`}
                   />
@@ -564,7 +558,7 @@ export const Timeline = memo(function Timeline({
                   return (
                     <div
                       key={track.id}
-                      className={`${trackHeight} border-b border-[var(--border-subtle)] relative group/track bg-[var(--surface-0)]`}
+                      className={`${trackHeight} relative group/track bg-[var(--surface-0)]`}
                       onDoubleClick={(e) => handleTrackDoubleClick(e, track)}
                     >
                       <div

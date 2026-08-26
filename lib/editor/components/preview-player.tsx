@@ -263,7 +263,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
   return (
     <TooltipProvider delayDuration={300}>
       <div
-        className="flex-1 w-full bg-[var(--surface-1)] relative flex items-center justify-center p-4 overflow-hidden min-h-[200px] border-b border-[var(--border-subtle)]"
+        className="flex-1 w-full bg-[var(--surface-1)] relative flex items-center justify-center p-4 overflow-hidden min-h-[200px]"
         role="region"
         aria-label="Video preview player"
         aria-description="Preview area for video playback and frame capture"
