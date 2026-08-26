@@ -413,7 +413,7 @@ export const Timeline = memo(function Timeline({
           className="w-32 bg-[var(--surface-0)] border-r border-[var(--border-default)] shrink-0 z-20 flex flex-col pt-8 shadow-[4px_0_15px_-5px_rgba(0,0,0,0.5)] overflow-hidden"
         >
           <TimelineTrackHeaders
-            tracks={visibleTracks}
+            tracks={tracks}
             hasClips={!hasNoClips}
             onTrackUpdate={onTrackUpdate}
             onAddTrack={onAddTrack}
@@ -545,7 +545,7 @@ export const Timeline = memo(function Timeline({
                 )}
 
                 {/* Track Rows */}
-                {visibleTracks.map((track) => {
+                {tracks.map((track) => {
                   const trackClips = visibleClipsByTrack[track.id] || [];
                   const isAudio = track.type === "audio";
                   const isText = track.type === "text";
