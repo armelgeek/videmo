@@ -1,40 +1,109 @@
-"use client"
+"use client";
 
+import type React from "react";
 import {
-  CircleCheckIcon,
-  InfoIcon,
-  Loader2Icon,
-  OctagonXIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
-import { useTheme } from "next-themes"
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+  useState,
+  createContext,
+  useContext,
+  useCallback,
+  useMemo,
+} from "react";
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme()
-
-  return (
-    <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
-      icons={{
-        success: <CircleCheckIcon className="size-4" />,
-        info: <InfoIcon className="size-4" />,
-        warning: <TriangleAlertIcon className="size-4" />,
-        error: <OctagonXIcon className="size-4" />,
-        loading: <Loader2Icon className="size-4 animate-spin" />,
-      }}
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
-      {...props}
-    />
-  )
+interface ToastMessage {
+  id: string;
+  message: string;
+  type: "success" | "error" | "info";
 }
 
-export { Toaster }
+interface ToastContextType {
+  toasts: ToastMessage[];
+  toast: {
+    success: (message: string) => void;
+    error: (message: string) => void;
+    info: (message: string) => void;
+  };
+}
+
+const ToastContext = createContext<ToastContextType | null>(null);
+
+export function useToastContext() {
+  const ctx = useContext(ToastContext);
+  if (!ctx) {
+    // Return a no-op if outside provider
+    return {
+      toasts: [],
+      toast: {
+        success: () => {},
+        error: () => {},
+        info: () => {},
+      },
+    };
+  }
+  return ctx;
+}
+
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = useCallback(
+    (message: string, type: ToastMessage["type"]) => {
+      const id = Math.random().toString(36).substring(7);
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 3000);
+    },
+    [],
+  );
+
+  const toast = useMemo(
+    () => ({
+      success: (message: string) => addToast(message, "success"),
+      error: (message: string) => addToast(message, "error"),
+      info: (message: string) => addToast(message, "info"),
+    }),
+    [addToast],
+  );
+
+  const value = useMemo(() => ({ toasts, toast }), [toasts, toast]);
+
+  return (
+    <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
+  );
+}
+
+export function Toaster() {
+  const { toasts } = useToastContext();
+
+  return (
+    <div className="fixed bottom-4 right-4 z-[100] flex flex-col gap-2">
+      {toasts.map((t) => (
+        <div
+          key={t.id}
+          className={`px-4 py-3 rounded-lg text-sm font-medium shadow-lg animate-in slide-in-from-right-5 fade-in duration-200 ${
+            t.type === "error"
+              ? "bg-destructive text-destructive-foreground"
+              : t.type === "success"
+                ? "bg-secondary text-foreground border border-border"
+                : "bg-secondary text-foreground border border-border"
+          }`}
+        >
+          {t.message}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Standalone toast function for components that import { toast } from "sonner"
+let globalToast: ToastContextType["toast"] | null = null;
+
+export function setGlobalToast(toast: ToastContextType["toast"]) {
+  globalToast = toast;
+}
+
+export const toast = {
+  success: (message: string) => globalToast?.success(message),
+  error: (message: string) => globalToast?.error(message),
+  info: (message: string) => globalToast?.info(message),
+};

@@ -1,150 +1,198 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import type * as React from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 import {
-  IconDashboard,
-  IconUsers,
-  IconShield,
-  IconSettings,
-  IconArticle,
-  type Icon,
-} from "@tabler/icons-react"
+  Home,
+  ImageIcon,
+  LayoutGrid,
+  Film,
+  Settings,
+  PlusSquare,
+  Layers,
+  SlidersHorizontal,
+  Info,
+} from "lucide-react";
+import { LogoIcon } from "@/lib/editor/components/icons";
+import { UserMenu } from "@/lib/editor/components/user-menu";
 
-import { NavMain } from "@/components/molecules/navigation/nav-main"
-import { NavUser } from "@/components/molecules/navigation/nav-user"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@/components/ui/sidebar"
-import { Logo } from "@/components/atoms/icons/logo"
+export type SidebarView =
+  | "library"
+  | "create"
+  | "settings"
+  | "transitions"
+  | "inspector"
+  | "storyboard";
 
-const iconMap: Record<string, Icon> = {
-  dashboard: IconDashboard,
-  users: IconUsers,
-  blogs: IconArticle,
-  accessControl: IconShield,
-  settings: IconSettings,
+interface AppSidebarProps {
+  activeView?: SidebarView;
+  isPanelOpen?: boolean;
+  onViewChange?: (view: SidebarView) => void;
+  onTogglePanel?: () => void;
 }
 
-const navMainData: Array<{
-  title: string
-  url: string
-  iconKey: keyof typeof iconMap
-  items?: Array<{
-    title: string
-    url: string
-  }>
-}> = [
+const NAV_ITEMS = [
   {
-    title: "Dashboard",
-    url: "/dashboard",
-    iconKey: "dashboard",
+    id: "home",
+    href: "/",
+    icon: Home,
+    label: "Home",
   },
   {
-    title: "Users",
-    url: "/users",
-    iconKey: "users",
-    items: [
-      {
-        title: "All Users",
-        url: "/users",
-      },
-      {
-        title: "Create User",
-        url: "/users/new",
-      },
-    ],
+    id: "image-playground",
+    href: "/image-playground",
+    icon: ImageIcon,
+    label: "Image Playground",
   },
   {
-    title: "Blogs",
-    url: "/blogs",
-    iconKey: "blogs",
-    items: [
-      {
-        title: "All Blogs",
-        url: "/blogs",
-      },
-      {
-        title: "Create Blog",
-        url: "/blogs/new",
-      },
-    ],
+    id: "storyboard",
+    href: "/storyboard",
+    icon: LayoutGrid,
+    label: "Storyboard",
   },
   {
-    title: "Access Control",
-    url: "/roles",
-    iconKey: "accessControl",
-    items: [
-      {
-        title: "Roles",
-        url: "/roles",
-      },
-      {
-        title: "Permissions",
-        url: "/permissions",
-      },
-    ],
+    id: "studio",
+    href: "/timeline",
+    icon: Film,
+    label: "Video Timeline",
   },
-  {
-    title: "Settings",
-    url: "/settings",
-    iconKey: "settings",
-  },
-]
+] as const;
 
-export function AppSidebar({ 
-  user,
-  ...props 
-}: React.ComponentProps<typeof Sidebar> & {
-  user?: {
-    id: string;
-    name: string;
-    email: string;
-    image?: string | null;
-  } | null;
-}) {
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+const STUDIO_ITEMS: {
+  id: SidebarView;
+  icon: React.FC<{ className?: string }>;
+  label: string;
+}[] = [
+  {
+    id: "create",
+    icon: PlusSquare,
+    label: "Create",
+  },
+  {
+    id: "library",
+    icon: Layers,
+    label: "Library",
+  },
+  {
+    id: "storyboard",
+    icon: LayoutGrid,
+    label: "Storyboard",
+  },
+  {
+    id: "transitions",
+    icon: SlidersHorizontal,
+    label: "Transitions",
+  },
+  {
+    id: "inspector",
+    icon: Info,
+    label: "Inspector",
+  },
+  {
+    id: "settings",
+    icon: Settings,
+    label: "Settings",
+  },
+];
+
+export function AppSidebar({
+  activeView,
+  isPanelOpen,
+  onViewChange,
+  onTogglePanel,
+}: AppSidebarProps) {
+  const pathname = usePathname();
+  const isStudioPage = pathname === "/timeline";
+
+  const getNavItemActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
   };
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <Logo href="/dashboard" className="text-base font-semibold" />
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={navMainData.map(item => ({
-          ...item,
-          icon: iconMap[item.iconKey]
-        }))} />
-      </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={{
-          name: user?.name || "Guest",
-          email: user?.email || "guest@example.com",
-          avatar: user?.image || "",
-          initials: user?.name ? getInitials(user.name) : "GU",
-        }} />
-      </SidebarFooter>
-    </Sidebar>
-  )
+    <aside className="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col border-r border-white/10 bg-background/80 backdrop-blur-sm">
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/5">
+        <Link href="/" className="flex items-center gap-3 flex-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 hover:bg-white/15 transition-colors">
+            <LogoIcon className="h-4 w-4 text-white" />
+          </div>
+          <span className="text-sm font-semibold text-white">Studio</span>
+        </Link>
+        <UserMenu />
+      </div>
+
+      {/* Main Navigation */}
+      <nav className="flex-1 overflow-y-auto py-4 px-2">
+        <div className="space-y-1">
+          {NAV_ITEMS.map((item) => {
+            const isActive = getNavItemActive(item.href);
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                  isActive
+                    ? "bg-white/10 text-white"
+                    : "text-muted-foreground hover:bg-white/5 hover:text-white",
+                )}
+              >
+                <Icon className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Studio-specific items */}
+        {isStudioPage && onViewChange && onTogglePanel && (
+          <>
+            <div className="my-4 h-px bg-white/5" />
+            <div className="space-y-1">
+              {STUDIO_ITEMS.map((item) => {
+                const isActive = activeView === item.id && isPanelOpen;
+                const Icon = item.icon;
+
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      if (activeView === item.id) {
+                        onTogglePanel();
+                      } else {
+                        onViewChange(item.id);
+                      }
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                      isActive
+                        ? "bg-white/10 text-white"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-white",
+                    )}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </nav>
+
+      {/* Footer */}
+      <div className="border-t border-white/5 px-3 py-4">
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground">v1.0</p>
+        </div>
+      </div>
+    </aside>
+  );
 }
+
+export default AppSidebar;
