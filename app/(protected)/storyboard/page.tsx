@@ -43,6 +43,7 @@ import { AppShell } from "@/lib/app-shell";
 import { DevPanel } from "@/lib/dev-panel";
 import { useRouter } from "next/navigation";
 import { Editor } from "@/lib/editor/components/editor";
+import { useStoryboardStore } from "@/lib/storyboard/store";
 
 const STEPS = [
   { key: "prompt", label: "Prompt", icon: Wand2 },
@@ -179,23 +180,30 @@ const VOICES_BY_LANGUAGE: Record<
 export default function StoryboardPage() {
   const { toast } = useToastContext();
   const router = useRouter();
-  const [step, setStep] = useState<
-    "prompt" | "scriptValidation" | "storyboard" | "voiceChoice" | "editor"
-  >("prompt");
 
-  // Workflow data
-  const [projectTitle, setProjectTitle] = useState("Untitled Project");
-  const [promptContent, setPromptContent] = useState("");
-  const [projectParams, setProjectParams] = useState({
-    style: "cinematic",
-    format: "explainer" as "brief" | "explainer",
-    aspectRatio: "16:9" as "16:9" | "9:16",
-    language: "en",
-    duration: "3-5 minutes",
-    targetAudience: "general",
-    tone: "professional",
-  });
-  const [script, setScript] = useState("");
+  // Zustand Workflow Store
+  const {
+    step,
+    setStep,
+    projectTitle,
+    setProjectTitle,
+    promptContent,
+    setPromptContent,
+    projectParams,
+    setProjectParams,
+    script,
+    setScript,
+    storyboardPanels,
+    setStoryboardPanels,
+    updatePanel,
+    selectedVoice,
+    setSelectedVoice,
+    loadDemoData,
+    resetWorkflow,
+    getMediaList,
+    getClipList,
+  } = useStoryboardStore();
+
   const [storyboardData, setStoryboardData] = useState<{
     storyboard: any;
     content: string;
@@ -210,7 +218,6 @@ export default function StoryboardPage() {
     "idle" | "init" | "audio" | "video" | "encoding" | "complete"
   >("idle");
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
-  const [selectedVoice, setSelectedVoice] = useState("default");
   const [editableClips, setEditableClips] = useState<any[]>([]);
 
   const [hasLoadedSession, setHasLoadedSession] = useState(false);
@@ -242,18 +249,20 @@ export default function StoryboardPage() {
   }, []);
 
   useEffect(() => {
-    const session = loadSession();
-    if (session) {
-      setStep(session.step);
-      if (session.promptContent) setPromptContent(session.promptContent);
-      if (session.script) setScript(session.script);
-      if (session.storyboardData) setStoryboardData(session.storyboardData);
-      if (session.generatedImages) setGeneratedImages(session.generatedImages);
-      if (session.selectedVoice) setSelectedVoice(session.selectedVoice);
+    if (!hasLoadedSession) {
+      const session = loadSession();
+      if (session) {
+        setStep(session.step);
+        if (session.promptContent) setPromptContent(session.promptContent);
+        if (session.script) setScript(session.script);
+        if (session.storyboardData) setStoryboardData(session.storyboardData);
+        if (session.generatedImages) setGeneratedImages(session.generatedImages);
+        if (session.selectedVoice) setSelectedVoice(session.selectedVoice);
+        toast.success("Session restored from previous work");
+      }
       setHasLoadedSession(true);
-      toast.success("Session restored from previous work");
     }
-  }, [toast]);
+  }, [hasLoadedSession]);
 
   // Auto-generate demo script when reaching validation step
   useEffect(() => {
@@ -1663,79 +1672,24 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
           {step === "editor" && (
             <div className="w-full h-full overflow-hidden px-48">
               <Editor
-                initialMedia={(() => {
-                  const mediaList: any[] = [];
-                  DEMO_FINAL_SEQUENCE.storyboard.forEach((p, i) => {
-                    mediaList.push({
-                      id: `media-video-${i}`,
-                      url: p.videoUrl,
-                      prompt: p.prompt,
-                      duration: p.duration,
-                      aspectRatio: DEMO_FINAL_SEQUENCE.videoConfig.aspectRatio,
-                      status: "ready" as const,
-                      type: "video" as const,
-                      resolution: { width: 1280, height: 720 },
-                    });
-                    if (p.audioUrl) {
-                      mediaList.push({
-                        id: `media-audio-${i}`,
-                        url: p.audioUrl,
-                        prompt: `Audio: ${p.prompt}`,
-                        duration: p.duration,
-                        aspectRatio: DEMO_FINAL_SEQUENCE.videoConfig.aspectRatio,
-                        status: "ready" as const,
-                        type: "audio" as const,
-                        resolution: { width: 1280, height: 720 },
-                      });
-                    }
-                  });
-                  return mediaList;
-                })()}
-                initialClips={(() => {
-                  const clips: any[] = [];
-                  let startTime = 0;
-                  DEMO_FINAL_SEQUENCE.storyboard.forEach((p, i) => {
-                    clips.push({
-                      speed: 1,
-                      id: `clip-${i}`,
-                      mediaId: `media-video-${i}`,
-                      trackId: "v1",
-                      start: startTime,
-                      duration: p.duration,
-                      offset: 0,
-                      transition: undefined,
-                    });
-                    if (p.audioUrl) {
-                      clips.push({
-                        speed: 1,
-                        id: `audio-clip-${i}`,
-                        mediaId: `media-audio-${i}`,
-                        trackId: "a1",
-                        start: startTime,
-                        duration: p.duration,
-                        offset: 0,
-                        transition: undefined,
-                      });
-                    }
-                    startTime += p.duration;
-                  });
-                  return clips;
-                })()}
-                initialStoryboard={DEMO_FINAL_SEQUENCE.storyboard.map(
-                  (p, i) => ({
-                    id: `sb-${i}`,
-                    prompt: p.prompt,
-                    imageUrl: p.imageUrl,
-                    linkedImageUrl: p.linkedImageUrl,
-                    videoUrl: p.videoUrl,
-                    mediaId: `media-video-${i}`,
-                    status: "idle" as const,
-                    type: p.linkedImageUrl
-                      ? ("transition" as const)
-                      : ("scene" as const),
-                    duration: p.duration as 5 | 8,
-                  }),
-                )}
+                initialMedia={getMediaList()}
+                initialClips={getClipList()}
+                initialStoryboard={(storyboardPanels.length > 0
+                  ? storyboardPanels
+                  : DEMO_FINAL_SEQUENCE.storyboard
+                ).map((p, i) => ({
+                  id: p.id || `sb-${i}`,
+                  prompt: p.prompt,
+                  imageUrl: p.imageUrl,
+                  linkedImageUrl: p.linkedImageUrl,
+                  videoUrl: p.videoUrl,
+                  mediaId: `media-video-${p.id || i}`,
+                  status: "idle" as const,
+                  type: p.linkedImageUrl
+                    ? ("transition" as const)
+                    : ("scene" as const),
+                  duration: p.duration as 5 | 8,
+                }))}
                 onBack={() => setStep("voiceChoice")}
               />
             </div>
