@@ -550,7 +550,7 @@ export const Timeline = memo(function Timeline({
                   const isAudio = track.type === "audio";
                   const isText = track.type === "text";
                   const trackHeight = isAudio
-                    ? "h-16"
+                    ? "h-11"
                     : isText
                       ? "h-12"
                       : "h-11";

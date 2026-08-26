@@ -57,7 +57,7 @@ export const ClipWaveform = memo(
             <div
               key={i}
               className={`flex-1 rounded-t-[1px] min-w-[2px] transition-colors ${
-                isSelected ? "bg-white/80" : isAudio ? "bg-emerald-400/60" : "bg-white/30"
+                isSelected ? "bg-white/80" : isAudio ? "bg-emerald-400" : "bg-white/30"
               }`}
               style={{ height: `${height}%` }}
             />
