@@ -89,6 +89,14 @@ function createInitialData() {
     }),
   );
 
+  console.log("Initial Data:", {
+    mediaCount: initialMedia.length,
+    audioMediaCount: initialMedia.filter(m => m.type === "audio").length,
+    clipsCount: initialClips.length,
+    audioClipsCount: initialClips.filter(c => c.trackId === "a1").length,
+    audioClips: initialClips.filter(c => c.trackId === "a1").map(c => ({ id: c.id, mediaId: c.mediaId })),
+  });
+
   return { initialMedia, initialClips, initialStoryboard };
 }
 
