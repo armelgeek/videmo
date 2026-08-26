@@ -512,7 +512,7 @@ export function usePlayback({
 
   const handleSeek = useCallback((time: number) => {
     currentTimeRef.current = time
-    setCurrentTime(time)
+    setCurrentTime((prev) => prev === time ? prev : time)
   }, [])
 
   const handleDragStart = useCallback(() => {

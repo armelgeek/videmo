@@ -1663,30 +1663,60 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
           {step === "editor" && (
             <div className="w-full h-full overflow-hidden px-48">
               <Editor
-                initialMedia={DEMO_FINAL_SEQUENCE.storyboard.map((p, i) => ({
-                  id: `media-${i}`,
-                  url: p.videoUrl,
-                  prompt: p.prompt,
-                  duration: p.duration,
-                  aspectRatio: DEMO_FINAL_SEQUENCE.videoConfig.aspectRatio,
-                  status: "ready" as const,
-                  type: "video" as const,
-                  resolution: { width: 1280, height: 720 },
-                }))}
+                initialMedia={(() => {
+                  const mediaList: any[] = [];
+                  DEMO_FINAL_SEQUENCE.storyboard.forEach((p, i) => {
+                    mediaList.push({
+                      id: `media-video-${i}`,
+                      url: p.videoUrl,
+                      prompt: p.prompt,
+                      duration: p.duration,
+                      aspectRatio: DEMO_FINAL_SEQUENCE.videoConfig.aspectRatio,
+                      status: "ready" as const,
+                      type: "video" as const,
+                      resolution: { width: 1280, height: 720 },
+                    });
+                    if (p.audioUrl) {
+                      mediaList.push({
+                        id: `media-audio-${i}`,
+                        url: p.audioUrl,
+                        prompt: `Audio: ${p.prompt}`,
+                        duration: p.duration,
+                        aspectRatio: DEMO_FINAL_SEQUENCE.videoConfig.aspectRatio,
+                        status: "ready" as const,
+                        type: "audio" as const,
+                        resolution: { width: 1280, height: 720 },
+                      });
+                    }
+                  });
+                  return mediaList;
+                })()}
                 initialClips={(() => {
-                  const clips = [];
+                  const clips: any[] = [];
                   let startTime = 0;
                   DEMO_FINAL_SEQUENCE.storyboard.forEach((p, i) => {
                     clips.push({
                       speed: 1,
                       id: `clip-${i}`,
-                      mediaId: `media-${i}`,
+                      mediaId: `media-video-${i}`,
                       trackId: "v1",
                       start: startTime,
                       duration: p.duration,
                       offset: 0,
                       transition: undefined,
                     });
+                    if (p.audioUrl) {
+                      clips.push({
+                        speed: 1,
+                        id: `audio-clip-${i}`,
+                        mediaId: `media-audio-${i}`,
+                        trackId: "a1",
+                        start: startTime,
+                        duration: p.duration,
+                        offset: 0,
+                        transition: undefined,
+                      });
+                    }
                     startTime += p.duration;
                   });
                   return clips;
@@ -1698,7 +1728,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                     imageUrl: p.imageUrl,
                     linkedImageUrl: p.linkedImageUrl,
                     videoUrl: p.videoUrl,
-                    mediaId: `media-${i}`,
+                    mediaId: `media-video-${i}`,
                     status: "idle" as const,
                     type: p.linkedImageUrl
                       ? ("transition" as const)

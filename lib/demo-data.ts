@@ -102,8 +102,67 @@ export const DEMO_FINAL_SEQUENCE = {
     aspectRatio: "16:9" as const,
     useFastModel: true,
   },
-  media: [],
-  clips: [],
+  get panels() {
+    return this.storyboard;
+  },
+  get media() {
+    const list: any[] = [];
+    this.storyboard.forEach((p, i) => {
+      list.push({
+        id: `media-video-${i}`,
+        url: p.videoUrl,
+        prompt: p.prompt,
+        duration: p.duration,
+        aspectRatio: this.videoConfig.aspectRatio,
+        status: "ready" as const,
+        type: "video" as const,
+        resolution: { width: 1280, height: 720 },
+      });
+      if (p.audioUrl) {
+        list.push({
+          id: `media-audio-${i}`,
+          url: p.audioUrl,
+          prompt: `Audio: ${p.prompt}`,
+          duration: p.duration,
+          aspectRatio: this.videoConfig.aspectRatio,
+          status: "ready" as const,
+          type: "audio" as const,
+          resolution: { width: 1280, height: 720 },
+        });
+      }
+    });
+    return list;
+  },
+  get clips() {
+    const list: any[] = [];
+    let startTime = 0;
+    this.storyboard.forEach((p, i) => {
+      list.push({
+        speed: 1,
+        id: `clip-${i}`,
+        mediaId: `media-video-${i}`,
+        trackId: "v1",
+        start: startTime,
+        duration: p.duration,
+        offset: 0,
+        transition: undefined,
+      });
+      if (p.audioUrl) {
+        list.push({
+          speed: 1,
+          id: `audio-clip-${i}`,
+          mediaId: `media-audio-${i}`,
+          trackId: "a1",
+          start: startTime,
+          duration: p.duration,
+          offset: 0,
+          transition: undefined,
+        });
+      }
+      startTime += p.duration;
+    });
+    return list;
+  },
   storyboard: [
     // Panel 0 - Regular panel
     {
