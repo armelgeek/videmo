@@ -11,10 +11,20 @@ const Editor = dynamic(
 );
 
 function createInitialData() {
+  const storyboard = DEMO_FINAL_SEQUENCE.storyboard;
+  console.log("Storyboard panels:", storyboard.length);
+  console.log("First panel:", {
+    duration: storyboard[0]?.duration,
+    videoUrl: !!storyboard[0]?.videoUrl,
+    audioUrl: !!storyboard[0]?.audioUrl,
+  });
+
   const initialMedia: MediaItem[] = [];
 
   // Create video and audio media items
-  DEMO_FINAL_SEQUENCE.storyboard.forEach((p, i) => {
+  storyboard.forEach((p, i) => {
+    console.log(`Panel ${i}:`, { hasAudioUrl: !!p.audioUrl, audioUrl: p.audioUrl ? p.audioUrl.substring(0, 50) : "none" });
+
     // Video media
     initialMedia.push({
       id: `media-video-${i}`,
@@ -29,6 +39,7 @@ function createInitialData() {
 
     // Audio media
     if (p.audioUrl) {
+      console.log(`Creating audio media for panel ${i}`);
       initialMedia.push({
         id: `media-audio-${i}`,
         url: p.audioUrl,
