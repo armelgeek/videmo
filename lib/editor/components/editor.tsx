@@ -1515,7 +1515,7 @@ export const Editor: React.FC<EditorProps> = ({
       // For now, default to "Untitled Project"
       setProjectName("Untitled Project");
     }
-  }, [initialMedia, initialClips]); // Rerun if initial props change, though unlikely
+  }, []); // Run once on mount
 
 
   return (
