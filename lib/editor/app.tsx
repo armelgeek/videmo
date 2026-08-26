@@ -11,46 +11,68 @@ const Editor = dynamic(
 );
 
 function createInitialData() {
-  const initialMedia: MediaItem[] = DEMO_FINAL_SEQUENCE.storyboard.map((p, i) => ({
-    id: `media-${i}`,
-    url: p.videoUrl,
-    prompt: p.prompt,
-    duration: p.duration,
-    aspectRatio: DEMO_FINAL_SEQUENCE.videoConfig.aspectRatio,
-    status: "ready" as const,
-    type: "video" as const,
-    resolution: { width: 1280, height: 720 },
-  }));
+  const initialMedia: MediaItem[] = [];
+
+  // Create video and audio media items
+  DEMO_FINAL_SEQUENCE.storyboard.forEach((p, i) => {
+    // Video media
+    initialMedia.push({
+      id: `media-video-${i}`,
+      url: p.videoUrl,
+      prompt: p.prompt,
+      duration: p.duration,
+      aspectRatio: DEMO_FINAL_SEQUENCE.videoConfig.aspectRatio,
+      status: "ready" as const,
+      type: "video" as const,
+      resolution: { width: 1280, height: 720 },
+    });
+
+    // Audio media
+    if (p.audioUrl) {
+      initialMedia.push({
+        id: `media-audio-${i}`,
+        url: p.audioUrl,
+        prompt: `Audio: ${p.prompt}`,
+        duration: p.duration,
+        aspectRatio: DEMO_FINAL_SEQUENCE.videoConfig.aspectRatio,
+        status: "ready" as const,
+        type: "audio" as const,
+        resolution: { width: 1280, height: 720 },
+      });
+    }
+  });
 
   const initialClips: TimelineClip[] = [];
   let startTime = 0;
 
-  initialMedia.forEach((m, i) => {
+  DEMO_FINAL_SEQUENCE.storyboard.forEach((p, i) => {
     // Add video clip
     initialClips.push({
       speed: 1,
       id: `clip-${i}`,
-      mediaId: m.id,
+      mediaId: `media-video-${i}`,
       trackId: "v1",
       start: startTime,
-      duration: m.duration,
+      duration: p.duration,
       offset: 0,
       transition: undefined,
     });
 
-    // Add audio clip from the same media
-    initialClips.push({
-      speed: 1,
-      id: `audio-clip-${i}`,
-      mediaId: m.id,
-      trackId: "a1",
-      start: startTime,
-      duration: m.duration,
-      offset: 0,
-      transition: undefined,
-    });
+    // Add audio clip
+    if (p.audioUrl) {
+      initialClips.push({
+        speed: 1,
+        id: `audio-clip-${i}`,
+        mediaId: `media-audio-${i}`,
+        trackId: "a1",
+        start: startTime,
+        duration: p.duration,
+        offset: 0,
+        transition: undefined,
+      });
+    }
 
-    startTime += m.duration;
+    startTime += p.duration;
   });
 
   const initialStoryboard: StoryboardPanel[] = DEMO_FINAL_SEQUENCE.storyboard.map(

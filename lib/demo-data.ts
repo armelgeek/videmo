@@ -112,6 +112,7 @@ export const DEMO_FINAL_SEQUENCE = {
       duration: 8 as const,
       linkedImageUrl: undefined,
       videoUrl: "https://v3b.fal.media/files/b/0a84a235/Z9sIv_PFVXLU8uDcb9Hey_output.mp4",
+      audioUrl: "https://v3b.fal.media/files/b/0a84a235/Z9sIv_PFVXLU8uDcb9Hey_output.mp4",
     },
     // Panel 1 - Transition (first frame: transition panel 0, last frame: main panel 2)
     {
@@ -121,6 +122,7 @@ export const DEMO_FINAL_SEQUENCE = {
         "Extreme close-up on the man's eye, rapidly accelerating into a blurring pullback zoom that transitions cinematically into a warm flashback sequence.",
       duration: 5 as const,
       videoUrl: "https://v3b.fal.media/files/b/monkey/D_Pf7zR9bbiKaRT6twClJ.mp4",
+      audioUrl: "https://v3b.fal.media/files/b/monkey/D_Pf7zR9bbiKaRT6twClJ.mp4",
     },
     // Panel 2 - Regular panel
     {
@@ -129,6 +131,7 @@ export const DEMO_FINAL_SEQUENCE = {
       duration: 5 as const,
       linkedImageUrl: undefined,
       videoUrl: "https://v3b.fal.media/files/b/elephant/l8BSTRj_g7f-pFOfx7siq_TPl6daj3.mp4",
+      audioUrl: "https://v3b.fal.media/files/b/elephant/l8BSTRj_g7f-pFOfx7siq_TPl6daj3.mp4",
     },
     // Panel 3 - Regular panel
     {
@@ -137,6 +140,7 @@ export const DEMO_FINAL_SEQUENCE = {
       duration: 5 as const,
       linkedImageUrl: undefined,
       videoUrl: "https://v3b.fal.media/files/b/panda/evoI_qve6jM04K-AeG4dd_TV3dmkaY.mp4",
+      audioUrl: "https://v3b.fal.media/files/b/panda/evoI_qve6jM04K-AeG4dd_TV3dmkaY.mp4",
     },
     // Panel 4 - Transition (first frame: transition panel 2, last frame: transition panel 4)
     {
@@ -147,6 +151,7 @@ export const DEMO_FINAL_SEQUENCE = {
         "A cinematic wide-angle of the boy and his smiling grandmother, then rapidly accelerating into a blurring pullback zoom that transitions cinematically into a warmer present-day sequence.",
       duration: 5 as const,
       videoUrl: "https://v3b.fal.media/files/b/monkey/ASI6U2FEsmr-xxQI9iAV0.mp4",
+      audioUrl: "https://v3b.fal.media/files/b/monkey/ASI6U2FEsmr-xxQI9iAV0.mp4",
     },
     // Panel 5 - Regular panel
     {
@@ -156,6 +161,7 @@ export const DEMO_FINAL_SEQUENCE = {
       duration: 8 as const,
       linkedImageUrl: undefined,
       videoUrl: "https://v3b.fal.media/files/b/rabbit/iS5IFUBwrTgZCqEdTZJJo_output.mp4",
+      audioUrl: "https://v3b.fal.media/files/b/rabbit/iS5IFUBwrTgZCqEdTZJJo_output.mp4",
     },
     // Panel 6 - Regular panel
     {
@@ -165,6 +171,7 @@ export const DEMO_FINAL_SEQUENCE = {
       duration: 8 as const,
       linkedImageUrl: undefined,
       videoUrl: "https://v3b.fal.media/files/b/zebra/N6ZZnPbVVVpDx1ls0SjMQ_output.mp4",
+      audioUrl: "https://v3b.fal.media/files/b/zebra/N6ZZnPbVVVpDx1ls0SjMQ_output.mp4",
     },
   ],
 }
