@@ -26,7 +26,7 @@ export default async function AdminLayout({
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" user={session?.user} />
+      <AppSidebar />
       <SidebarInset>
         <SiteHeader />
         {children}

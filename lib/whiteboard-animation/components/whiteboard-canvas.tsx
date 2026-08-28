@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAnimationEngine } from '../hooks/use-animation-engine';
 import {
   Play,
   Pause,
@@ -31,10 +32,36 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [speed, setSpeed] = useState(40);
+  const [progress, setProgress] = useState(0);
   const animationRef = useRef<number | null>(null);
-  const stateRef = useRef<any>({});
 
-  // Initialize canvases on mount
+  // Initialize animation engine
+  const engineState = {
+    canvasW: canvasWidth,
+    canvasH: canvasHeight,
+    speed,
+    playing: isPlaying,
+    _animProgress: progress,
+    contentBounds: {
+      x: 0,
+      y: 0,
+      w: canvasWidth,
+      h: canvasHeight,
+    },
+  };
+
+  const engine = useAnimationEngine(
+    mainCanvasRef.current,
+    handCanvasRef.current,
+    selectCanvasRef.current,
+    engineState,
+    {
+      onFrame: (prog) => setProgress(prog),
+      onError: (error) => console.error('Animation error:', error),
+    }
+  );
+
+  // Setup canvases
   useEffect(() => {
     const mainCanvas = mainCanvasRef.current;
     const handCanvas = handCanvasRef.current;
@@ -49,30 +76,12 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
     handCanvas.height = canvasHeight;
     selectCanvas.width = canvasWidth;
     selectCanvas.height = canvasHeight;
+  }, [canvasWidth, canvasHeight]);
 
-    // Get contexts
-    const ctx = mainCanvas.getContext('2d');
-    const hctx = handCanvas.getContext('2d');
-    const selctx = selectCanvas.getContext('2d');
+  // Animation loop
+  useEffect(() => {
+    if (!engine.isReady) return;
 
-    if (!ctx || !hctx || !selctx) return;
-
-    // Initialize state
-    stateRef.current = {
-      canvasW: canvasWidth,
-      canvasH: canvasHeight,
-      speed: speed,
-      playing: isPlaying,
-      _animProgress: 0,
-      contentBounds: {
-        x: 0,
-        y: 0,
-        w: canvasWidth,
-        h: canvasHeight,
-      },
-    };
-
-    // Start animation loop
     let lastTime = Date.now();
     const animate = () => {
       const now = Date.now();
@@ -80,17 +89,8 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       lastTime = now;
 
       if (isPlaying) {
-        // Update animation state
-        stateRef.current.speed = speed;
+        engine.tick(deltaMs);
       }
-
-      // Clear canvases
-      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-      hctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-      // Draw background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -102,24 +102,34 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [canvasWidth, canvasHeight, isPlaying, speed]);
+  }, [engine, isPlaying]);
 
   const handlePlayPause = () => {
+    if (isPlaying) {
+      engine.pause();
+    } else {
+      engine.play();
+    }
     setIsPlaying(!isPlaying);
   };
 
   const handleClear = () => {
+    engine.stop();
+    setProgress(0);
     const canvas = mainCanvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
       }
     }
   };
 
   const handleReset = () => {
+    engine.stop();
     setIsPlaying(false);
+    setProgress(0);
     handleClear();
   };
 
@@ -266,8 +276,9 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
         <div>
           {canvasWidth}x{canvasHeight}px
         </div>
-        <div>
+        <div className="flex items-center gap-2">
           {isPlaying ? '▶ Playing' : '⏸ Paused'}
+          {progress > 0 && <span className="text-xs">• {Math.round(progress)}ms</span>}
         </div>
         <div>
           Speed: {Math.round((speed / 40) * 100)}%
