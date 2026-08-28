@@ -5,9 +5,21 @@
 
 import type { AnimationStyle, AnimationOptions } from './types';
 
-// Import the JavaScript factory
-const factoryModule = require('./index.js');
-const JSAnimationFactory = factoryModule.AnimationFactory || factoryModule.default || factoryModule;
+// Lazy load the JavaScript factory to avoid circular dependencies
+let JSAnimationFactory: any = null;
+
+const getFactory = () => {
+  if (!JSAnimationFactory) {
+    try {
+      // eslint-disable-next-line global-require
+      const factoryModule = require('./index.js');
+      JSAnimationFactory = factoryModule.AnimationFactory || factoryModule.default || factoryModule;
+    } catch (error) {
+      console.warn('Could not load animation factory:', error);
+    }
+  }
+  return JSAnimationFactory;
+};
 
 export interface IAnimationFactory {
   create(styleName: AnimationStyle, options: AnimationOptions): any;
@@ -30,7 +42,11 @@ class AnimationFactoryTS implements IAnimationFactory {
     }
 
     try {
-      return JSAnimationFactory.create(styleName, options);
+      const factory = getFactory();
+      if (!factory || !factory.create) {
+        throw new Error('Animation factory not available');
+      }
+      return factory.create(styleName, options);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to create animation '${styleName}': ${error.message}`);
