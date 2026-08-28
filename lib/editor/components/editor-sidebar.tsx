@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import type React from "react";
 import { memo } from "react";
-import { GridIcon, InfoIcon, StoryboardIcon, LogoIcon } from "./icons";
+import { GridIcon, InfoIcon, StoryboardIcon, LogoIcon, WhiteboardIcon } from "./icons";
 import {
   Tooltip,
   TooltipContent,
@@ -17,7 +17,8 @@ export type SidebarView =
   | "storyboard"
   | "create"
   | "settings"
-  | "transitions";
+  | "transitions"
+  | "whiteboard";
 
 export interface EditorSidebarProps {
   activeView: SidebarView;
@@ -50,6 +51,12 @@ const SIDEBAR_ITEMS: {
     icon: StoryboardIcon,
     label: "Storyboard",
     shortcut: "3",
+  },
+  {
+    id: "whiteboard",
+    icon: WhiteboardIcon,
+    label: "Whiteboard",
+    shortcut: "4",
   },
 ];
 

@@ -1007,3 +1007,22 @@ export const VideoIcon = ({ className }: IconProps) => (
     <rect x="2" y="6" width="14" height="12" rx="2" />
   </svg>
 )
+
+export const WhiteboardIcon = ({ className }: IconProps) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
+    <path d="M6 10 L8 8 M10 6 L12 8 L14 6 M16 10 L18 8" strokeWidth="1.5" />
+    <line x1="2" y1="20" x2="22" y2="20" />
+  </svg>
+)

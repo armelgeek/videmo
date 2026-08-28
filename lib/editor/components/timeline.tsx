@@ -277,21 +277,17 @@ export const Timeline = memo(function Timeline({
     }
   }, [isDraggingPlayhead, duration, zoomLevel, onSeek]);
 
-  // Auto-scroll timeline to follow playhead during playback or dragging
+  // Auto-scroll timeline to center playhead during playback or dragging
   useEffect(() => {
     if (!scrollContainerRef.current) return;
     const playheadX = currentTime * zoomLevel;
     const currentScrollLeft = scrollContainerRef.current.scrollLeft;
     const viewWidth =
       viewportWidth || scrollContainerRef.current.clientWidth || 800;
+    const halfWidth = viewWidth / 2;
 
-    if (playheadX > currentScrollLeft + viewWidth * 0.8) {
-      scrollContainerRef.current.scrollLeft = playheadX - viewWidth * 0.3;
-    } else if (playheadX < currentScrollLeft) {
-      scrollContainerRef.current.scrollLeft = Math.max(
-        0,
-        playheadX - viewWidth * 0.1,
-      );
+    if (playheadX >= currentScrollLeft + halfWidth || playheadX < currentScrollLeft) {
+      scrollContainerRef.current.scrollLeft = Math.max(0, playheadX - halfWidth);
     }
   }, [currentTime, zoomLevel, viewportWidth, isPlaying, isDraggingPlayhead]);
 

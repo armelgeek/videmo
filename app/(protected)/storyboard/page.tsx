@@ -250,6 +250,7 @@ export default function StoryboardPage() {
 
   useEffect(() => {
     if (!hasLoadedSession) {
+      setHasLoadedSession(true);
       const session = loadSession();
       if (session) {
         setStep(session.step);
@@ -260,9 +261,8 @@ export default function StoryboardPage() {
         if (session.selectedVoice) setSelectedVoice(session.selectedVoice);
         toast.success("Session restored from previous work");
       }
-      setHasLoadedSession(true);
     }
-  }, [hasLoadedSession]);
+  }, [toast]);
 
   // Auto-generate demo script when reaching validation step
   useEffect(() => {

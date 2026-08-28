@@ -1,0 +1,21 @@
+{
+  "name": "@sketchpilot/engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Moteur d'animation partage : editeur web, worker de rendu, editeur legacy",
+  "main": "index.js",
+  "files": [
+    "*.js",
+    "styles",
+    "editor"
+  ],
+  "scripts": {
+    "test": "node test-animations.js",
+    "test:parity": "node test-parity-animations.js"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./editor/EditorEngine": "./editor/EditorEngine.js",
+    "./*": "./*.js"
+  }
+}
