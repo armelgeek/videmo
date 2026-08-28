@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { WhiteboardEditorPanel } from '@/lib/whiteboard-animation';
+import { WhiteboardEditorPanel } from '@/lib/whiteboard-animation/components/whiteboard-editor-panel';
 import { Button } from '@/components/ui/button';
 import { useToastContext } from '@/components/ui/sonner';
 import { ArrowLeft } from 'lucide-react';
