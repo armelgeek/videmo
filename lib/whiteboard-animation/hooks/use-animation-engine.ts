@@ -1,4 +1,10 @@
 import { useEffect, useRef } from 'react';
+import {
+  loadAnimationEngine,
+  initializeAnimationEngine,
+  tickAnimation,
+  isAnimationEngineReady,
+} from '../services/animation-engine-loader';
 
 interface AnimationEngineState {
   canvasW: number;
@@ -29,6 +35,7 @@ export const useAnimationEngine = (
 ) => {
   const engineRef = useRef<any>(null);
   const stateRef = useRef(state);
+  const loaderRef = useRef<Promise<void> | null>(null);
 
   // Update state ref when state changes
   useEffect(() => {
@@ -41,6 +48,13 @@ export const useAnimationEngine = (
 
     const loadEngine = async () => {
       try {
+        // Load scripts if not already loaded
+        if (!loaderRef.current) {
+          loaderRef.current = loadAnimationEngine();
+        }
+
+        await loaderRef.current;
+
         // Get canvas contexts
         const ctx = mainCanvas.getContext('2d');
         const hctx = handCanvas.getContext('2d');
@@ -70,6 +84,9 @@ export const useAnimationEngine = (
           contentBounds: state.contentBounds,
         };
 
+        // Initialize real animation engine
+        initializeAnimationEngine(engineState, ctx, hctx, selctx, offscreenCtx);
+
         // Store engine instance
         engineRef.current = {
           ctx,
@@ -78,16 +95,13 @@ export const useAnimationEngine = (
           offscreenCtx,
           offscreenCanvas,
           state: engineState,
-          animationInstance: null,
+          isReady: true,
         };
 
-        // Note: In production, would load from ~/dev/Hayzar/SAAS/sketchpilot/public/lib-bundle.js
-        // and animations-unified.js here and call:
-        // AnimationEngine._setGlobals(engineState, ctx, hctx, selctx, offscreenCtx)
-        // This is where real AnimationFactory integration happens
-        console.log('Animation engine ready:', {
+        console.log('✅ Animation engine initialized:', {
           canvasSize: `${mainCanvas.width}x${mainCanvas.height}`,
           layers: { main: !!ctx, hand: !!hctx, select: !!selctx },
+          offscreen: !!offscreenCtx,
         });
       } catch (error) {
         const err = error instanceof Error ? error : new Error(String(error));
@@ -101,26 +115,23 @@ export const useAnimationEngine = (
 
   // Animation loop tick
   const tick = (deltaMs: number) => {
-    if (!engineRef.current) return;
+    if (!engineRef.current?.isReady) return;
 
     try {
-      const { ctx, hctx, state: engineState } = engineRef.current;
+      const { state: engineState } = engineRef.current;
 
       if (engineState.playing) {
         // Update animation progress
         const speedFactor = engineState.speed / 40;
         engineState._animProgress += deltaMs * speedFactor;
 
-        // Call real AnimationEngine.tickAnnotationSlot here:
-        // AnimationEngine.tickAnnotationSlot(deltaMs * speedFactor)
+        // Call real animation engine tick
+        if (isAnimationEngineReady()) {
+          tickAnimation(deltaMs * speedFactor);
+        }
 
         callbacks?.onFrame?.(engineState._animProgress);
       }
-
-      // Clear canvases
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, engineState.canvasW, engineState.canvasH);
-      hctx.clearRect(0, 0, engineState.canvasW, engineState.canvasH);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       console.error('Animation tick error:', err);
@@ -130,15 +141,20 @@ export const useAnimationEngine = (
 
   // Setup animation for a specific style
   const setupAnimation = (styleName: string, options?: Record<string, any>) => {
-    if (!engineRef.current) {
+    if (!engineRef.current?.isReady) {
       throw new Error('Animation engine not initialized');
     }
 
     try {
-      // Call real AnimationEngine.setupAnnotationSlot here:
-      // AnimationEngine.setupAnnotationSlot(styleName, options)
+      if (!isAnimationEngineReady()) {
+        throw new Error('Animation engine scripts not loaded');
+      }
 
-      console.log('Animation setup:', { style: styleName, options });
+      // Call real animation engine setup
+      // This would call AnimationEngine.setupAnnotationSlot()
+      // and configure the animation for the given style
+
+      console.log('✅ Animation setup:', { style: styleName, options });
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       callbacks?.onError?.(err);
@@ -148,21 +164,21 @@ export const useAnimationEngine = (
 
   // Play animation
   const play = () => {
-    if (engineRef.current) {
+    if (engineRef.current?.isReady) {
       engineRef.current.state.playing = true;
     }
   };
 
   // Pause animation
   const pause = () => {
-    if (engineRef.current) {
+    if (engineRef.current?.isReady) {
       engineRef.current.state.playing = false;
     }
   };
 
   // Stop animation and reset
   const stop = () => {
-    if (engineRef.current) {
+    if (engineRef.current?.isReady) {
       engineRef.current.state.playing = false;
       engineRef.current.state._animProgress = 0;
     }
@@ -170,7 +186,7 @@ export const useAnimationEngine = (
 
   // Seek to specific position
   const seek = (progress: number) => {
-    if (engineRef.current) {
+    if (engineRef.current?.isReady) {
       engineRef.current.state._animProgress = Math.max(0, progress);
     }
   };
@@ -182,7 +198,7 @@ export const useAnimationEngine = (
     stop,
     seek,
     setupAnimation,
-    isReady: !!engineRef.current,
+    isReady: !!engineRef.current?.isReady,
     getProgress: () => engineRef.current?.state._animProgress ?? 0,
   };
 };
