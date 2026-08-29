@@ -15,9 +15,23 @@ export function useWhiteboardRenderer({
   annotationCanvasRef,
 }: UseWhiteboardRendererProps) {
   const { progress, canvasBg, useAnnotation, annotations } = useUnifiedEngine();
-  const animFrameRef = useRef<number | null>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
 
-  // Draw main canvas (static/preview)
+  // Load background image
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/scene-premium-bag.png';
+    img.onload = () => {
+      imageRef.current = img;
+      // Trigger redraw
+      const canvas = canvasRef.current;
+      if (canvas) {
+        canvas.dispatchEvent(new Event('image-loaded'));
+      }
+    };
+  }, []);
+
+  // Draw main canvas with image
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -27,20 +41,39 @@ export function useWhiteboardRenderer({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Background
+    // Draw background
     if (canvasBg === 'black') {
       ctx.fillStyle = '#111111';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else if (canvasBg !== 'none') {
       ctx.fillStyle = canvasBg.startsWith('#') ? canvasBg : '#ffffff';
-    } else {
-      return;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Draw image if loaded
+    if (imageRef.current && imageRef.current.complete) {
+      const pct = progress / 100;
+      const revealWidth = pct * canvas.width;
 
-    // Draw progress indicator
-    const progressBarHeight = 2;
-    const progressWidth = (progress / 100) * canvas.width;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, revealWidth, canvas.height);
+      ctx.clip();
+
+      ctx.drawImage(
+        imageRef.current,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      ctx.restore();
+    }
+
+    // Draw progress bar
+    const progressBarHeight = 3;
+    const progressWidth = progress * canvas.width / 100;
     ctx.fillStyle = '#3b82f6';
     ctx.fillRect(0, 0, progressWidth, progressBarHeight);
   }, [progress, canvasBg, canvasRef]);
@@ -84,7 +117,7 @@ export function useWhiteboardRenderer({
     });
   }, [useAnnotation, annotations, annotationCanvasRef]);
 
-  // Clear hand canvas (for now - hand animation would go here)
+  // Clear hand canvas
   useEffect(() => {
     const handCanvas = handCanvasRef.current;
     if (!handCanvas) return;
