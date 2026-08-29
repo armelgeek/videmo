@@ -14,7 +14,10 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
 }: UseWhiteboardRendererProps) {
-  const { progress, canvasBg, useAnnotation, annotations } = useUnifiedEngine();
+  const { progress, isPlaying, canvasBg, useAnnotation, annotations } = useUnifiedEngine();
+
+  // Idle at 0% shows the finished image, not an empty canvas
+  const displayProgress = !isPlaying && progress === 0 ? 100 : progress;
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -54,7 +57,7 @@ export function useWhiteboardRenderer({
     // Draw image if loaded
     if (imageLoaded && imageRef.current) {
       try {
-        const pct = Math.max(0, Math.min(1, progress / 100));
+        const pct = Math.max(0, Math.min(1, displayProgress / 100));
         const revealWidth = pct * canvas.width;
 
         ctx.save();
@@ -81,7 +84,7 @@ export function useWhiteboardRenderer({
     const progressWidth = (progress / 100) * canvas.width;
     ctx.fillStyle = '#3b82f6';
     ctx.fillRect(0, 0, progressWidth, progressBarHeight);
-  }, [progress, canvasBg, canvasRef, imageLoaded]);
+  }, [progress, displayProgress, canvasBg, canvasRef, imageLoaded]);
 
   // Draw annotations overlay
   useEffect(() => {
