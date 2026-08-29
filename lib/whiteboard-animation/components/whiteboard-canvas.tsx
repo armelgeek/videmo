@@ -1,152 +1,148 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import type React from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import type { WhiteboardState, AnimationStyle, DrawingPath } from '../types';
 import { Button } from '@/components/ui/button';
-import { useAnimationEngine } from '../hooks/use-animation-engine';
 import {
-  Play,
-  Pause,
   RotateCcw,
   Download,
   ZoomIn,
   ZoomOut,
+  Play,
+  Pause,
   Trash2,
 } from 'lucide-react';
 
 interface WhiteboardCanvasProps {
-  canvasWidth?: number;
-  canvasHeight?: number;
-  onExport?: (canvas: HTMLCanvasElement) => void;
+  state: WhiteboardState;
+  onStateChange: (state: Partial<WhiteboardState>) => void;
+  readOnly?: boolean;
 }
 
 export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
-  canvasWidth = 1280,
-  canvasHeight = 720,
-  onExport,
+  state,
+  onStateChange,
+  readOnly = false,
 }) => {
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
-  const selectCanvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const [isPlaying, setIsPlaying] = useState(false);
+  const selCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [zoom, setZoom] = useState(1);
-  const [speed, setSpeed] = useState(40);
-  const [progress, setProgress] = useState(0);
-  const animationRef = useRef<number | null>(null);
+  const currentPathRef = useRef<DrawingPath | null>(null);
 
-  // Initialize animation engine
-  const engineState = {
-    canvasW: canvasWidth,
-    canvasH: canvasHeight,
-    speed,
-    playing: isPlaying,
-    _animProgress: progress,
-    contentBounds: {
-      x: 0,
-      y: 0,
-      w: canvasWidth,
-      h: canvasHeight,
+  // Initialize canvases with proper sizing
+  useEffect(() => {
+    const setupCanvas = (canvas: HTMLCanvasElement | null) => {
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+      }
+    };
+
+    setupCanvas(mainCanvasRef.current);
+    setupCanvas(handCanvasRef.current);
+    setupCanvas(selCanvasRef.current);
+  }, []);
+
+  // Drawing functions
+  const startDrawing = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (readOnly) return;
+
+      const canvas = mainCanvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / zoom;
+      const y = (e.clientY - rect.top) / zoom;
+
+      currentPathRef.current = {
+        points: [{ x, y }],
+        strokeColor: '#000000',
+        strokeWidth: 2,
+        timestamp: Date.now(),
+      };
+
+      setIsDrawing(true);
     },
-  };
-
-  const engine = useAnimationEngine(
-    mainCanvasRef.current,
-    handCanvasRef.current,
-    selectCanvasRef.current,
-    engineState,
-    {
-      onFrame: (prog) => setProgress(prog),
-      onError: (error) => console.error('Animation error:', error),
-    }
+    [readOnly, zoom]
   );
 
-  // Setup canvases
-  useEffect(() => {
-    const mainCanvas = mainCanvasRef.current;
-    const handCanvas = handCanvasRef.current;
-    const selectCanvas = selectCanvasRef.current;
+  const draw = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!isDrawing || !currentPathRef.current) return;
 
-    if (!mainCanvas || !handCanvas || !selectCanvas) return;
+      const canvas = mainCanvasRef.current;
+      if (!canvas) return;
 
-    // Set canvas sizes
-    mainCanvas.width = canvasWidth;
-    mainCanvas.height = canvasHeight;
-    handCanvas.width = canvasWidth;
-    handCanvas.height = canvasHeight;
-    selectCanvas.width = canvasWidth;
-    selectCanvas.height = canvasHeight;
-  }, [canvasWidth, canvasHeight]);
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / zoom;
+      const y = (e.clientY - rect.top) / zoom;
 
-  // Animation loop
-  useEffect(() => {
-    if (!engine.isReady) return;
+      currentPathRef.current.points.push({ x, y });
 
-    let lastTime = Date.now();
-    const animate = () => {
-      const now = Date.now();
-      const deltaMs = now - lastTime;
-      lastTime = now;
+      // Redraw canvas
+      const ctx = canvas.getContext('2d');
+      if (ctx && currentPathRef.current.points.length > 1) {
+        const points = currentPathRef.current.points;
+        const lastPoint = points[points.length - 2];
+        const currentPoint = points[points.length - 1];
 
-      if (isPlaying) {
-        engine.tick(deltaMs);
+        ctx.strokeStyle = currentPathRef.current.strokeColor;
+        ctx.lineWidth = currentPathRef.current.strokeWidth / zoom;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(currentPoint.x, currentPoint.y);
+        ctx.stroke();
       }
+    },
+    [isDrawing, zoom]
+  );
 
-      animationRef.current = requestAnimationFrame(animate);
-    };
+  const stopDrawing = useCallback(() => {
+    setIsDrawing(false);
+    currentPathRef.current = null;
+  }, []);
 
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [engine, isPlaying]);
-
+  // Control functions
   const handlePlayPause = () => {
-    if (isPlaying) {
-      engine.pause();
-    } else {
-      engine.play();
-    }
-    setIsPlaying(!isPlaying);
+    onStateChange({ playing: !state.playing });
   };
 
   const handleClear = () => {
-    engine.stop();
-    setProgress(0);
     const canvas = mainCanvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
     }
-  };
-
-  const handleReset = () => {
-    engine.stop();
-    setIsPlaying(false);
-    setProgress(0);
-    handleClear();
   };
 
   const handleZoom = (direction: 'in' | 'out') => {
     setZoom((z) => (direction === 'in' ? Math.min(z + 0.2, 3) : Math.max(z - 0.2, 0.5)));
   };
 
-  const handleExport = () => {
+  const handleDownload = async () => {
     const canvas = mainCanvasRef.current;
-    if (canvas && onExport) {
-      onExport(canvas);
-    } else if (canvas) {
-      const link = document.createElement('a');
-      link.href = canvas.toDataURL('image/png');
-      link.download = `whiteboard-${Date.now()}.png`;
-      link.click();
-    }
+    if (!canvas) return;
+
+    const link = document.createElement('a');
+    link.href = canvas.toDataURL('image/png');
+    link.download = `whiteboard-${Date.now()}.png`;
+    link.click();
   };
 
   return (
@@ -158,31 +154,17 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
             size="sm"
             variant="outline"
             onClick={handlePlayPause}
-            title={isPlaying ? 'Pause' : 'Play'}
+            title={state.playing ? 'Pause' : 'Play'}
           >
-            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+            {state.playing ? (
+              <Pause className="w-4 h-4" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleReset}
-            title="Reset"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="text-xs text-muted-foreground">Speed:</div>
-          <input
-            type="range"
-            min="1"
-            max="100"
-            value={speed}
-            onChange={(e) => setSpeed(Number(e.target.value))}
-            className="w-24 h-2"
-          />
-          <span className="text-xs text-muted-foreground w-8 text-right">{Math.round((speed / 40) * 100)}%</span>
+          <div className="text-xs text-muted-foreground">
+            {state.playing ? 'Playing' : 'Paused'}
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -211,8 +193,8 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
           <Button
             size="sm"
             variant="outline"
-            onClick={handleExport}
-            title="Export as PNG"
+            onClick={handleDownload}
+            title="Download as image"
           >
             <Download className="w-4 h-4" />
           </Button>
@@ -228,10 +210,7 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       </div>
 
       {/* Canvas Container */}
-      <div
-        ref={containerRef}
-        className="flex-1 relative overflow-auto bg-gradient-to-br from-slate-50 to-slate-100"
-      >
+      <div className="flex-1 relative overflow-auto bg-gradient-to-br from-slate-50 to-slate-100">
         <div
           className="relative inline-block"
           style={{
@@ -239,33 +218,37 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
             transformOrigin: '0 0',
           }}
         >
-          {/* Select Layer */}
+          {/* Selection Layer */}
           <canvas
-            ref={selectCanvasRef}
+            ref={selCanvasRef}
             className="absolute inset-0 cursor-crosshair"
             style={{
-              width: `${canvasWidth}px`,
-              height: `${canvasHeight}px`,
+              width: `${state.canvasWidth}px`,
+              height: `${state.canvasHeight}px`,
             }}
           />
 
-          {/* Hand Layer */}
+          {/* Hand/Interaction Layer */}
           <canvas
             ref={handCanvasRef}
             className="absolute inset-0"
             style={{
-              width: `${canvasWidth}px`,
-              height: `${canvasHeight}px`,
+              width: `${state.canvasWidth}px`,
+              height: `${state.canvasHeight}px`,
             }}
           />
 
-          {/* Main Layer */}
+          {/* Main Drawing Layer */}
           <canvas
             ref={mainCanvasRef}
-            className="relative bg-white"
+            onMouseDown={startDrawing}
+            onMouseMove={draw}
+            onMouseUp={stopDrawing}
+            onMouseLeave={stopDrawing}
+            className="relative bg-white cursor-crosshair"
             style={{
-              width: `${canvasWidth}px`,
-              height: `${canvasHeight}px`,
+              width: `${state.canvasWidth}px`,
+              height: `${state.canvasHeight}px`,
             }}
           />
         </div>
@@ -274,15 +257,12 @@ export const WhiteboardCanvas: React.FC<WhiteboardCanvasProps> = ({
       {/* Status Bar */}
       <div className="bg-muted/30 border-t border-border px-4 py-2 text-xs text-muted-foreground flex items-center justify-between">
         <div>
-          {canvasWidth}x{canvasHeight}px
-        </div>
-        <div className="flex items-center gap-2">
-          {isPlaying ? '▶ Playing' : '⏸ Paused'}
-          {progress > 0 && <span className="text-xs">• {Math.round(progress)}ms</span>}
+          {state.canvasWidth}x{state.canvasHeight}px
         </div>
         <div>
-          Speed: {Math.round((speed / 40) * 100)}%
+          Time: {Math.round(state.currentTime)}ms / {state.duration}ms
         </div>
+        <div>{state.animationStyle}</div>
       </div>
     </div>
   );
