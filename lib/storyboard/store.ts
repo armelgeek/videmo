@@ -6,6 +6,11 @@ import {
   StoryboardPanel,
   WorkflowStep,
 } from "./schema";
+import {
+  Annotation,
+  AnnotationConfig,
+  DEFAULT_ANNOTATION_CONFIG,
+} from "@/lib/whiteboard-animation/schema";
 
 export interface MediaItem {
   id: string;
@@ -29,6 +34,20 @@ export interface TimelineClip {
   transition?: unknown;
 }
 
+export interface WhiteboardConfig {
+  animStyle: string;
+  handStyle: string;
+  revealSpeed: number;
+  handSpeed: number;
+  chunks: number;
+  canvasBg: string;
+  useAnnotation: boolean;
+  aspectRatio: "16:9" | "9:16" | "1:1";
+  resolution: "720p" | "1080p";
+  annotations: Annotation[];
+  annotationConfig: AnnotationConfig;
+}
+
 export interface StoryboardStoreState {
   step: WorkflowStep;
   projectTitle: string;
@@ -38,6 +57,7 @@ export interface StoryboardStoreState {
   storyboardPanels: StoryboardPanel[];
   selectedVoice: string;
   isGenerating: boolean;
+  whiteboardConfig: WhiteboardConfig;
 
   // Actions
   setStep: (step: WorkflowStep) => void;
@@ -49,6 +69,15 @@ export interface StoryboardStoreState {
   updatePanel: (id: string, updates: Partial<StoryboardPanel>) => void;
   setSelectedVoice: (voiceId: string) => void;
   setIsGenerating: (isGenerating: boolean) => void;
+  setWhiteboardConfig: (config: Partial<WhiteboardConfig>) => void;
+
+  // Annotation actions
+  addAnnotation: (annotation: Annotation) => void;
+  updateAnnotation: (id: string, updates: Partial<Annotation>) => void;
+  removeAnnotation: (id: string) => void;
+  setAnnotations: (annotations: Annotation[]) => void;
+  setAnnotationConfig: (config: Partial<AnnotationConfig>) => void;
+
   loadDemoData: () => void;
   resetWorkflow: () => void;
 
@@ -67,6 +96,20 @@ const DEFAULT_PROJECT_PARAMS: ProjectParams = {
   tone: "professional",
 };
 
+const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
+  animStyle: "chunkjump",
+  handStyle: "custom1",
+  revealSpeed: 40,
+  handSpeed: 6,
+  chunks: 30,
+  canvasBg: "white",
+  useAnnotation: true,
+  aspectRatio: "16:9",
+  resolution: "720p",
+  annotations: [],
+  annotationConfig: DEFAULT_ANNOTATION_CONFIG,
+};
+
 export const useStoryboardStore = create<StoryboardStoreState>()(
   persist(
     (set, get) => ({
@@ -78,6 +121,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
       storyboardPanels: [],
       selectedVoice: "default",
       isGenerating: false,
+      whiteboardConfig: DEFAULT_WHITEBOARD_CONFIG,
 
       setStep: (step: WorkflowStep) => set({ step }),
       setProjectTitle: (projectTitle: string) => set({ projectTitle }),
@@ -97,6 +141,57 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
         })),
       setSelectedVoice: (selectedVoice: string) => set({ selectedVoice }),
       setIsGenerating: (isGenerating: boolean) => set({ isGenerating }),
+      setWhiteboardConfig: (config: Partial<WhiteboardConfig>) =>
+        set((state) => ({
+          whiteboardConfig: { ...state.whiteboardConfig, ...config },
+        })),
+
+      addAnnotation: (annotation: Annotation) =>
+        set((state) => ({
+          whiteboardConfig: {
+            ...state.whiteboardConfig,
+            annotations: [...state.whiteboardConfig.annotations, annotation],
+          },
+        })),
+
+      updateAnnotation: (id: string, updates: Partial<Annotation>) =>
+        set((state) => ({
+          whiteboardConfig: {
+            ...state.whiteboardConfig,
+            annotations: state.whiteboardConfig.annotations.map((a) =>
+              a.id === id ? { ...a, ...updates } : a,
+            ),
+          },
+        })),
+
+      removeAnnotation: (id: string) =>
+        set((state) => ({
+          whiteboardConfig: {
+            ...state.whiteboardConfig,
+            annotations: state.whiteboardConfig.annotations.filter(
+              (a) => a.id !== id,
+            ),
+          },
+        })),
+
+      setAnnotations: (annotations: Annotation[]) =>
+        set((state) => ({
+          whiteboardConfig: {
+            ...state.whiteboardConfig,
+            annotations,
+          },
+        })),
+
+      setAnnotationConfig: (config: Partial<AnnotationConfig>) =>
+        set((state) => ({
+          whiteboardConfig: {
+            ...state.whiteboardConfig,
+            annotationConfig: {
+              ...state.whiteboardConfig.annotationConfig,
+              ...config,
+            },
+          },
+        })),
 
       loadDemoData: () => {
         const panels: StoryboardPanel[] = DEMO_FINAL_SEQUENCE.storyboard.map(
@@ -214,6 +309,11 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
         script: state.script,
         storyboardPanels: state.storyboardPanels,
         selectedVoice: state.selectedVoice,
+        whiteboardConfig: {
+          ...state.whiteboardConfig,
+          annotations: state.whiteboardConfig.annotations,
+          annotationConfig: state.whiteboardConfig.annotationConfig,
+        },
       }),
     },
   ),
