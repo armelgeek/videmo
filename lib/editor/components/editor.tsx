@@ -1535,6 +1535,12 @@ const EditorInner: React.FC<EditorProps> = ({
 
   const whiteboardEngine = useUnifiedEngine();
 
+  // Sync editor playback with unified engine
+  useEffect(() => {
+    whiteboardEngine.setCurrentTime(playback.currentTime);
+    whiteboardEngine.setIsPlaying(playback.isPlaying);
+  }, [playback.currentTime, playback.isPlaying, whiteboardEngine]);
+
   return (
     <SidebarProvider defaultOpen={true}>
         <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--surface-0)] text-neutral-200 font-sans selection:bg-[var(--accent-muted)]">
