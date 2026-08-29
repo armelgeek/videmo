@@ -4,7 +4,7 @@ import { useRef, useEffect } from 'react';
 import { WhiteboardConfigPanel } from './whiteboard-config-panel';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, RotateCcw } from 'lucide-react';
-import { useInkplainerEngine } from '../hooks/use-inkplainer-engine';
+import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import type { WhiteboardConfig } from '@/lib/storyboard/store';
 
 interface WhiteboardEditorStepProps {
@@ -27,12 +27,11 @@ export function WhiteboardEditorStep({
   const canvasWidth = config.resolution === '720p' ? 1280 : 1920;
   const canvasHeight = config.resolution === '720p' ? 720 : 1080;
 
-  // Connect to whiteboard engine
+  // Connect to unified engine
   const {
     isPlaying,
     progress,
     togglePlay,
-    resetAnimation,
     animStyle,
     setAnimStyle,
     handStyle,
@@ -47,13 +46,8 @@ export function WhiteboardEditorStep({
     setCanvasBg,
     useAnnotation,
     annotations,
-  } = useInkplainerEngine({
-    canvasRef,
-    handCanvasRef,
-    annotationCanvasRef,
-    canvasWidth,
-    canvasHeight,
-  });
+    setCurrentTime,
+  } = useUnifiedEngine();
 
   // Sync config with engine
   useEffect(() => {
@@ -64,6 +58,11 @@ export function WhiteboardEditorStep({
     setChunks(config.chunks);
     setCanvasBg(config.canvasBg);
   }, [config, setAnimStyle, setHandStyle, setRevealSpeed, setHandSpeed, setChunks, setCanvasBg]);
+
+  // Reset animation when needed
+  const resetAnimation = () => {
+    setCurrentTime(0);
+  };
 
   return (
     <div className="w-full h-full flex gap-6">
