@@ -49,7 +49,7 @@ export function WhiteboardEditorStep({
     setCurrentTime,
   } = useUnifiedEngine();
 
-  // Sync config with engine
+  // Sync config with engine (Zustand setters are stable, safe to use without listing as deps)
   useEffect(() => {
     setAnimStyle(config.animStyle);
     setHandStyle(config.handStyle);
@@ -57,7 +57,7 @@ export function WhiteboardEditorStep({
     setHandSpeed(config.handSpeed);
     setChunks(config.chunks);
     setCanvasBg(config.canvasBg);
-  }, [config, setAnimStyle, setHandStyle, setRevealSpeed, setHandSpeed, setChunks, setCanvasBg]);
+  }, [config]); // Only config, not the setters which are stable from Zustand
 
   // Reset animation when needed
   const resetAnimation = () => {
