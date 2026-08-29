@@ -1,7 +1,7 @@
 import type { VideoConfig } from "@/lib/storyboard/types";
 
 export interface AutomatorSession {
-  step: "prompt" | "transition" | "process" | "selection" | "result";
+  step: "prompt" | "transition" | "process" | "selection" | "result" | "scriptValidation" | "storyboard" | "whiteboard" | "voiceChoice" | "editor";
   masterData?: {
     url: string;
     prompt: string;
@@ -16,6 +16,11 @@ export interface AutomatorSession {
   videoUrls?: Record<number, string>;
   masterDescription?: string;
   videoConfig?: VideoConfig;
+  storyboardData?: any;
+  generatedImages?: string[];
+  promptContent?: string;
+  script?: string;
+  selectedVoice?: string;
   timestamp: number;
 }
 

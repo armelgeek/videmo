@@ -37,6 +37,7 @@ export const workflowStepSchema = z.enum([
   "prompt",
   "scriptValidation",
   "storyboard",
+  "whiteboard",
   "voiceChoice",
   "editor",
 ]);
