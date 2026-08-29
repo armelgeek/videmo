@@ -17,3 +17,6 @@ Core library modules for the application. Each subdirectory or module group has 
 - **[utils/](./UTILS.md)** - Utility functions & helpers
 - **[webhooks/](./WEBHOOKS.md)** - Webhook handlers
 - **[seo.ts](./SEO.md)** - SEO utilities & metadata
+- **[unified-engine/](./unified-engine/README.md)** - Unified editor engine (state management, animation, timeline playback)
+- **[editor/](./editor/)** - Editor UI components and logic
+- **[whiteboard-animation/](./whiteboard-animation/DEPRECATION_NOTICE.md)** - Whiteboard animation UI (legacy - uses unified-engine)
