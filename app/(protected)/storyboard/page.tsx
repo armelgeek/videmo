@@ -796,14 +796,40 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                   </Select>
                 </div>
 
-                {/* Whiteboard Config Panel */}
+                {/* Whiteboard Config Panel & Preview */}
                 {projectParams.style === "whiteboard" && (
-                  <WhiteboardConfigPanel
-                    config={whiteboardConfig}
-                    onChange={(updates) =>
-                      setWhiteboardConfig(updates)
-                    }
-                  />
+                  <div className="space-y-4">
+                    <WhiteboardConfigPanel
+                      config={whiteboardConfig}
+                      onChange={(updates) =>
+                        setWhiteboardConfig(updates)
+                      }
+                    />
+
+                    {/* Whiteboard Preview */}
+                    <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-2">
+                      <h4 className="text-sm font-semibold text-muted-foreground">Preview</h4>
+                      <div className="relative rounded-lg bg-black w-full overflow-hidden"
+                        style={{
+                          aspectRatio: whiteboardConfig.aspectRatio === "16:9" ? "16/9" :
+                                      whiteboardConfig.aspectRatio === "9:16" ? "9/16" : "1/1"
+                        }}>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="text-center space-y-2">
+                            <div className="text-xs text-muted-foreground">
+                              {whiteboardConfig.animStyle} • {whiteboardConfig.handStyle}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Speed: {whiteboardConfig.revealSpeed} • Hand: {whiteboardConfig.handSpeed}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {whiteboardConfig.chunks} chunks • {whiteboardConfig.resolution}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {/* Main Input Card */}
