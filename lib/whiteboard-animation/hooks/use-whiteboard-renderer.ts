@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 
 export interface UseWhiteboardRendererProps {
@@ -16,6 +16,7 @@ export function useWhiteboardRenderer({
 }: UseWhiteboardRendererProps) {
   const { progress, canvasBg, useAnnotation, annotations } = useUnifiedEngine();
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
   // Load background image
   useEffect(() => {
@@ -23,11 +24,11 @@ export function useWhiteboardRenderer({
     img.src = '/scene-premium-bag.png';
     img.onload = () => {
       imageRef.current = img;
-      // Trigger redraw
-      const canvas = canvasRef.current;
-      if (canvas) {
-        canvas.dispatchEvent(new Event('image-loaded'));
-      }
+      setImageLoaded(true);
+    };
+    img.onerror = () => {
+      console.error('Failed to load image:', img.src);
+      setImageLoaded(false);
     };
   }, []);
 
@@ -41,7 +42,7 @@ export function useWhiteboardRenderer({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw background
+    // Draw background first
     if (canvasBg === 'black') {
       ctx.fillStyle = '#111111';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -51,32 +52,36 @@ export function useWhiteboardRenderer({
     }
 
     // Draw image if loaded
-    if (imageRef.current && imageRef.current.complete) {
-      const pct = progress / 100;
-      const revealWidth = pct * canvas.width;
+    if (imageLoaded && imageRef.current) {
+      try {
+        const pct = Math.max(0, Math.min(1, progress / 100));
+        const revealWidth = pct * canvas.width;
 
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, revealWidth, canvas.height);
-      ctx.clip();
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, revealWidth, canvas.height);
+        ctx.clip();
 
-      ctx.drawImage(
-        imageRef.current,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
+        ctx.drawImage(
+          imageRef.current,
+          0,
+          0,
+          canvas.width,
+          canvas.height
+        );
 
-      ctx.restore();
+        ctx.restore();
+      } catch (e) {
+        console.error('Error drawing image:', e);
+      }
     }
 
     // Draw progress bar
     const progressBarHeight = 3;
-    const progressWidth = progress * canvas.width / 100;
+    const progressWidth = (progress / 100) * canvas.width;
     ctx.fillStyle = '#3b82f6';
     ctx.fillRect(0, 0, progressWidth, progressBarHeight);
-  }, [progress, canvasBg, canvasRef]);
+  }, [progress, canvasBg, canvasRef, imageLoaded]);
 
   // Draw annotations overlay
   useEffect(() => {
