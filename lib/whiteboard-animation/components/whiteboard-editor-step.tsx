@@ -1,10 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { WhiteboardCanvas } from './whiteboard-canvas';
+import { useRef, useEffect } from 'react';
 import { WhiteboardConfigPanel } from './whiteboard-config-panel';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, RotateCcw } from 'lucide-react';
+import { useInkplainerEngine } from '../hooks/use-inkplainer-engine';
 import type { WhiteboardConfig } from '@/lib/storyboard/store';
 
 interface WhiteboardEditorStepProps {
@@ -24,7 +24,46 @@ export function WhiteboardEditorStep({
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [isPlaying, setIsPlaying] = useState(false);
+  const canvasWidth = config.resolution === '720p' ? 1280 : 1920;
+  const canvasHeight = config.resolution === '720p' ? 720 : 1080;
+
+  // Connect to whiteboard engine
+  const {
+    isPlaying,
+    progress,
+    togglePlay,
+    resetAnimation,
+    animStyle,
+    setAnimStyle,
+    handStyle,
+    setHandStyle,
+    revealSpeed,
+    setRevealSpeed,
+    handSpeed,
+    setHandSpeed,
+    chunks,
+    setChunks,
+    canvasBg,
+    setCanvasBg,
+    useAnnotation,
+    annotations,
+  } = useInkplainerEngine({
+    canvasRef,
+    handCanvasRef,
+    annotationCanvasRef,
+    canvasWidth,
+    canvasHeight,
+  });
+
+  // Sync config with engine
+  useEffect(() => {
+    setAnimStyle(config.animStyle);
+    setHandStyle(config.handStyle);
+    setRevealSpeed(config.revealSpeed);
+    setHandSpeed(config.handSpeed);
+    setChunks(config.chunks);
+    setCanvasBg(config.canvasBg);
+  }, [config, setAnimStyle, setHandStyle, setRevealSpeed, setHandSpeed, setChunks, setCanvasBg]);
 
   return (
     <div className="w-full h-full flex gap-6">
@@ -33,9 +72,15 @@ export function WhiteboardEditorStep({
         {/* Header */}
         <div className="space-y-2">
           <h2 className="text-2xl font-bold">Whiteboard Preview</h2>
-          <p className="text-sm text-muted-foreground">
-            {config.animStyle} • {config.handStyle} • {config.resolution}
-          </p>
+          <div className="flex gap-4 text-sm text-muted-foreground">
+            <span>{config.animStyle}</span>
+            <span>{config.handStyle}</span>
+            <span>{config.resolution}</span>
+            <span>{progress}%</span>
+            {annotations.length > 0 && (
+              <span>{annotations.length} annotations</span>
+            )}
+          </div>
         </div>
 
         {/* Canvas Container */}
@@ -60,13 +105,21 @@ export function WhiteboardEditorStep({
           />
         </div>
 
+        {/* Progress Bar */}
+        <div className="bg-muted rounded-full h-1 overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
         {/* Playback Controls */}
         <div className="flex gap-2">
           <Button
             variant={isPlaying ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setIsPlaying(!isPlaying)}
-            className="flex gap-2"
+            onClick={togglePlay}
+            className="flex gap-2 flex-1"
           >
             {isPlaying ? (
               <>
@@ -83,7 +136,7 @@ export function WhiteboardEditorStep({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsPlaying(false)}
+            onClick={resetAnimation}
             className="flex gap-2"
           >
             <RotateCcw className="w-4 h-4" />
@@ -96,7 +149,17 @@ export function WhiteboardEditorStep({
       <div className="w-96 flex flex-col gap-4 overflow-y-auto pb-6">
         <WhiteboardConfigPanel
           config={config}
-          onChange={onConfigChange}
+          onChange={(updates) => {
+            // Update store for persistence
+            onConfigChange(updates);
+            // Sync each field with engine
+            if (updates.animStyle) setAnimStyle(updates.animStyle);
+            if (updates.handStyle) setHandStyle(updates.handStyle);
+            if (updates.revealSpeed !== undefined) setRevealSpeed(updates.revealSpeed);
+            if (updates.handSpeed !== undefined) setHandSpeed(updates.handSpeed);
+            if (updates.chunks !== undefined) setChunks(updates.chunks);
+            if (updates.canvasBg) setCanvasBg(updates.canvasBg);
+          }}
         />
 
         {/* Navigation Buttons */}
