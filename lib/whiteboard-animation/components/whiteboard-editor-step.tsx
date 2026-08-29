@@ -46,6 +46,7 @@ export function WhiteboardEditorStep({
     canvasBg,
     setCanvasBg,
     useAnnotation,
+    setUseAnnotation,
     annotations,
     setCurrentTime,
   } = useUnifiedEngine();
@@ -65,6 +66,7 @@ export function WhiteboardEditorStep({
     setHandSpeed(config.handSpeed);
     setChunks(config.chunks);
     setCanvasBg(config.canvasBg);
+    setUseAnnotation(config.useAnnotation);
   }, [config]); // Only config, not the setters which are stable from Zustand
 
   // Reset animation when needed

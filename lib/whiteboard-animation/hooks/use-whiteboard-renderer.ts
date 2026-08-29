@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
+import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
+import {
+  SCENE_PREMIUM_BAG_ANNOTATIONS,
+  SCENE_PREMIUM_BAG_DURATION_MS,
+  projectAnnotations,
+} from '../data/scene-premium-bag';
 
 export interface UseWhiteboardRendererProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -14,12 +20,35 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
 }: UseWhiteboardRendererProps) {
-  const { progress, isPlaying, canvasBg, useAnnotation, annotations } = useUnifiedEngine();
+  const { progress, isPlaying, currentTime, canvasBg, useAnnotation, annotations } =
+    useUnifiedEngine();
 
   // Idle at 0% shows the finished image, not an empty canvas
   const displayProgress = !isPlaying && progress === 0 ? 100 : progress;
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Seed the demo scene once: annotations projected onto the canvas, plus its duration.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    seededRef.current = true;
+
+    const store = useUnifiedEngineStore.getState();
+    if (store.animation.annotations.length === 0) {
+      const projected = projectAnnotations(
+        SCENE_PREMIUM_BAG_ANNOTATIONS,
+        canvas.width,
+        canvas.height
+      );
+      projected.forEach((a) => store.addAnnotation(a));
+    }
+    if (store.timeline.duration === 0) {
+      store.setDuration(SCENE_PREMIUM_BAG_DURATION_MS);
+    }
+  }, [canvasRef]);
 
   // Load background image
   useEffect(() => {
@@ -34,6 +63,33 @@ export function useWhiteboardRenderer({
       setImageLoaded(false);
     };
   }, []);
+
+  // Playback clock: advance currentTime while playing, stop at the end.
+  useEffect(() => {
+    if (!isPlaying) return;
+    let frame = 0;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const delta = now - last;
+      last = now;
+
+      const store = useUnifiedEngineStore.getState();
+      const next = store.timeline.currentTime + delta;
+
+      if (next >= store.timeline.duration) {
+        store.setCurrentTime(store.timeline.duration);
+        store.setIsPlaying(false);
+        return;
+      }
+
+      store.setCurrentTime(next);
+      frame = requestAnimationFrame(step);
+    };
+
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [isPlaying]);
 
   // Draw main canvas with image
   useEffect(() => {
@@ -97,33 +153,36 @@ export function useWhiteboardRenderer({
     actx.clearRect(0, 0, annCanvas.width, annCanvas.height);
     if (!useAnnotation || annotations.length === 0) return;
 
-    const colorPalette = [
-      { stroke: '#2563eb', fill: 'rgba(37, 99, 235, 0.12)' },
-      { stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)' },
-      { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.12)' },
-      { stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.12)' },
-      { stroke: '#f97316', fill: 'rgba(249, 115, 22, 0.12)' },
-      { stroke: '#06b6d4', fill: 'rgba(6, 182, 212, 0.12)' },
-    ];
+    // Idle shows every region; during playback each appears at its reveal time.
+    const idle = !isPlaying && currentTime === 0;
 
     annotations.forEach((annot, i) => {
       const region = annot.region;
       if (!region) return;
+      if (!idle && currentTime < (annot.reveal?.from ?? 0)) return;
 
-      const style = colorPalette[i % colorPalette.length];
+      const stroke = annot.style?.strokeColor ?? '#2563eb';
+      const fill = annot.style?.fillColor ?? 'rgba(37, 99, 235, 0.12)';
 
-      actx.fillStyle = style.fill;
+      actx.fillStyle = fill;
       actx.fillRect(region.x, region.y, region.width, region.height);
 
-      actx.strokeStyle = style.stroke;
-      actx.lineWidth = 2;
+      actx.strokeStyle = stroke;
+      actx.lineWidth = annot.style?.strokeWidth ?? 2;
       actx.strokeRect(region.x, region.y, region.width, region.height);
 
-      actx.fillStyle = style.stroke;
-      actx.font = 'bold 13px Geist, sans-serif';
-      actx.fillText(String(i + 1), region.x + 4, region.y + 14);
+      // Numbered badge with the element label beside it
+      const label = `${i + 1}. ${annot.text}`;
+      actx.font = 'bold 14px Geist, sans-serif';
+      const textWidth = actx.measureText(label).width;
+
+      actx.fillStyle = stroke;
+      actx.fillRect(region.x, Math.max(0, region.y - 22), textWidth + 12, 22);
+
+      actx.fillStyle = '#ffffff';
+      actx.fillText(label, region.x + 6, Math.max(0, region.y - 22) + 16);
     });
-  }, [useAnnotation, annotations, annotationCanvasRef]);
+  }, [useAnnotation, annotations, annotationCanvasRef, currentTime, isPlaying]);
 
   // Clear hand canvas
   useEffect(() => {
