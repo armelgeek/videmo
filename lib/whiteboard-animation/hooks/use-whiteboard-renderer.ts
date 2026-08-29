@@ -61,6 +61,10 @@ export function useWhiteboardRenderer({
   const handImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const animRef = useRef<any>(null);
   const activeStyleRef = useRef<string>('');
+  // Guards the engine callbacks. Held in a ref, not a per-run closure: the
+  // instance outlives a run (pause/resume, StrictMode remount) and a stale
+  // closure flag would silently disable its callbacks forever.
+  const stoppedRef = useRef(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   // Latest config, readable from inside the rAF closure without re-subscribing.
@@ -158,20 +162,43 @@ export function useWhiteboardRenderer({
 
   // ---- engine-driven playback --------------------------------------------
 
+  // Changing what the engine was built from invalidates the instance, so the
+  // next play rebuilds it. Reveal speed is read live in tick(), so it is absent.
   useEffect(() => {
-    if (!isPlaying) {
-      const handCanvas = handCanvasRef.current;
-      handCanvas
-        ?.getContext('2d')
-        ?.clearRect(0, 0, handCanvas.width, handCanvas.height);
-      return;
-    }
+    animRef.current = null;
+  }, [animStyle, handStyle, handSpeed, chunks, useAnnotation]);
+
+  useEffect(() => {
+    // Pausing must freeze the frame: keep the instance and the painted canvas
+    // so resuming continues instead of restarting.
+    if (!isPlaying) return;
 
     const canvas = canvasRef.current;
     const handCanvas = handCanvasRef.current;
     const ctx = canvas?.getContext('2d');
     const hctx = handCanvas?.getContext('2d');
     if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
+
+    // Resume path: the engine already holds its progress, just keep ticking.
+    if (animRef.current) {
+      stoppedRef.current = false;
+      let resumeFrame = 0;
+      let resumeLast = performance.now();
+
+      const resumeStep = (now: number) => {
+        if (stoppedRef.current) return;
+        const delta = Math.min(100, now - resumeLast);
+        resumeLast = now;
+        animRef.current?.tick?.(cfgRef.current.revealSpeed, delta);
+        if (!stoppedRef.current) resumeFrame = requestAnimationFrame(resumeStep);
+      };
+      resumeFrame = requestAnimationFrame(resumeStep);
+
+      return () => {
+        stoppedRef.current = true;
+        cancelAnimationFrame(resumeFrame);
+      };
+    }
 
     // Offscreen holds the source artwork the engine reveals from.
     let offscreen = offscreenRef.current;
@@ -188,7 +215,7 @@ export function useWhiteboardRenderer({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     paintBackground(ctx, canvas.width, canvas.height);
 
-    let stopped = false;
+    stoppedRef.current = false;
     let frame = 0;
 
     const store = useUnifiedEngineStore.getState();
@@ -212,7 +239,7 @@ export function useWhiteboardRenderer({
         callbacks: {
           fillBg: () => paintBackground(ctx, canvas.width, canvas.height),
           drawHand: (...args: any[]) => {
-            if (stopped) return;
+            if (stoppedRef.current) return;
             // Styles call drawHand(x, y) or drawHand(ctx, x, y).
             const [a, b, c] = args;
             const tipX = typeof a === 'number' ? a : b;
@@ -222,13 +249,14 @@ export function useWhiteboardRenderer({
             }
           },
           setProgress: (p: number) => {
-            if (stopped) return;
+            if (stoppedRef.current) return;
             const s = useUnifiedEngineStore.getState();
             s.setCurrentTime(Math.min(1, Math.max(0, p)) * s.timeline.duration);
           },
           finishAnim: () => {
-            stopped = true;
+            stoppedRef.current = true;
             cancelAnimationFrame(frame);
+            animRef.current = null;
             const s = useUnifiedEngineStore.getState();
             s.setCurrentTime(s.timeline.duration);
             s.setIsPlaying(false);
@@ -249,27 +277,32 @@ export function useWhiteboardRenderer({
 
     let last = performance.now();
     const step = (now: number) => {
-      if (stopped) return;
+      if (stoppedRef.current) return;
       const delta = Math.min(100, now - last);
       last = now;
       animRef.current?.tick?.(cfgRef.current.revealSpeed, delta);
-      if (!stopped) frame = requestAnimationFrame(step);
+      if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
 
+    // Keep animRef so a pause can resume; only cancel the frame loop.
     return () => {
-      stopped = true;
+      stoppedRef.current = true;
       cancelAnimationFrame(frame);
-      animRef.current = null;
     };
-    // Restarting on style/params change is intentional: the engine is rebuilt.
-  }, [isPlaying, animStyle, handStyle, revealSpeed, handSpeed, chunks, useAnnotation]);
+  }, [isPlaying, imageLoaded]);
 
-  // Idle preview — only when the engine is not driving the canvas.
+  // Static preview only at the very start (or after Reset). Pausing mid-run
+  // must leave the engine's partial frame on screen.
   useEffect(() => {
-    if (isPlaying) return;
+    if (isPlaying || currentTime > 0) return;
+    animRef.current = null;
+    const handCanvas = handCanvasRef.current;
+    handCanvas
+      ?.getContext('2d')
+      ?.clearRect(0, 0, handCanvas.width, handCanvas.height);
     drawStaticPreview();
-  }, [isPlaying, imageLoaded, canvasBg, progress, canvasRef]);
+  }, [isPlaying, currentTime, imageLoaded, canvasBg, canvasRef, handCanvasRef]);
 
   // ---- annotation overlay -------------------------------------------------
 
