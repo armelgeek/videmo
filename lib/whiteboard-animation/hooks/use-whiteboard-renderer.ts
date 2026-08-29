@@ -9,6 +9,28 @@ import {
   projectAnnotations,
 } from '../data/scene-premium-bag';
 
+const AnimationFactory = require('../lib/index');
+const { CUSTOM_HANDS } = require('../lib/hands');
+const { handDrawRect } = require('../lib/handLayout');
+
+const SCENE_IMAGE = '/scene-premium-bag.png';
+
+const HAND_ASSETS: Record<string, string> = {
+  custom1: '/images/hand1-720p.png',
+  custom2: '/images/hand2-720p.png',
+  custom3: '/images/hand3-720p.png',
+  custom4: '/images/hand4-720p.png',
+};
+
+/** Accepts "hand1", "Hand 1", "custom1"… and returns a CUSTOM_HANDS key. */
+function normalizeHandKey(handStyle: string): string {
+  const s = (handStyle || '').toLowerCase().replace(/\s+/g, '');
+  for (const n of ['1', '2', '3', '4']) {
+    if (s.includes(`hand${n}`) || s === `custom${n}`) return `custom${n}`;
+  }
+  return 'custom1';
+}
+
 export interface UseWhiteboardRendererProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   handCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -20,15 +42,52 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
 }: UseWhiteboardRendererProps) {
-  const { progress, isPlaying, currentTime, canvasBg, useAnnotation, annotations } =
-    useUnifiedEngine();
+  const {
+    progress,
+    isPlaying,
+    currentTime,
+    canvasBg,
+    useAnnotation,
+    annotations,
+    animStyle,
+    handStyle,
+    revealSpeed,
+    handSpeed,
+    chunks,
+  } = useUnifiedEngine();
 
-  // Idle at 0% shows the finished image, not an empty canvas
-  const displayProgress = !isPlaying && progress === 0 ? 100 : progress;
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const offscreenRef = useRef<HTMLCanvasElement | null>(null);
+  const handImagesRef = useRef<Record<string, HTMLImageElement>>({});
+  const animRef = useRef<any>(null);
+  const activeStyleRef = useRef<string>('');
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  // Seed the demo scene once: annotations projected onto the canvas, plus its duration.
+  // Latest config, readable from inside the rAF closure without re-subscribing.
+  const cfgRef = useRef({ handStyle, revealSpeed, canvasBg });
+  cfgRef.current = { handStyle, revealSpeed, canvasBg };
+
+  // ---- assets -------------------------------------------------------------
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = SCENE_IMAGE;
+    img.onload = () => {
+      imageRef.current = img;
+      setImageLoaded(true);
+    };
+    img.onerror = () => console.error('Failed to load scene image', SCENE_IMAGE);
+
+    Object.entries(HAND_ASSETS).forEach(([key, src]) => {
+      const h = new Image();
+      h.src = src;
+      h.onload = () => {
+        handImagesRef.current[key] = h;
+      };
+    });
+  }, []);
+
+  // Seed the demo scene once: annotations projected onto the canvas + duration.
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current) return;
@@ -38,111 +97,182 @@ export function useWhiteboardRenderer({
 
     const store = useUnifiedEngineStore.getState();
     if (store.animation.annotations.length === 0) {
-      const projected = projectAnnotations(
+      projectAnnotations(
         SCENE_PREMIUM_BAG_ANNOTATIONS,
         canvas.width,
         canvas.height
-      );
-      projected.forEach((a) => store.addAnnotation(a));
+      ).forEach((a) => store.addAnnotation(a));
     }
     if (store.timeline.duration === 0) {
       store.setDuration(SCENE_PREMIUM_BAG_DURATION_MS);
     }
   }, [canvasRef]);
 
-  // Load background image
-  useEffect(() => {
-    const img = new Image();
-    img.src = '/scene-premium-bag.png';
-    img.onload = () => {
-      imageRef.current = img;
-      setImageLoaded(true);
-    };
-    img.onerror = () => {
-      console.error('Failed to load image:', img.src);
-      setImageLoaded(false);
-    };
-  }, []);
+  // ---- helpers ------------------------------------------------------------
 
-  // Playback clock: advance currentTime while playing, stop at the end.
-  useEffect(() => {
-    if (!isPlaying) return;
-    let frame = 0;
-    let last = performance.now();
+  const paintBackground = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const bg = cfgRef.current.canvasBg;
+    if (bg === 'none') return;
+    ctx.fillStyle = bg === 'black' ? '#111111' : bg?.startsWith('#') ? bg : '#ffffff';
+    ctx.fillRect(0, 0, w, h);
+  };
 
-    const step = (now: number) => {
-      const delta = now - last;
-      last = now;
+  const drawHandSprite = (tipX: number, tipY: number) => {
+    const handCanvas = handCanvasRef.current;
+    if (!handCanvas) return;
+    const hctx = handCanvas.getContext('2d');
+    if (!hctx) return;
 
-      const store = useUnifiedEngineStore.getState();
-      const next = store.timeline.currentTime + delta;
+    hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+    if (cfgRef.current.handStyle === 'ghost') return;
 
-      if (next >= store.timeline.duration) {
-        store.setCurrentTime(store.timeline.duration);
-        store.setIsPlaying(false);
-        return;
-      }
+    const key = normalizeHandKey(cfgRef.current.handStyle);
+    const imgConfig = CUSTOM_HANDS[key]?.images?.[720];
+    const sprite = handImagesRef.current[key] ?? handImagesRef.current.custom1;
 
-      store.setCurrentTime(next);
-      frame = requestAnimationFrame(step);
-    };
+    if (imgConfig && sprite?.complete) {
+      const r = handDrawRect(
+        imgConfig,
+        720,
+        tipX,
+        tipY,
+        handCanvas.width,
+        handCanvas.height
+      );
+      hctx.drawImage(sprite, r.x, r.y, r.width, r.height);
+    }
+  };
 
-    frame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(frame);
-  }, [isPlaying]);
-
-  // Draw main canvas with image
-  useEffect(() => {
+  // Static preview when idle: the finished drawing, no engine involved.
+  const drawStaticPreview = () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    paintBackground(ctx, canvas.width, canvas.height);
+    if (imageRef.current) {
+      ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
+    }
+  };
 
-    // Draw background first
-    if (canvasBg === 'black') {
-      ctx.fillStyle = '#111111';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    } else if (canvasBg !== 'none') {
-      ctx.fillStyle = canvasBg.startsWith('#') ? canvasBg : '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // ---- engine-driven playback --------------------------------------------
+
+  useEffect(() => {
+    if (!isPlaying) {
+      const handCanvas = handCanvasRef.current;
+      handCanvas
+        ?.getContext('2d')
+        ?.clearRect(0, 0, handCanvas.width, handCanvas.height);
+      return;
     }
 
-    // Draw image if loaded
-    if (imageLoaded && imageRef.current) {
-      try {
-        const pct = Math.max(0, Math.min(1, displayProgress / 100));
-        const revealWidth = pct * canvas.width;
+    const canvas = canvasRef.current;
+    const handCanvas = handCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const hctx = handCanvas?.getContext('2d');
+    if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
 
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(0, 0, revealWidth, canvas.height);
-        ctx.clip();
+    // Offscreen holds the source artwork the engine reveals from.
+    let offscreen = offscreenRef.current;
+    if (!offscreen) {
+      offscreen = document.createElement('canvas');
+      offscreenRef.current = offscreen;
+    }
+    offscreen.width = canvas.width;
+    offscreen.height = canvas.height;
+    offscreen
+      .getContext('2d')
+      ?.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
 
-        ctx.drawImage(
-          imageRef.current,
-          0,
-          0,
-          canvas.width,
-          canvas.height
-        );
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    paintBackground(ctx, canvas.width, canvas.height);
 
-        ctx.restore();
-      } catch (e) {
-        console.error('Error drawing image:', e);
-      }
+    let stopped = false;
+    let frame = 0;
+
+    const store = useUnifiedEngineStore.getState();
+    const engineState: any = {
+      canvasW: canvas.width,
+      canvasH: canvas.height,
+      speed: revealSpeed,
+      handSpeed,
+      hand: normalizeHandKey(handStyle),
+      tileSlider: chunks,
+      contentBounds: { x: 0, y: 0, w: canvas.width, h: canvas.height },
+      annotations: useAnnotation ? store.animation.annotations : [],
+    };
+
+    try {
+      animRef.current = AnimationFactory.create(animStyle, {
+        state: engineState,
+        ctx,
+        hctx,
+        offscreen,
+        callbacks: {
+          fillBg: () => paintBackground(ctx, canvas.width, canvas.height),
+          drawHand: (...args: any[]) => {
+            if (stopped) return;
+            // Styles call drawHand(x, y) or drawHand(ctx, x, y).
+            const [a, b, c] = args;
+            const tipX = typeof a === 'number' ? a : b;
+            const tipY = typeof a === 'number' ? b : c;
+            if (typeof tipX === 'number' && typeof tipY === 'number') {
+              drawHandSprite(tipX, tipY);
+            }
+          },
+          setProgress: (p: number) => {
+            if (stopped) return;
+            const s = useUnifiedEngineStore.getState();
+            s.setCurrentTime(Math.min(1, Math.max(0, p)) * s.timeline.duration);
+          },
+          finishAnim: () => {
+            stopped = true;
+            cancelAnimationFrame(frame);
+            const s = useUnifiedEngineStore.getState();
+            s.setCurrentTime(s.timeline.duration);
+            s.setIsPlaying(false);
+            hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+          },
+          resScale: () => 1,
+          resPointScale: () => 1,
+        },
+      });
+
+      animRef.current.setup?.();
+      activeStyleRef.current = animStyle;
+    } catch (err) {
+      console.error('Failed to start animation engine:', err);
+      useUnifiedEngineStore.getState().setIsPlaying(false);
+      return;
     }
 
-    // Draw progress bar
-    const progressBarHeight = 3;
-    const progressWidth = (progress / 100) * canvas.width;
-    ctx.fillStyle = '#3b82f6';
-    ctx.fillRect(0, 0, progressWidth, progressBarHeight);
-  }, [progress, displayProgress, canvasBg, canvasRef, imageLoaded]);
+    let last = performance.now();
+    const step = (now: number) => {
+      if (stopped) return;
+      const delta = Math.min(100, now - last);
+      last = now;
+      animRef.current?.tick?.(cfgRef.current.revealSpeed, delta);
+      if (!stopped) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
 
-  // Draw annotations overlay
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(frame);
+      animRef.current = null;
+    };
+    // Restarting on style/params change is intentional: the engine is rebuilt.
+  }, [isPlaying, animStyle, handStyle, revealSpeed, handSpeed, chunks, useAnnotation]);
+
+  // Idle preview — only when the engine is not driving the canvas.
+  useEffect(() => {
+    if (isPlaying) return;
+    drawStaticPreview();
+  }, [isPlaying, imageLoaded, canvasBg, progress, canvasRef]);
+
+  // ---- annotation overlay -------------------------------------------------
+
   useEffect(() => {
     const annCanvas = annotationCanvasRef?.current;
     if (!annCanvas) return;
@@ -171,27 +301,16 @@ export function useWhiteboardRenderer({
       actx.lineWidth = annot.style?.strokeWidth ?? 2;
       actx.strokeRect(region.x, region.y, region.width, region.height);
 
-      // Numbered badge with the element label beside it
       const label = `${i + 1}. ${annot.text}`;
       actx.font = 'bold 14px Geist, sans-serif';
       const textWidth = actx.measureText(label).width;
+      const badgeY = Math.max(0, region.y - 22);
 
       actx.fillStyle = stroke;
-      actx.fillRect(region.x, Math.max(0, region.y - 22), textWidth + 12, 22);
+      actx.fillRect(region.x, badgeY, textWidth + 12, 22);
 
       actx.fillStyle = '#ffffff';
-      actx.fillText(label, region.x + 6, Math.max(0, region.y - 22) + 16);
+      actx.fillText(label, region.x + 6, badgeY + 16);
     });
   }, [useAnnotation, annotations, annotationCanvasRef, currentTime, isPlaying]);
-
-  // Clear hand canvas
-  useEffect(() => {
-    const handCanvas = handCanvasRef.current;
-    if (!handCanvas) return;
-
-    const hctx = handCanvas.getContext('2d');
-    if (!hctx) return;
-
-    hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
-  }, [handCanvasRef]);
 }

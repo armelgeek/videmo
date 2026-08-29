@@ -75,9 +75,9 @@ export function WhiteboardEditorStep({
   };
 
   return (
-    <div className="w-full h-full flex gap-6">
+    <div className="w-full h-full flex gap-6 overflow-hidden">
       {/* Left: Canvas Preview */}
-      <div className="flex-1 flex flex-col gap-4">
+      <div className="flex-1 min-h-0 flex flex-col gap-4 justify-start">
         {/* Header */}
         <div className="space-y-2">
           <h2 className="text-2xl font-bold">Whiteboard Preview</h2>
@@ -92,8 +92,9 @@ export function WhiteboardEditorStep({
           </div>
         </div>
 
-        {/* Canvas Container */}
-        <div className="flex-1 rounded-lg border border-white/10 bg-black overflow-hidden relative">
+        {/* Canvas Container — locked to 16:9 and capped in height so the
+            progress bar and playback controls stay above the fold. */}
+        <div className="shrink-0 mx-auto w-full max-w-[min(100%,calc(52vh*16/9))] aspect-video rounded-lg border border-white/10 bg-black overflow-hidden relative">
           <canvas
             ref={canvasRef}
             width={config.resolution === '720p' ? 1280 : 1920}
@@ -104,13 +105,13 @@ export function WhiteboardEditorStep({
             ref={handCanvasRef}
             width={config.resolution === '720p' ? 1280 : 1920}
             height={config.resolution === '720p' ? 720 : 1080}
-            className="absolute inset-0 w-full h-full pointer-events-none"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
           />
           <canvas
             ref={annotationCanvasRef}
             width={config.resolution === '720p' ? 1280 : 1920}
             height={config.resolution === '720p' ? 720 : 1080}
-            className="absolute inset-0 w-full h-full pointer-events-none"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
           />
         </div>
 
