@@ -45,6 +45,7 @@ import { useRouter } from "next/navigation";
 import { Editor } from "@/lib/editor/components/editor";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
+import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 
 const STEPS = [
   { key: "prompt", label: "Prompt", icon: Wand2 },
@@ -1360,53 +1361,21 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
 
           {/* Whiteboard Step */}
           {step === "whiteboard" && projectParams.style === "whiteboard" && (
-            <div className="w-full h-full overflow-hidden px-12">
-              <div className="max-w-7xl mx-auto space-y-6 pt-6">
-                {/* Header */}
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <h2 className="text-3xl font-bold">Whiteboard Editor</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Customize your whiteboard animation
-                    </p>
-                  </div>
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => setStep("storyboard")}
-                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      size="sm"
-                    >
-                      ← Storyboard
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setStep("voiceChoice");
-                        saveSession({
-                          step: "voiceChoice",
-                          storyboardData,
-                          generatedImages,
-                        });
-                      }}
-                      size="sm"
-                      className="bg-primary hover:bg-primary/90"
-                    >
-                      <Film className="w-3.5 h-3.5 mr-1.5" />
-                      Continue to Voice
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Config Panel */}
-                <WhiteboardConfigPanel
-                  config={whiteboardConfig}
-                  onChange={(updates) =>
-                    setWhiteboardConfig(updates)
-                  }
-                />
-              </div>
-            </div>
+            <WhiteboardEditorStep
+              config={whiteboardConfig}
+              onConfigChange={(updates) =>
+                setWhiteboardConfig(updates)
+              }
+              onNavigateBack={() => setStep("storyboard")}
+              onNavigateNext={() => {
+                setStep("voiceChoice");
+                saveSession({
+                  step: "voiceChoice",
+                  storyboardData,
+                  generatedImages,
+                });
+              }}
+            />
           )}
 
           {step === "voiceChoice" &&
