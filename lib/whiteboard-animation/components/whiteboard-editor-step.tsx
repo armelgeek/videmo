@@ -5,6 +5,7 @@ import { WhiteboardConfigPanel } from './whiteboard-config-panel';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
+import { useWhiteboardRenderer } from '../hooks/use-whiteboard-renderer';
 import type { WhiteboardConfig } from '@/lib/storyboard/store';
 
 interface WhiteboardEditorStepProps {
@@ -48,6 +49,13 @@ export function WhiteboardEditorStep({
     annotations,
     setCurrentTime,
   } = useUnifiedEngine();
+
+  // Enable canvas rendering
+  useWhiteboardRenderer({
+    canvasRef,
+    handCanvasRef,
+    annotationCanvasRef,
+  });
 
   // Sync config with engine (Zustand setters are stable, safe to use without listing as deps)
   useEffect(() => {
