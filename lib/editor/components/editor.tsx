@@ -62,8 +62,7 @@ import { DEMO_FINAL_SEQUENCE } from "@/lib/demo-data";
 import { StatusBar } from "./status-bar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { InkplainerSidebar } from "@/lib/whiteboard-animation/components/inkplainer-sidebar";
-import { AnimationProvider } from "@/lib/whiteboard-animation/context/animation-context";
-import { useInkplainerEngine } from "@/lib/whiteboard-animation/hooks/use-inkplainer-engine";
+import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 
 
 // Define VideoConfig and IStoryboardPanel types as they were not exported from constants/types
@@ -1534,16 +1533,7 @@ const EditorInner: React.FC<EditorProps> = ({
   const whiteboardHandCanvasRef = useRef<HTMLCanvasElement>(null);
   const whiteboardAnnotationCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const whiteboardEngine = useInkplainerEngine({
-    canvasRef: whiteboardCanvasRef,
-    handCanvasRef: whiteboardHandCanvasRef,
-    annotationCanvasRef: whiteboardAnnotationCanvasRef,
-    canvasWidth: 1920,
-    canvasHeight: 1080,
-    currentTime: playback.currentTime,
-    isPlaying: playback.isPlaying,
-    onTogglePlay: () => playback.setIsPlaying((p) => !p),
-  });
+  const whiteboardEngine = useUnifiedEngine();
 
   return (
     <SidebarProvider defaultOpen={true}>
@@ -1769,9 +1759,7 @@ const EditorInner: React.FC<EditorProps> = ({
 };
 
 export const Editor: React.FC<EditorProps> = (props) => (
-  <AnimationProvider>
-    <EditorInner {...props} />
-  </AnimationProvider>
+  <EditorInner {...props} />
 );
 
 export default Editor;
