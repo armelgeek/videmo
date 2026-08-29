@@ -74,6 +74,10 @@ export interface PreviewPlayerProps {
   ffmpegLoading: boolean;
   activeClip?: TimelineClip | null;
   textClips?: TimelineClip[];
+  isWhiteboardView?: boolean;
+  whiteboardCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  whiteboardHandCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  whiteboardAnnotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   onCancelRender: () => void;
   onPlay: () => void;
   onSeek: (time: number) => void;
@@ -108,6 +112,10 @@ export const PreviewPlayer = memo(function PreviewPlayer({
   ffmpegLoading,
   activeClip,
   textClips = [],
+  isWhiteboardView = false,
+  whiteboardCanvasRef,
+  whiteboardHandCanvasRef,
+  whiteboardAnnotationCanvasRef,
   onPlay,
   onLoadFFmpeg,
   onTogglePlay,
@@ -283,7 +291,34 @@ export const PreviewPlayer = memo(function PreviewPlayer({
           className="relative aspect-video w-full max-h-full shadow-2xl bg-black flex items-center justify-center overflow-hidden rounded-sm border border-white/[0.04]"
           style={{ transform: `scale(${playerZoom})` }}
         >
-          {!hasClips && !isExporting && !isRendering && (
+          {isWhiteboardView && whiteboardCanvasRef && (
+            <div className="absolute inset-0 w-full h-full bg-black z-20 flex items-center justify-center overflow-hidden">
+              <canvas
+                ref={whiteboardCanvasRef as React.RefObject<HTMLCanvasElement>}
+                width={1920}
+                height={1080}
+                className="w-full h-full object-contain absolute inset-0 z-10"
+              />
+              {whiteboardHandCanvasRef && (
+                <canvas
+                  ref={whiteboardHandCanvasRef as React.RefObject<HTMLCanvasElement>}
+                  width={1920}
+                  height={1080}
+                  className="w-full h-full object-contain absolute inset-0 z-20 pointer-events-none"
+                />
+              )}
+              {whiteboardAnnotationCanvasRef && (
+                <canvas
+                  ref={whiteboardAnnotationCanvasRef as React.RefObject<HTMLCanvasElement>}
+                  width={1920}
+                  height={1080}
+                  className="w-full h-full object-contain absolute inset-0 z-30 pointer-events-none"
+                />
+              )}
+            </div>
+          )}
+
+          {!hasClips && !isWhiteboardView && !isExporting && !isRendering && (
             <div className="absolute inset-0 flex flex-col items-center justify-center z-30 text-[var(--text-tertiary)]">
               <VideoIcon className="w-16 h-16 mb-4 opacity-20" />
               <p className="text-sm font-medium text-[var(--text-secondary)]">
@@ -355,7 +390,8 @@ export const PreviewPlayer = memo(function PreviewPlayer({
               {!isPlaying &&
                 !isExporting &&
                 !isRendering &&
-                !isPreviewPlayback && (
+                !isPreviewPlayback &&
+                !isWhiteboardView && (
                   <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
                     <div
                       className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center cursor-pointer pointer-events-auto hover:scale-105 hover:bg-white/15 transition-all border border-white/10"

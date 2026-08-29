@@ -30,6 +30,7 @@ export interface EditorHeaderProps {
   canUndo: boolean;
   canRedo: boolean;
   projectTitle?: string;
+  onProjectTitleChange?: (title: string) => void;
   isSidebarVisible?: boolean;
   onToggleSidebar?: () => void;
 }

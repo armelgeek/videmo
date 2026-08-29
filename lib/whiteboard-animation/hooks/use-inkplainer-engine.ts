@@ -127,10 +127,46 @@ export function useInkplainerEngine({
       );
     };
 
-    // 2. Load annotations from store, fallback to demo data
-    if (annotations.length === 0) {
-      setAnnotations(DEMO_ANNOTATIONS);
-    }
+    // 2. Load annotations JSON from /scene-premium-bag.json with spatial projection & timing normalization
+    fetch('/scene-premium-bag.json')
+      .then((res) => res.json())
+      .then((data) => {
+        const rawAnnots = data.annotations || data.scenes?.[0]?.annotations || DEMO_ANNOTATIONS;
+        const srcW = data.width || 1536;
+        const srcH = data.height || 864;
+        const scaleX = canvasWidth / srcW;
+        const scaleY = canvasHeight / srcH;
+
+        const processed = rawAnnots.map((a: any) => {
+          const r = a.region || {};
+          const rev = a.reveal || {};
+          const startMs = rev.from ?? rev.startMs ?? 0;
+          const durationMs = (rev.to != null && rev.from != null) ? (rev.to - rev.from) : (rev.durationMs ?? 2000);
+          
+          return {
+            ...a,
+            region: {
+              x: Math.round((r.x || 0) * scaleX),
+              y: Math.round((r.y || 0) * scaleY),
+              w: Math.round((r.w || 100) * scaleX),
+              h: Math.round((r.h || 100) * scaleY),
+            },
+            reveal: {
+              ...rev,
+              from: startMs,
+              to: startMs + durationMs,
+              startMs,
+              durationMs,
+            },
+          };
+        });
+        setAnnotations(processed);
+      })
+      .catch(() => {
+        if (annotations.length === 0) {
+          setAnnotations(DEMO_ANNOTATIONS);
+        }
+      });
 
     // 3. Preload hand PNG assets
     const handKeys = [
@@ -300,10 +336,12 @@ export function useInkplainerEngine({
     [annotationCanvasRef, useAnnotation, annotations]
   );
 
-  // Auto-render annotations overlay when idle or when settings change
+  // Auto-render frame and annotations overlay when idle or when settings change
   useEffect(() => {
-    drawAnnotations(progress);
-  }, [drawAnnotations, progress]);
+    const pct = (!isPlaying && progress === 0) ? 100 : progress;
+    drawMainCanvas(pct);
+    drawAnnotations(pct);
+  }, [drawMainCanvas, drawAnnotations, progress, isPlaying]);
 
   // Toggle Play / Pause Animation Loop
   const togglePlay = useCallback(() => {

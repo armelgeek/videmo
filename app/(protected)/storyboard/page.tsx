@@ -290,7 +290,7 @@ export default function StoryboardPage() {
       setHasLoadedSession(true);
       const session = loadSession();
       if (session) {
-        setStep(session.step);
+        setStep(session.step as any);
         if (session.promptContent) setPromptContent(session.promptContent);
         if (session.script) setScript(session.script);
         if (session.storyboardData) setStoryboardData(session.storyboardData);
@@ -1392,7 +1392,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
           )}
 
           {/* Whiteboard Step */}
-          {step === "whiteboard" && projectParams.style === "whiteboard" && (
+          {step === "whiteboard" && (
             <WhiteboardEditorStep
               config={whiteboardConfig}
               onConfigChange={(updates) =>

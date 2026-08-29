@@ -22,17 +22,17 @@ export type AnnotationRegion = z.infer<typeof AnnotationRegionSchema>;
 
 // Complete annotation object
 export const AnnotationSchema = z.object({
-  id: z.string().cuid().default(() => Math.random().toString(36).slice(2, 11)),
+  id: z.string().default(() => Math.random().toString(36).slice(2, 11)),
   text: z.string().optional(),
   region: AnnotationRegionSchema,
-  reveal: AnnotationRevealSchema.default({}),
+  reveal: AnnotationRevealSchema.default({ durationMs: 1000 }),
   style: z.object({
     strokeColor: z.string().default('#000000'),
     strokeWidth: z.number().default(2),
     fillColor: z.string().optional(),
     opacity: z.number().min(0).max(1).default(1),
-  }).default({}),
-  metadata: z.record(z.unknown()).optional(),
+  }).default({ strokeColor: '#000000', strokeWidth: 2, opacity: 1 }),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type Annotation = z.infer<typeof AnnotationSchema>;
@@ -45,8 +45,9 @@ export const AnnotationConfigSchema = z.object({
     strokeColor: z.string().default('#000000'),
     strokeWidth: z.number().default(2),
     fillColor: z.string().optional(),
-  }).default({}),
+  }).default({ strokeColor: '#000000', strokeWidth: 2 }),
 });
+
 
 export type AnnotationConfig = z.infer<typeof AnnotationConfigSchema>;
 

@@ -60,6 +60,11 @@ import {
 } from "../constants";
 import { DEMO_FINAL_SEQUENCE } from "@/lib/demo-data";
 import { StatusBar } from "./status-bar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { InkplainerSidebar } from "@/lib/whiteboard-animation/components/inkplainer-sidebar";
+import { AnimationProvider } from "@/lib/whiteboard-animation/context/animation-context";
+import { useInkplainerEngine } from "@/lib/whiteboard-animation/hooks/use-inkplainer-engine";
+
 
 // Define VideoConfig and IStoryboardPanel types as they were not exported from constants/types
 interface VideoConfig {
@@ -80,7 +85,7 @@ interface EditorProps {
   onBack: () => void;
 }
 
-export const Editor: React.FC<EditorProps> = ({
+const EditorInner: React.FC<EditorProps> = ({
   initialMedia,
   initialClips,
   initialStoryboard,
@@ -108,8 +113,8 @@ export const Editor: React.FC<EditorProps> = ({
     initialClips,
     initialStoryboard,
     onPreviewStale: () => ffmpeg.setIsPreviewStale(true),
-    initialZoomLevel: 20, // Very zoomed out to show all content
   });
+
 
   const [videoConfig, setVideoConfig] = useState<VideoConfig>({
     aspectRatio: "16:9",
@@ -333,9 +338,8 @@ export const Editor: React.FC<EditorProps> = ({
     onRedo: timeline.redo,
   });
 
-  // UI State - Use constants for default values
-  const [activeView, setActiveView] = useState<SidebarView>("library");
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  // Whiteboard-only mode: panel is always open, no view toggle needed
+  const isPanelOpen = true;
   const [isGenerating, setIsGenerating] = useState(false);
   const [apiKeyReady, setApiKeyReady] = useState(false); // Was not in updates, keeping it
   // const [defaultDuration, setDefaultDuration] = useState(5) // REMOVED, now handled by mediaGeneration hook
@@ -402,7 +406,6 @@ export const Editor: React.FC<EditorProps> = ({
       const deltaX = e.clientX - sidebarResizeRef.current.startX;
       const proposedWidth = sidebarResizeRef.current.startWidth + deltaX;
       if (proposedWidth < 150) {
-        setIsPanelOpen(false);
         setIsResizingSidebar(false);
       } else {
         const newWidth = Math.max(
@@ -661,7 +664,7 @@ export const Editor: React.FC<EditorProps> = ({
               m.id === newId ? { ...m, url: videoUrl, status: "ready" } : m,
             ),
           );
-          setActiveView("library");
+          // whiteboard-only mode: view is fixed
 
           if (videoUrl) {
             const readyItem = {
@@ -1460,10 +1463,10 @@ export const Editor: React.FC<EditorProps> = ({
     toastCtx.success("Demo project loaded!");
   }, [timeline, storyboard, toastCtx]);
 
-  // View change handler
-  const handleViewChange = useCallback((view: SidebarView) => {
-    setActiveView(view);
-    setIsPanelOpen(true);
+  // View change handler (no-op in whiteboard-only mode)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleViewChange = useCallback((_view: SidebarView) => {
+    // view is fixed to whiteboard
   }, []);
 
   const handleAddMarker = useCallback((marker: Omit<Marker, "id">) => {
@@ -1518,150 +1521,229 @@ export const Editor: React.FC<EditorProps> = ({
   }, []); // Run once on mount
 
 
+  const [whiteboardConfig, setWhiteboardConfig] = useState({
+    animStyle: 'chunk-jump',
+    handStyle: 'custom1',
+    revealSpeed: 1,
+    handSpeed: 1,
+    chunks: 30,
+    canvasBg: 'white',
+  });
+
+  const whiteboardCanvasRef = useRef<HTMLCanvasElement>(null);
+  const whiteboardHandCanvasRef = useRef<HTMLCanvasElement>(null);
+  const whiteboardAnnotationCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const whiteboardEngine = useInkplainerEngine({
+    canvasRef: whiteboardCanvasRef,
+    handCanvasRef: whiteboardHandCanvasRef,
+    annotationCanvasRef: whiteboardAnnotationCanvasRef,
+    canvasWidth: 1920,
+    canvasHeight: 1080,
+    currentTime: playback.currentTime,
+    isPlaying: playback.isPlaying,
+    onTogglePlay: () => playback.setIsPlaying((p) => !p),
+  });
+
   return (
-    <div className="h-screen w-full flex flex-col overflow-hidden bg-[var(--surface-0)]">
-      {/* Hidden elements */}
-      {timeline.tracks
-        .filter((t) => t.type === "audio")
-        .map((track) => (
-          <audio
-            key={track.id}
-            ref={(el) => {
-              if (el) playback.audioRefs.current[track.id] = el;
+    <SidebarProvider defaultOpen={true}>
+        <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--surface-0)] text-neutral-200 font-sans selection:bg-[var(--accent-muted)]">
+          {/* Main editor row */}
+          <div className="flex flex-1 min-h-0">
+          {/* Modals */}
+          <ExportModal
+            isOpen={isExportModalOpen}
+            onClose={() => {
+              if (!ffmpeg.isExporting) setIsExportModalOpen(false);
             }}
-            className="hidden"
-            crossOrigin="anonymous"
+            onStartExport={(resolution) => startExport(resolution, "all")}
+            isExporting={ffmpeg.isExporting}
+            exportProgress={ffmpeg.exportProgress}
+            exportPhase={ffmpeg.exportPhase}
+            downloadUrl={ffmpeg.downloadUrl}
+            onCancel={handleCancelExport}
+            hasRenderedPreview={!!ffmpeg.renderedPreviewUrl && !ffmpeg.isPreviewStale}
+            ffmpegError={ffmpeg.ffmpegError}
           />
-        ))}
-      <canvas
-        ref={playback.canvasRef as React.RefObject<HTMLCanvasElement>}
-        className="hidden"
-      />
+          <ShortcutsModal
+            isOpen={isShortcutsOpen}
+            onClose={() => setIsShortcutsOpen(false)}
+          />
 
-      {/* Modals */}
-      <ExportModal
-        isOpen={isExportModalOpen}
-        onClose={() => setIsExportModalOpen(false)}
-        onStartExport={(resolution) => startExport(resolution, "all")}
-        isExporting={ffmpeg.isExporting}
-        exportProgress={ffmpeg.exportProgress}
-        exportPhase={ffmpeg.exportPhase}
-        downloadUrl={ffmpeg.downloadUrl}
-        onCancel={handleCancelExport}
-        hasRenderedPreview={!!ffmpeg.renderedPreviewUrl && !ffmpeg.isPreviewStale}
-        ffmpegError={ffmpeg.ffmpegError}
-      />
-      <ShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
-      />
+          {/* Hidden audio elements */}
+          {timeline.tracks
+            .filter((t) => t.type === "audio")
+            .map((track) => (
+              <audio
+                key={track.id}
+                ref={(el) => {
+                  if (el) playback.audioRefs.current[track.id] = el;
+                }}
+                className="hidden"
+                crossOrigin="anonymous"
+              />
+            ))}
+          <canvas
+            ref={playback.canvasRef as React.RefObject<HTMLCanvasElement>}
+            className="hidden"
+          />
 
-      {/* Main layout: Preview (flex-1) + Timeline (fixed height) + StatusBar */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Preview Player */}
-        <PreviewPlayer
-          currentTime={playback.currentTime}
-          isPlaying={playback.isPlaying}
-          duration={timeline.timelineDuration}
-          onSeek={playback.handleSeek}
-          onTogglePlay={() => playback.setIsPlaying((p) => !p)}
-          videoRefA={playback.videoRefA}
-          videoRefB={playback.videoRefB}
-          whiteOverlayRef={playback.whiteOverlayRef}
-          previewVideoRef={playback.previewVideoRef}
-          renderedPreviewUrl={ffmpeg.renderedPreviewUrl}
-          isPreviewPlayback={playback.isPreviewPlayback}
-          isPreviewStale={ffmpeg.isPreviewStale}
-          onRenderPreview={handleRenderPreview}
-          onCancelRender={handleCancelRender}
-          isRendering={ffmpeg.isRendering}
-          renderProgress={ffmpeg.renderProgress}
-          onTogglePreviewPlayback={() =>
-            playback.setIsPreviewPlayback(!playback.isPreviewPlayback)
-          }
-          playerZoom={playerZoom}
-          onZoomChange={setPlayerZoom}
-          isCinemaMode={isCinemaMode}
-          onToggleCinemaMode={() => setIsCinemaMode((p) => !p)}
-          isSafeGuidesVisible={isSafeGuidesVisible}
-          onToggleSafeGuides={() => setIsSafeGuidesVisible((p) => !p)}
-          ffmpegLoaded={ffmpeg.ffmpegLoaded}
-          ffmpegLoading={ffmpeg.ffmpegLoading}
-          onLoadFFmpeg={ffmpeg.loadFFmpeg}
-          timelineClips={timeline.timelineClips}
-          mediaMap={timeline.mediaMap}
-          isExporting={ffmpeg.isExporting}
-          onPlay={() => playback.setIsPlaying(true)}
-          onZoomReset={() => setPlayerZoom(1)}
-          activeClip={timeline.timelineClips.find(
-            (c) =>
-              c.trackId.startsWith("video") &&
-              playback.currentTime >= c.start &&
-              playback.currentTime < c.start + c.duration,
-          )}
-          textClips={timeline.timelineClips.filter((c) => {
-            const track = timeline.tracks.find((t) => t.id === c.trackId);
-            return track?.type === "text" && c.textOverlay;
-          })}
-        />
+          {/* Whiteboard Studio Layout: sidebar always open, no header, no view toggle */}
+          <SidebarInset className="flex-1 flex flex-col min-w-0 h-screen">
+            <div className="flex-1 flex overflow-hidden relative">
+              {/* Whiteboard config sidebar — always visible */}
+              <PanelErrorBoundary fallbackTitle="Whiteboard Error">
+                <InkplainerSidebar
+                  animStyle={whiteboardConfig.animStyle}
+                  onAnimStyleChange={(s) =>
+                    setWhiteboardConfig((prev) => ({ ...prev, animStyle: s }))
+                  }
+                  handStyle={whiteboardConfig.handStyle}
+                  onHandStyleChange={(h) =>
+                    setWhiteboardConfig((prev) => ({ ...prev, handStyle: h }))
+                  }
+                  revealSpeed={whiteboardConfig.revealSpeed}
+                  onRevealSpeedChange={(sp) =>
+                    setWhiteboardConfig((prev) => ({ ...prev, revealSpeed: sp }))
+                  }
+                  handSpeed={whiteboardConfig.handSpeed}
+                  onHandSpeedChange={(sp) =>
+                    setWhiteboardConfig((prev) => ({ ...prev, handSpeed: sp }))
+                  }
+                  chunks={whiteboardConfig.chunks}
+                  onChunksChange={(c) =>
+                    setWhiteboardConfig((prev) => ({ ...prev, chunks: c }))
+                  }
+                  aspectRatio={videoConfig.aspectRatio}
+                  onGenerateAnimation={() => {}}
+                />
+              </PanelErrorBoundary>
 
-        {/* Timeline */}
-        {!isCinemaMode && (
-          <div
-            className="border-t border-neutral-800 flex flex-col shrink-0 relative bg-[var(--surface-0)]"
-            style={{ height: timelineHeight }}
-          >
-            <Timeline
-              tracks={timeline.tracks}
-              clips={timeline.timelineClips}
-              mediaMap={timeline.mediaMap}
-              currentTime={playback.currentTime}
-              duration={timeline.timelineDuration}
-              zoomLevel={timeline.zoomLevel}
-              selectedClipIds={timeline.selectedClipIds}
-              tool={timeline.tool}
-              isPlaying={playback.isPlaying}
-              isLooping={isLooping}
-              onPlayPause={() => playback.setIsPlaying((p) => !p)}
-              onToggleLoop={() => setIsLooping((l) => !l)}
-              onSeek={playback.handleSeek}
-              onZoomChange={timeline.setZoomLevel}
-              onToolChange={timeline.setTool}
-              onSelectClips={timeline.handleSelectClips}
-              onClipUpdate={timeline.handleClipUpdate}
-              onTrackUpdate={timeline.handleTrackUpdate}
-              onSplitClip={timeline.handleSplitClip}
-              onDeleteClip={timeline.handleDeleteClip}
-              onRippleDeleteClip={timeline.handleRippleDeleteClip}
-              onDuplicateClip={timeline.handleDuplicateClip}
-              onDragStart={timeline.pushToHistory}
-              onDetachAudio={timeline.handleDetachAudio}
-              onExportAudio={handleExportAudio}
-              isRendering={ffmpeg.isRendering}
-              renderProgress={ffmpeg.renderProgress}
-              renderedPreviewUrl={ffmpeg.renderedPreviewUrl}
-              isPreviewStale={ffmpeg.isPreviewStale}
-              onRenderPreview={handleRenderPreview}
-              onCancelRender={handleCancelRender}
-              isPreviewPlayback={playback.isPreviewPlayback}
-              onTogglePreviewPlayback={playback.handleTogglePreviewPlayback}
-              historyCount={timeline.history.length}
-              futureCount={timeline.future.length}
-              onUndo={timeline.undo}
-              onRedo={timeline.redo}
-              onShowShortcuts={() => setIsShortcutsOpen(true)}
-              markers={markers}
-              onAddMarker={() => setShowAddMarkerDialog(true)}
-              onMarkerClick={handleMarkerClick}
-              onMarkerDelete={handleMarkerDelete}
-              onMarkerUpdate={handleMarkerUpdate}
-              onZoomToFit={handleZoomToFit}
-              onOverwriteClips={timeline.handleOverwriteClips}
-            />
-          </div>
-        )}
+              {/* Main preview area */}
+              <div className="flex-1 flex flex-col bg-[var(--surface-0)] min-w-0">
+                <PanelErrorBoundary fallbackTitle="Preview Error">
+                  <PreviewPlayer
+                    currentTime={playback.currentTime}
+                    isPlaying={playback.isPlaying}
+                    duration={timeline.timelineDuration}
+                    onSeek={playback.handleSeek}
+                    onTogglePlay={() => playback.setIsPlaying((p) => !p)}
+                    videoRefA={playback.videoRefA}
+                    videoRefB={playback.videoRefB}
+                    whiteOverlayRef={playback.whiteOverlayRef}
+                    previewVideoRef={playback.previewVideoRef}
+                    renderedPreviewUrl={ffmpeg.renderedPreviewUrl}
+                    isPreviewPlayback={playback.isPreviewPlayback}
+                    isPreviewStale={ffmpeg.isPreviewStale}
+                    onRenderPreview={handleRenderPreview}
+                    onCancelRender={handleCancelRender}
+                    isRendering={ffmpeg.isRendering}
+                    renderProgress={ffmpeg.renderProgress}
+                    onTogglePreviewPlayback={() =>
+                      playback.setIsPreviewPlayback(!playback.isPreviewPlayback)
+                    }
+                    playerZoom={playerZoom}
+                    onZoomChange={setPlayerZoom}
+                    isCinemaMode={isCinemaMode}
+                    onToggleCinemaMode={() => setIsCinemaMode((p) => !p)}
+                    isSafeGuidesVisible={isSafeGuidesVisible}
+                    onToggleSafeGuides={() => setIsSafeGuidesVisible((p) => !p)}
+                    ffmpegLoaded={ffmpeg.ffmpegLoaded}
+                    ffmpegLoading={ffmpeg.ffmpegLoading}
+                    onLoadFFmpeg={ffmpeg.loadFFmpeg}
+                    timelineClips={timeline.timelineClips}
+                    mediaMap={timeline.mediaMap}
+                    isExporting={ffmpeg.isExporting}
+                    onPlay={() => playback.setIsPlaying(true)}
+                    onZoomReset={() => setPlayerZoom(1)}
+                    activeClip={timeline.timelineClips.find(
+                      (c) =>
+                        c.trackId.startsWith("video") &&
+                        playback.currentTime >= c.start &&
+                        playback.currentTime < c.start + c.duration,
+                    )}
+                    textClips={timeline.timelineClips.filter((c) => {
+                      const track = timeline.tracks.find((t) => t.id === c.trackId);
+                      return track?.type === "text" && c.textOverlay;
+                    })}
+                    isWhiteboardView={true}
+                    whiteboardCanvasRef={whiteboardCanvasRef}
+                    whiteboardHandCanvasRef={whiteboardHandCanvasRef}
+                    whiteboardAnnotationCanvasRef={whiteboardAnnotationCanvasRef}
+                  />
+                </PanelErrorBoundary>
 
-        {/* Status Bar */}
+                {/* Timeline */}
+                {!isCinemaMode && (
+                  <PanelErrorBoundary fallbackTitle="Timeline Error">
+                    <div
+                      className="border-t border-neutral-800 flex flex-col shrink-0 relative"
+                      style={{ height: timelineHeight }}
+                    >
+                      <div
+                        className="absolute z-20 top-0 right-0 left-0 h-1.5 cursor-n-resize hover:bg-[var(--accent-primary)]/40 focus:bg-[var(--accent-primary)]/40 active:bg-[var(--accent-primary)]/40 transition-colors group"
+                        onMouseDown={(e) => {
+                          setIsResizingTimeline(true);
+                          resizeRef.current = { startY: e.clientY, startHeight: timelineHeight };
+                        }}
+                      >
+                        <div className="absolute top-0 right-0 left-0 h-px group-hover:bg-[var(--accent-primary)]/60 group-focus:bg-[var(--accent-primary)]/60 group-active:bg-[var(--accent-primary)]/60" />
+                      </div>
+                      <Timeline
+                        tracks={timeline.tracks}
+                        clips={timeline.timelineClips}
+                        mediaMap={timeline.mediaMap}
+                        currentTime={playback.currentTime}
+                        duration={timeline.timelineDuration}
+                        zoomLevel={timeline.zoomLevel}
+                        selectedClipIds={timeline.selectedClipIds}
+                        tool={timeline.tool}
+                        isPlaying={playback.isPlaying}
+                        isLooping={isLooping}
+                        onPlayPause={() => playback.setIsPlaying((p) => !p)}
+                        onToggleLoop={() => setIsLooping((l) => !l)}
+                        onSeek={playback.handleSeek}
+                        onZoomChange={timeline.setZoomLevel}
+                        onToolChange={timeline.setTool}
+                        onSelectClips={timeline.handleSelectClips}
+                        onClipUpdate={timeline.handleClipUpdate}
+                        onTrackUpdate={timeline.handleTrackUpdate}
+                        onSplitClip={timeline.handleSplitClip}
+                        onDeleteClip={timeline.handleDeleteClip}
+                        onRippleDeleteClip={timeline.handleRippleDeleteClip}
+                        onDuplicateClip={timeline.handleDuplicateClip}
+                        onDragStart={timeline.pushToHistory}
+                        onDetachAudio={timeline.handleDetachAudio}
+                        onExportAudio={handleExportAudio}
+                        isRendering={ffmpeg.isRendering}
+                        renderProgress={ffmpeg.renderProgress}
+                        renderedPreviewUrl={ffmpeg.renderedPreviewUrl}
+                        isPreviewStale={ffmpeg.isPreviewStale}
+                        onRenderPreview={handleRenderPreview}
+                        onCancelRender={handleCancelRender}
+                        isPreviewPlayback={playback.isPreviewPlayback}
+                        onTogglePreviewPlayback={playback.handleTogglePreviewPlayback}
+                        historyCount={timeline.history.length}
+                        futureCount={timeline.future.length}
+                        onUndo={timeline.undo}
+                        onRedo={timeline.redo}
+                        onShowShortcuts={() => setIsShortcutsOpen(true)}
+                        markers={markers}
+                        onAddMarker={() => setShowAddMarkerDialog(true)}
+                        onMarkerClick={handleMarkerClick}
+                        onMarkerDelete={handleMarkerDelete}
+                        onMarkerUpdate={handleMarkerUpdate}
+                        onZoomToFit={handleZoomToFit}
+                        onOverwriteClips={timeline.handleOverwriteClips}
+                      />
+                    </div>
+                  </PanelErrorBoundary>
+                )}
+              </div>
+            </div>
+          </SidebarInset>
+        </div>
+
         <StatusBar
           projectName={projectName}
           totalDuration={timeline.timelineDuration}
@@ -1673,17 +1755,23 @@ export const Editor: React.FC<EditorProps> = ({
           isRendering={ffmpeg.isRendering}
           zoomLevel={timeline.zoomLevel}
         />
-      </div>
 
-      {/* Add Marker Dialog */}
-      <AddMarkerDialog
-        isOpen={showAddMarkerDialog}
-        onClose={() => setShowAddMarkerDialog(false)}
-        onAdd={handleAddMarker}
-        time={playback.currentTime}
-      />
-    </div>
+        {/* Add marker dialog */}
+        <AddMarkerDialog
+          isOpen={showAddMarkerDialog}
+          onClose={() => setShowAddMarkerDialog(false)}
+          onAdd={handleAddMarker}
+          time={playback.currentTime}
+        />
+      </div>
+    </SidebarProvider>
   );
 };
+
+export const Editor: React.FC<EditorProps> = (props) => (
+  <AnimationProvider>
+    <EditorInner {...props} />
+  </AnimationProvider>
+);
 
 export default Editor;

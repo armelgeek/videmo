@@ -16,17 +16,16 @@ export class WhiteboardEditorService {
   ): MediaItem {
     return {
       id: id || `whiteboard-${Date.now()}`,
-      name: `Whiteboard: ${projectName}`,
-      type: 'whiteboard',
+      prompt: `Whiteboard: ${projectName}`,
+      type: 'video',
       url: '', // Will be populated when rendered
       duration: whiteboardState.duration,
-      width: whiteboardState.canvasWidth,
-      height: whiteboardState.canvasHeight,
-      metadata: {
-        whiteboardState,
-        animationStyle: whiteboardState.animationStyle,
-        animationOptions: whiteboardState.animationOptions,
+      resolution: {
+        width: whiteboardState.canvasWidth,
+        height: whiteboardState.canvasHeight,
       },
+      aspectRatio: '16:9',
+      status: 'ready',
     };
   }
 
@@ -42,15 +41,15 @@ export class WhiteboardEditorService {
     return {
       id: `clip-whiteboard-${Date.now()}`,
       mediaId,
-      startTime,
+      start: startTime,
       duration: duration || whiteboardState.duration,
-      type: 'whiteboard',
-      trackId: 'video-1',
-      metadata: {
-        whiteboardState,
-      },
+      offset: 0,
+      speed: 1,
+      volume: 1,
+      trackId: 'v1',
     };
   }
+
 
   /**
    * Export whiteboard as canvas image
