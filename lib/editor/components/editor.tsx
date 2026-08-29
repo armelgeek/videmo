@@ -63,6 +63,7 @@ import { StatusBar } from "./status-bar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { InkplainerSidebar } from "@/lib/whiteboard-animation/components/inkplainer-sidebar";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
+import { useWhiteboardRenderer } from "@/lib/whiteboard-animation/hooks/use-whiteboard-renderer";
 
 
 // Define VideoConfig and IStoryboardPanel types as they were not exported from constants/types
@@ -1534,6 +1535,12 @@ const EditorInner: React.FC<EditorProps> = ({
   const whiteboardAnnotationCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const whiteboardEngine = useUnifiedEngine();
+
+  useWhiteboardRenderer({
+    canvasRef: whiteboardCanvasRef,
+    handCanvasRef: whiteboardHandCanvasRef,
+    annotationCanvasRef: whiteboardAnnotationCanvasRef,
+  });
 
   return (
     <SidebarProvider defaultOpen={true}>
