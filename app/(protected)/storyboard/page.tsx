@@ -44,6 +44,7 @@ import { DevPanel } from "@/lib/dev-panel";
 import { useRouter } from "next/navigation";
 import { Editor } from "@/lib/editor/components/editor";
 import { useStoryboardStore } from "@/lib/storyboard/store";
+import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 
 const STEPS = [
   { key: "prompt", label: "Prompt", icon: Wand2 },
@@ -198,6 +199,8 @@ export default function StoryboardPage() {
     updatePanel,
     selectedVoice,
     setSelectedVoice,
+    whiteboardConfig,
+    setWhiteboardConfig,
     loadDemoData,
     resetWorkflow,
     getMediaList,
@@ -792,6 +795,16 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Whiteboard Config Panel */}
+                {projectParams.style === "whiteboard" && (
+                  <WhiteboardConfigPanel
+                    config={whiteboardConfig}
+                    onChange={(updates) =>
+                      setWhiteboardConfig(updates)
+                    }
+                  />
+                )}
 
                 {/* Main Input Card */}
                 <div className="relative rounded-2xl border border-transparent bg-transparent transition-all duration-300 focus-within:border-white/20 focus-within:bg-white/[0.02] focus-within:shadow-lg focus-within:shadow-primary/5">
