@@ -1,0 +1,180 @@
+{
+  "sceneId": "scene-premium-bag",
+  "name": "Scène",
+  "sceneDurationMs": 11700,
+  "transition": {
+    "transitionAfter": "slideup",
+    "transitionMs": 2300
+  },
+  "canvas": {
+    "width": 1536,
+    "height": 864
+  },
+  "elements": [
+    {
+      "id": "title",
+      "label": "Titre \"Premium Image\"",
+      "type": "text",
+      "narrativeRole": "Accroche / titre",
+      "sequence": 1,
+      "subtitle": "Le titre \"Premium Image\" apparaît, souligné d'un trait à main levée.",
+      "region": {
+        "x": 100,
+        "y": 75,
+        "width": 680,
+        "height": 117
+      },
+      "reveal": {
+        "direction": "bottom_to_top",
+        "style": "iris",
+        "startMs": 300,
+        "durationMs": 1600,
+        "maskPaddingPx": 22,
+        "protectedRegions": []
+      },
+      "handPath": {
+        "start": [
+          440,
+          133.5
+        ],
+        "end": [
+          440,
+          192
+        ],
+        "easing": "easeInOut"
+      }
+    },
+    {
+      "id": "bag",
+      "label": "Sac à main",
+      "type": "object",
+      "narrativeRole": "Sujet principal",
+      "sequence": 2,
+      "subtitle": "Le sac se dessine au trait, avec ses anses et sa fermeture détaillées.",
+      "region": {
+        "x": 770,
+        "y": 230,
+        "width": 400,
+        "height": 535
+      },
+      "reveal": {
+        "direction": "top_to_bottom",
+        "style": "iris",
+        "startMs": 2000,
+        "durationMs": 3400,
+        "maskPaddingPx": 22,
+        "protectedRegions": []
+      },
+      "handPath": {
+        "start": [
+          970,
+          497.5
+        ],
+        "end": [
+          970,
+          765
+        ],
+        "easing": "easeInOut"
+      }
+    },
+    {
+      "id": "tag",
+      "label": "Étiquette de prix",
+      "type": "prop",
+      "narrativeRole": "Détail / accroche prix",
+      "sequence": 3,
+      "subtitle": "Une étiquette apparaît avec le prix barré 1500$ ramené à 700$.",
+      "region": {
+        "x": 595,
+        "y": 405,
+        "width": 204,
+        "height": 247
+      },
+      "reveal": {
+        "direction": "top_to_bottom",
+        "style": "",
+        "startMs": 5500,
+        "durationMs": 2000,
+        "maskPaddingPx": 22,
+        "protectedRegions": []
+      },
+      "handPath": {
+        "start": [
+          697,
+          528.5
+        ],
+        "end": [
+          697,
+          652
+        ],
+        "easing": "easeInOut"
+      }
+    },
+    {
+      "id": "question",
+      "label": "Point d'interrogation",
+      "type": "symbol",
+      "narrativeRole": "Suspense / appel à la curiosité",
+      "sequence": 4,
+      "subtitle": "Un point d'interrogation apparaît à droite, laissant planer le doute.",
+      "region": {
+        "x": 1170,
+        "y": 220,
+        "width": 201,
+        "height": 380
+      },
+      "reveal": {
+        "direction": "right_to_left",
+        "style": "",
+        "startMs": 7600,
+        "durationMs": 1400,
+        "maskPaddingPx": 22,
+        "protectedRegions": []
+      },
+      "handPath": {
+        "start": [
+          1270.5,
+          410
+        ],
+        "end": [
+          1270.5,
+          600
+        ],
+        "easing": "easeInOut"
+      }
+    },
+    {
+      "id": "region_5",
+      "label": "Zone 5",
+      "type": "structure",
+      "narrativeRole": "Nouvel élément",
+      "sequence": 5,
+      "subtitle": "",
+      "region": {
+        "x": 104,
+        "y": 192,
+        "width": 672,
+        "height": 101
+      },
+      "reveal": {
+        "direction": "top_to_bottom",
+        "style": "",
+        "startMs": 9200,
+        "durationMs": 2000,
+        "maskPaddingPx": 22,
+        "protectedRegions": []
+      },
+      "handPath": {
+        "start": [
+          440,
+          242.5
+        ],
+        "end": [
+          440,
+          293
+        ],
+        "easing": "easeInOut"
+      }
+    }
+  ]
+}
