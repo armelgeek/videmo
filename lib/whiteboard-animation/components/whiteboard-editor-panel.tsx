@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { useInkplainerEngine } from '../hooks/use-inkplainer-engine';
+import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import { InkplainerTopbar } from './inkplainer-topbar';
 import { InkplainerSidebar } from './inkplainer-sidebar';
 import { InkplainerCanvasArea } from './inkplainer-canvas-area';
@@ -27,7 +27,6 @@ export const WhiteboardEditorPanel: React.FC<WhiteboardEditorPanelProps> = ({
     isPlaying,
     progress,
     togglePlay,
-    resetAnimation,
     animStyle,
     setAnimStyle,
     handStyle,
@@ -44,23 +43,21 @@ export const WhiteboardEditorPanel: React.FC<WhiteboardEditorPanelProps> = ({
     setResolution,
     canvasBg,
     setCanvasBg,
-    projectName,
-    setProjectName,
     layers,
-    setLayers,
     useAnnotation,
     setUseAnnotation,
     annotations,
-  } = useInkplainerEngine({
-    canvasRef,
-    handCanvasRef,
-    annotationCanvasRef,
-    canvasWidth,
-    canvasHeight,
-  });
+    setCurrentTime,
+  } = useUnifiedEngine();
+
+  // Reset animation when needed
+  const resetAnimation = () => {
+    setCurrentTime(0);
+  };
 
   const [isProjectsModalOpen, setIsProjectsModalOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'animation' | 'drawing' | 'scenes' | 'annotation'>('animation');
+  const [projectName, setProjectName] = useState('Whiteboard Project');
 
   return (
     <div id="whiteboard-app-root" className="w-full h-full flex flex-col bg-background font-sans overflow-hidden text-foreground">
