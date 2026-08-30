@@ -65,7 +65,8 @@ Un nettoyage groupé demandera une **migration du store persisté**
 
 Les assets existent (`hand*vertical-{720,1080,1440}p.png`) mais **ne sont pas
 utilisés** : les employer en portrait mettrait la main au mauvais endroit.
-À calibrer avant de s'en servir. Prérequis au point 1.1 voie 2.
+À calibrer avant de s'en servir — c'est ce qui manque pour que la main soit
+juste en portrait.
 
 ### 3.2 Le delta est écrêté à 100 ms
 
@@ -160,7 +161,7 @@ consommateur de `useWhiteboardRenderer`, à aligner sur `tailleCanvas`.
   chacune dans `whiteboard-editor-panel.tsx`, `image-combiner/index.tsx`,
   `editor/components/timeline.tsx`, `editor/components/storyboard-edit-panel.tsx`.
   Aucune dans les fichiers touchés cette session.
-- **130 tests verts** (13 fichiers) dans `lib/whiteboard-animation`.
+- **138 tests verts** (13 fichiers) dans `lib/whiteboard-animation`.
 - La forme persistée de `WhiteboardConfig` a changé. Zustand fusionne, donc les
   projets existants ne cassent pas, mais leurs valeurs enregistrées pour les
   champs retirés sont désormais ignorées.
