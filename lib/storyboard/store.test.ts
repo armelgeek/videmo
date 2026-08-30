@@ -29,6 +29,7 @@ describe("whiteboardConfig.audio", () => {
       id: "audio-1",
       url: "blob:fake",
       source: "upload",
+      name: "narration.mp3",
       volume: 1,
       muted: false,
       offsetMs: 0,
@@ -40,7 +41,7 @@ describe("whiteboardConfig.audio", () => {
 
   it("setAudioTrack(null) clears the track", () => {
     useStoryboardStore.getState().setAudioTrack({
-      id: "audio-1", url: "blob:fake", source: "upload",
+      id: "audio-1", url: "blob:fake", source: "upload", name: "narration.mp3",
       volume: 1, muted: false, offsetMs: 0, durationMs: 5000,
     });
     useStoryboardStore.getState().setAudioTrack(null);
@@ -104,7 +105,7 @@ describe("mergeStoryboardStorePersistedState", () => {
 
   it("keeps persisted audio and transcript when present", () => {
     const track: AudioTrack = {
-      id: "audio-1", url: "blob:fake", source: "upload",
+      id: "audio-1", url: "blob:fake", source: "upload", name: "narration.mp3",
       volume: 0.5, muted: false, offsetMs: 0, durationMs: 3000,
     };
     const cues: TranscriptCue[] = [{ id: "cue-1", startMs: 0, endMs: 1000, text: "Hi" }];

@@ -24,6 +24,7 @@ export function AudioPanel() {
         id: `audio-${Date.now()}`,
         url,
         source: 'upload',
+        name: file.name,
         volume: 1,
         muted: false,
         offsetMs: 0,
@@ -39,16 +40,6 @@ export function AudioPanel() {
       URL.revokeObjectURL(url);
       toast.error('Failed to load audio file');
     });
-  };
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!audio) return;
-    setAudioTrack({ ...audio, volume: Number(e.target.value) });
-  };
-
-  const handleMuteToggle = () => {
-    if (!audio) return;
-    setAudioTrack({ ...audio, muted: !audio.muted });
   };
 
   const handleClear = () => {
@@ -74,46 +65,17 @@ export function AudioPanel() {
           />
         </div>
       ) : (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              {(audio.durationMs / 1000).toFixed(1)}s loaded
-            </span>
-            <Button variant="ghost" size="sm" onClick={handleClear}>
-              Remove
-            </Button>
-          </div>
-
-          <div className="grid gap-2">
-            <div className="flex justify-between text-xs font-medium">
-              <span>Volume</span>
-              <span className="text-muted-foreground">
-                {Math.round(audio.volume * 100)}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              value={audio.volume}
-              onChange={handleVolumeChange}
-              disabled={audio.muted}
-              className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label>Muted</Label>
-            <input
-              type="checkbox"
-              checked={audio.muted}
-              onChange={handleMuteToggle}
-              className="w-4 h-4 accent-primary rounded cursor-pointer"
-            />
-          </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground truncate">
+            {audio.name} · {(audio.durationMs / 1000).toFixed(1)}s
+          </span>
+          <Button variant="ghost" size="sm" onClick={handleClear}>
+            Remove
+          </Button>
         </div>
       )}
+      {/* Volume and mute live on the Audio 1 track row under the timeline,
+          next to the waveform — not duplicated here. */}
     </div>
   );
 }

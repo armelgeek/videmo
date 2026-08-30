@@ -9,6 +9,7 @@ import { RotateCcw } from 'lucide-react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import { useWhiteboardRenderer } from '../hooks/use-whiteboard-renderer';
 import { AnnotationTimeline } from '../timeline/annotation-timeline';
+import { AudioTrackRow } from './audio-track-row';
 import type { WhiteboardConfig } from '@/lib/storyboard/store';
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from '../canvas-size';
 
@@ -135,6 +136,7 @@ export function WhiteboardEditorStep({
         </div>
 
         <AnnotationTimeline />
+        <AudioTrackRow />
 
         {/* Play/pause lives in the timeline toolbar; only reset is extra. */}
         <div className="flex gap-2">

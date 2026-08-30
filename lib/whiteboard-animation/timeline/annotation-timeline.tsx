@@ -34,8 +34,9 @@ const TIMELINE_THEME: React.CSSProperties = {
  * The whiteboard editor's timeline: every clip is an annotation, chained in
  * sequence. Positions are derived, never stored.
  */
-/** Width of the track-header gutter that sits left of the clips. */
-const TRACK_HEADER_PX = 132;
+/** Width of the track-header gutter that sits left of the clips. Exported so
+ *  sibling track rows (e.g. AudioTrackRow) can align their own gutter. */
+export const TRACK_HEADER_PX = 132;
 
 /**
  * The video editor keeps a full viewport of empty timeline past the last clip
