@@ -854,9 +854,6 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                               {whiteboardConfig.animStyle} • {whiteboardConfig.handStyle}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              Speed: {whiteboardConfig.revealSpeed} • Hand: {whiteboardConfig.handSpeed}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
                               {whiteboardConfig.chunks} chunks • {whiteboardConfig.resolution}
                             </div>
                           </div>

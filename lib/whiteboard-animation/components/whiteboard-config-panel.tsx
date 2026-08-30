@@ -73,23 +73,12 @@ export function WhiteboardConfigPanel({
         </Select>
       </div>
 
-      {/* Reveal Speed */}
-      <div className="grid gap-3">
-        <div className="flex justify-between items-center">
-          <Label>Reveal Speed</Label>
-          <span className="text-sm font-medium text-muted-foreground">
-            {config.revealSpeed}
-          </span>
-        </div>
-        <Slider
-          value={[config.revealSpeed]}
-          onValueChange={([val]) => onChange({ revealSpeed: val })}
-          min={10}
-          max={100}
-          step={5}
-          className="w-full"
-        />
-      </div>
+      {/* Pas de curseur Reveal Speed : il ne changeait pas la façon de dessiner
+          mais l'horloge du moteur, donc la vitesse a laquelle on parcourt la
+          timeline. Or reveal.from/to sont des timestamps de la NARRATION : tout
+          multiplicateur ferait deriver le dessin par rapport a sa bande-son.
+          Le champ reste dans la config (projets deja enregistres) mais n'est
+          plus lu : le moteur tourne toujours au 1x fidele. */}
 
       {/* Pas de curseur Hand Speed : en mode annotation la vitesse du trace est
           imposee par la fenetre de l'annotation (reveal.from/to), et paceStep

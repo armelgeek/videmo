@@ -17,7 +17,15 @@ const { handDrawRect } = require('../lib/handLayout');
 
 const SCENE_IMAGE = '/scene-premium-bag.png';
 
-/** Miroir de Animation.DEFAULT_SPEED : le 1x du curseur Reveal speed. */
+/**
+ * Le 1x du moteur (Animation.DEFAULT_SPEED). A cette valeur la durationMs de
+ * chaque annotation est honoree exactement.
+ *
+ * L'horloge est figee ici plutot que branchee sur un reglage : reveal.from/to
+ * sont des timestamps de la NARRATION, donc tout multiplicateur ferait deriver
+ * le dessin par rapport a sa bande-son. config.revealSpeed subsiste pour les
+ * projets deja enregistres mais n'est plus lu.
+ */
 const ENGINE_DEFAULT_SPEED = 40;
 
 const HAND_ASSETS: Record<string, string> = {
@@ -55,7 +63,6 @@ export function useWhiteboardRenderer({
     useAnnotation,
     animStyle,
     handStyle,
-    revealSpeed,
     handSpeed,
     chunks,
   } = useUnifiedEngine();
@@ -66,9 +73,6 @@ export function useWhiteboardRenderer({
   const offscreenRef = useRef<HTMLCanvasElement | null>(null);
   const handImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const animRef = useRef<any>(null);
-  // Le state passe au moteur. Garde ici pour pouvoir en modifier les champs
-  // lisibles a chaud sans reconstruire l'instance.
-  const engineStateRef = useRef<any>(null);
   const activeStyleRef = useRef<string>('');
   // Guards the engine callbacks. Held in a ref, not a per-run closure: the
   // instance outlives a run (pause/resume, StrictMode remount) and a stale
@@ -84,8 +88,8 @@ export function useWhiteboardRenderer({
   const [imageLoaded, setImageLoaded] = useState(false);
 
   // Latest config, readable from inside the rAF closure without re-subscribing.
-  const cfgRef = useRef({ handStyle, revealSpeed, canvasBg });
-  cfgRef.current = { handStyle, revealSpeed, canvasBg };
+  const cfgRef = useRef({ handStyle, canvasBg });
+  cfgRef.current = { handStyle, canvasBg };
 
   // ---- assets -------------------------------------------------------------
 
@@ -213,10 +217,11 @@ export function useWhiteboardRenderer({
     offscreen: HTMLCanvasElement
   ) => {
     const store = useUnifiedEngineStore.getState();
-    const engineState: any = (engineStateRef.current = {
+    const engineState: any = {
       canvasW: canvas.width,
       canvasH: canvas.height,
-      speed: revealSpeed,
+      // Fige au 1x fidele : voir le commentaire de ENGINE_DEFAULT_SPEED.
+      speed: ENGINE_DEFAULT_SPEED,
       handSpeed,
       hand: normalizeHandKey(handStyle),
       tileSlider: chunks,
@@ -224,7 +229,7 @@ export function useWhiteboardRenderer({
       annotations: useAnnotation
         ? deriveTimeline(store.animation.annotations).annotations
         : [],
-    });
+    };
 
     const anim = AnimationFactory.create(animStyle, {
       state: engineState,
@@ -273,15 +278,6 @@ export function useWhiteboardRenderer({
     return anim;
   };
 
-  // Reveal speed pilote l'horloge du moteur via state.speed, lu a chaque tick.
-  // Il est volontairement absent des dependances d'invalidation ci-dessus :
-  // rebatir l'instance repartirait du debut. On pousse donc la valeur dans le
-  // state existant, sinon le curseur ne prendrait effet qu'au prochain build
-  // (Reset, changement de style, ou n'importe quel seek).
-  useEffect(() => {
-    if (engineStateRef.current) engineStateRef.current.speed = revealSpeed;
-  }, [revealSpeed]);
-
   useEffect(() => {
     // Pausing must freeze the frame: keep the instance and the painted canvas
     // so resuming continues instead of restarting.
@@ -317,7 +313,7 @@ export function useWhiteboardRenderer({
       if (stoppedRef.current) return;
       const delta = Math.min(100, now - last);
       last = now;
-      animRef.current?.tick?.(cfgRef.current.revealSpeed, delta);
+      animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
       if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
@@ -381,18 +377,13 @@ export function useWhiteboardRenderer({
         const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
         const schedule = anim.annotationManager?.schedule;
 
-        // L'horloge du moteur avance de delta * (revealSpeed / DEFAULT_SPEED) :
-        // on divise le pas par ce facteur pour tomber exactement sur la ms
-        // demandee quel que soit le curseur de vitesse.
-        const timeScale = Math.max(
-          0.05,
-          (cfgRef.current.revealSpeed || ENGINE_DEFAULT_SPEED) / ENGINE_DEFAULT_SPEED
-        );
+        // Le moteur tournant au 1x fidele, son horloge avance exactement du
+        // delta fourni : le pas du rejeu est donc la ms demandee.
         const advance = (from: number, to: number) => {
           for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
             if (stoppedRef.current) break;
             const slice = Math.min(SEEK_STEP_MS, to - elapsed);
-            anim.tick?.(cfgRef.current.revealSpeed, slice / timeScale);
+            anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
           }
         };
 
