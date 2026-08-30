@@ -23,7 +23,6 @@ export function useAnnotationTimeline() {
   const currentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
   const isPlaying = useUnifiedEngineStore((s) => s.timeline.isPlaying);
   const fps = useUnifiedEngineStore((s) => s.timeline.fps);
-  const engineDuration = useUnifiedEngineStore((s) => s.timeline.duration);
   const selectedClipId = useUnifiedEngineStore((s) => s.ui.selectedClipId);
 
   const setAnnotations = useUnifiedEngineStore((s) => s.setAnnotations);
@@ -81,10 +80,7 @@ export function useAnnotationTimeline() {
     tracks: view.tracks,
     clips: view.clips,
     mediaMap: view.mediaMap,
-    // Playback runs on the engine's duration, which may extend past the last
-    // annotation (the demo scene carries a 500ms tail). Taking the max keeps
-    // the playhead inside the timeline instead of running off its end.
-    duration: Math.max(view.durationSeconds, engineDuration / 1000),
+    duration: view.durationSeconds,
     currentTime: currentTime / 1000,
     frameRate: fps,
     isPlaying,

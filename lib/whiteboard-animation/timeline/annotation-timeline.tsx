@@ -37,6 +37,13 @@ const TIMELINE_THEME: React.CSSProperties = {
 /** Width of the track-header gutter that sits left of the clips. */
 const TRACK_HEADER_PX = 132;
 
+/**
+ * The video editor keeps a full viewport of empty timeline past the last clip
+ * so you can scroll beyond it. An annotation sequence has no such need, and the
+ * trailing ruler ticks read as time that does not exist.
+ */
+const END_PADDING_PX = 24;
+
 export const AnnotationTimeline: React.FC = () => {
   const { fitZoomTo, ...timeline } = useAnnotationTimeline();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -62,7 +69,7 @@ export const AnnotationTimeline: React.FC = () => {
       style={TIMELINE_THEME}
       className="shrink-0 min-w-0 w-full overflow-hidden border-t border-border"
     >
-      <Timeline {...timeline} />
+      <Timeline {...timeline} endPadding={END_PADDING_PX} />
     </div>
   );
 };

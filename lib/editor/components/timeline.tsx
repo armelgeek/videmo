@@ -69,6 +69,12 @@ interface TimelineProps {
   onOverwriteClips?: (movedClipIds: string[]) => void;
   storyboardPanels?: any[];
   onStoryboardPanelClick?: (panel: any, index: number) => void;
+  /**
+   * Empty space kept past the end of the content, in px. Defaults to a full
+   * viewport so the video editor can scroll beyond the last clip; pass a small
+   * value when the ruler should stop close to the content.
+   */
+  endPadding?: number;
 }
 
 export const Timeline = memo(function Timeline({
@@ -123,6 +129,7 @@ export const Timeline = memo(function Timeline({
   onMarkerUpdate,
   onZoomToFit,
   onOverwriteClips,
+  endPadding,
 }: TimelineProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const headerContainerRef = useRef<HTMLDivElement>(null);
@@ -162,10 +169,10 @@ export const Timeline = memo(function Timeline({
         ? Math.max(...clips.map((c) => c.start + c.duration))
         : 0;
     const maxTime = Math.max(maxClipEnd, currentTime, duration || 0);
-    const padding = Math.max(viewportWidth, 300);
+    const padding = endPadding ?? Math.max(viewportWidth, 300);
     const calculatedWidth = maxTime * zoomLevel + padding;
     return Math.max(calculatedWidth, viewportWidth || 800);
-  }, [clips, currentTime, duration, zoomLevel, viewportWidth]);
+  }, [clips, currentTime, duration, zoomLevel, viewportWidth, endPadding]);
 
   const {
     snapConfig,

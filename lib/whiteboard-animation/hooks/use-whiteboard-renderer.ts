@@ -5,7 +5,6 @@ import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import {
   SCENE_PREMIUM_BAG_ANNOTATIONS,
-  SCENE_PREMIUM_BAG_DURATION_MS,
   projectAnnotations,
 } from '../data/scene-premium-bag';
 import { deriveTimeline } from '../timeline/derive-timeline';
@@ -114,9 +113,6 @@ export function useWhiteboardRenderer({
           canvas.height
         )
       ).forEach((a) => store.addAnnotation(a));
-    }
-    if (store.timeline.duration === 0) {
-      store.setDuration(SCENE_PREMIUM_BAG_DURATION_MS);
     }
   }, [canvasRef]);
 
