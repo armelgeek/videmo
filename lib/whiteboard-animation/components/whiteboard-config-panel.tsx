@@ -41,8 +41,14 @@ export function WhiteboardConfigPanel({
             <SelectItem value="gesture">Gesture</SelectItem>
             <SelectItem value="illust">Illustration</SelectItem>
             <SelectItem value="nervous">Nervous</SelectItem>
+            <SelectItem value="outlinechunks">Outline Chunks</SelectItem>
+            <SelectItem value="outlinefill">Outline Fill</SelectItem>
+            <SelectItem value="outlineonly">Outline Only</SelectItem>
             <SelectItem value="scanner">Scanner</SelectItem>
             <SelectItem value="scribble">Scribble</SelectItem>
+            <SelectItem value="spec-text">Spec Text</SelectItem>
+            <SelectItem value="specialized">Specialized</SelectItem>
+            <SelectItem value="topanchor">Top Anchor</SelectItem>
           </SelectContent>
         </Select>
       </div>
