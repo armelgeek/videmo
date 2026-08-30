@@ -76,7 +76,7 @@ export function WhiteboardEditorStep({
   return (
     <div className="w-full h-full flex gap-6 overflow-hidden">
       {/* Left: Canvas Preview */}
-      <div className="flex-1 min-h-0 flex flex-col gap-4 justify-start">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-4 justify-start">
         {/* Header */}
         <div className="space-y-2">
           <h2 className="text-2xl font-bold">Whiteboard Preview</h2>

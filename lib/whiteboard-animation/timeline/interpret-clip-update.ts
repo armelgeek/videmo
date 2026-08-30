@@ -3,47 +3,48 @@ import type { TimelineEdit } from "./apply-editor-edit";
 
 export interface ClipUpdateContext {
   clip: TimelineClip;
-  /** Current gap before this annotation, in seconds. */
-  gapSeconds: number;
+  /** Where the previous clip ends, in seconds; 0 for the first clip. */
+  previousEndSeconds: number;
 }
 
 /**
- * Reads a clip change coming from the NLE and decides which of the three
- * gestures it was.
+ * Reads a clip change coming from the NLE and decides which gesture it was.
  *
- * The NLE has no notion of gaps: dragging a clip's left handle moves `start`
- * and shrinks `duration` together. That pair is what identifies the gesture —
- * a duration change alone is the right handle, a start change alone is a drag.
+ * The gesture is identified by the SHAPE of the payload, not by comparing with
+ * current state: use-timeline-drag computes every value from the state captured
+ * at mousedown, so a repeated mousemove can re-send a value the store already
+ * holds. Diffing against current state would then mistake a left-handle drag
+ * for a right-handle one and overwrite the duration.
+ *
+ *   trim-start -> { start, duration, offset }
+ *   trim-end   -> { duration }
+ *   move       -> { start }
  */
 export function interpretClipUpdate(
   changes: Partial<TimelineClip>,
-  { clip, gapSeconds }: ClipUpdateContext,
+  { clip, previousEndSeconds }: ClipUpdateContext,
 ): TimelineEdit | null {
-  const nextStart = changes.start;
-  const nextDuration = changes.duration;
+  const { start, duration, offset } = changes;
 
-  const movedStart = nextStart !== undefined && nextStart !== clip.start;
-  const changedDuration =
-    nextDuration !== undefined && nextDuration !== clip.duration;
+  const isTrimStart =
+    start !== undefined && duration !== undefined && offset !== undefined;
 
-  if (movedStart && changedDuration) {
+  if (isTrimStart) {
+    // Derived from the proposed absolute start, so repeated identical events
+    // converge on the same gap instead of accumulating.
     return {
       kind: "resize-gap",
       id: clip.id,
-      gapSeconds: gapSeconds + (nextStart - clip.start),
+      gapSeconds: Math.max(0, start - previousEndSeconds),
     };
   }
 
-  if (changedDuration) {
-    return {
-      kind: "resize-duration",
-      id: clip.id,
-      durationSeconds: nextDuration,
-    };
+  if (duration !== undefined && start === undefined) {
+    return { kind: "resize-duration", id: clip.id, durationSeconds: duration };
   }
 
-  if (movedStart) {
-    return { kind: "reorder", id: clip.id, startSeconds: nextStart };
+  if (start !== undefined && duration === undefined) {
+    return { kind: "reorder", id: clip.id, startSeconds: start };
   }
 
   return null;

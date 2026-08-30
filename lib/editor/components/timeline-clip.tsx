@@ -186,9 +186,9 @@ export const TimelineClipItem = memo(
                   ))}
                 </div>
               )
-            ) : media.type === "image" ? (
+            ) : media.type === "image" && media.url ? (
               <div className="absolute inset-0 opacity-30 pointer-events-none">
-                <img src={media.url || "/placeholder.svg"} className="w-full h-full object-cover" alt="" />
+                <img src={media.url} className="w-full h-full object-cover" alt="" />
               </div>
             ) : null)}
 
@@ -204,7 +204,7 @@ export const TimelineClipItem = memo(
 
           {!isText && (
             <div className="absolute bottom-0 left-0 right-0 h-1/2 opacity-50 px-0.5">
-              {media && (
+              {media && media.url && media.type !== "image" && (
                 <ClipWaveform
                   mediaUrl={media.url}
                   duration={clip.duration}
