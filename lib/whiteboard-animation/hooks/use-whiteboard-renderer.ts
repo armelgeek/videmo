@@ -17,6 +17,9 @@ const { handDrawRect } = require('../lib/handLayout');
 
 const SCENE_IMAGE = '/scene-premium-bag.png';
 
+/** Miroir de Animation.DEFAULT_SPEED : le 1x du curseur Reveal speed. */
+const ENGINE_DEFAULT_SPEED = 40;
+
 const HAND_ASSETS: Record<string, string> = {
   custom1: '/images/hand1-720p.png',
   custom2: '/images/hand2-720p.png',
@@ -68,6 +71,13 @@ export function useWhiteboardRenderer({
   // instance outlives a run (pause/resume, StrictMode remount) and a stale
   // closure flag would silently disable its callbacks forever.
   const stoppedRef = useRef(false);
+  // Vrai pendant qu'on rejoue le moteur pour atteindre une position cherchee :
+  // les callbacks ne doivent alors rien ecrire dans le store, sinon le seek se
+  // battrait avec la valeur que l'utilisateur vient de poser.
+  const seekingRef = useRef(false);
+  // Dernier currentTime ECRIT par le moteur. Sert a distinguer un seek de
+  // l'utilisateur d'une simple progression de lecture.
+  const engineTimeRef = useRef(0);
   const [imageLoaded, setImageLoaded] = useState(false);
 
   // Latest config, readable from inside the rAF closure without re-subscribing.
@@ -169,43 +179,11 @@ export function useWhiteboardRenderer({
   // Changing what the engine was built from invalidates the instance, so the
   // next play rebuilds it. Reveal speed is read live in tick(), so it is absent.
   useEffect(() => {
-    console.log('[WB] invalidate', { animStyle, handStyle, handSpeed, chunks, useAnnotation });
     animRef.current = null;
   }, [animStyle, handStyle, handSpeed, chunks, useAnnotation]);
 
-  useEffect(() => {
-    // Pausing must freeze the frame: keep the instance and the painted canvas
-    // so resuming continues instead of restarting.
-    if (!isPlaying) return;
-
-    const canvas = canvasRef.current;
-    const handCanvas = handCanvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    const hctx = handCanvas?.getContext('2d');
-    if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
-
-    // Resume path: the engine already holds its progress, just keep ticking.
-    if (animRef.current) {
-      stoppedRef.current = false;
-      let resumeFrame = 0;
-      let resumeLast = performance.now();
-
-      const resumeStep = (now: number) => {
-        if (stoppedRef.current) return;
-        const delta = Math.min(100, now - resumeLast);
-        resumeLast = now;
-        animRef.current?.tick?.(cfgRef.current.revealSpeed, delta);
-        if (!stoppedRef.current) resumeFrame = requestAnimationFrame(resumeStep);
-      };
-      resumeFrame = requestAnimationFrame(resumeStep);
-
-      return () => {
-        stoppedRef.current = true;
-        cancelAnimationFrame(resumeFrame);
-      };
-    }
-
-    // Offscreen holds the source artwork the engine reveals from.
+  // Offscreen holds the source artwork the engine reveals from.
+  const ensureOffscreen = (canvas: HTMLCanvasElement) => {
     let offscreen = offscreenRef.current;
     if (!offscreen) {
       offscreen = document.createElement('canvas');
@@ -215,14 +193,22 @@ export function useWhiteboardRenderer({
     offscreen.height = canvas.height;
     offscreen
       .getContext('2d')
-      ?.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
+      ?.drawImage(imageRef.current!, 0, 0, canvas.width, canvas.height);
+    return offscreen;
+  };
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    paintBackground(ctx, canvas.width, canvas.height);
-
-    stoppedRef.current = false;
-    let frame = 0;
-
+  /**
+   * Build a fresh engine bound to these contexts. Shared by playback and seek:
+   * a seek is just a run replayed at a fixed step, so it must be built exactly
+   * like the real thing or the frame it lands on would not match.
+   */
+  const buildEngine = (
+    canvas: HTMLCanvasElement,
+    handCanvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    hctx: CanvasRenderingContext2D,
+    offscreen: HTMLCanvasElement
+  ) => {
     const store = useUnifiedEngineStore.getState();
     const engineState: any = {
       canvasW: canvas.width,
@@ -237,58 +223,88 @@ export function useWhiteboardRenderer({
         : [],
     };
 
-    try {
-      animRef.current = AnimationFactory.create(animStyle, {
-        state: engineState,
-        ctx,
-        hctx,
-        offscreen,
-        callbacks: {
-          fillBg: () => paintBackground(ctx, canvas.width, canvas.height),
-          drawHand: (...args: any[]) => {
-            if (stoppedRef.current) return;
-            // Styles call drawHand(x, y) or drawHand(ctx, x, y).
-            const [a, b, c] = args;
-            const tipX = typeof a === 'number' ? a : b;
-            const tipY = typeof a === 'number' ? b : c;
-            if (typeof tipX === 'number' && typeof tipY === 'number') {
-              drawHandSprite(tipX, tipY);
-            }
-          },
-          setProgress: (p: number) => {
-            if (stoppedRef.current) return;
-            const s = useUnifiedEngineStore.getState();
-            s.setCurrentTime(Math.min(1, Math.max(0, p)) * s.timeline.duration);
-          },
-          finishAnim: () => {
-            stoppedRef.current = true;
-            cancelAnimationFrame(frame);
-            animRef.current = null;
-            const s = useUnifiedEngineStore.getState();
-            s.setCurrentTime(s.timeline.duration);
-            s.setIsPlaying(false);
-            hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
-          },
-          resScale: () => 1,
-          resPointScale: () => 1,
+    const anim = AnimationFactory.create(animStyle, {
+      state: engineState,
+      ctx,
+      hctx,
+      offscreen,
+      callbacks: {
+        fillBg: () => paintBackground(ctx, canvas.width, canvas.height),
+        drawHand: (...args: any[]) => {
+          if (stoppedRef.current) return;
+          // Styles call drawHand(x, y) or drawHand(ctx, x, y).
+          const [a, b, c] = args;
+          const tipX = typeof a === 'number' ? a : b;
+          const tipY = typeof a === 'number' ? b : c;
+          if (typeof tipX === 'number' && typeof tipY === 'number') {
+            drawHandSprite(tipX, tipY);
+          }
         },
-      });
+        setProgress: (p: number) => {
+          if (stoppedRef.current || seekingRef.current) return;
+          const s = useUnifiedEngineStore.getState();
+          const ms = Math.min(1, Math.max(0, p)) * s.timeline.duration;
+          engineTimeRef.current = ms;
+          s.setCurrentTime(ms);
+        },
+        finishAnim: () => {
+          stoppedRef.current = true;
+          if (seekingRef.current) {
+            hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+            return;
+          }
+          animRef.current = null;
+          const s = useUnifiedEngineStore.getState();
+          engineTimeRef.current = s.timeline.duration;
+          s.setCurrentTime(s.timeline.duration);
+          s.setIsPlaying(false);
+          hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+        },
+        resScale: () => 1,
+        resPointScale: () => 1,
+      },
+    });
 
-      animRef.current.setup?.();
-      activeStyleRef.current = animStyle;
-      console.log('[WB] built engine', animStyle);
-    } catch (err) {
-      console.error('Failed to start animation engine:', err);
-      useUnifiedEngineStore.getState().setIsPlaying(false);
-      return;
+    anim.setup?.();
+    activeStyleRef.current = animStyle;
+    return anim;
+  };
+
+  useEffect(() => {
+    // Pausing must freeze the frame: keep the instance and the painted canvas
+    // so resuming continues instead of restarting.
+    if (!isPlaying) return;
+
+    const canvas = canvasRef.current;
+    const handCanvas = handCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const hctx = handCanvas?.getContext('2d');
+    if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
+
+    let frame = 0;
+
+    // Resume path: the engine already holds its progress (pause, or a seek that
+    // just replayed one), so keep ticking instead of rebuilding.
+    if (!animRef.current) {
+      const offscreen = ensureOffscreen(canvas);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      paintBackground(ctx, canvas.width, canvas.height);
+      stoppedRef.current = false;
+      try {
+        animRef.current = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
+      } catch (err) {
+        console.error('Failed to start animation engine:', err);
+        useUnifiedEngineStore.getState().setIsPlaying(false);
+        return;
+      }
     }
 
+    stoppedRef.current = false;
     let last = performance.now();
     const step = (now: number) => {
       if (stoppedRef.current) return;
       const delta = Math.min(100, now - last);
       last = now;
-      if (!animRef.current) console.log('[WB] tick skipped: instance gone');
       animRef.current?.tick?.(cfgRef.current.revealSpeed, delta);
       if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
@@ -301,11 +317,77 @@ export function useWhiteboardRenderer({
     };
   }, [isPlaying, imageLoaded]);
 
+  // ---- seek ---------------------------------------------------------------
+
+  // Pas fixe utilise pour rejouer le moteur jusqu'a la position cherchee. La
+  // cadence des styles est pilotee par le temps ecoule et non par un nombre de
+  // frames, donc un pas grossier tombe sur la meme image que la lecture reelle.
+  const SEEK_STEP_MS = 33.34;
+
+  // Scrub de la timeline. Sans cela currentTime n'est qu'une SORTIE du moteur :
+  // rien ne repeignait, et se placer a 0:00.4 laissait le dessin termine a
+  // l'ecran. On rejoue donc un moteur neuf jusqu'a la position demandee.
+  useEffect(() => {
+    if (isPlaying || !imageLoaded) return;
+    // t = 0 est deja rendu par l'apercu statique.
+    if (currentTime <= 0) return;
+    // Ecriture du moteur lui-meme (progression, fin de lecture) : rien a faire.
+    if (Math.abs(currentTime - engineTimeRef.current) < 1) return;
+
+    const canvas = canvasRef.current;
+    const handCanvas = handCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const hctx = handCanvas?.getContext('2d');
+    if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
+
+    // Un drag emet un flot de seeks : on n'en rejoue qu'un par frame.
+    const raf = requestAnimationFrame(() => {
+      const offscreen = ensureOffscreen(canvas);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      paintBackground(ctx, canvas.width, canvas.height);
+      hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+
+      stoppedRef.current = false;
+      seekingRef.current = true;
+      try {
+        const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
+
+        // L'horloge du moteur avance de delta * (revealSpeed / DEFAULT_SPEED) :
+        // on divise le pas par ce facteur pour tomber exactement sur la ms
+        // demandee quel que soit le curseur de vitesse.
+        const timeScale = Math.max(
+          0.05,
+          (cfgRef.current.revealSpeed || ENGINE_DEFAULT_SPEED) / ENGINE_DEFAULT_SPEED
+        );
+
+        for (let elapsed = 0; elapsed < currentTime; elapsed += SEEK_STEP_MS) {
+          if (stoppedRef.current) break;
+          const slice = Math.min(SEEK_STEP_MS, currentTime - elapsed);
+          anim.tick?.(cfgRef.current.revealSpeed, slice / timeScale);
+        }
+
+        // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
+        // l'instance est consommee, un Play repartira du debut.
+        animRef.current = stoppedRef.current ? null : anim;
+      } catch (err) {
+        console.error('Failed to seek animation engine:', err);
+      } finally {
+        seekingRef.current = false;
+        stoppedRef.current = false;
+      }
+
+      engineTimeRef.current = currentTime;
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [currentTime, isPlaying, imageLoaded]);
+
   // Static preview only at the very start (or after Reset). Pausing mid-run
   // must leave the engine's partial frame on screen.
   useEffect(() => {
     if (isPlaying || currentTime > 0) return;
     animRef.current = null;
+    engineTimeRef.current = 0;
     const handCanvas = handCanvasRef.current;
     handCanvas
       ?.getContext('2d')
