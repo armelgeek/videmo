@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Timeline } from "@/lib/editor/components/timeline";
 import { useAnnotationTimeline } from "./use-annotation-timeline";
 
@@ -34,11 +34,31 @@ const TIMELINE_THEME: React.CSSProperties = {
  * The whiteboard editor's timeline: every clip is an annotation, chained in
  * sequence. Positions are derived, never stored.
  */
+/** Width of the track-header gutter that sits left of the clips. */
+const TRACK_HEADER_PX = 132;
+
 export const AnnotationTimeline: React.FC = () => {
-  const timeline = useAnnotationTimeline();
+  const { fitZoomTo, ...timeline } = useAnnotationTimeline();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const { duration } = timeline;
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const fit = () =>
+      fitZoomTo(wrapper.clientWidth - TRACK_HEADER_PX, duration);
+
+    fit();
+    const observer = new ResizeObserver(fit);
+    observer.observe(wrapper);
+    return () => observer.disconnect();
+  }, [fitZoomTo, duration]);
 
   return (
     <div
+      ref={wrapperRef}
       style={TIMELINE_THEME}
       className="shrink-0 min-w-0 w-full overflow-hidden border-t border-border"
     >

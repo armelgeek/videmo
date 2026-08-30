@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { TimelineClip } from "@/lib/editor/types";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { applyEditorEdit, type TimelineEdit } from "./apply-editor-edit";
@@ -9,6 +9,8 @@ import { interpretClipUpdate } from "./interpret-clip-update";
 import { toEditorTimeline } from "./to-editor-timeline";
 
 const DEFAULT_ZOOM = 100;
+const MIN_ZOOM = 10;
+const MAX_ZOOM = 400;
 
 /**
  * Wires the unified engine store to the NLE timeline component.
@@ -33,6 +35,7 @@ export function useAnnotationTimeline() {
   );
 
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
+  const userChoseZoom = useRef(false);
   const [tool, setTool] = useState<"select" | "razor">("select");
 
   const derived = useMemo(() => deriveTimeline(annotations), [annotations]);
@@ -90,7 +93,10 @@ export function useAnnotationTimeline() {
     // Local UI state
     zoomLevel,
     tool,
-    onZoomChange: setZoomLevel,
+    onZoomChange: (zoom: number) => {
+      userChoseZoom.current = true;
+      setZoomLevel(zoom);
+    },
     onToolChange: setTool,
     onDragStart: () => {},
 
@@ -112,5 +118,24 @@ export function useAnnotationTimeline() {
     // Not meaningful for annotations: a single fixed track, no source media.
     onTrackUpdate: () => {},
     onDetachAudio: () => {},
+
+    /**
+     * Fit the whole sequence in `availableWidth` px. Without this the default
+     * zoom overflows a short timeline, and the NLE's auto-scroll then pins the
+     * playhead to the middle of the viewport while the content slides beneath
+     * it. Skipped once the user has picked their own zoom.
+     */
+    fitZoomTo(availableWidth: number, durationSeconds: number) {
+      if (userChoseZoom.current) return;
+      if (availableWidth <= 0 || durationSeconds <= 0) return;
+
+      const fitted = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, availableWidth / durationSeconds),
+      );
+      setZoomLevel((current) =>
+        Math.abs(current - fitted) < 1 ? current : fitted,
+      );
+    },
   };
 }
