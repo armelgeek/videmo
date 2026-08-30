@@ -47,8 +47,6 @@ export function WhiteboardEditorStep({
     setChunks,
     canvasBg,
     setCanvasBg,
-    useAnnotation,
-    setUseAnnotation,
     annotations,
     setCurrentTime,
   } = useUnifiedEngine();
@@ -68,7 +66,6 @@ export function WhiteboardEditorStep({
     setHandSpeed(config.handSpeed);
     setChunks(config.chunks);
     setCanvasBg(config.canvasBg);
-    setUseAnnotation(config.useAnnotation);
   }, [config]); // Only config, not the setters which are stable from Zustand
 
   // Reset animation when needed
@@ -116,11 +113,15 @@ export function WhiteboardEditorStep({
             height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
           />
+          {/* Calque de reperage des annotations. Il masque le dessin qu'on est
+              venu regarder : il s'efface donc pendant la lecture et revient a
+              l'arret, fin de lecture comprise. L'opacite est pilotee par
+              use-whiteboard-renderer, qui sait aussi quand on scrube. */}
           <canvas
             ref={annotationCanvasRef}
             width={canvasWidth}
             height={canvasHeight}
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-300"
           />
         </div>
 

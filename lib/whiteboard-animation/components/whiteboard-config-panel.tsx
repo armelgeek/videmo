@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import type { WhiteboardConfig } from '@/lib/storyboard/store';
 
 interface WhiteboardConfigPanelProps {
@@ -111,16 +110,10 @@ export function WhiteboardConfigPanel({
         </Select>
       </div>
 
-      {/* Use Annotations */}
-      <div className="flex items-center justify-between">
-        <Label>Show Annotations</Label>
-        <Switch
-          checked={config.useAnnotation}
-          onCheckedChange={(checked) =>
-            onChange({ useAnnotation: checked })
-          }
-        />
-      </div>
+      {/* Pas d'interrupteur Show Annotations : l'animation EST pilotee par les
+          annotations, ce n'est pas une option. Le calque de reperage se retire
+          de lui-meme pendant la lecture et revient a l'arret — voir le canvas
+          d'annotations dans whiteboard-editor-step. */}
 
       {/* Ni Aspect Ratio ni Resolution ici. Le ratio est un parametre de
           PROJET (projectParams, choisi des l'etape Prompt) : le dupliquer dans

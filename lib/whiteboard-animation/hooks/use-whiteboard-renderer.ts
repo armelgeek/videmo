@@ -71,7 +71,6 @@ export function useWhiteboardRenderer({
     isPlaying,
     currentTime,
     canvasBg,
-    useAnnotation,
     animStyle,
     handStyle,
     handSpeed,
@@ -97,6 +96,12 @@ export function useWhiteboardRenderer({
   // l'utilisateur d'une simple progression de lecture.
   const engineTimeRef = useRef(0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  // Vrai pendant qu'on scrube. Le seek ne "joue" pas — isPlaying reste faux —
+  // mais l'utilisateur regarde le dessin, pas les cadres : le calque doit
+  // s'effacer la aussi. Un delai de retour evite qu'il ne clignote entre deux
+  // positions pendant un drag.
+  const [scrubbing, setScrubbing] = useState(false);
+  const scrubTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Latest config, readable from inside the rAF closure without re-subscribing.
   const cfgRef = useRef({ handStyle, canvasBg });
@@ -208,7 +213,7 @@ export function useWhiteboardRenderer({
   // next play rebuilds it. Reveal speed is read live in tick(), so it is absent.
   useEffect(() => {
     animRef.current = null;
-  }, [animStyle, handStyle, handSpeed, chunks, useAnnotation]);
+  }, [animStyle, handStyle, handSpeed, chunks]);
 
   // Offscreen holds the source artwork the engine reveals from.
   const ensureOffscreen = (canvas: HTMLCanvasElement) => {
@@ -247,9 +252,10 @@ export function useWhiteboardRenderer({
       hand: normalizeHandKey(handStyle),
       tileSlider: chunks,
       contentBounds: { x: 0, y: 0, w: canvas.width, h: canvas.height },
-      annotations: useAnnotation
-        ? deriveTimeline(store.animation.annotations).annotations
-        : [],
+      // Toujours en mode annotation : c'est le modele de l'editeur, pas une
+      // option. config.useAnnotation subsiste pour les projets enregistres
+      // mais n'est plus lu.
+      annotations: deriveTimeline(store.animation.annotations).annotations,
     };
 
     const anim = AnimationFactory.create(animStyle, {
@@ -353,6 +359,9 @@ export function useWhiteboardRenderer({
   // frames, donc un pas grossier tombe sur la meme image que la lecture reelle.
   const SEEK_STEP_MS = 33.34;
 
+  /** Delai avant que le calque d'annotations ne revienne apres un scrub. */
+  const SCRUB_RETOUR_MS = 400;
+
   /** Rect d'une region, borne au canvas — meme calcul que _enterRegion. */
   const regionRect = (r: any, canvas: HTMLCanvasElement) => {
     const x = Math.max(0, Math.floor(r.x));
@@ -384,6 +393,10 @@ export function useWhiteboardRenderer({
     const ctx = canvas?.getContext('2d');
     const hctx = handCanvas?.getContext('2d');
     if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
+
+    setScrubbing(true);
+    if (scrubTimer.current) clearTimeout(scrubTimer.current);
+    scrubTimer.current = setTimeout(() => setScrubbing(false), SCRUB_RETOUR_MS);
 
     // Un drag emet un flot de seeks : on n'en rejoue qu'un par frame.
     const raf = requestAnimationFrame(() => {
@@ -483,16 +496,18 @@ export function useWhiteboardRenderer({
     const actx = annCanvas.getContext('2d');
     if (!actx) return;
 
-    actx.clearRect(0, 0, annCanvas.width, annCanvas.height);
-    if (!useAnnotation || annotations.length === 0) return;
+    // Le calque est un repere d'EDITION : il masque le dessin qu'on est venu
+    // regarder. Il s'efface donc des que ca bouge — lecture ou scrub — et
+    // revient a l'arret, fin de lecture comprise.
+    const masque = isPlaying || scrubbing;
+    annCanvas.style.opacity = masque ? '0' : '1';
 
-    // Idle shows every region; during playback each appears at its reveal time.
-    const idle = !isPlaying && currentTime === 0;
+    actx.clearRect(0, 0, annCanvas.width, annCanvas.height);
+    if (masque || annotations.length === 0) return;
 
     annotations.forEach((annot, i) => {
       const region = annot.region;
       if (!region) return;
-      if (!idle && currentTime < (annot.reveal?.from ?? 0)) return;
 
       const stroke = annot.style?.strokeColor ?? '#2563eb';
       const fill = annot.style?.fillColor ?? 'rgba(37, 99, 235, 0.12)';
@@ -515,5 +530,5 @@ export function useWhiteboardRenderer({
       actx.fillStyle = '#ffffff';
       actx.fillText(label, region.x + 6, badgeY + 16);
     });
-  }, [useAnnotation, annotations, annotationCanvasRef, currentTime, isPlaying]);
+  }, [annotations, annotationCanvasRef, isPlaying, scrubbing]);
 }
