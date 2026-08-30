@@ -165,6 +165,7 @@ export function useWhiteboardRenderer({
   // Changing what the engine was built from invalidates the instance, so the
   // next play rebuilds it. Reveal speed is read live in tick(), so it is absent.
   useEffect(() => {
+    console.log('[WB] invalidate', { animStyle, handStyle, handSpeed, chunks, useAnnotation });
     animRef.current = null;
   }, [animStyle, handStyle, handSpeed, chunks, useAnnotation]);
 
@@ -269,6 +270,7 @@ export function useWhiteboardRenderer({
 
       animRef.current.setup?.();
       activeStyleRef.current = animStyle;
+      console.log('[WB] built engine', animStyle);
     } catch (err) {
       console.error('Failed to start animation engine:', err);
       useUnifiedEngineStore.getState().setIsPlaying(false);
@@ -280,6 +282,7 @@ export function useWhiteboardRenderer({
       if (stoppedRef.current) return;
       const delta = Math.min(100, now - last);
       last = now;
+      if (!animRef.current) console.log('[WB] tick skipped: instance gone');
       animRef.current?.tick?.(cfgRef.current.revealSpeed, delta);
       if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
