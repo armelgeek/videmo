@@ -3,7 +3,7 @@
 import { useRef, useEffect } from 'react';
 import { WhiteboardConfigPanel } from './whiteboard-config-panel';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import { useWhiteboardRenderer } from '../hooks/use-whiteboard-renderer';
 import { AnnotationTimeline } from '../timeline/annotation-timeline';
@@ -31,9 +31,7 @@ export function WhiteboardEditorStep({
 
   // Connect to unified engine
   const {
-    isPlaying,
     progress,
-    togglePlay,
     animStyle,
     setAnimStyle,
     handStyle,
@@ -118,26 +116,8 @@ export function WhiteboardEditorStep({
 
         <AnnotationTimeline />
 
-        {/* Playback Controls */}
+        {/* Play/pause lives in the timeline toolbar; only reset is extra. */}
         <div className="flex gap-2">
-          <Button
-            variant={isPlaying ? 'default' : 'outline'}
-            size="sm"
-            onClick={togglePlay}
-            className="flex gap-2 flex-1"
-          >
-            {isPlaying ? (
-              <>
-                <Pause className="w-4 h-4" />
-                Pause
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4" />
-                Play
-              </>
-            )}
-          </Button>
           <Button
             variant="outline"
             size="sm"
