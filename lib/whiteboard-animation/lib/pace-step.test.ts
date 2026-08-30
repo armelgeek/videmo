@@ -47,9 +47,8 @@ describe("paceStep", () => {
     expect(framesToDraw(frames, points)).toBe(frames);
   });
 
-  it("never returns less than one point per frame", () => {
-    const p = pacer(120);
-    for (let i = 0; i < 120; i++) expect(p.paceStep(40, 1)).toBeGreaterThanOrEqual(1);
+  it("spreads points smoothly over the full budget even when total < frames", () => {
+    expect(framesToDraw(120, 40)).toBeGreaterThanOrEqual(119);
   });
 
   it("keeps a separate carry per paced list", () => {
