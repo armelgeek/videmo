@@ -168,6 +168,14 @@ export const useUnifiedEngineStore = create<UnifiedEngineStore>((set, get) => ({
     }));
   },
 
+  // Bulk write: the timeline editor replaces the whole sequence at once,
+  // since order carries the timing.
+  setAnnotations: (annotations: Annotation[]) => {
+    set((state) => ({
+      animation: { ...state.animation, annotations },
+    }));
+  },
+
   // Layers
   addLayer: (layer: InkplainerLayer) => {
     set((state) => ({

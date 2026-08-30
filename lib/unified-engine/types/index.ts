@@ -114,6 +114,7 @@ export interface UnifiedEngineActions {
   updateAnnotation(index: number, data: Partial<Annotation>): void;
   addAnnotation(annotation: Annotation): void;
   removeAnnotation(id: string): void;
+  setAnnotations(annotations: Annotation[]): void;
 
   // Layers
   addLayer(layer: InkplainerLayer): void;

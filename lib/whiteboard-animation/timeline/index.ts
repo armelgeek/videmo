@@ -10,3 +10,9 @@ export {
   applyEditorEdit,
   type TimelineEdit,
 } from "./apply-editor-edit";
+export {
+  interpretClipUpdate,
+  type ClipUpdateContext,
+} from "./interpret-clip-update";
+export { useDerivedAnnotations } from "./use-derived-annotations";
+export { useAnnotationTimeline } from "./use-annotation-timeline";
