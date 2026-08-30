@@ -1,7 +1,6 @@
 'use client';
 
 import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -87,23 +86,12 @@ export function WhiteboardConfigPanel({
           annotation. Le rebrancher demanderait de lui donner un sens qui
           n'entre pas en conflit avec la duree, ce qui reste a concevoir. */}
 
-      {/* Chunks */}
-      <div className="grid gap-3">
-        <div className="flex justify-between items-center">
-          <Label>Chunks</Label>
-          <span className="text-sm font-medium text-muted-foreground">
-            {config.chunks}
-          </span>
-        </div>
-        <Slider
-          value={[config.chunks]}
-          onValueChange={([val]) => onChange({ chunks: val })}
-          min={10}
-          max={100}
-          step={5}
-          className="w-full"
-        />
-      </div>
+      {/* Pas de curseur Chunks : il fixait un NOMBRE de tuiles, or le rayon du
+          trait derive de leur TAILLE. A nombre constant le stylo changeait
+          d'epaisseur selon la region (rayon 6 sur l'etiquette, 12 sur le sac,
+          dans le meme dessin). Le nombre se deduit desormais de l'aire de la
+          region — voir tuilesPourRegion — pour un rayon identique partout. Il
+          ne concernait de toute facon que 4 styles sur 13. */}
 
       {/* Canvas Background */}
       <div className="grid gap-2">
