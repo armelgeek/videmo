@@ -5,35 +5,32 @@ Chaque point indique s'il a été **mesuré** ou seulement **déduit du code**.
 
 ---
 
-## 1. Bloquant — régression ouverte
+## 1. Formats non-16:9 — corrigé, vérification partielle
 
-### 1.1 Tout format autre que 16:9 casse la scène
+### 1.1 ~~Tout format autre que 16:9 casse la scène~~ — corrigé
 
-**Mesuré** (capture à l'appui) : en 9:16, le canvas prend bien la bonne forme,
-mais le dessin est quasi absent, les cadres d'annotation flottent à côté du
-tracé et la main part dessiner dans le vide.
+La régression introduite en rendant `aspectRatio` effectif (`9c91d60`) est
+traitée. L'artwork est désormais ajusté en « contain » dans un rectangle
+centré (`rectContenu`), les annotations sont projetées sur **ce rectangle** et
+non sur le canvas entier, et les bornes du moteur (`contentBounds`) le suivent.
 
-Deux causes distinctes :
+**La question ouverte est tranchée** : au changement de forme, les régions sont
+**transportées** d'un rectangle d'artwork à l'autre (`reprojeterRegion`) plutôt
+que régénérées depuis la scène de démo. Les annotations éditées par
+l'utilisateur sont donc préservées.
 
-- **Les annotations ne sont projetées qu'une fois.** `seededRef` dans
-  `hooks/use-whiteboard-renderer.ts` appelle
-  `projectAnnotations(scene, canvas.width, canvas.height)` au premier montage,
-  puis les régions sont stockées. Changer la forme du canvas ne les recalcule
-  jamais : elles restent aux coordonnées d'un canvas 1280×720.
-- **L'artwork est étiré, pas ajusté.** `drawImage(img, 0, 0, canvas.width,
-  canvas.height)` écrase une image 16:9 dans un cadre 9:16.
+**Vérifié** : en 9:16, artwork centré et non déformé, cadres alignés sur le
+tracé. **Non vérifié** : la lecture elle-même en portrait — l'extension
+navigateur s'est déconnectée avant. 12 tests couvrent le dimensionnement et la
+reprojection (aller-retour sans dérive, pas de déformation, cas dégénérés).
 
-**Deux voies :**
+### 1.2 En portrait, le dessin est petit — par construction
 
-1. *Réduire la portée* — ne proposer que 16:9 dans le sélecteur de l'étape
-   Prompt tant que la scène ne sait pas se reprojeter. ~5 min, réversible.
-2. *Finir le travail* — ajuster l'artwork en « contain » (bandes plutôt que
-   déformation), projeter les annotations sur ce rectangle ajusté, recalculer
-   au changement de dimensions. **Question ouverte : que faire des annotations
-   déjà éditées par l'utilisateur lors d'un changement de format ?**
-
-> Cette régression a été introduite en rendant `aspectRatio` effectif
-> (commit `9c91d60`). Avant, le réglage existait mais ne faisait rien.
+Une scène 16:9 ajustée dans un cadre 9:16 n'occupe qu'une bande d'environ un
+tiers de la hauteur. C'est le comportement correct d'un « contain », pas un
+défaut : produire une vraie vidéo portrait demande un artwork portrait.
+À trancher côté produit — recadrage, artwork dédié, ou zoom sur la région
+active.
 
 ---
 
@@ -125,14 +122,18 @@ préexistante** (`Cannot find name 'setLayers'`, ligne 122), ce qui suggère un
 composant mort ou jamais compilé sur ce chemin. À trancher : aligner ou
 supprimer.
 
+`lib/editor/components/preview-player.tsx` monte le canvas whiteboard en
+**1920×1080 en dur**, sans suivre le ratio du projet — contrairement à l'étape
+Whiteboard. `editor.tsx` lui passe donc ces dimensions en constantes. Deuxième
+consommateur de `useWhiteboardRenderer`, à aligner sur `tailleCanvas`.
+
 ---
 
 ## 6. Vérifications manquantes
 
-- **Rendu portrait jamais vu à l'écran.** La règle de dimensionnement
-  (`tailleCanvas`) est couverte par 4 tests unitaires et le passage de la prop
-  est direct, mais le rendu 720×1280 lui-même n'a pas été confirmé de visu —
-  bloqué par le point 1.1.
+- **Lecture en portrait non confirmée.** L'état au repos est vérifié (artwork
+  centré, cadres alignés) mais l'animation elle-même n'a pas été vue tourner en
+  9:16 — extension navigateur déconnectée en cours de test.
 - **Six styles ajoutés au menu jamais vus à l'écran** : `outlinechunks`,
   `outlinefill`, `outlineonly`, `spec-text`, `specialized`, `topanchor`. Ils
   sont couverts par `styles-smoke.test.ts` (la factory les connaît, ils
@@ -181,3 +182,4 @@ Pour situer le contexte des points ci-dessus.
 | `b3e5beb` | Horloge du moteur figée au 1× fidèle, Reveal Speed retiré de l'UI |
 | `63c000b` | Nombre de tuiles déduit de la taille de la région (le trait changeait d'épaisseur : rayon 6 à 12 selon la région) |
 | `9c91d60` | Ratio devenu paramètre de projet, résolution devenue choix d'export, palier de main déduit du canvas |
+| `9ef2b32` | Calque d'annotations masqué pendant lecture et scrub, interrupteur retiré |

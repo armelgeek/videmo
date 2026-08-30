@@ -1540,6 +1540,10 @@ const EditorInner: React.FC<EditorProps> = ({
     canvasRef: whiteboardCanvasRef,
     handCanvasRef: whiteboardHandCanvasRef,
     annotationCanvasRef: whiteboardAnnotationCanvasRef,
+    // preview-player fixe ce canvas a 1920x1080. Il ne suit pas encore le
+    // ratio du projet, contrairement a l'etape Whiteboard.
+    canvasWidth: 1920,
+    canvasHeight: 1080,
   });
 
   return (

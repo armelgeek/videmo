@@ -54,6 +54,8 @@ export function WhiteboardEditorStep({
   // Enable canvas rendering
   useWhiteboardRenderer({
     canvasRef,
+    canvasWidth,
+    canvasHeight,
     handCanvasRef,
     annotationCanvasRef,
   });

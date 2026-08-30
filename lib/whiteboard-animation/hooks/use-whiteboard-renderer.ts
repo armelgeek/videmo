@@ -7,6 +7,7 @@ import {
   SCENE_PREMIUM_BAG_ANNOTATIONS,
   projectAnnotations,
 } from '../data/scene-premium-bag';
+import { rectContenu, reprojeterRegion, type RectContenu } from '../canvas-size';
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { normalizeGaps } from '../timeline/normalize-gaps';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
@@ -57,12 +58,18 @@ function normalizeHandKey(handStyle: string): string {
 
 export interface UseWhiteboardRendererProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  /** Dimensions du canvas. Passees explicitement : muter l'attribut width ne
+   *  redeclenche aucun effet, or un changement de forme doit reprojeter. */
+  canvasWidth: number;
+  canvasHeight: number;
   handCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   annotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
 }
 
 export function useWhiteboardRenderer({
   canvasRef,
+  canvasWidth,
+  canvasHeight,
   handCanvasRef,
   annotationCanvasRef,
 }: UseWhiteboardRendererProps) {
@@ -80,6 +87,9 @@ export function useWhiteboardRenderer({
   const { annotations } = useDerivedAnnotations();
 
   const imageRef = useRef<HTMLImageElement | null>(null);
+  // Rectangle ou l'artwork est dessine. Memorise pour pouvoir transporter les
+  // regions quand le canvas change de forme.
+  const rectRef = useRef<RectContenu | null>(null);
   const offscreenRef = useRef<HTMLCanvasElement | null>(null);
   const handImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const animRef = useRef<any>(null);
@@ -129,29 +139,80 @@ export function useWhiteboardRenderer({
     });
   }, []);
 
-  // Seed the demo scene once: annotations projected onto the canvas + duration.
+  // Amorcage de la scene de demo, puis suivi de la forme du canvas.
   const seededRef = useRef(false);
   useEffect(() => {
-    if (seededRef.current) return;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    seededRef.current = true;
+    if (!canvas || !imageLoaded) return;
 
+    const rect = rectArtwork(canvas);
     const store = useUnifiedEngineStore.getState();
-    if (store.animation.annotations.length === 0) {
+
+    if (!seededRef.current && store.animation.annotations.length === 0) {
+      seededRef.current = true;
+      rectRef.current = rect;
       // normalizeGaps turns the authored absolute startMs into the derived
       // model (order + duration + gap) the timeline editor works with.
+      // Les regions sont projetees sur le RECTANGLE D'ARTWORK, pas sur le
+      // canvas : hors de ce rectangle il n'y a que du fond.
       normalizeGaps(
-        projectAnnotations(
-          SCENE_PREMIUM_BAG_ANNOTATIONS,
-          canvas.width,
-          canvas.height
-        )
-      ).forEach((a) => store.addAnnotation(a));
+        projectAnnotations(SCENE_PREMIUM_BAG_ANNOTATIONS, rect.w, rect.h)
+      ).forEach((a) =>
+        store.addAnnotation({
+          ...a,
+          region: {
+            ...a.region,
+            x: a.region.x + rect.x,
+            y: a.region.y + rect.y,
+          },
+        })
+      );
+      return;
     }
-  }, [canvasRef]);
+    seededRef.current = true;
+
+    const precedent = rectRef.current;
+    rectRef.current = rect;
+    if (
+      !precedent ||
+      (precedent.x === rect.x &&
+        precedent.y === rect.y &&
+        precedent.w === rect.w &&
+        precedent.h === rect.h)
+    ) {
+      return;
+    }
+
+    // Le canvas a change de forme. Les regions sont stockees en pixels de
+    // canvas : sans cela elles resteraient aux coordonnees de l'ancienne
+    // forme, a cote du dessin. On les TRANSPORTE plutot que de les regenerer
+    // depuis la scene de demo, pour ne pas perdre les annotations editees.
+    const annots = store.animation.annotations;
+    if (annots.length) {
+      store.setAnnotations(
+        annots.map((a: any) =>
+          a.region
+            ? { ...a, region: { ...a.region, ...reprojeterRegion(a.region, precedent, rect) } }
+            : a
+        )
+      );
+    }
+    // L'instance a ete batie sur les anciennes bornes.
+    animRef.current = null;
+  }, [canvasRef, imageLoaded, canvasWidth, canvasHeight]);
 
   // ---- helpers ------------------------------------------------------------
+
+  /** Rectangle d'artwork pour ce canvas, sans deformation. */
+  const rectArtwork = (canvas: HTMLCanvasElement): RectContenu => {
+    const img = imageRef.current;
+    return rectContenu(
+      canvas.width,
+      canvas.height,
+      img?.naturalWidth || canvas.width,
+      img?.naturalHeight || canvas.height
+    );
+  };
 
   const paintBackground = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     const bg = cfgRef.current.canvasBg;
@@ -203,7 +264,8 @@ export function useWhiteboardRenderer({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     paintBackground(ctx, canvas.width, canvas.height);
     if (imageRef.current) {
-      ctx.drawImage(imageRef.current, 0, 0, canvas.width, canvas.height);
+      const r = rectArtwork(canvas);
+      ctx.drawImage(imageRef.current, r.x, r.y, r.w, r.h);
     }
   };
 
@@ -224,9 +286,10 @@ export function useWhiteboardRenderer({
     }
     offscreen.width = canvas.width;
     offscreen.height = canvas.height;
+    const rect = rectArtwork(canvas);
     offscreen
       .getContext('2d')
-      ?.drawImage(imageRef.current!, 0, 0, canvas.width, canvas.height);
+      ?.drawImage(imageRef.current!, rect.x, rect.y, rect.w, rect.h);
     return offscreen;
   };
 
@@ -251,7 +314,9 @@ export function useWhiteboardRenderer({
       handSpeed,
       hand: normalizeHandKey(handStyle),
       tileSlider: chunks,
-      contentBounds: { x: 0, y: 0, w: canvas.width, h: canvas.height },
+      // Les bornes suivent l'artwork : hors de ce rectangle il n'y a que du
+      // fond, et le tampon de fin ne doit pas y baver.
+      contentBounds: rectArtwork(canvas),
       // Toujours en mode annotation : c'est le modele de l'editeur, pas une
       // option. config.useAnnotation subsiste pour les projets enregistres
       // mais n'est plus lu.
@@ -432,7 +497,8 @@ export function useWhiteboardRenderer({
           if (idx === -1) {
             // Apres la derniere region : le moteur tamponne toute l'image en
             // terminant, y compris ce qu'aucune region ne couvre.
-            ctx.drawImage(imageRef.current!, 0, 0, canvas.width, canvas.height);
+            const rf = rectArtwork(canvas);
+            ctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
           } else {
             for (let i = 0; i < idx; i++) {
               const rect = regionRect(schedule[i].annot.region, canvas);
