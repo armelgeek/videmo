@@ -16,3 +16,4 @@ export {
 } from "./interpret-clip-update";
 export { useDerivedAnnotations } from "./use-derived-annotations";
 export { useAnnotationTimeline } from "./use-annotation-timeline";
+export { AnnotationTimeline } from "./annotation-timeline";

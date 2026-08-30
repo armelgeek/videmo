@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { RotateCcw, Play, Pause, Crop, PenTool } from 'lucide-react';
-import { InkplainerTimeline } from './inkplainer-timeline';
+import { AnnotationTimeline } from '../timeline/annotation-timeline';
 
 interface InkplainerCanvasAreaProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -103,8 +103,7 @@ export const InkplainerCanvasArea: React.FC<InkplainerCanvasAreaProps> = ({
         </div>
       </div>
 
-      {/* Native Timeline Bar */}
-      <InkplainerTimeline />
+      <AnnotationTimeline />
     </main>
   );
 };
