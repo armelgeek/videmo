@@ -28,12 +28,23 @@ const SCENE_IMAGE = '/scene-premium-bag.png';
  */
 const ENGINE_DEFAULT_SPEED = 40;
 
-const HAND_ASSETS: Record<string, string> = {
-  custom1: '/images/hand1-720p.png',
-  custom2: '/images/hand2-720p.png',
-  custom3: '/images/hand3-720p.png',
-  custom4: '/images/hand4-720p.png',
-};
+/**
+ * Paliers d'assets de main, du plus petit au plus grand. CUSTOM_HANDS decrit
+ * chacun avec ses propres coordonnees de pointe, et handDrawRect attend le
+ * palier NOMINAL correspondant : le figer alors que le canvas change de taille
+ * revenait a agrandir le sprite 720p au lieu de prendre le bon fichier.
+ */
+const PALIERS_MAIN = [720, 1080, 1440] as const;
+
+/** Palier dont la taille nominale couvre le grand cote du canvas. */
+function palierPourCanvas(grandCote: number): (typeof PALIERS_MAIN)[number] {
+  if (grandCote > 1920) return 1440;
+  if (grandCote > 1280) return 1080;
+  return 720;
+}
+
+const handAssetUrl = (key: string, palier: number) =>
+  `/images/hand${key.replace('custom', '')}-${palier}p.png`;
 
 /** Accepts "hand1", "Hand 1", "custom1"… and returns a CUSTOM_HANDS key. */
 function normalizeHandKey(handStyle: string): string {
@@ -102,12 +113,14 @@ export function useWhiteboardRenderer({
     };
     img.onerror = () => console.error('Failed to load scene image', SCENE_IMAGE);
 
-    Object.entries(HAND_ASSETS).forEach(([key, src]) => {
-      const h = new Image();
-      h.src = src;
-      h.onload = () => {
-        handImagesRef.current[key] = h;
-      };
+    ['custom1', 'custom2', 'custom3', 'custom4'].forEach((key) => {
+      PALIERS_MAIN.forEach((palier) => {
+        const h = new Image();
+        h.src = handAssetUrl(key, palier);
+        h.onload = () => {
+          handImagesRef.current[`${key}@${palier}`] = h;
+        };
+      });
     });
   }, []);
 
@@ -152,13 +165,21 @@ export function useWhiteboardRenderer({
     if (cfgRef.current.handStyle === 'ghost') return;
 
     const key = normalizeHandKey(cfgRef.current.handStyle);
-    const imgConfig = CUSTOM_HANDS[key]?.images?.[720];
-    const sprite = handImagesRef.current[key] ?? handImagesRef.current.custom1;
+    const palier = palierPourCanvas(
+      Math.max(handCanvas.width, handCanvas.height)
+    );
+    const imgConfig = CUSTOM_HANDS[key]?.images?.[palier];
+    // Un palier peut ne pas etre encore charge : on retombe sur le 720, qui
+    // l'est en premier, plutot que de sauter la frame et faire clignoter la main.
+    const sprite =
+      handImagesRef.current[`${key}@${palier}`] ??
+      handImagesRef.current[`${key}@720`] ??
+      handImagesRef.current['custom1@720'];
 
     if (imgConfig && sprite?.complete) {
       const r = handDrawRect(
         imgConfig,
-        720,
+        palier,
         tipX,
         tipY,
         handCanvas.width,

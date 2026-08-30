@@ -845,8 +845,8 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                       <h4 className="text-sm font-semibold text-muted-foreground">Preview</h4>
                       <div className="relative rounded-lg bg-black w-full overflow-hidden"
                         style={{
-                          aspectRatio: whiteboardConfig.aspectRatio === "16:9" ? "16/9" :
-                                      whiteboardConfig.aspectRatio === "9:16" ? "9/16" : "1/1"
+                          aspectRatio: projectParams.aspectRatio === "16:9" ? "16/9" :
+                                      projectParams.aspectRatio === "9:16" ? "9/16" : "1/1"
                         }}>
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="text-center space-y-2">
@@ -854,7 +854,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                               {whiteboardConfig.animStyle} • {whiteboardConfig.handStyle}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {whiteboardConfig.chunks} chunks • {whiteboardConfig.resolution}
+                              {projectParams.aspectRatio}
                             </div>
                           </div>
                         </div>
@@ -903,6 +903,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                         <SelectContent>
                           <SelectItem value="16:9">16:9</SelectItem>
                           <SelectItem value="9:16">9:16</SelectItem>
+                          <SelectItem value="1:1">1:1</SelectItem>
                         </SelectContent>
                       </Select>
 
@@ -1392,6 +1393,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
           {step === "whiteboard" && (
             <WhiteboardEditorStep
               config={whiteboardConfig}
+              aspectRatio={projectParams.aspectRatio}
               onConfigChange={(updates) =>
                 setWhiteboardConfig(updates)
               }

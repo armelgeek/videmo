@@ -8,9 +8,12 @@ import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import { useWhiteboardRenderer } from '../hooks/use-whiteboard-renderer';
 import { AnnotationTimeline } from '../timeline/annotation-timeline';
 import type { WhiteboardConfig } from '@/lib/storyboard/store';
+import { tailleCanvas, cssAspectRatio, type RatioProjet } from '../canvas-size';
 
 interface WhiteboardEditorStepProps {
   config: WhiteboardConfig;
+  /** Ratio du PROJET (projectParams), seule source pour la forme du canvas. */
+  aspectRatio: RatioProjet;
   onConfigChange: (config: Partial<WhiteboardConfig>) => void;
   onNavigateBack?: () => void;
   onNavigateNext?: () => void;
@@ -18,6 +21,7 @@ interface WhiteboardEditorStepProps {
 
 export function WhiteboardEditorStep({
   config,
+  aspectRatio,
   onConfigChange,
   onNavigateBack,
   onNavigateNext,
@@ -26,8 +30,7 @@ export function WhiteboardEditorStep({
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const canvasWidth = config.resolution === '720p' ? 1280 : 1920;
-  const canvasHeight = config.resolution === '720p' ? 720 : 1080;
+  const { width: canvasWidth, height: canvasHeight } = tailleCanvas(aspectRatio);
 
   // Connect to unified engine
   const {
@@ -83,7 +86,7 @@ export function WhiteboardEditorStep({
           <div className="flex gap-4 text-sm text-muted-foreground">
             <span>{config.animStyle}</span>
             <span>{config.handStyle}</span>
-            <span>{config.resolution}</span>
+            <span>{aspectRatio}</span>
             <span>{Math.round(progress)}%</span>
             {annotations.length > 0 && (
               <span>{annotations.length} annotations</span>
@@ -91,25 +94,32 @@ export function WhiteboardEditorStep({
           </div>
         </div>
 
-        {/* Canvas Container — locked to 16:9 and capped in height so the
-            timeline and playback controls stay above the fold. */}
-        <div className="shrink-0 mx-auto w-full max-w-[min(100%,calc(52vh*16/9))] aspect-video rounded-lg border border-white/10 bg-black overflow-hidden relative">
+        {/* Canvas Container — suit le ratio du projet et reste plafonne en
+            hauteur pour que le timeline et la lecture restent au-dessus de la
+            ligne de flottaison. */}
+        <div
+          className="shrink-0 mx-auto w-full rounded-lg border border-white/10 bg-black overflow-hidden relative"
+          style={{
+            aspectRatio: cssAspectRatio(aspectRatio),
+            maxWidth: `min(100%, calc(52vh * ${canvasWidth} / ${canvasHeight}))`,
+          }}
+        >
           <canvas
             ref={canvasRef}
-            width={config.resolution === '720p' ? 1280 : 1920}
-            height={config.resolution === '720p' ? 720 : 1080}
+            width={canvasWidth}
+            height={canvasHeight}
             className="w-full h-full object-contain"
           />
           <canvas
             ref={handCanvasRef}
-            width={config.resolution === '720p' ? 1280 : 1920}
-            height={config.resolution === '720p' ? 720 : 1080}
+            width={canvasWidth}
+            height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
           />
           <canvas
             ref={annotationCanvasRef}
-            width={config.resolution === '720p' ? 1280 : 1920}
-            height={config.resolution === '720p' ? 720 : 1080}
+            width={canvasWidth}
+            height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
           />
         </div>

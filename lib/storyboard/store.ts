@@ -17,7 +17,8 @@ export interface MediaItem {
   url: string;
   prompt: string;
   duration: number;
-  aspectRatio: "16:9" | "9:16";
+  // Suit projectParams.aspectRatio, qui couvre les trois formats du menu.
+  aspectRatio: "16:9" | "9:16" | "1:1";
   status: "ready" | "generating" | "error";
   type: "video" | "audio" | "image";
   resolution: { width: number; height: number };
@@ -42,8 +43,9 @@ export interface WhiteboardConfig {
   chunks: number;
   canvasBg: string;
   useAnnotation: boolean;
-  aspectRatio: "16:9" | "9:16" | "1:1";
-  resolution: "720p" | "1080p";
+  // Ni aspectRatio ni resolution ici : le ratio appartient a projectParams
+  // (choisi des l'etape Prompt, une seule source), et la resolution est un
+  // choix d'EXPORT — l'apercu rend toujours au petit cote 720.
   annotations: Annotation[];
   annotationConfig: AnnotationConfig;
 }
@@ -104,8 +106,6 @@ const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
   chunks: 30,
   canvasBg: "white",
   useAnnotation: true,
-  aspectRatio: "16:9",
-  resolution: "720p",
   annotations: [],
   annotationConfig: DEFAULT_ANNOTATION_CONFIG,
 };

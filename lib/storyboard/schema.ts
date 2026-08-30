@@ -11,7 +11,7 @@ export type VideoModel = z.infer<typeof videoModelSchema>;
 export const projectParamsSchema = z.object({
   style: z.string().default("cinematic"),
   format: z.enum(["brief", "explainer"]).default("explainer"),
-  aspectRatio: z.enum(["16:9", "9:16"]).default("16:9"),
+  aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
   language: z.string().default("en"),
   duration: z.string().default("3-5 minutes"),
   targetAudience: z.string().default("general"),

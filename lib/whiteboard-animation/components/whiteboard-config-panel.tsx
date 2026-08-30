@@ -122,40 +122,11 @@ export function WhiteboardConfigPanel({
         />
       </div>
 
-      {/* Aspect Ratio */}
-      <div className="grid gap-2">
-        <Label>Aspect Ratio</Label>
-        <Select
-          value={config.aspectRatio}
-          onValueChange={(val: any) => onChange({ aspectRatio: val })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="16:9">16:9</SelectItem>
-            <SelectItem value="9:16">9:16</SelectItem>
-            <SelectItem value="1:1">1:1</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Ni Aspect Ratio ni Resolution ici. Le ratio est un parametre de
+          PROJET (projectParams, choisi des l'etape Prompt) : le dupliquer dans
+          la config whiteboard donnait deux sources pour la meme chose. La
+          resolution est un choix d'EXPORT ; l'apercu rend au petit cote 720. */}
 
-      {/* Resolution */}
-      <div className="grid gap-2">
-        <Label>Resolution</Label>
-        <Select
-          value={config.resolution}
-          onValueChange={(val: any) => onChange({ resolution: val })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="720p">720p</SelectItem>
-            <SelectItem value="1080p">1080p</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
     </div>
   );
 }
