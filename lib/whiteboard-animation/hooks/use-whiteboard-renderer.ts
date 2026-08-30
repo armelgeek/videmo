@@ -8,6 +8,9 @@ import {
   SCENE_PREMIUM_BAG_DURATION_MS,
   projectAnnotations,
 } from '../data/scene-premium-bag';
+import { deriveTimeline } from '../timeline/derive-timeline';
+import { normalizeGaps } from '../timeline/normalize-gaps';
+import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
 
 const AnimationFactory = require('../lib/index');
 const { CUSTOM_HANDS } = require('../lib/hands');
@@ -48,13 +51,14 @@ export function useWhiteboardRenderer({
     currentTime,
     canvasBg,
     useAnnotation,
-    annotations,
     animStyle,
     handStyle,
     revealSpeed,
     handSpeed,
     chunks,
   } = useUnifiedEngine();
+
+  const { annotations } = useDerivedAnnotations();
 
   const imageRef = useRef<HTMLImageElement | null>(null);
   const offscreenRef = useRef<HTMLCanvasElement | null>(null);
@@ -101,10 +105,14 @@ export function useWhiteboardRenderer({
 
     const store = useUnifiedEngineStore.getState();
     if (store.animation.annotations.length === 0) {
-      projectAnnotations(
-        SCENE_PREMIUM_BAG_ANNOTATIONS,
-        canvas.width,
-        canvas.height
+      // normalizeGaps turns the authored absolute startMs into the derived
+      // model (order + duration + gap) the timeline editor works with.
+      normalizeGaps(
+        projectAnnotations(
+          SCENE_PREMIUM_BAG_ANNOTATIONS,
+          canvas.width,
+          canvas.height
+        )
       ).forEach((a) => store.addAnnotation(a));
     }
     if (store.timeline.duration === 0) {
@@ -228,7 +236,9 @@ export function useWhiteboardRenderer({
       hand: normalizeHandKey(handStyle),
       tileSlider: chunks,
       contentBounds: { x: 0, y: 0, w: canvas.width, h: canvas.height },
-      annotations: useAnnotation ? store.animation.annotations : [],
+      annotations: useAnnotation
+        ? deriveTimeline(store.animation.annotations).annotations
+        : [],
     };
 
     try {

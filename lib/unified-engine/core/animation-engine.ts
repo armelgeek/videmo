@@ -1,3 +1,4 @@
+import { deriveTimeline } from '@/lib/whiteboard-animation/timeline/derive-timeline';
 import type { UnifiedEngineState } from '../types';
 
 // Import legacy animation libs
@@ -40,7 +41,9 @@ export class AnimationEngine {
         w: config.state.animation.layers[0]?.w ?? config.state.canvas.width,
         h: config.state.animation.layers[0]?.h ?? config.state.canvas.height,
       },
-      annotations: config.state.animation.useAnnotation ? config.state.animation.annotations : [],
+      annotations: config.state.animation.useAnnotation
+        ? deriveTimeline(config.state.animation.annotations).annotations
+        : [],
     };
 
     try {

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Annotation } from "@/lib/unified-engine/types";
-import { SCENE_PREMIUM_BAG_ANNOTATIONS } from "@/lib/whiteboard-animation/data/scene-premium-bag";
+import {
+  SCENE_PREMIUM_BAG_ANNOTATIONS,
+  projectAnnotations,
+} from "@/lib/whiteboard-animation/data/scene-premium-bag";
 import { deriveTimeline } from "./derive-timeline";
 import { normalizeGaps } from "./normalize-gaps";
 
@@ -107,5 +110,26 @@ describe("deriveTimeline — non-regression on scene-premium-bag", () => {
     // The exported SCENE_PREMIUM_BAG_DURATION_MS is 11700: it carries a 500ms
     // tail past the last annotation that the annotations themselves never held.
     expect(totalDurationMs).toBe(11200);
+  });
+});
+
+describe("render path seeding", () => {
+  it("projectAnnotations rescales regions without touching timing", () => {
+    const projected = projectAnnotations(SCENE_PREMIUM_BAG_ANNOTATIONS, 768, 432);
+
+    expect(projected.map((a) => a.reveal)).toEqual(
+      SCENE_PREMIUM_BAG_ANNOTATIONS.map((a) => a.reveal),
+    );
+    expect(projected[0].region).not.toEqual(SCENE_PREMIUM_BAG_ANNOTATIONS[0].region);
+  });
+
+  it("survives projection: the seeded store still derives the original times", () => {
+    const seeded = normalizeGaps(
+      projectAnnotations(SCENE_PREMIUM_BAG_ANNOTATIONS, 768, 432),
+    );
+
+    expect(deriveTimeline(seeded).annotations.map((a) => a.reveal.startMs)).toEqual([
+      300, 2000, 5500, 7600, 9200,
+    ]);
   });
 });
