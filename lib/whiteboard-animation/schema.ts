@@ -6,6 +6,7 @@ export const AnnotationRevealSchema = z.object({
   to: z.number().min(0).optional(),
   durationMs: z.number().min(1).default(1000),
   startMs: z.number().min(0).optional(),
+  gapBeforeMs: z.number().min(0).optional(),
 });
 
 export type AnnotationReveal = z.infer<typeof AnnotationRevealSchema>;

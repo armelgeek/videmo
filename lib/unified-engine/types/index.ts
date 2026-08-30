@@ -9,10 +9,14 @@ export interface Annotation {
     height: number;
   };
   reveal: {
+    // Derived by deriveTimeline() from order + durations + gaps.
+    // Never authored by hand: the annotation's position in the array is the
+    // source of truth, these fields are recomputed before rendering.
     from: number;      // ms
     to: number;        // ms
-    durationMs: number;
     startMs: number;
+    durationMs: number;
+    gapBeforeMs?: number;
   };
   style?: {
     strokeColor?: string;
