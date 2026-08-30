@@ -42,6 +42,8 @@ describe('UnifiedEngineStore', () => {
     const { result } = renderHook(() => useUnifiedEngineStore());
 
     act(() => {
+      // setCurrentTime clamps to duration, which starts at 0.
+      result.current.setDuration(5000);
       result.current.setCurrentTime(1000);
     });
 

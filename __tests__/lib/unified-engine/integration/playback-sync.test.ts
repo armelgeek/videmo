@@ -29,8 +29,8 @@ describe('Unified Engine Playback Sync', () => {
       result.current.togglePlay();
     });
 
+    // useUnifiedEngine exposes a flat view; there is no nested `timeline` key.
     expect(result.current.isPlaying).toBe(true);
-    expect(result.current.timeline.isPlaying).toBe(true);
 
     act(() => {
       result.current.togglePlay();

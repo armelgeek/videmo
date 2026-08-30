@@ -173,9 +173,8 @@ const hasPermission = checkPermission(session.user.role, 'action')
 ## Testing
 
 ```bash
-npm test                      # Run all tests
-npm test -- --watch          # Watch mode
-npm run coverage             # Coverage report
+npm test                      # Run all tests (Vitest)
+npm run test:watch           # Watch mode
 ```
 
 ## Deployment
