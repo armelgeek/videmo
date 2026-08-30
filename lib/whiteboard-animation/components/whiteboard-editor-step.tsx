@@ -84,7 +84,7 @@ export function WhiteboardEditorStep({
             <span>{config.animStyle}</span>
             <span>{config.handStyle}</span>
             <span>{config.resolution}</span>
-            <span>{progress}%</span>
+            <span>{Math.round(progress)}%</span>
             {annotations.length > 0 && (
               <span>{annotations.length} annotations</span>
             )}
