@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import { useWhiteboardRenderer } from '../hooks/use-whiteboard-renderer';
+import { AnnotationTimeline } from '../timeline/annotation-timeline';
 import type { WhiteboardConfig } from '@/lib/storyboard/store';
 
 interface WhiteboardEditorStepProps {
@@ -93,7 +94,7 @@ export function WhiteboardEditorStep({
         </div>
 
         {/* Canvas Container — locked to 16:9 and capped in height so the
-            progress bar and playback controls stay above the fold. */}
+            timeline and playback controls stay above the fold. */}
         <div className="shrink-0 mx-auto w-full max-w-[min(100%,calc(52vh*16/9))] aspect-video rounded-lg border border-white/10 bg-black overflow-hidden relative">
           <canvas
             ref={canvasRef}
@@ -115,13 +116,7 @@ export function WhiteboardEditorStep({
           />
         </div>
 
-        {/* Progress Bar */}
-        <div className="bg-muted rounded-full h-1 overflow-hidden">
-          <div
-            className="h-full bg-primary transition-all"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+        <AnnotationTimeline />
 
         {/* Playback Controls */}
         <div className="flex gap-2">
