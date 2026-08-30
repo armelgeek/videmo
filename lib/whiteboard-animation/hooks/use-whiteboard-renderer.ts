@@ -66,6 +66,9 @@ export function useWhiteboardRenderer({
   const offscreenRef = useRef<HTMLCanvasElement | null>(null);
   const handImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const animRef = useRef<any>(null);
+  // Le state passe au moteur. Garde ici pour pouvoir en modifier les champs
+  // lisibles a chaud sans reconstruire l'instance.
+  const engineStateRef = useRef<any>(null);
   const activeStyleRef = useRef<string>('');
   // Guards the engine callbacks. Held in a ref, not a per-run closure: the
   // instance outlives a run (pause/resume, StrictMode remount) and a stale
@@ -210,7 +213,7 @@ export function useWhiteboardRenderer({
     offscreen: HTMLCanvasElement
   ) => {
     const store = useUnifiedEngineStore.getState();
-    const engineState: any = {
+    const engineState: any = (engineStateRef.current = {
       canvasW: canvas.width,
       canvasH: canvas.height,
       speed: revealSpeed,
@@ -221,7 +224,7 @@ export function useWhiteboardRenderer({
       annotations: useAnnotation
         ? deriveTimeline(store.animation.annotations).annotations
         : [],
-    };
+    });
 
     const anim = AnimationFactory.create(animStyle, {
       state: engineState,
@@ -269,6 +272,15 @@ export function useWhiteboardRenderer({
     activeStyleRef.current = animStyle;
     return anim;
   };
+
+  // Reveal speed pilote l'horloge du moteur via state.speed, lu a chaque tick.
+  // Il est volontairement absent des dependances d'invalidation ci-dessus :
+  // rebatir l'instance repartirait du debut. On pousse donc la valeur dans le
+  // state existant, sinon le curseur ne prendrait effet qu'au prochain build
+  // (Reset, changement de style, ou n'importe quel seek).
+  useEffect(() => {
+    if (engineStateRef.current) engineStateRef.current.speed = revealSpeed;
+  }, [revealSpeed]);
 
   useEffect(() => {
     // Pausing must freeze the frame: keep the instance and the painted canvas

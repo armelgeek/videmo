@@ -91,23 +91,12 @@ export function WhiteboardConfigPanel({
         />
       </div>
 
-      {/* Hand Speed */}
-      <div className="grid gap-3">
-        <div className="flex justify-between items-center">
-          <Label>Hand Speed</Label>
-          <span className="text-sm font-medium text-muted-foreground">
-            {config.handSpeed}
-          </span>
-        </div>
-        <Slider
-          value={[config.handSpeed]}
-          onValueChange={([val]) => onChange({ handSpeed: val })}
-          min={1}
-          max={20}
-          step={1}
-          className="w-full"
-        />
-      </div>
+      {/* Pas de curseur Hand Speed : en mode annotation la vitesse du trace est
+          imposee par la fenetre de l'annotation (reveal.from/to), et paceStep
+          ecrase la valeur — le curseur ne changeait rien a l'ecran. Le champ
+          handSpeed reste dans la config, il sert encore au mode sans
+          annotation. Le rebrancher demanderait de lui donner un sens qui
+          n'entre pas en conflit avec la duree, ce qui reste a concevoir. */}
 
       {/* Chunks */}
       <div className="grid gap-3">
