@@ -324,9 +324,25 @@ export function useWhiteboardRenderer({
   // frames, donc un pas grossier tombe sur la meme image que la lecture reelle.
   const SEEK_STEP_MS = 33.34;
 
+  /** Rect d'une region, borne au canvas — meme calcul que _enterRegion. */
+  const regionRect = (r: any, canvas: HTMLCanvasElement) => {
+    const x = Math.max(0, Math.floor(r.x));
+    const y = Math.max(0, Math.floor(r.y));
+    const x2 = Math.min(canvas.width, Math.ceil(r.x + r.width));
+    const y2 = Math.min(canvas.height, Math.ceil(r.y + r.height));
+    return x2 <= x || y2 <= y ? null : { x, y, w: x2 - x, h: y2 - y };
+  };
+
   // Scrub de la timeline. Sans cela currentTime n'est qu'une SORTIE du moteur :
   // rien ne repeignait, et se placer a 0:00.4 laissait le dessin termine a
-  // l'ecran. On rejoue donc un moteur neuf jusqu'a la position demandee.
+  // l'ecran.
+  //
+  // L'image a la FRONTIERE d'une annotation est connue en forme close : le
+  // moteur tamponne chaque region en entier avant de passer a la suivante, donc
+  // c'est le fond plus les regions precedentes tamponnees. On la peint
+  // directement au lieu de la mettre en cache, puis on n'anime que la region
+  // courante. Le rejeu est ainsi borne par la duree d'UNE region au lieu de
+  // croitre avec la position cherchee.
   useEffect(() => {
     if (isPlaying || !imageLoaded) return;
     // t = 0 est deja rendu par l'apercu statique.
@@ -351,6 +367,7 @@ export function useWhiteboardRenderer({
       seekingRef.current = true;
       try {
         const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
+        const schedule = anim.annotationManager?.schedule;
 
         // L'horloge du moteur avance de delta * (revealSpeed / DEFAULT_SPEED) :
         // on divise le pas par ce facteur pour tomber exactement sur la ms
@@ -359,11 +376,49 @@ export function useWhiteboardRenderer({
           0.05,
           (cfgRef.current.revealSpeed || ENGINE_DEFAULT_SPEED) / ENGINE_DEFAULT_SPEED
         );
+        const advance = (from: number, to: number) => {
+          for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
+            if (stoppedRef.current) break;
+            const slice = Math.min(SEEK_STEP_MS, to - elapsed);
+            anim.tick?.(cfgRef.current.revealSpeed, slice / timeScale);
+          }
+        };
 
-        for (let elapsed = 0; elapsed < currentTime; elapsed += SEEK_STEP_MS) {
-          if (stoppedRef.current) break;
-          const slice = Math.min(SEEK_STEP_MS, currentTime - elapsed);
-          anim.tick?.(cfgRef.current.revealSpeed, slice / timeScale);
+        if (!schedule || schedule.length === 0) {
+          // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
+          // depuis le debut donne la bonne image.
+          advance(0, currentTime);
+        } else {
+          // Premiere region non terminee a cet instant.
+          const idx = schedule.findIndex((s: any) => currentTime < s.endMs);
+
+          if (idx === -1) {
+            // Apres la derniere region : le moteur tamponne toute l'image en
+            // terminant, y compris ce qu'aucune region ne couvre.
+            ctx.drawImage(imageRef.current!, 0, 0, canvas.width, canvas.height);
+          } else {
+            for (let i = 0; i < idx; i++) {
+              const rect = regionRect(schedule[i].annot.region, canvas);
+              if (rect) {
+                ctx.drawImage(
+                  offscreen,
+                  rect.x, rect.y, rect.w, rect.h,
+                  rect.x, rect.y, rect.w, rect.h
+                );
+              }
+            }
+
+            const entry = schedule[idx];
+            if (currentTime >= entry.startMs) {
+              // Dans la region : on repart de sa frontiere, deja peinte.
+              anim.primeAt?.(entry.startMs);
+              advance(entry.startMs, currentTime);
+            } else {
+              // Dans une pause entre deux annotations : rien de plus a tracer,
+              // et la main n'a pas a rester figee sur le dernier trait.
+              anim.primeAt?.(currentTime);
+            }
+          }
         }
 
         // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
