@@ -29,7 +29,15 @@ export class AudioManager {
   }
 
   async load(url: string): Promise<void> {
+    if (!url) {
+      throw new Error('Audio URL is empty');
+    }
     this.el.src = url;
+    // Set error handler before loading
+    const errorHandler = () => {
+      console.error(`Failed to load audio from: ${url}`, this.el.error);
+    };
+    this.el.addEventListener('error', errorHandler, { once: true });
     this.el.load();
   }
 
