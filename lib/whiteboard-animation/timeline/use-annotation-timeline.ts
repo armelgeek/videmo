@@ -43,9 +43,14 @@ export function useAnnotationTimeline() {
 
   const edit = useCallback(
     (change: TimelineEdit) => {
-      setAnnotations(applyEditorEdit(change, annotations));
+      // Only cap when something OTHER than the drawing sets the video length,
+      // i.e. a narration outlasting it. Without one the video is exactly the
+      // annotations, so it grows with them and a cap would freeze their length.
+      const drawingMs = derived.totalDurationMs;
+      const capMs = videoDuration > drawingMs ? videoDuration : undefined;
+      setAnnotations(applyEditorEdit(change, annotations, capMs));
     },
-    [annotations, setAnnotations],
+    [annotations, setAnnotations, derived.totalDurationMs, videoDuration],
   );
 
   const onClipUpdate = useCallback(

@@ -8,6 +8,7 @@ import {
   projectAnnotations,
 } from '../data/scene-premium-bag';
 import { rectContenu, reprojeterRegion, type RectContenu } from '../canvas-size';
+import type { Annotation } from '@/lib/unified-engine/types';
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { normalizeGaps } from '../timeline/normalize-gaps';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
@@ -106,6 +107,12 @@ export interface UseWhiteboardRendererProps {
    * duration.
    */
   audioDurationMs?: number | null;
+  /**
+   * Annotations restored from the saved project. Preferred over the demo
+   * scene when seeding: without this, a reopened project silently came back
+   * with the demo sequence and every edit made to it was lost.
+   */
+  savedAnnotations?: Annotation[] | null;
 }
 
 export function useWhiteboardRenderer({
@@ -118,6 +125,7 @@ export function useWhiteboardRenderer({
   audioVolume = 1,
   audioMuted = false,
   audioDurationMs = null,
+  savedAnnotations = null,
 }: UseWhiteboardRendererProps) {
   const {
     progress,
@@ -226,6 +234,15 @@ export function useWhiteboardRenderer({
     if (!seededRef.current && store.animation.annotations.length === 0) {
       seededRef.current = true;
       rectRef.current = rect;
+
+      // A saved project wins over the demo scene. Its regions are already in
+      // canvas pixels from the session that wrote them, so they are taken as
+      // they are; only the demo sequence needs projecting onto the artwork.
+      if (savedAnnotations && savedAnnotations.length > 0) {
+        store.setAnnotations(savedAnnotations);
+        return;
+      }
+
       // normalizeGaps turns the authored absolute startMs into the derived
       // model (order + duration + gap) the timeline editor works with.
       // Les regions sont projetees sur le RECTANGLE D'ARTWORK, pas sur le

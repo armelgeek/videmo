@@ -207,3 +207,48 @@ describe("applyEditorEdit — general", () => {
     expect(result).toEqual(sequence);
   });
 });
+
+describe("resize-duration against the video length", () => {
+  // "a" starts at 300ms (its own gap) and runs 1000ms.
+  const seq = [annotation("a", 1000, 300), annotation("b", 1000)];
+
+  it("caps a clip at the end of the video", () => {
+    const out = applyEditorEdit(
+      { kind: "resize-duration", id: "a", durationSeconds: 9 },
+      seq,
+      2000,
+    );
+    // 300ms in, so 1700ms of room — not the 9000ms asked for.
+    expect(out[0].reveal.durationMs).toBe(1700);
+    const derived = deriveTimeline(out);
+    expect(derived.annotations[0].reveal.to).toBe(2000);
+  });
+
+  it("leaves a clip that fits untouched", () => {
+    const out = applyEditorEdit(
+      { kind: "resize-duration", id: "a", durationSeconds: 1.2 },
+      seq,
+      5000,
+    );
+    expect(out[0].reveal.durationMs).toBe(1200);
+  });
+
+  it("never caps below the minimum, even with no room left", () => {
+    const out = applyEditorEdit(
+      { kind: "resize-duration", id: "a", durationSeconds: 5 },
+      seq,
+      300,
+    );
+    expect(out[0].reveal.durationMs).toBe(MIN_DURATION_MS);
+  });
+
+  it("does not cap when the annotations themselves set the length", () => {
+    // The trap: with no narration the video IS the drawing, so capping to it
+    // would make every clip impossible to lengthen. The caller passes no cap.
+    const out = applyEditorEdit(
+      { kind: "resize-duration", id: "a", durationSeconds: 9 },
+      seq,
+    );
+    expect(out[0].reveal.durationMs).toBe(9000);
+  });
+});
