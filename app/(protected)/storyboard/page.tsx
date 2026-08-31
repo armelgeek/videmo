@@ -42,18 +42,21 @@ import { cn } from "@/lib/utils";
 import { AppShell } from "@/lib/app-shell";
 import { DevPanel } from "@/lib/dev-panel";
 import { useRouter } from "next/navigation";
-import { Editor } from "@/lib/editor/components/editor";
-import { useStoryboardStore } from "@/lib/storyboard/store";
+import {
+  useStoryboardStore,
+  normalizeWorkflowStep,
+} from "@/lib/storyboard/store";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
+import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
+import { TranscriptPanel } from "@/lib/whiteboard-animation/components/transcript-panel";
 
 const STEPS = [
   { key: "prompt", label: "Prompt", icon: Wand2 },
   { key: "scriptValidation", label: "Script", icon: Settings },
   { key: "storyboard", label: "Storyboard", icon: Layers },
-  { key: "whiteboard", label: "Whiteboard", icon: Settings },
   { key: "voiceChoice", label: "Voice", icon: Film },
-  { key: "editor", label: "Editor", icon: Film },
+  { key: "whiteboard", label: "Whiteboard", icon: Settings },
 ] as const;
 
 const VOICES_BY_LANGUAGE: Record<
@@ -228,7 +231,6 @@ export default function StoryboardPage() {
     setProjectParams,
     script,
     setScript,
-    storyboardPanels,
     setStoryboardPanels,
     updatePanel,
     selectedVoice,
@@ -237,8 +239,6 @@ export default function StoryboardPage() {
     setWhiteboardConfig,
     loadDemoData,
     resetWorkflow,
-    getMediaList,
-    getClipList,
   } = useStoryboardStore();
 
   const [storyboardData, setStoryboardData] = useState<{
@@ -290,7 +290,7 @@ export default function StoryboardPage() {
       setHasLoadedSession(true);
       const session = loadSession();
       if (session) {
-        setStep(session.step as any);
+        setStep(normalizeWorkflowStep(session.step));
         if (session.promptContent) setPromptContent(session.promptContent);
         if (session.script) setScript(session.script);
         if (session.storyboardData) setStoryboardData(session.storyboardData);
@@ -545,8 +545,8 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
       setNarrationProgress(100);
       setTimeout(() => {
         setIsGeneratingNarration(false);
-        setStep("editor-summary");
-        saveSession({ step: "editor-summary", selectedVoice: voiceId });
+        setStep("whiteboard");
+        saveSession({ step: "whiteboard", selectedVoice: voiceId });
       }, 500);
     }, 3000);
   };
@@ -586,12 +586,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
     setDismissedBanners((prev) => new Set([...prev, id]));
   };
 
-  // The summary is a sub-screen of the Editor stage, not its own bubble in
-  // STEPS — map it onto "editor" so the stepper stays highlighted there.
-  const getStepIndex = (s: string) =>
-    STEPS.findIndex(
-      (step) => step.key === (s === "editor-summary" ? "editor" : s),
-    );
+  const getStepIndex = (s: string) => STEPS.findIndex((step) => step.key === s);
   const currentStepIndex = getStepIndex(step);
 
   const canNavigateToStep = (index: number) => {
@@ -732,11 +727,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
           </div>
         </header>
 
-        <main
-          className={cn(
-            step === "editor" ? "w-full p-0 max-w-none flex-1" : "px-2 py-4",
-          )}
-        >
+        <main className="px-2 py-4">
           {/* Step Content */}
           {step === "prompt" && (
             <div className="flex flex-col items-center px-4 py-8">
@@ -1142,10 +1133,9 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                     {generatedImages.length > 0 ? (
                       <Button
                         onClick={() => {
-                          const nextStep = projectParams.style === "whiteboard" ? "whiteboard" : "voiceChoice";
-                          setStep(nextStep);
+                          setStep("voiceChoice");
                           saveSession({
-                            step: nextStep,
+                            step: "voiceChoice",
                             storyboardData,
                             generatedImages,
                           });
@@ -1154,7 +1144,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                         className="bg-primary hover:bg-primary/90"
                       >
                         <Film className="w-3.5 h-3.5 mr-1.5" />
-                        Continue to {projectParams.style === "whiteboard" ? "Whiteboard" : "Voice"}
+                        Continue to Voice
                       </Button>
                     ) : (
                       <Button
@@ -1402,14 +1392,11 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
               onConfigChange={(updates) =>
                 setWhiteboardConfig(updates)
               }
-              onNavigateBack={() => setStep("storyboard")}
+              onNavigateBack={() => setStep("voiceChoice")}
+              nextLabel="Save project"
               onNavigateNext={() => {
-                setStep("voiceChoice");
-                saveSession({
-                  step: "voiceChoice",
-                  storyboardData,
-                  generatedImages,
-                });
+                saveSession({ step: "whiteboard", storyboardData, generatedImages });
+                toast.success("Project saved");
               }}
             />
           )}
@@ -1417,7 +1404,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
           {step === "voiceChoice" &&
             generatedImages.length > 0 &&
             !isGeneratingNarration && (
-              <div className="max-w-5xl mx-auto space-y-6 pt-6">
+              <div className="max-w-7xl mx-auto space-y-6 pt-6">
                 <div className="flex items-start justify-between gap-6">
                   <div className="space-y-3 flex-1">
                     <h2 className="text-3xl font-bold">Pick a Voice</h2>
@@ -1445,7 +1432,8 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                   </div>
                 </div>
 
-                <div className="space-y-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                  <div className="lg:col-span-2 space-y-8">
                   {/* Tabs */}
                   <div className="flex gap-2 border-b border-border/50">
                     <button
@@ -1645,6 +1633,15 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                       />
                     </div>
                   )}
+                  </div>
+
+                  {/* La narration se cale sur la voix qu'on vient de choisir :
+                      ces deux panneaux vivent donc ici, et non plus dans
+                      l'etape whiteboard, qui vient desormais apres. */}
+                  <aside className="space-y-4">
+                    <AudioPanel />
+                    <TranscriptPanel />
+                  </aside>
                 </div>
               </div>
             )}
@@ -1766,362 +1763,6 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
             </div>
           )}
 
-          {step === "editor" && (
-            <div className="w-full h-full overflow-hidden px-48">
-              <Editor
-                initialMedia={getMediaList()}
-                initialClips={getClipList()}
-                initialStoryboard={(storyboardPanels.length > 0
-                  ? storyboardPanels
-                  : DEMO_FINAL_SEQUENCE.storyboard
-                ).map((p, i) => ({
-                  id: ("id" in p && p.id) || `sb-${i}`,
-                  prompt: p.prompt,
-                  imageUrl: p.imageUrl,
-                  linkedImageUrl: p.linkedImageUrl,
-                  videoUrl: p.videoUrl,
-                  mediaId: `media-video-${("id" in p && p.id) || i}`,
-                  status: "idle" as const,
-                  type: p.linkedImageUrl
-                    ? ("transition" as const)
-                    : ("scene" as const),
-                  duration: p.duration as 5 | 8,
-                }))}
-                onBack={() => setStep("voiceChoice")}
-              />
-            </div>
-          )}
-
-          {step === "editor-summary" && (
-            <div className="max-w-6xl mx-auto space-y-6 pt-6">
-              <div className="flex items-start justify-between gap-6">
-                <div className="space-y-3 flex-1">
-                  <h2 className="text-3xl font-bold">Project Summary</h2>
-                  <p className="text-muted-foreground">
-                    Review your generated video content before editing
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-1 shrink-0">
-                  <Button
-                    variant="outline"
-                    onClick={() => setStep("voiceChoice")}
-                    size="sm"
-                  >
-                    ← Back
-                  </Button>
-                  <Button
-                    onClick={() => setStep("editor")}
-                    className="bg-primary hover:bg-primary/90"
-                    size="sm"
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Open Timeline
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Content */}
-                <div className="lg:col-span-2 space-y-6">
-                  {/* Project Settings Overview */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="p-4 border border-border/50 rounded-lg bg-card/50">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Format
-                      </p>
-                      <p className="font-semibold capitalize text-sm">
-                        {projectParams.format}
-                      </p>
-                    </div>
-                    <div className="p-4 border border-border/50 rounded-lg bg-card/50">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Language
-                      </p>
-                      <p className="font-semibold uppercase text-sm">
-                        {projectParams.language}
-                      </p>
-                    </div>
-                    <div className="p-4 border border-border/50 rounded-lg bg-card/50">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Duration
-                      </p>
-                      <p className="font-semibold text-sm">
-                        {projectParams.duration}
-                      </p>
-                    </div>
-                    <div className="p-4 border border-border/50 rounded-lg bg-card/50">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        Style
-                      </p>
-                      <p className="font-semibold capitalize text-sm">
-                        {projectParams.style}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Storyboard Preview */}
-                  {generatedImages.length > 0 && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-semibold flex items-center gap-2">
-                          <Layers className="w-5 h-5" />
-                          Storyboard ({generatedImages.length} images)
-                        </h3>
-                      </div>
-
-                      {(() => {
-                        const imagesPerPage = 6;
-                        const totalPages = Math.ceil(
-                          generatedImages.length / imagesPerPage,
-                        );
-                        const startIdx = storyboardPage * imagesPerPage;
-                        const endIdx = startIdx + imagesPerPage;
-                        const visibleImages = generatedImages.slice(
-                          startIdx,
-                          endIdx,
-                        );
-
-                        return (
-                          <div className="space-y-4">
-                            {/* Pagination Top */}
-                            {totalPages > 1 && (
-                              <div className="flex items-center justify-between p-3 border border-border/50 rounded-lg bg-muted/20">
-                                <span className="text-xs text-muted-foreground">
-                                  Showing {startIdx + 1}–
-                                  {Math.min(endIdx, generatedImages.length)} of{" "}
-                                  {generatedImages.length}
-                                </span>
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      setStoryboardPage(
-                                        Math.max(0, storyboardPage - 1),
-                                      )
-                                    }
-                                    disabled={storyboardPage === 0}
-                                  >
-                                    ← Prev
-                                  </Button>
-                                  <div className="flex items-center gap-1">
-                                    {Array.from({ length: totalPages }).map(
-                                      (_, i) => (
-                                        <button
-                                          key={i}
-                                          onClick={() => setStoryboardPage(i)}
-                                          className={cn(
-                                            "w-7 h-7 rounded text-xs font-medium transition-colors",
-                                            storyboardPage === i
-                                              ? "bg-primary text-primary-foreground"
-                                              : "bg-muted hover:bg-muted/80 text-foreground/60",
-                                          )}
-                                        >
-                                          {i + 1}
-                                        </button>
-                                      ),
-                                    )}
-                                  </div>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      setStoryboardPage(
-                                        Math.min(
-                                          totalPages - 1,
-                                          storyboardPage + 1,
-                                        ),
-                                      )
-                                    }
-                                    disabled={storyboardPage === totalPages - 1}
-                                  >
-                                    Next →
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="grid grid-cols-3 gap-3">
-                              {visibleImages.map((img, idx) => {
-                                const actualIdx = startIdx + idx;
-                                const durationPerScene = Math.round(
-                                  (parseInt(
-                                    projectParams.duration.split("-")[1],
-                                  ) *
-                                    60) /
-                                    generatedImages.length,
-                                );
-                                return (
-                                  <div
-                                    key={actualIdx}
-                                    className="relative h-40 rounded-lg overflow-hidden border border-border/50 bg-card group"
-                                  >
-                                    <Image
-                                      src={img}
-                                      alt={`Scene ${actualIdx + 1}`}
-                                      fill
-                                      className="object-cover"
-                                    />
-                                    {/* Duration Badge */}
-                                    <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/60 backdrop-blur-sm">
-                                      <span className="text-xs font-semibold text-white">
-                                        {durationPerScene}s
-                                      </span>
-                                    </div>
-                                    {/* Hover Overlay */}
-                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                      <span className="text-white text-sm font-medium">
-                                        Scene {actualIdx + 1}
-                                      </span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-                </div>
-
-                {/* Right Sidebar - Voice Selection */}
-                <div className="lg:col-span-1">
-                  <div className="sticky top-6 p-4 border border-border/50 rounded-lg bg-gradient-to-br from-card to-card/60 space-y-3 flex flex-col">
-                    <h3 className="text-sm font-semibold flex items-center gap-2">
-                      <Film className="w-4 h-4" />
-                      Narration Voice
-                    </h3>
-
-                    {selectedVoice === "custom" ? (
-                      <div className="flex items-center gap-3 p-3 border border-border/30 rounded-lg bg-muted/20">
-                        <div className="w-10 h-10 rounded-full bg-muted/70 border border-border/50 flex items-center justify-center flex-shrink-0">
-                          <svg
-                            className="w-5 h-5 text-foreground/40"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
-                          </svg>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-xs">Your Voice</p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            Custom narration
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      (() => {
-                        const voice = (
-                          VOICES_BY_LANGUAGE[projectParams.language] ||
-                          VOICES_BY_LANGUAGE["en"]
-                        ).find((v) => v.id === selectedVoice);
-                        return voice ? (
-                          <div className="flex items-center gap-3 p-3 border border-border/30 rounded-lg bg-muted/20">
-                            <div className="w-10 h-10 rounded-full bg-muted/70 border border-border/50 flex items-center justify-center flex-shrink-0">
-                              <span className="text-sm font-bold text-foreground/40">
-                                {voice.name[0]}
-                              </span>
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-semibold text-xs">
-                                {voice.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate line-clamp-1">
-                                {voice.description}
-                              </p>
-                            </div>
-                          </div>
-                        ) : null;
-                      })()
-                    )}
-
-                    {selectedVoice !== "custom" && (
-                      <button
-                        onClick={() => {
-                          if (previewingVoice === selectedVoice) {
-                            window.speechSynthesis.cancel();
-                            setPreviewingVoice(null);
-                          } else {
-                            setPreviewingVoice(selectedVoice);
-                            playVoicePreview(selectedVoice);
-                          }
-                        }}
-                        className={cn(
-                          "w-full p-3 rounded-lg border transition-all",
-                          "flex items-center justify-center gap-2",
-                          previewingVoice === selectedVoice
-                            ? "bg-primary text-primary-foreground border-primary"
-                            : "bg-muted/30 border-muted/50 hover:bg-muted/50 hover:border-border",
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
-                            previewingVoice === selectedVoice
-                              ? "bg-primary-foreground/20"
-                              : "bg-foreground/10",
-                          )}
-                        >
-                          {previewingVoice === selectedVoice ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <svg
-                              className="w-4 h-4"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          )}
-                        </div>
-                        <span className="text-xs font-semibold">
-                          {previewingVoice === selectedVoice
-                            ? "Playing"
-                            : "Play"}
-                        </span>
-                      </button>
-                    )}
-
-                    {/* Project Details */}
-                    <div className="pt-2 border-t border-border/30 space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">Tone</span>
-                        <span className="font-semibold capitalize">
-                          {projectParams.tone}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">Audience</span>
-                        <span className="font-semibold capitalize">
-                          {projectParams.targetAudience}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">Ratio</span>
-                        <span className="font-semibold">
-                          {projectParams.aspectRatio}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">Total</span>
-                        <span className="font-semibold">
-                          {(() => {
-                            const minutes = parseInt(
-                              projectParams.duration.split("-")[1],
-                            );
-                            return `${minutes * 60}s`;
-                          })()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </main>
 
         {/* Export Modal - Using existing component */}

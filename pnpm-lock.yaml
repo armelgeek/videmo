@@ -209,6 +209,9 @@ importers:
       isomorphic-dompurify:
         specifier: ^3.7.1
         version: 3.22.0(@noble/hashes@2.3.0)
+      konva:
+        specifier: ^10.3.2
+        version: 10.3.2
       lucide-react:
         specifier: ^0.563.0
         version: 0.563.0(react@19.2.3)
@@ -254,6 +257,9 @@ importers:
       react-jsx-parser:
         specifier: ^2.4.1
         version: 2.4.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react-konva:
+        specifier: ^19.2.5
+        version: 19.2.5(@types/react@19.2.18)(konva@10.3.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       react-phone-number-input:
         specifier: ^3.4.14
         version: 3.4.18(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -300,6 +306,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4
         version: 4.3.3
+      '@testing-library/dom':
+        specifier: ^10.4.1
+        version: 10.4.1
       '@testing-library/react':
         specifier: ^16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -3348,6 +3357,16 @@ packages:
     peerDependencies:
       '@types/react': ^19.2.0
 
+  '@types/react-reconciler@0.28.9':
+    resolution: {integrity: sha512-HHM3nxyUZ3zAylX8ZEyrDNd2XZOnQ0D5XfunJF5FLQnZbHHYq4UWvW1QfelQNXv1ICNkwYhfxjwfnqivYB6bFg==}
+    peerDependencies:
+      '@types/react': '*'
+
+  '@types/react-reconciler@0.33.0':
+    resolution: {integrity: sha512-HZOXsKT0tGI9LlUw2LuedXsVeB88wFa536vVL0M6vE8zN63nI+sSr1ByxmPToP5K5bukaVscyeCJcF9guVNJ1g==}
+    peerDependencies:
+      '@types/react': '*'
+
   '@types/react@18.3.31':
     resolution: {integrity: sha512-vfEqpXTvwT91yhmwdfouStN2hSKwTvyRs8qpLfADyrq/kxDw0hZM7Wk9Ug1FELj8hIby+S/+kQCSRFF32nv2Qw==}
 
@@ -5286,6 +5305,11 @@ packages:
     resolution: {integrity: sha512-H0dkQoCa3b2VEeKQBOxFph+JAbcrQdE7KC0UkqwpLmv2EC4P41QXP+rqo9wYodACiG5/WM5s9oDApTU8utwj9g==}
     engines: {node: '>= 0.4'}
 
+  its-fine@2.0.0:
+    resolution: {integrity: sha512-KLViCmWx94zOvpLwSlsx6yOCeMhZYaxrJV87Po5k/FoZzcPSahvK5qJ7fYhS61sZi5ikmh2S3Hz55A2l3U69ng==}
+    peerDependencies:
+      react: ^19.0.0
+
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
@@ -5379,6 +5403,17 @@ packages:
   kind-of@6.0.3:
     resolution: {integrity: sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==}
     engines: {node: '>=0.10.0'}
+
+  konva@10.3.2:
+    resolution: {integrity: sha512-A9GLx+Vj0PNnybjNq/St/S8utrksuSKOR8EzO2RTjA0SlmR9JipahcCXWW0vXz/9wjZCwAEtBtJFCUGe5mD/4g==}
+    peerDependencies:
+      canvas: ^3.0.0
+      skia-canvas: ^3.0.0
+    peerDependenciesMeta:
+      canvas:
+        optional: true
+      skia-canvas:
+        optional: true
 
   kysely@0.29.5:
     resolution: {integrity: sha512-ooa+eSbBNPTo3MycPEuW5jdrxQdQwdtB3LC3h43FiXQbIry5tR0C5lDG7eealK0E4D7XjrnOP5DIUg/LyjRMYQ==}
@@ -6407,6 +6442,13 @@ packages:
       react: '>=18'
       react-dom: '>=18'
 
+  react-konva@19.2.5:
+    resolution: {integrity: sha512-AdsuDB59GdB86QdenTAqRzr6Tfw3z9x9Opxo4BoqDjdNLsjekF9a1VhN4FlMPvg0qtrMl3d4dNmagaUTGH7fSA==}
+    peerDependencies:
+      konva: ^8.0.1 || ^7.2.5 || ^9.0.0 || ^10.0.0
+      react: ^19.2.0
+      react-dom: ^19.2.0
+
   react-phone-number-input@3.4.18:
     resolution: {integrity: sha512-EmPhJFSxQB7CTmLAlQfGAQQPF+WmJECU08gjyUt50zd2iESb4ETsm6z+BRfUEjH+TXct4EWvJvub+OztJxb/Cg==}
     peerDependencies:
@@ -6417,6 +6459,12 @@ packages:
     resolution: {integrity: sha512-e5nS0UUN22K3Nf8KBRUzemfdJ6OmnN5w+kbnj1lvJaol9RyVRFeGl05bCkxSN2ZegbLxjjYjX1+mmAoX9+fAhw==}
     peerDependencies:
       react: '*'
+
+  react-reconciler@0.33.0:
+    resolution: {integrity: sha512-KetWRytFv1epdpJc3J4G75I4WrplZE5jOL7Yq0p34+OVOKF4Se7WrdIdVC45XsSSmUTlht2FM/fM1FZb1mfQeA==}
+    engines: {node: '>=0.10.0'}
+    peerDependencies:
+      react: ^19.2.0
 
   react-remove-scroll-bar@2.3.8:
     resolution: {integrity: sha512-9r+yi9+mgU33AKcj6IbT9oRCO78WriSj6t/cF8DWBZJ9aOGPOTEDvdUDz1FwKim7QXWwmHqtdHnRJfhAxEG46Q==}
@@ -10385,6 +10433,14 @@ snapshots:
     dependencies:
       '@types/react': 19.2.18
 
+  '@types/react-reconciler@0.28.9(@types/react@19.2.18)':
+    dependencies:
+      '@types/react': 19.2.18
+
+  '@types/react-reconciler@0.33.0(@types/react@19.2.18)':
+    dependencies:
+      '@types/react': 19.2.18
+
   '@types/react@18.3.31':
     dependencies:
       '@types/prop-types': 15.7.15
@@ -12578,6 +12634,13 @@ snapshots:
       has-symbols: 1.1.0
       set-function-name: 2.0.2
 
+  its-fine@2.0.0(@types/react@19.2.18)(react@19.2.3):
+    dependencies:
+      '@types/react-reconciler': 0.28.9(@types/react@19.2.18)
+      react: 19.2.3
+    transitivePeerDependencies:
+      - '@types/react'
+
   jiti@2.7.0: {}
 
   jose@6.2.10: {}
@@ -12671,6 +12734,8 @@ snapshots:
   khroma@2.1.0: {}
 
   kind-of@6.0.3: {}
+
+  konva@10.3.2: {}
 
   kysely@0.29.5: {}
 
@@ -14036,6 +14101,18 @@ snapshots:
       '@types/react': 18.3.31
       '@types/react-dom': 18.3.7(@types/react@18.3.31)
 
+  react-konva@19.2.5(@types/react@19.2.18)(konva@10.3.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
+    dependencies:
+      '@types/react-reconciler': 0.33.0(@types/react@19.2.18)
+      its-fine: 2.0.0(@types/react@19.2.18)(react@19.2.3)
+      konva: 10.3.2
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      react-reconciler: 0.33.0(react@19.2.3)
+      scheduler: 0.27.0
+    transitivePeerDependencies:
+      - '@types/react'
+
   react-phone-number-input@3.4.18(react-dom@19.2.3(react@19.2.3))(react@19.2.3):
     dependencies:
       classnames: 2.5.1
@@ -14051,6 +14128,11 @@ snapshots:
       prop-types: 15.8.1
       qrcode-generator: 2.0.4
       react: 19.2.3
+
+  react-reconciler@0.33.0(react@19.2.3):
+    dependencies:
+      react: 19.2.3
+      scheduler: 0.27.0
 
   react-remove-scroll-bar@2.3.8(@types/react@19.2.18)(react@19.2.3):
     dependencies:

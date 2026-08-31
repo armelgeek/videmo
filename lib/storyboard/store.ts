@@ -5,6 +5,7 @@ import {
   ProjectParams,
   StoryboardPanel,
   WorkflowStep,
+  workflowStepSchema,
 } from "./schema";
 import {
   Annotation,
@@ -159,6 +160,22 @@ export function serializeAudioTrack(audio: AudioTrack | null): AudioTrack | null
 }
 
 /**
+ * Ramene une etape enregistree vers une etape qui existe encore.
+ *
+ * "editor" et "editor-summary" ont ete retires du parcours : un projet
+ * enregistre a ces etapes revenait sur une valeur qui ne correspond a aucun
+ * bloc de rendu, et la page s'affichait vide. Les deux se situaient APRES la
+ * voix, donc "whiteboard" — desormais la derniere etape — preserve l'intention.
+ */
+export function normalizeWorkflowStep(step: unknown): WorkflowStep {
+  const parsed = workflowStepSchema.safeParse(step);
+  if (parsed.success) return parsed.data;
+  return step === "editor" || step === "editor-summary"
+    ? "whiteboard"
+    : "prompt";
+}
+
+/**
  * Zustand's default persist merge is shallow (`{ ...current, ...persisted }`):
  * a persisted `whiteboardConfig` object REPLACES the default wholesale, so a
  * field added after a project was saved (audio, transcript, or any future
@@ -175,6 +192,7 @@ export function mergeStoryboardStorePersistedState(
   return {
     ...currentState,
     ...persisted,
+    step: normalizeWorkflowStep(persisted?.step ?? currentState.step),
     whiteboardConfig: {
       ...currentState.whiteboardConfig,
       ...(persisted?.whiteboardConfig ?? {}),
@@ -309,7 +327,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           script: DEMO_FINAL_SEQUENCE.masterDescription,
           storyboardPanels: panels,
           selectedVoice: "en-us-male-1",
-          step: "editor",
+          step: "whiteboard",
         });
       },
 

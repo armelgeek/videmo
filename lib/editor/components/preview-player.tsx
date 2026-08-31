@@ -26,6 +26,19 @@ import {
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 import { TextOverlayPreview } from "./text-overlay-preview";
+import dynamic from "next/dynamic";
+
+/**
+ * Konva touche `window` des son chargement : il ne peut pas etre evalue au
+ * rendu serveur, d'ou l'import dynamique.
+ */
+const AnnotationOverlay = dynamic(
+  () =>
+    import("@/lib/whiteboard-animation/components/annotation-overlay").then(
+      (m) => m.AnnotationOverlay,
+    ),
+  { ssr: false },
+);
 
 function effectsToCSSFilter(effects?: ClipEffects): string {
   if (!effects) return "none";
@@ -77,7 +90,9 @@ export interface PreviewPlayerProps {
   isWhiteboardView?: boolean;
   whiteboardCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   whiteboardHandCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
-  whiteboardAnnotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  /** Vrai pendant la lecture et le scrub : les poignees d'edition masquent le
+   *  dessin qu'on est venu regarder. Fourni par useWhiteboardRenderer. */
+  isAnnotationOverlayHidden?: boolean;
   whiteboardAspectRatio?: "16:9" | "9:16" | "1:1";
   onCancelRender: () => void;
   onPlay: () => void;
@@ -135,7 +150,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
   isWhiteboardView = false,
   whiteboardCanvasRef,
   whiteboardHandCanvasRef,
-  whiteboardAnnotationCanvasRef,
+  isAnnotationOverlayHidden = false,
   whiteboardAspectRatio = "16:9",
   onPlay,
   onLoadFFmpeg,
@@ -330,14 +345,14 @@ export const PreviewPlayer = memo(function PreviewPlayer({
                   className="w-full h-full object-contain absolute inset-0 z-20 pointer-events-none"
                 />
               )}
-              {whiteboardAnnotationCanvasRef && (
-                <canvas
-                  ref={whiteboardAnnotationCanvasRef as React.RefObject<HTMLCanvasElement>}
-                  width={whiteboardSize.width}
-                  height={whiteboardSize.height}
-                  className="w-full h-full object-contain absolute inset-0 z-30 pointer-events-none"
-                />
-              )}
+              {/* Les regions d'annotation etaient un canvas inerte : un
+                  fillRect/strokeRect qu'on ne pouvait ni saisir ni
+                  redimensionner. Konva les rend manipulables. */}
+              <AnnotationOverlay
+                canvasWidth={whiteboardSize.width}
+                canvasHeight={whiteboardSize.height}
+                hidden={isAnnotationOverlayHidden}
+              />
             </div>
           )}
 

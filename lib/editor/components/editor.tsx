@@ -1532,14 +1532,14 @@ const EditorInner: React.FC<EditorProps> = ({
 
   const whiteboardCanvasRef = useRef<HTMLCanvasElement>(null);
   const whiteboardHandCanvasRef = useRef<HTMLCanvasElement>(null);
-  const whiteboardAnnotationCanvasRef = useRef<HTMLCanvasElement>(null);
-
   const whiteboardEngine = useUnifiedEngine();
 
-  useWhiteboardRenderer({
+  // Pas d'annotationCanvasRef : sur cette surface les regions sont rendues par
+  // AnnotationOverlay (Konva), qui les rend deplacables et redimensionnables.
+  // Le trace imperatif du renderer reste pour l'etape Whiteboard autonome.
+  const { isOverlayHidden: isAnnotationOverlayHidden } = useWhiteboardRenderer({
     canvasRef: whiteboardCanvasRef,
     handCanvasRef: whiteboardHandCanvasRef,
-    annotationCanvasRef: whiteboardAnnotationCanvasRef,
     // preview-player fixe ce canvas a 1920x1080. Il ne suit pas encore le
     // ratio du projet, contrairement a l'etape Whiteboard.
     canvasWidth: 1920,
@@ -1657,7 +1657,7 @@ const EditorInner: React.FC<EditorProps> = ({
                     isWhiteboardView={true}
                     whiteboardCanvasRef={whiteboardCanvasRef}
                     whiteboardHandCanvasRef={whiteboardHandCanvasRef}
-                    whiteboardAnnotationCanvasRef={whiteboardAnnotationCanvasRef}
+                    isAnnotationOverlayHidden={isAnnotationOverlayHidden}
                   />
                 </PanelErrorBoundary>
 

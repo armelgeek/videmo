@@ -807,6 +807,15 @@ export function useWhiteboardRenderer({
 
   // ---- annotation overlay -------------------------------------------------
 
+  // Le calque est un repere d'EDITION : il masque le dessin qu'on est venu
+  // regarder. Il s'efface donc des que ca bouge — lecture ou scrub — et revient
+  // a l'arret, fin de lecture comprise.
+  //
+  // Expose parce que le calque Konva (AnnotationOverlay), qui remplace le
+  // trace imperatif ci-dessous sur la surface de l'editeur, doit se masquer
+  // exactement aux memes instants.
+  const isOverlayHidden = isPlaying || scrubbing;
+
   useEffect(() => {
     const annCanvas = annotationCanvasRef?.current;
     if (!annCanvas) return;
@@ -814,10 +823,7 @@ export function useWhiteboardRenderer({
     const actx = annCanvas.getContext('2d');
     if (!actx) return;
 
-    // Le calque est un repere d'EDITION : il masque le dessin qu'on est venu
-    // regarder. Il s'efface donc des que ca bouge — lecture ou scrub — et
-    // revient a l'arret, fin de lecture comprise.
-    const masque = isPlaying || scrubbing;
+    const masque = isOverlayHidden;
     annCanvas.style.opacity = masque ? '0' : '1';
 
     actx.clearRect(0, 0, annCanvas.width, annCanvas.height);
@@ -848,5 +854,7 @@ export function useWhiteboardRenderer({
       actx.fillStyle = '#ffffff';
       actx.fillText(label, region.x + 6, badgeY + 16);
     });
-  }, [annotations, annotationCanvasRef, isPlaying, scrubbing]);
+  }, [annotations, annotationCanvasRef, isOverlayHidden]);
+
+  return { isOverlayHidden };
 }

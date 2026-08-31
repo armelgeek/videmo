@@ -1,9 +1,8 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { WhiteboardConfigPanel } from "./whiteboard-config-panel";
-import { AudioPanel } from "./audio-panel";
-import { TranscriptPanel } from "./transcript-panel";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
@@ -14,10 +13,17 @@ import {
 } from "../timeline/annotation-interop";
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
+import { AnnotationListPanel } from "./annotation-list-panel";
 import { AudioTrackRow } from "./audio-track-row";
 import { TimelinePlayhead } from "./timeline-playhead";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
+
+/** Konva touche `window` des son chargement : pas d'evaluation au rendu serveur. */
+const AnnotationOverlay = dynamic(
+  () => import("./annotation-overlay").then((m) => m.AnnotationOverlay),
+  { ssr: false },
+);
 
 interface WhiteboardEditorStepProps {
   config: WhiteboardConfig;
@@ -26,6 +32,9 @@ interface WhiteboardEditorStepProps {
   onConfigChange: (config: Partial<WhiteboardConfig>) => void;
   onNavigateBack?: () => void;
   onNavigateNext?: () => void;
+  /** Libelle du bouton d'avancement. Le whiteboard etant la DERNIERE etape, ce
+   *  n'est plus un "Next" mais une action de fin de parcours. */
+  nextLabel?: string;
 }
 
 export function WhiteboardEditorStep({
@@ -34,6 +43,7 @@ export function WhiteboardEditorStep({
   onConfigChange,
   onNavigateBack,
   onNavigateNext,
+  nextLabel = "Next →",
 }: WhiteboardEditorStepProps) {
   // Shared so the narration lane lines up with the timeline ruler above it.
   const [timelineViewport, setTimelineViewport] = useState<
@@ -42,7 +52,6 @@ export function WhiteboardEditorStep({
   >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
-  const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const { width: canvasWidth, height: canvasHeight } =
     tailleCanvas(aspectRatio);
@@ -60,19 +69,20 @@ export function WhiteboardEditorStep({
     setHandSpeed,
     chunks,
     setChunks,
-    canvasBg,
     setCanvasBg,
     annotations,
     setCurrentTime,
   } = useUnifiedEngine();
 
-  // Enable canvas rendering
-  useWhiteboardRenderer({
+  // Enable canvas rendering.
+  // Pas d'annotationCanvasRef : les regions sont rendues par AnnotationOverlay
+  // (Konva), qui les rend deplacables et redimensionnables la ou le trace
+  // imperatif n'etait qu'un repere inerte.
+  const { isOverlayHidden } = useWhiteboardRenderer({
     canvasRef,
     canvasWidth,
     canvasHeight,
     handCanvasRef,
-    annotationCanvasRef,
     // Muted still plays (silently) to keep serving as the clock — only the
     // absence of a track falls back to wall-clock timing.
     audioUrl: config.audio?.url ?? null,
@@ -107,7 +117,9 @@ export function WhiteboardEditorStep({
     setRevealSpeed(config.revealSpeed);
     setHandSpeed(config.handSpeed);
     setChunks(config.chunks);
-    setCanvasBg(config.canvasBg);
+    // Le fond est toujours blanc : le reglage a ete retire du panneau, mais
+    // un projet enregistre avant peut encore porter "black" ou "none".
+    setCanvasBg("white");
   }, [config]); // Only config, not the setters which are stable from Zustand
 
   // Reset animation when needed
@@ -116,7 +128,7 @@ export function WhiteboardEditorStep({
   };
 
   return (
-    <div className="w-full h-full flex gap-6 overflow-hidden">
+    <div className="w-full h-full flex gap-4 overflow-hidden">
       {/* Left: Canvas Preview */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-4 justify-start">
         {/* Canvas Container — suit le ratio du projet et reste plafonne en
@@ -141,15 +153,14 @@ export function WhiteboardEditorStep({
             height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
           />
-          {/* Calque de reperage des annotations. Il masque le dessin qu'on est
+          {/* Calque d'edition des annotations. Il masque le dessin qu'on est
               venu regarder : il s'efface donc pendant la lecture et revient a
-              l'arret, fin de lecture comprise. L'opacite est pilotee par
-              use-whiteboard-renderer, qui sait aussi quand on scrube. */}
-          <canvas
-            ref={annotationCanvasRef}
-            width={canvasWidth}
-            height={canvasHeight}
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none transition-opacity duration-300"
+              l'arret, fin de lecture comprise — d'ou isOverlayHidden, que
+              use-whiteboard-renderer calcule en sachant aussi quand on scrube. */}
+          <AnnotationOverlay
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            hidden={isOverlayHidden}
           />
         </div>
 
@@ -176,30 +187,27 @@ export function WhiteboardEditorStep({
         </div>
       </div>
 
-      {/* Right: Config Panel */}
-      <div className="w-96 flex flex-col gap-4 overflow-y-auto pb-6">
+      {/* Right: reglages, puis la sequence d'annotations. C'est cette liste qui
+          justifie le rail : elle a besoin de toute la hauteur disponible, la ou
+          deux controles seuls ne la remplissaient pas. */}
+      <div className="w-72 shrink-0 min-h-0 flex flex-col gap-3">
         <WhiteboardConfigPanel
           config={config}
           onChange={(updates) => {
-            // Update store for persistence
+            // Le store pour la persistance, le moteur pour le rendu.
             onConfigChange(updates);
-            // Sync each field with engine
             if (updates.animStyle) setAnimStyle(updates.animStyle);
             if (updates.handStyle) setHandStyle(updates.handStyle);
             if (updates.revealSpeed !== undefined)
               setRevealSpeed(updates.revealSpeed);
-            if (updates.handSpeed !== undefined)
-              setHandSpeed(updates.handSpeed);
+            if (updates.handSpeed !== undefined) setHandSpeed(updates.handSpeed);
             if (updates.chunks !== undefined) setChunks(updates.chunks);
-            if (updates.canvasBg) setCanvasBg(updates.canvasBg);
           }}
         />
 
-        <AudioPanel />
-        <TranscriptPanel />
+        <AnnotationListPanel className="flex-1" />
 
-        {/* Navigation Buttons */}
-        <div className="flex gap-2 sticky bottom-0 bg-background pt-4 border-t">
+        <div className="flex shrink-0 gap-2 border-t pt-3">
           <Button variant="outline" onClick={onNavigateBack} className="flex-1">
             ← Back
           </Button>
@@ -207,7 +215,7 @@ export function WhiteboardEditorStep({
             onClick={onNavigateNext}
             className="flex-1 bg-primary hover:bg-primary/90"
           >
-            Next →
+            {nextLabel}
           </Button>
         </div>
       </div>
