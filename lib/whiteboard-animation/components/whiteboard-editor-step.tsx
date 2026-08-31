@@ -68,6 +68,9 @@ export function WhiteboardEditorStep({
     audioUrl: config.audio?.url ?? null,
     audioVolume: config.audio?.volume ?? 1,
     audioMuted: config.audio?.muted ?? false,
+    // The video lasts as long as its narration, and this length survives a
+    // media element that stalls before reporting one.
+    audioDurationMs: config.audio?.durationMs ?? null,
   });
 
   // Sync config with engine (Zustand setters are stable, safe to use without listing as deps)

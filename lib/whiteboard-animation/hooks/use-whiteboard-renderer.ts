@@ -72,6 +72,13 @@ export interface UseWhiteboardRendererProps {
   /** 0..1. Muted still plays silently: it must keep driving the clock. */
   audioVolume?: number;
   audioMuted?: boolean;
+  /**
+   * Narration length in ms, captured when the track was added. The video lasts
+   * as long as its narration, and this value is read straight from the config
+   * rather than the media element, which can stall before ever reporting a
+   * duration.
+   */
+  audioDurationMs?: number | null;
 }
 
 export function useWhiteboardRenderer({
@@ -83,6 +90,7 @@ export function useWhiteboardRenderer({
   audioUrl = null,
   audioVolume = 1,
   audioMuted = false,
+  audioDurationMs = null,
 }: UseWhiteboardRendererProps) {
   const {
     progress,
@@ -95,7 +103,20 @@ export function useWhiteboardRenderer({
     chunks,
   } = useUnifiedEngine();
 
-  const { annotations } = useDerivedAnnotations();
+  const audioClock = useAudioClock(audioUrl);
+
+  // Narration length, preferring the decoded value and falling back to what
+  // the config recorded — a stalled element never reports one.
+  const narrationMs =
+    audioClock.isReady && audioClock.durationMs > 0
+      ? audioClock.durationMs
+      : (audioDurationMs ?? 0);
+
+  // With narration, the schedule is the drawing plan, not the clip length.
+  const derivedAnnotations = useDerivedAnnotations({
+    governsDuration: narrationMs <= 0,
+  });
+  const { annotations } = derivedAnnotations;
 
   const imageRef = useRef<HTMLImageElement | null>(null);
   // Rectangle ou l'artwork est dessine. Memorise pour pouvoir transporter les
@@ -116,7 +137,10 @@ export function useWhiteboardRenderer({
   // Dernier currentTime ECRIT par le moteur. Sert a distinguer un seek de
   // l'utilisateur d'une simple progression de lecture.
   const engineTimeRef = useRef(0);
-  const audioClock = useAudioClock(audioUrl);
+  // The drawing reached the end of its schedule. The video can still be
+  // running: with narration longer than the schedule, the finished image is
+  // held on screen while the audio plays out.
+  const drawingDoneRef = useRef(false);
   // Last audio-clock reading consumed by the rAF loop. Distinct from
   // engineTimeRef, which tracks what the engine itself has rendered to.
   const lastAudioMsRef = useRef(0);
@@ -138,6 +162,11 @@ export function useWhiteboardRenderer({
   // Latest config, readable from inside the rAF closure without re-subscribing.
   const cfgRef = useRef({ handStyle, canvasBg });
   cfgRef.current = { handStyle, canvasBg };
+
+  // How long the drawing itself runs. The engine reports progress over this
+  // span, which is shorter than the video whenever narration outlasts it.
+  const drawingSpanRef = useRef(0);
+  drawingSpanRef.current = derivedAnnotations.totalDurationMs;
 
   // ---- assets -------------------------------------------------------------
 
@@ -293,14 +322,15 @@ export function useWhiteboardRenderer({
 
   // ---- engine-driven playback --------------------------------------------
 
-  // Sync animation duration to audio duration when audio loads
+  // The video runs until BOTH the drawing and the narration are done —
+  // `max(last annotation, audio)`, per the audio design spec. Letting the
+  // narration win outright would cut a drawing that outlasts it. With no
+  // narration, useDerivedAnnotations owns the duration instead.
   useEffect(() => {
-    if (audioClock.isReady && audioClock.durationMs > 0) {
-      const store = useUnifiedEngineStore.getState();
-      // Set timeline duration to match audio duration
-      store.setDuration(audioClock.durationMs);
-    }
-  }, [audioClock.isReady, audioClock.durationMs]);
+    if (narrationMs <= 0) return;
+    const videoMs = Math.max(derivedAnnotations.totalDurationMs, narrationMs);
+    useUnifiedEngineStore.getState().setDuration(videoMs);
+  }, [narrationMs, derivedAnnotations.totalDurationMs]);
 
   // Changing what the engine was built from invalidates the instance, so the
   // next play rebuilds it. Reveal speed is read live in tick(), so it is absent.
@@ -374,22 +404,34 @@ export function useWhiteboardRenderer({
         setProgress: (p: number) => {
           if (stoppedRef.current || seekingRef.current) return;
           const s = useUnifiedEngineStore.getState();
-          const ms = Math.min(1, Math.max(0, p)) * s.timeline.duration;
+          // p runs over the DRAWING, which is shorter than the video when
+          // narration outlasts it — scaling by the video duration here would
+          // race the playhead ahead of the strokes.
+          const span = drawingSpanRef.current || s.timeline.duration;
+          const ms = Math.min(1, Math.max(0, p)) * span;
           engineTimeRef.current = ms;
           s.setCurrentTime(ms);
         },
         finishAnim: () => {
-          stoppedRef.current = true;
           if (seekingRef.current) {
+            stoppedRef.current = true;
             hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
             return;
           }
+          // The drawing is done; the video may not be. Retire the engine and
+          // hold the finished image — the loop runs the clock out to the end.
+          drawingDoneRef.current = true;
           animRef.current = null;
-          const s = useUnifiedEngineStore.getState();
-          engineTimeRef.current = s.timeline.duration;
-          s.setCurrentTime(s.timeline.duration);
-          s.setIsPlaying(false);
           hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+          const s = useUnifiedEngineStore.getState();
+          const span = drawingSpanRef.current || s.timeline.duration;
+          engineTimeRef.current = span;
+          if (span >= s.timeline.duration - 1) {
+            // No narration left to play out: the video ends with the drawing.
+            stoppedRef.current = true;
+            s.setCurrentTime(s.timeline.duration);
+            s.setIsPlaying(false);
+          }
         },
         resScale: () => 1,
         resPointScale: () => 1,
@@ -414,8 +456,24 @@ export function useWhiteboardRenderer({
 
     let frame = 0;
 
-    // Clear canvas only when starting a fresh animation (no engine, replaying from end)
-    if (!animRef.current) {
+    // Play pressed while parked at the end replays from the top. The engine
+    // instance is consumed here so the clear below runs: without it the new
+    // run paints over the finished drawing and early frames show strokes that
+    // belong to the previous pass.
+    {
+      const s = useUnifiedEngineStore.getState();
+      if (s.timeline.duration > 0 && s.timeline.currentTime >= s.timeline.duration - 1) {
+        animRef.current = null;
+        drawingDoneRef.current = false;
+        engineTimeRef.current = 0;
+        s.setCurrentTime(0);
+      }
+    }
+
+    // Clear and rebuild only for a fresh run. A finished drawing held while
+    // narration plays out has no engine either, and must not be wiped when
+    // playback resumes.
+    if (!animRef.current && !drawingDoneRef.current) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       paintBackground(ctx, canvas.width, canvas.height);
       hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
@@ -435,10 +493,13 @@ export function useWhiteboardRenderer({
     let isFirstFrame = true;
     const manager = audioClock.manager;
     if (manager) {
-      // Reset to beginning if replaying from the end
-      const currentMs = manager.getCurrentMs();
-      if (currentMs >= manager.getDurationMs() - 100) {
-        manager.seekMs(0);
+      // The narration IS the clock, so it has to start from where the timeline
+      // is. Reset and scrubbing move the timeline only; leaving the element
+      // where it was let it drag the drawing to that position on the next play
+      // — a Reset then Play would jump straight back to the old spot.
+      const timelineMs = useUnifiedEngineStore.getState().timeline.currentTime;
+      if (Math.abs(manager.getCurrentMs() - timelineMs) > 50) {
+        manager.seekMs(timelineMs);
       }
       lastAudioMsRef.current = manager.getCurrentMs();
       // The audio element is the clock this loop reads from every frame —
@@ -471,7 +532,17 @@ export function useWhiteboardRenderer({
         return;
       }
 
-      if (manager && audioClockLive) {
+      if (drawingDoneRef.current) {
+        // Drawing complete, narration still running: hold the image and just
+        // advance the clock so the run ends at the video duration.
+        const s = useUnifiedEngineStore.getState();
+        const next =
+          manager && audioClockLive
+            ? manager.getCurrentMs()
+            : s.timeline.currentTime + Math.min(100, now - last);
+        engineTimeRef.current = next;
+        s.setCurrentTime(next);
+      } else if (manager && audioClockLive) {
         if (!wasAudioClock) {
           // The track just became usable while the wall clock was driving.
           // Move the audio to where the drawing already is, rather than
@@ -508,6 +579,24 @@ export function useWhiteboardRenderer({
         wasAudioClock = false;
         const delta = Math.min(100, now - last);
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
+      }
+
+      // Annotation styles finish their schedule without ever calling
+      // finishAnim, which left the transport running past the end: the button
+      // stayed on Pause and the run was never marked stopped. Ending it here
+      // makes "finished" observable to the rest of the renderer.
+      const s = useUnifiedEngineStore.getState();
+      if (
+        s.timeline.duration > 0 &&
+        s.timeline.currentTime >= s.timeline.duration - 1
+      ) {
+        stoppedRef.current = true;
+        animRef.current = null;
+        engineTimeRef.current = s.timeline.duration;
+        hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+        manager?.pause();
+        s.setIsPlaying(false);
+        return;
       }
 
       last = now;
@@ -638,6 +727,10 @@ export function useWhiteboardRenderer({
       } finally {
         seekingRef.current = false;
         stoppedRef.current = false;
+        // Seeking redefines whether the drawing is behind us: landing before
+        // the end of the schedule must let playback rebuild and draw again.
+        drawingDoneRef.current =
+          drawingSpanRef.current > 0 && currentTime >= drawingSpanRef.current;
       }
 
       engineTimeRef.current = currentTime;
@@ -651,6 +744,7 @@ export function useWhiteboardRenderer({
   useEffect(() => {
     if (isPlaying || currentTime > 0) return;
     animRef.current = null;
+    drawingDoneRef.current = false;
     engineTimeRef.current = 0;
     const handCanvas = handCanvasRef.current;
     handCanvas

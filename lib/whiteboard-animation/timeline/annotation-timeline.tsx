@@ -42,8 +42,13 @@ export const TRACK_HEADER_PX = 132;
  * The video editor keeps a full viewport of empty timeline past the last clip
  * so you can scroll beyond it. An annotation sequence has no such need, and the
  * trailing ruler ticks read as time that does not exist.
+ *
+ * Zero, not merely small: any padding makes the content wider than the zoom
+ * fits, and the resulting scroll offsets the playhead against the narration
+ * track below, which does not scroll. The playhead would then stop visibly
+ * short of the end of the audio it is supposed to be tracking.
  */
-const END_PADDING_PX = 24;
+const END_PADDING_PX = 0;
 
 export const AnnotationTimeline: React.FC = () => {
   const { fitZoomTo, ...timeline } = useAnnotationTimeline();
