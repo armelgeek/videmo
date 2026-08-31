@@ -3,6 +3,7 @@
 import { Music, Volume2, VolumeX, Mic2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useStoryboardStore } from '@/lib/storyboard/store';
+import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { ClipWaveform } from '@/lib/editor/components/clip-waveform';
 import { NarrationGenerationModal } from './narration-generation-modal';
 import { TRACK_HEADER_PX } from '../timeline/annotation-timeline';
@@ -35,18 +36,39 @@ export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
   // playback fires ~22 times a second; routing that through state re-rendered
   // this whole subtree at the same rate for what is one CSS transform.
   const laneRef = useRef<HTMLDivElement>(null);
+  const playheadRef = useRef<HTMLDivElement>(null);
   const scrollEl = viewport?.scrollEl ?? null;
+  const zoomLevel = viewport?.zoomLevel ?? 0;
   useEffect(() => {
-    const lane = laneRef.current;
-    if (!lane) return;
     const apply = () => {
-      lane.style.transform = `translateX(${-(scrollEl?.scrollLeft ?? 0)}px)`;
+      const offset = scrollEl?.scrollLeft ?? 0;
+      if (laneRef.current) {
+        laneRef.current.style.transform = `translateX(${-offset}px)`;
+      }
+      const head = playheadRef.current;
+      if (head && zoomLevel > 0) {
+        // The cursor carries on across the narration lane instead of stopping
+        // at the annotation track: it marks a moment in the VIDEO, and the
+        // narration is part of it.
+        const ms = useUnifiedEngineStore.getState().timeline.currentTime;
+        const x = (ms / 1000) * zoomLevel - offset;
+        head.style.transform = `translateX(${x}px)`;
+        // Scrolled out of view to the left, it would otherwise pile up on the
+        // lane's first pixel and read as a cursor sitting at zero.
+        head.style.opacity = x < 0 ? '0' : '1';
+      }
     };
     apply();
-    if (!scrollEl) return;
-    scrollEl.addEventListener('scroll', apply, { passive: true });
-    return () => scrollEl.removeEventListener('scroll', apply);
-  }, [scrollEl, viewport?.contentWidth, viewport?.zoomLevel]);
+    // Subscribed outside React on purpose: currentTime changes every frame
+    // during playback, and a re-render per frame is what this whole lane was
+    // just rewritten to avoid.
+    const unsubscribe = useUnifiedEngineStore.subscribe(apply);
+    scrollEl?.addEventListener('scroll', apply, { passive: true });
+    return () => {
+      unsubscribe();
+      scrollEl?.removeEventListener('scroll', apply);
+    };
+  }, [scrollEl, viewport?.contentWidth, zoomLevel]);
 
   const audio = useStoryboardStore((s) => s.whiteboardConfig.audio);
   const setAudioTrack = useStoryboardStore((s) => s.setAudioTrack);
@@ -143,6 +165,12 @@ export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
           filling the width: the clip has to sit under the same pixels as the
           ruler above, or the playhead drifts away from it on zoom/scroll. */}
       <div className="flex-1 min-w-0 relative bg-zinc-950/60 py-1 overflow-hidden">
+        {/* Continuation of the timeline playhead, same red, drawn above the
+            clip so the cursor reads as one line across both tracks. */}
+        <div
+          ref={playheadRef}
+          className="absolute top-0 bottom-0 left-0 w-0.5 bg-red-500 z-20 pointer-events-none shadow-[0_0_6px_rgba(239,68,68,0.6)]"
+        />
         {audio ? (
           <div
             ref={laneRef}
