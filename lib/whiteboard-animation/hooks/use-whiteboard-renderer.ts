@@ -11,7 +11,7 @@ import { rectContenu, reprojeterRegion, type RectContenu } from '../canvas-size'
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { normalizeGaps } from '../timeline/normalize-gaps';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
-import { computeAudioDelta } from './audio-delta';
+import { DRIFT_MAX_MS } from './audio-delta';
 import { useAudioClock } from '../audio/use-audio-clock';
 
 const AnimationFactory = require('../lib/index');
@@ -30,6 +30,13 @@ const SCENE_IMAGE = '/scene-premium-bag.png';
  * projets deja enregistres mais n'est plus lu.
  */
 const ENGINE_DEFAULT_SPEED = 40;
+
+/**
+ * Longest frame the engine is advanced by in one tick. A backgrounded tab
+ * stops rAF entirely; without a ceiling the first frame back would advance the
+ * drawing by the whole time away, in a single jump.
+ */
+const MAX_FRAME_MS = 100;
 
 /**
  * Paliers d'assets de main, du plus petit au plus grand. CUSTOM_HANDS decrit
@@ -141,9 +148,6 @@ export function useWhiteboardRenderer({
   // running: with narration longer than the schedule, the finished image is
   // held on screen while the audio plays out.
   const drawingDoneRef = useRef(false);
-  // Last audio-clock reading consumed by the rAF loop. Distinct from
-  // engineTimeRef, which tracks what the engine itself has rendered to.
-  const lastAudioMsRef = useRef(0);
 
   // Muted still plays (silently) to keep serving as the clock — only volume
   // and the mute flag change, never whether it plays.
@@ -504,7 +508,6 @@ export function useWhiteboardRenderer({
       if (Math.abs(manager.getCurrentMs() - timelineMs) > 250) {
         manager.seekMs(timelineMs);
       }
-      lastAudioMsRef.current = manager.getCurrentMs();
       // The audio element is the clock this loop reads from every frame —
       // without starting it, getCurrentMs() stays frozen at 0 forever and
       // the engine never advances.
@@ -512,96 +515,51 @@ export function useWhiteboardRenderer({
         console.error('Failed to start audio playback:', err);
       });
     }
-    // Whether the audio drove the previous frame. A stalled track can become
-    // usable mid-run, and the switch needs handling (see below).
-    let wasAudioClock = false;
-    // Guards that hand-over against repeating: one correction per run.
-    let didHandover = false;
 
     const step = (now: number) => {
       if (stoppedRef.current) return;
 
-      // A loaded track is not yet a running clock: a stalled load sits at
-      // readyState 0 forever without firing `error`. Deciding per frame — not
-      // once at start — keeps a stalled track from freezing the animation, and
-      // lets a slow one take over as soon as it is genuinely ready.
-      const audioClockLive = manager?.isUsableClock() ?? false;
-
-      // After pause/resume, first frame timing can be stale — sync to current position
+      // The first frame after a start or a resume carries a stale timestamp.
       if (isFirstFrame) {
-        if (manager && audioClockLive) lastAudioMsRef.current = manager.getCurrentMs();
         last = now;
         isFirstFrame = false;
-        wasAudioClock = audioClockLive;
         frame = requestAnimationFrame(step);
         return;
       }
 
+      // The WALL CLOCK owns the timeline. The engine only ticks forward and
+      // cannot be moved backwards, so driving it from a media element — which
+      // buffers, seeks, stalls and ends — meant any hiccup there stopped the
+      // drawing outright. Clamped so a throttled background tab does not
+      // deliver one enormous frame on return.
+      const delta = Math.min(MAX_FRAME_MS, now - last);
+      last = now;
+
+      const s = useUnifiedEngineStore.getState();
       if (drawingDoneRef.current) {
-        // Drawing complete, narration still running: hold the image and just
-        // advance the clock so the run ends at the video duration.
-        const s = useUnifiedEngineStore.getState();
-        const next =
-          manager && audioClockLive
-            ? manager.getCurrentMs()
-            : s.timeline.currentTime + Math.min(100, now - last);
+        // Drawing complete, narration still running: hold the image and run
+        // the clock out to the end of the video.
+        const next = s.timeline.currentTime + delta;
         engineTimeRef.current = next;
         s.setCurrentTime(next);
-      } else if (manager && audioClockLive) {
-        if (!wasAudioClock) {
-          // The track just became usable while the wall clock was driving.
-          // Move the audio to where the drawing already is, rather than
-          // letting the drift check yank the drawing back to the audio's 0.
-          //
-          // At most ONE correction per run, and only for a gap worth fixing.
-          // Seeking re-buffers, which drops the element below "usable" and
-          // sends the next frame down the wall-clock branch, which re-arms
-          // this handover — so correcting unconditionally ping-ponged
-          // seek/re-buffer forever and the engine was never ticked at all.
-          if (!didHandover) {
-            didHandover = true;
-            if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > 250) {
-              manager.seekMs(engineTimeRef.current);
-            }
-          }
-          lastAudioMsRef.current = manager.getCurrentMs();
-          wasAudioClock = true;
-          last = now;
-          frame = requestAnimationFrame(step);
-          return;
-        }
-
-        const audioNowMs = manager.getCurrentMs();
-        const { deltaMs, nextLastAudioMs, needsResync, resyncTargetMs } =
-          computeAudioDelta({
-            audioNowMs,
-            lastAudioMs: lastAudioMsRef.current,
-            engineTimeMs: engineTimeRef.current,
-          });
-        lastAudioMsRef.current = nextLastAudioMs;
-
-        if (needsResync) {
-          // Re-sync via the existing bounded seek path: writing currentTime
-          // through the store re-triggers the seek effect below, which
-          // replays only the active region (14-34ms), not the whole timeline.
-          useUnifiedEngineStore.getState().setCurrentTime(resyncTargetMs);
-        } else if (deltaMs > 0) {
-          animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, deltaMs);
-          engineTimeRef.current += deltaMs;
-        }
       } else {
-        // No audio, or a track that is not yet a running clock: fall back to
-        // wall-clock timing so the animation plays instead of freezing.
-        wasAudioClock = false;
-        const delta = Math.min(100, now - last);
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
+      }
+
+      // The narration FOLLOWS the drawing. Correcting it is audible, so it is
+      // only nudged once the offset is past the point where it would itself be
+      // noticeable — and a track that cannot report a position is left alone
+      // rather than allowed to hold up the picture.
+      if (manager?.isUsableClock()) {
+        if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > DRIFT_MAX_MS) {
+          manager.seekMs(engineTimeRef.current);
+        }
       }
 
       // Annotation styles finish their schedule without ever calling
       // finishAnim, which left the transport running past the end: the button
       // stayed on Pause and the run was never marked stopped. Ending it here
       // makes "finished" observable to the rest of the renderer.
-      const s = useUnifiedEngineStore.getState();
       if (
         s.timeline.duration > 0 &&
         s.timeline.currentTime >= s.timeline.duration - 1
@@ -615,7 +573,6 @@ export function useWhiteboardRenderer({
         return;
       }
 
-      last = now;
       if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);

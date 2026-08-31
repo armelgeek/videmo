@@ -62,12 +62,33 @@ tracé (le seuil usuel de détection son-en-retard est ~125 ms).
 
 | Mode | Horloge | Mécanisme |
 |---|---|---|
-| Aperçu avec audio | `audio.currentTime` | rAF, delta audio, garde-fou de dérive |
-| Aperçu sans audio | temps mural | comportement actuel, inchangé |
+| Aperçu (avec ou sans audio) | temps mural | rAF, delta borné, l'audio est recalé sur le dessin |
 | Export | `frame / fps` (absolu) | pas de rAF, dérive structurellement impossible |
 
 Le mode sans audio reste le chemin par défaut tant qu'aucune piste n'est
 chargée. Aucune régression pour les projets existants.
+
+> **Révision — l'audio n'est plus l'horloge maîtresse.**
+>
+> La conception initiale faisait piloter le moteur par `audio.currentTime`,
+> pour que la synchro soit vraie par construction. En pratique c'était intenable :
+> le moteur d'animation ne tick qu'en avant et ne sait pas sauter, alors qu'un
+> élément média bufferise, seek, se bloque et se termine. Chaque accident côté
+> audio arrêtait donc le dessin — piste morte, seek qui fait retomber
+> `readyState`, audio terminé dont la position se fige, Reset qui laisse
+> l'élément en arrière.
+>
+> Le sens de la dépendance est inversé : **le temps mural possède la timeline,
+> et la narration la suit**, recalée seulement au-delà de `DRIFT_MAX_MS`.
+> La synchro devient notre responsabilité au lieu d'être gratuite, mais le mode
+> de défaillance est bien meilleur : un décalage de 100 ms est un défaut, un gel
+> total est un bug bloquant. Mesuré après inversion : écart A/V de 60 à 100 ms
+> en lecture normale, et l'animation tourne à 1x identique que l'audio soit sain
+> ou totalement mort.
+>
+> Le delta reste borné (`MAX_FRAME_MS`), non plus pour lisser une frame lente —
+> le point 3.2 du TODO — mais pour qu'un onglet en arrière-plan, où rAF s'arrête,
+> ne restitue pas tout le temps écoulé en un seul bond au retour.
 
 ## Modèle de données
 
