@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import {
   Select,
@@ -6,9 +6,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { cn } from '@/lib/utils';
-import type { WhiteboardConfig } from '@/lib/storyboard/store';
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import type { WhiteboardConfig } from "@/lib/storyboard/store";
 
 interface WhiteboardConfigPanelProps {
   config: WhiteboardConfig;
@@ -17,19 +17,19 @@ interface WhiteboardConfigPanelProps {
 
 /** Cles acceptees par AnimationFactory.create — voir lib/index.js. */
 const ANIM_STYLES = [
-  { value: 'chunkjump', label: 'Chunk Jump' },
-  { value: 'contour', label: 'Contour' },
-  { value: 'gesture', label: 'Gesture' },
-  { value: 'illust', label: 'Illustration' },
-  { value: 'nervous', label: 'Nervous' },
-  { value: 'outlinechunks', label: 'Outline Chunks' },
-  { value: 'outlinefill', label: 'Outline Fill' },
-  { value: 'outlineonly', label: 'Outline Only' },
-  { value: 'scanner', label: 'Scanner' },
-  { value: 'scribble', label: 'Scribble' },
-  { value: 'spec-text', label: 'Spec Text' },
-  { value: 'specialized', label: 'Specialized' },
-  { value: 'topanchor', label: 'Top Anchor' },
+  { value: "chunkjump", label: "Chunk Jump" },
+  { value: "contour", label: "Contour" },
+  { value: "gesture", label: "Gesture" },
+  { value: "illust", label: "Illustration" },
+  { value: "nervous", label: "Nervous" },
+  { value: "outlinechunks", label: "Outline Chunks" },
+  { value: "outlinefill", label: "Outline Fill" },
+  { value: "outlineonly", label: "Outline Only" },
+  { value: "scanner", label: "Scanner" },
+  { value: "scribble", label: "Scribble" },
+  { value: "spec-text", label: "Spec Text" },
+  { value: "specialized", label: "Specialized" },
+  { value: "topanchor", label: "Top Anchor" },
 ] as const;
 
 /**
@@ -42,11 +42,11 @@ const ANIM_STYLES = [
  * se presente donc comme une absence, pas comme une cinquieme main.
  */
 const HANDS = [
-  { value: 'custom1', label: 'Hand 1', src: '/images/hand1-720p.png' },
-  { value: 'custom2', label: 'Hand 2', src: '/images/hand2-720p.png' },
-  { value: 'custom3', label: 'Hand 3', src: '/images/hand3-720p.png' },
-  { value: 'custom4', label: 'Hand 4', src: '/images/hand4-720p.png' },
-  { value: 'ghost', label: 'No hand', src: null },
+  { value: "custom1", label: "Hand 1", src: "/images/hand1-720p.png" },
+  { value: "custom2", label: "Hand 2", src: "/images/hand2-720p.png" },
+  { value: "custom3", label: "Hand 3", src: "/images/hand3-720p.png" },
+  { value: "custom4", label: "Hand 4", src: "/images/hand4-720p.png" },
+  { value: "ghost", label: "No hand", src: null },
 ] as const;
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
@@ -62,7 +62,7 @@ export function WhiteboardConfigPanel({
   onChange,
 }: WhiteboardConfigPanelProps) {
   return (
-    <div className="flex min-w-0 items-center gap-4">
+    <div className="w-full flex flex-col min-w-0 items-center gap-4">
       {/* Le style est LE choix creatif de cette etape — treize traces
           differents. Il ouvre donc la barre et porte le corps de texte le plus
           fort, la ou les mains se lisent d'un coup d'oeil. */}
@@ -90,7 +90,11 @@ export function WhiteboardConfigPanel({
 
       <div className="flex items-center gap-2">
         <GroupLabel>Hand</GroupLabel>
-        <div role="radiogroup" aria-label="Hand" className="flex items-center gap-1">
+        <div
+          role="radiogroup"
+          aria-label="Hand"
+          className="flex items-center gap-1"
+        >
           {HANDS.map((hand) => {
             const selected = config.handStyle === hand.value;
             return (
@@ -103,11 +107,11 @@ export function WhiteboardConfigPanel({
                 title={hand.label}
                 onClick={() => onChange({ handStyle: hand.value })}
                 className={cn(
-                  'relative h-8 w-8 shrink-0 overflow-hidden rounded bg-[#f6f6f4] transition-all',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  "relative h-8 w-8 shrink-0 overflow-hidden rounded bg-[#f6f6f4] transition-all",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   selected
-                    ? 'ring-2 ring-primary'
-                    : 'opacity-55 ring-1 ring-border hover:opacity-100',
+                    ? "ring-2 ring-primary"
+                    : "opacity-55 ring-1 ring-border hover:opacity-100",
                 )}
               >
                 {hand.src ? (
