@@ -177,9 +177,6 @@ export const TimelineTrackHeaders = memo(function TimelineTrackHeaders({
           </div>
         );
       })}
-
-      {/* Spacer */}
-      <div className="h-20 shrink-0" />
     </>
   );
 });
