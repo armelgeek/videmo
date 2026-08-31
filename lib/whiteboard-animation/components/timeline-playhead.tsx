@@ -3,11 +3,11 @@
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 
 export function TimelinePlayhead() {
-  const { currentTime, timeline } = useUnifiedEngine();
+  const { currentTime, duration } = useUnifiedEngine();
 
-  if (timeline.duration === 0) return null;
+  if (duration === 0) return null;
 
-  const percentProgress = (currentTime / timeline.duration) * 100;
+  const percentProgress = (currentTime / duration) * 100;
 
   return (
     <div
