@@ -32,11 +32,24 @@ const SCENE_IMAGE = '/scene-premium-bag.png';
 const ENGINE_DEFAULT_SPEED = 40;
 
 /**
- * Longest frame the engine is advanced by in one tick. A backgrounded tab
- * stops rAF entirely; without a ceiling the first frame back would advance the
- * drawing by the whole time away, in a single jump.
+ * A gap this long is not a slow frame, it is rAF having been parked — a
+ * backgrounded tab, a blocked main thread. That time was not animated and
+ * must not be replayed as one jump, so it is dropped and the narration
+ * realigns instead.
+ *
+ * Ordinary slow frames are NOT clamped: a frame that really took 300ms
+ * consumed 300ms of the video. The old blanket 100ms ceiling silently lost
+ * everything past it, which is why a heavy style took ~16s to play 11.2s of
+ * timeline (WHITEBOARD_EDITOR_TODO 3.2).
  */
-const MAX_FRAME_MS = 100;
+const BIG_GAP_MS = 1000;
+
+/**
+ * Minimum spacing between two corrections of the narration. Each one is a
+ * seek, and a seek is audible; without a floor a persistent offset would be
+ * "corrected" on every frame and turn into a stutter.
+ */
+const RESYNC_COOLDOWN_MS = 1000;
 
 /**
  * Paliers d'assets de main, du plus petit au plus grand. CUSTOM_HANDS decrit
@@ -496,25 +509,12 @@ export function useWhiteboardRenderer({
     let last = performance.now();
     let isFirstFrame = true;
     const manager = audioClock.manager;
-    if (manager) {
-      // The narration IS the clock, so it has to start from where the timeline
-      // is. Reset and scrubbing move the timeline only; leaving the element
-      // where it was let it drag the drawing to that position on the next play
-      // — a Reset then Play would jump straight back to the old spot.
-      // Tolerance, not equality: seeking re-buffers, and a plain resume leaves
-      // a few ms of gap. Correcting that on every pause/play reloaded the
-      // track each time and stuttered the drawing for nothing.
-      const timelineMs = useUnifiedEngineStore.getState().timeline.currentTime;
-      if (Math.abs(manager.getCurrentMs() - timelineMs) > 250) {
-        manager.seekMs(timelineMs);
-      }
-      // The audio element is the clock this loop reads from every frame —
-      // without starting it, getCurrentMs() stays frozen at 0 forever and
-      // the engine never advances.
-      manager.play().catch((err) => {
-        console.error('Failed to start audio playback:', err);
-      });
-    }
+    // The narration is NOT started here. An element that is not ready yet
+    // would play from a stale position and come in behind the drawing, so
+    // starting it is deferred to the loop, which aligns it the moment it can
+    // actually play. The drawing never waits for that.
+    let audioStarted = false;
+    let lastResyncAt = 0;
 
     const step = (now: number) => {
       if (stoppedRef.current) return;
@@ -530,10 +530,12 @@ export function useWhiteboardRenderer({
       // The WALL CLOCK owns the timeline. The engine only ticks forward and
       // cannot be moved backwards, so driving it from a media element — which
       // buffers, seeks, stalls and ends — meant any hiccup there stopped the
-      // drawing outright. Clamped so a throttled background tab does not
-      // deliver one enormous frame on return.
-      const delta = Math.min(MAX_FRAME_MS, now - last);
+      // drawing outright.
+      const rawDelta = now - last;
       last = now;
+      // A real slow frame is honoured in full; only a parked rAF is dropped.
+      const parked = rawDelta > BIG_GAP_MS;
+      const delta = parked ? 0 : rawDelta;
 
       const s = useUnifiedEngineStore.getState();
       if (drawingDoneRef.current) {
@@ -546,13 +548,30 @@ export function useWhiteboardRenderer({
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
       }
 
-      // The narration FOLLOWS the drawing. Correcting it is audible, so it is
-      // only nudged once the offset is past the point where it would itself be
-      // noticeable — and a track that cannot report a position is left alone
-      // rather than allowed to hold up the picture.
+      // The narration FOLLOWS the drawing. A track that cannot report a
+      // position is left alone rather than allowed to hold up the picture.
       if (manager?.isUsableClock()) {
-        if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > DRIFT_MAX_MS) {
-          manager.seekMs(engineTimeRef.current);
+        if (!audioStarted) {
+          // First moment it can actually play. Align it on the drawing, which
+          // has been running meanwhile, so a track that took a while to load
+          // does not come in behind and then have to be dragged forward.
+          if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > DRIFT_MAX_MS) {
+            manager.seekMs(engineTimeRef.current);
+          }
+          manager.play().catch((err) => {
+            console.error('Failed to start audio playback:', err);
+          });
+          audioStarted = true;
+          lastResyncAt = now;
+        } else if (parked || now - lastResyncAt > RESYNC_COOLDOWN_MS) {
+          // Correcting is a seek, and a seek is audible: rate-limited, so a
+          // renderer that cannot keep up drifts audibly once a second instead
+          // of stuttering every frame. A parked tab is realigned immediately —
+          // the offset there is the whole time away, not jitter.
+          if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > DRIFT_MAX_MS) {
+            manager.seekMs(engineTimeRef.current);
+            lastResyncAt = now;
+          }
         }
       }
 
