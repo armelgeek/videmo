@@ -92,6 +92,8 @@ export const AnnotationTimeline: React.FC<AnnotationTimelineProps> = ({
       <Timeline
         {...timeline}
         endPadding={END_PADDING_PX}
+        hideScrollbar
+        showPlayhead={false}
         onViewportChange={onViewportChange}
       />
     </div>
