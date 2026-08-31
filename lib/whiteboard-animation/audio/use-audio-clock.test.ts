@@ -25,14 +25,28 @@ describe("useAudioClock", () => {
     expect(result.current.durationMs).toBe(5000);
   });
 
-  it("updates currentMs on timeupdate", async () => {
-    const { result } = renderHook(() => useAudioClock("blob:fake-url"));
+  it("does not re-render on timeupdate", () => {
+    // The playback position is read off the manager inside the rAF loop.
+    // Publishing it through state re-rendered the whole renderer several times
+    // a second for a value no consumer reads, so timeupdate must stay inert.
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders++;
+      return useAudioClock("blob:fake-url");
+    });
     const el = result.current.manager!.getElement();
+    const before = renders;
+
     Object.defineProperty(el, "currentTime", { value: 3, writable: true });
     act(() => {
       el.dispatchEvent(new Event("timeupdate"));
+      el.dispatchEvent(new Event("timeupdate"));
+      el.dispatchEvent(new Event("timeupdate"));
     });
-    await waitFor(() => expect(result.current.currentMs).toBe(3000));
+
+    expect(renders).toBe(before);
+    // The position is still readable, just not through React state.
+    expect(result.current.manager!.getCurrentMs()).toBe(3000);
   });
 
   it("destroys the manager and creates a fresh one when url changes", () => {

@@ -101,6 +101,16 @@ describe("AudioManager", () => {
       expect(manager.isUsableClock()).toBe(true);
     });
 
+    it("is false once the track has ended", () => {
+      // A finished track stops advancing, so it can no longer drive timing: a
+      // narration shorter than the drawing must hand back to the wall clock
+      // instead of stalling the engine on a frozen currentTime.
+      const el = manager.getElement();
+      setReadyState(el, HTMLMediaElement.HAVE_ENOUGH_DATA);
+      Object.defineProperty(el, "ended", { value: true, configurable: true });
+      expect(manager.isUsableClock()).toBe(false);
+    });
+
     it("is false when the element reports an error despite buffered data", () => {
       const el = manager.getElement();
       setReadyState(el, HTMLMediaElement.HAVE_ENOUGH_DATA);

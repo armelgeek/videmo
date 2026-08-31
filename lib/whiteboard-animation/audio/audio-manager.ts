@@ -72,7 +72,11 @@ export class AudioManager {
    * here rather than assume a loaded manager is a running clock.
    */
   isUsableClock(): boolean {
-    return this.el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && !this.el.error;
+    return (
+      this.el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+      !this.el.error &&
+      !this.el.ended
+    );
   }
 
   getDurationMs(): number {
