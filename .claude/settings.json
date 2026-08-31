@@ -108,6 +108,32 @@
       "builder": "drift-builder",
       "critic": "drift-critic",
       "scribe": "drift-scribe"
+    },
+    "plantuml": {
+      "enabled": true,
+      "style": "fullstack-nextjs",
+      "diagrams_dir": "docs",
+      "validation": {
+        "enforce_sequence_diagrams": true,
+        "require_edge_cases": true,
+        "check_command": "scripts/puml check"
+      },
+      "actors": [
+        "User",
+        "Browser",
+        "Frontend",
+        "API",
+        "Database",
+        "External",
+        "Admin"
+      ],
+      "colors": {
+        "success": "#10b981",
+        "error": "#ef4444",
+        "warning": "#f59e0b",
+        "info": "#3b82f6",
+        "auth": "#8b5cf6"
+      }
     }
   },
   "claude": {

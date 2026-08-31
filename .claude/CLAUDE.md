@@ -203,6 +203,72 @@ npx prisma migrate deploy   # Migrations applied
 - PRs required for main
 - Brain automatically logs decisions
 
+## 📊 PlantUML Diagrams for Each Task
+
+**Every feature, fix, or refactor ships with a `.puml` sequence diagram** in `docs/<feature-name>/`.
+
+Diagrams validate the flow end-to-end: User → Browser → Frontend → API Route → Database → Response.
+
+### Template: Full-Stack User Flow
+
+```puml
+@startuml docs/features/create-feature.puml
+title "User Creates a Feature (Full Flow)"
+
+actor User
+participant "Browser"
+participant "React Component"
+participant "API Route (/api/...)"
+database "Database (Prisma)"
+
+== Nominal Case (201) ==
+User ->> Browser: Click "Create"
+Browser ->> "React Component": handleSubmit()
+"React Component" ->> "API Route (/api/...)": POST {title, ...}
+note right of "API Route (/api/...)": Validate session\nValidate input (Zod)
+"API Route (/api/...)" ->> "Database (Prisma)": db.create({...})
+"Database (Prisma)" -->> "API Route (/api/...)": {id, createdAt}
+"API Route (/api/...)" -->> "React Component": 201 {feature}
+"React Component" ->> Browser: Show toast + navigate
+Browser -->> User: Feature page loaded
+
+== Edge Case: Unauthorized (401) ==
+note right of "API Route (/api/...)": No session
+"API Route (/api/...)" -->> "React Component": 401 Unauthorized
+"React Component" ->> Browser: Redirect /auth/login
+
+== Edge Case: Invalid Input (400) ==
+note right of "React Component": Zod client validation
+"React Component" -->> Browser: Show error inline
+@enduml
+```
+
+### PlantUML Actors for Next.js
+
+- `User` — actual end user
+- `Browser` — client browser/native
+- `React Component` — frontend state + forms
+- `API Route (/api/...)` — Next.js route handler
+- `Database (Prisma)` — data layer
+- `External` — Stripe, email, etc.
+- `Admin` — admin dashboard
+
+**Always include:**
+- ✅ Nominal flow (200/201)
+- ✅ Edge cases (400, 401, 403, 409, 500)
+- ✅ Validation gates (client + server)
+- ✅ Guard checks & permission logic
+- ✅ Database constraints & WHERE clauses
+
+**Diagrams live in:** `docs/features/`, `docs/auth/`, `docs/payments/`, etc.
+
+**Validation:**
+```bash
+scripts/puml check docs/features/create-feature.puml
+```
+
+---
+
 ## Notes
 
 - TypeScript strict mode enforced
@@ -210,3 +276,4 @@ npx prisma migrate deploy   # Migrations applied
 - Prisma migrations required before deployment
 - Environment variables must be set before dev/build
 - Brain DB auto-saves patterns and decisions
+- PlantUML diagrams required for all tasks (see above)
