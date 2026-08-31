@@ -139,7 +139,7 @@ export function AudioTrackRow() {
                 {annotationPositions.map((ann, idx) => (
                   <div
                     key={ann.id}
-                    className={`relative transition-all ${idx > 0 ? 'border-l border-white/20' : ''}`}
+                    className={`relative transition-all cursor-pointer ${idx > 0 ? 'border-l border-white/20' : ''}`}
                     style={{
                       left: `${ann.startPercent}%`,
                       width: `${ann.endPercent - ann.startPercent}%`,
