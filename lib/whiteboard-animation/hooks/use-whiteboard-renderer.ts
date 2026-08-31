@@ -414,12 +414,15 @@ export function useWhiteboardRenderer({
 
     let frame = 0;
 
+    // Always clear canvas when starting playback (fresh play or resume after pause)
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    paintBackground(ctx, canvas.width, canvas.height);
+    hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+
     // Resume path: the engine already holds its progress (pause, or a seek that
     // just replayed one), so keep ticking instead of rebuilding.
     if (!animRef.current) {
       const offscreen = ensureOffscreen(canvas);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      paintBackground(ctx, canvas.width, canvas.height);
       stoppedRef.current = false;
       try {
         animRef.current = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
