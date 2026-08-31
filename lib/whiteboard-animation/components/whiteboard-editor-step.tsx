@@ -10,7 +10,6 @@ import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
 import { AudioTrackRow } from "./audio-track-row";
-import { TimelinePlayhead } from "./timeline-playhead";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
 
@@ -126,11 +125,11 @@ export function WhiteboardEditorStep({
           />
         </div>
 
-        {/* Timeline + Audio Track with shared playhead cursor */}
+        {/* Annotation timeline, with the narration lane below it. The playhead
+            is drawn by the timeline itself. */}
         <div className="relative">
           <AnnotationTimeline />
           <AudioTrackRow />
-          <TimelinePlayhead />
         </div>
 
         {/* Play/pause lives in the timeline toolbar; only reset is extra. */}
