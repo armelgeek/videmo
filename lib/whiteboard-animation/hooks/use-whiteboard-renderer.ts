@@ -497,8 +497,11 @@ export function useWhiteboardRenderer({
       // is. Reset and scrubbing move the timeline only; leaving the element
       // where it was let it drag the drawing to that position on the next play
       // — a Reset then Play would jump straight back to the old spot.
+      // Tolerance, not equality: seeking re-buffers, and a plain resume leaves
+      // a few ms of gap. Correcting that on every pause/play reloaded the
+      // track each time and stuttered the drawing for nothing.
       const timelineMs = useUnifiedEngineStore.getState().timeline.currentTime;
-      if (Math.abs(manager.getCurrentMs() - timelineMs) > 50) {
+      if (Math.abs(manager.getCurrentMs() - timelineMs) > 250) {
         manager.seekMs(timelineMs);
       }
       lastAudioMsRef.current = manager.getCurrentMs();
@@ -512,6 +515,8 @@ export function useWhiteboardRenderer({
     // Whether the audio drove the previous frame. A stalled track can become
     // usable mid-run, and the switch needs handling (see below).
     let wasAudioClock = false;
+    // Guards that hand-over against repeating: one correction per run.
+    let didHandover = false;
 
     const step = (now: number) => {
       if (stoppedRef.current) return;
@@ -547,8 +552,19 @@ export function useWhiteboardRenderer({
           // The track just became usable while the wall clock was driving.
           // Move the audio to where the drawing already is, rather than
           // letting the drift check yank the drawing back to the audio's 0.
-          manager.seekMs(engineTimeRef.current);
-          lastAudioMsRef.current = engineTimeRef.current;
+          //
+          // At most ONE correction per run, and only for a gap worth fixing.
+          // Seeking re-buffers, which drops the element below "usable" and
+          // sends the next frame down the wall-clock branch, which re-arms
+          // this handover — so correcting unconditionally ping-ponged
+          // seek/re-buffer forever and the engine was never ticked at all.
+          if (!didHandover) {
+            didHandover = true;
+            if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > 250) {
+              manager.seekMs(engineTimeRef.current);
+            }
+          }
+          lastAudioMsRef.current = manager.getCurrentMs();
           wasAudioClock = true;
           last = now;
           frame = requestAnimationFrame(step);

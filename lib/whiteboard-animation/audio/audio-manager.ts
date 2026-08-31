@@ -75,7 +75,11 @@ export class AudioManager {
     return (
       this.el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
       !this.el.error &&
-      !this.el.ended
+      !this.el.ended &&
+      // Mid-seek the position is in flux and briefly reports the target
+      // rather than what is playing. Reading it as a clock makes the caller
+      // chase a value that is about to change under it.
+      !this.el.seeking
     );
   }
 
