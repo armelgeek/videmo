@@ -1,9 +1,12 @@
 'use client';
 
-import { Music, Volume2, VolumeX } from 'lucide-react';
+import { Music, Volume2, VolumeX, Mic2 } from 'lucide-react';
+import { useState } from 'react';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { ClipWaveform } from '@/lib/editor/components/clip-waveform';
+import { NarrationGenerationModal } from './narration-generation-modal';
 import { TRACK_HEADER_PX } from '../timeline/annotation-timeline';
+import type { Annotation } from '../schema';
 
 /**
  * A dedicated narration track lane below the annotation timeline — visually
@@ -17,6 +20,12 @@ import { TRACK_HEADER_PX } from '../timeline/annotation-timeline';
 export function AudioTrackRow() {
   const audio = useStoryboardStore((s) => s.whiteboardConfig.audio);
   const setAudioTrack = useStoryboardStore((s) => s.setAudioTrack);
+  const annotations = useStoryboardStore((s) => s.whiteboardConfig.annotations);
+  const updateAnnotation = useStoryboardStore((s) => s.updateAnnotation);
+  const selectedVoice = useStoryboardStore((s) => s.selectedVoice);
+
+  const [hoveredAnnotationId, setHoveredAnnotationId] = useState<string | null>(null);
+  const [selectedAnnotationForNarration, setSelectedAnnotationForNarration] = useState<Annotation | null>(null);
 
   const handleMuteToggle = () => {
     if (!audio) return;
@@ -28,7 +37,39 @@ export function AudioTrackRow() {
     setAudioTrack({ ...audio, volume: Number(e.target.value) });
   };
 
+  // Calculate annotation positions relative to audio timeline
+  const getAnnotationPositions = () => {
+    if (!audio) return [];
+
+    return annotations.map((ann) => {
+      const startPercent = (ann.reveal.from || 0) / audio.durationMs * 100;
+      const endPercent = ((ann.reveal.from || 0) + (ann.reveal.durationMs || 0)) / audio.durationMs * 100;
+      return {
+        ...ann,
+        startPercent: Math.max(0, startPercent),
+        endPercent: Math.min(100, endPercent),
+      };
+    });
+  };
+
+  const annotationPositions = getAnnotationPositions();
+
+  const handleNarrationGenerated = (updatedAnnotation: Annotation) => {
+    updateAnnotation(updatedAnnotation.id, { narration: updatedAnnotation.narration });
+  };
+
   return (
+    <>
+      {/* Narration Generation Modal */}
+      {selectedAnnotationForNarration && (
+        <NarrationGenerationModal
+          annotation={selectedAnnotationForNarration}
+          selectedVoiceId={selectedVoice}
+          isOpen={!!selectedAnnotationForNarration}
+          onClose={() => setSelectedAnnotationForNarration(null)}
+          onGenerated={handleNarrationGenerated}
+        />
+      )}
     <div className="shrink-0 flex h-16 border-t border-white/10 bg-black">
       {/* Header gutter — aligned with the annotation timeline's track headers. */}
       <div
@@ -91,6 +132,45 @@ export function AudioTrackRow() {
                 zoomLevel={1}
               />
             </div>
+
+            {/* Annotation Segments Overlay */}
+            {annotationPositions.length > 0 && (
+              <div className="absolute inset-0 pointer-events-none flex">
+                {annotationPositions.map((ann, idx) => (
+                  <div
+                    key={ann.id}
+                    className={`relative transition-all ${idx > 0 ? 'border-l border-white/20' : ''}`}
+                    style={{
+                      left: `${ann.startPercent}%`,
+                      width: `${ann.endPercent - ann.startPercent}%`,
+                      backgroundColor: ann.narration?.audioUrl
+                        ? 'rgba(34, 197, 94, 0.08)' // green tint for generated
+                        : 'transparent',
+                    }}
+                    onMouseEnter={() => setHoveredAnnotationId(ann.id)}
+                    onMouseLeave={() => setHoveredAnnotationId(null)}
+                  >
+                    {/* Hover Label */}
+                    {hoveredAnnotationId === ann.id && (
+                      <div className="absolute bottom-full mb-1 left-0 bg-black/80 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-20 pointer-events-auto">
+                        {ann.text || `Annotation ${idx + 1}`}
+                      </div>
+                    )}
+
+                    {/* Generate Button */}
+                    {hoveredAnnotationId === ann.id && (
+                      <button
+                        onClick={() => setSelectedAnnotationForNarration(ann)}
+                        className="absolute inset-0 flex items-center justify-center pointer-events-auto bg-black/40 hover:bg-black/60 transition-colors rounded"
+                        title={ann.narration?.audioUrl ? 'Regenerate narration' : 'Generate narration'}
+                      >
+                        <Mic2 className="w-3 h-3 text-white" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <div className="w-full h-full rounded border border-dashed border-white/10 flex items-center justify-center text-[10px] text-zinc-500">
@@ -99,5 +179,6 @@ export function AudioTrackRow() {
         )}
       </div>
     </div>
+    </>
   );
 }

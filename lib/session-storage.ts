@@ -1,7 +1,8 @@
 import type { VideoConfig } from "@/lib/storyboard/types";
+import type { ProjectParams } from "@/lib/storyboard/schema";
 
 export interface AutomatorSession {
-  step: "prompt" | "transition" | "process" | "selection" | "result" | "scriptValidation" | "storyboard" | "whiteboard" | "voiceChoice" | "editor";
+  step: "prompt" | "transition" | "process" | "selection" | "result" | "scriptValidation" | "storyboard" | "whiteboard" | "voiceChoice" | "editor" | "editor-summary";
   masterData?: {
     url: string;
     prompt: string;
@@ -19,6 +20,7 @@ export interface AutomatorSession {
   storyboardData?: any;
   generatedImages?: string[];
   promptContent?: string;
+  projectParams?: ProjectParams;
   script?: string;
   selectedVoice?: string;
   timestamp: number;

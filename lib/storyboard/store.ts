@@ -15,6 +15,8 @@ import type {
   AudioTrack,
   TranscriptCue,
 } from "@/lib/whiteboard-animation/audio/types";
+import { dataUrlToBlobUrl } from "@/lib/whiteboard-animation/audio/audio-serialization";
+import type { TransitionType } from "@/lib/editor/types";
 
 export interface MediaItem {
   id: string;
@@ -36,7 +38,7 @@ export interface TimelineClip {
   start: number;
   duration: number;
   offset: number;
-  transition?: unknown;
+  transition?: { type: TransitionType; duration: number };
 }
 
 export interface WhiteboardConfig {
@@ -121,6 +123,21 @@ const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
 };
 
 /**
+ * An upload is persisted as a data: URL (a blob: URL is dead after a reload).
+ * Rehydrate it into a fresh blob: URL so media elements get a short src.
+ */
+function deserializeAudioTrack(
+  audio: AudioTrack | null
+): AudioTrack | null {
+  if (!audio) return null;
+
+  return {
+    ...audio,
+    url: dataUrlToBlobUrl(audio.url),
+  };
+}
+
+/**
  * Zustand's default persist merge is shallow (`{ ...current, ...persisted }`):
  * a persisted `whiteboardConfig` object REPLACES the default wholesale, so a
  * field added after a project was saved (audio, transcript, or any future
@@ -140,6 +157,10 @@ export function mergeStoryboardStorePersistedState(
     whiteboardConfig: {
       ...currentState.whiteboardConfig,
       ...(persisted?.whiteboardConfig ?? {}),
+      // Deserialize audio URL from data: back to blob:
+      audio: persisted?.whiteboardConfig?.audio
+        ? deserializeAudioTrack(persisted.whiteboardConfig.audio)
+        : currentState.whiteboardConfig.audio,
     },
   };
 }

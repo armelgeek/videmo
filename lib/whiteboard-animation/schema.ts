@@ -21,6 +21,18 @@ export const AnnotationRegionSchema = z.object({
 
 export type AnnotationRegion = z.infer<typeof AnnotationRegionSchema>;
 
+// Narration metadata for per-annotation audio generation
+export const NarrationMetadataSchema = z.object({
+  text: z.string().optional(),
+  audioUrl: z.string().optional(),
+  waveformPeaks: z.array(z.number()).optional(),
+  durationMs: z.number().optional(),
+  generatedAt: z.number().optional(),
+  transcriptText: z.string().optional(),
+});
+
+export type NarrationMetadata = z.infer<typeof NarrationMetadataSchema>;
+
 // Complete annotation object
 export const AnnotationSchema = z.object({
   id: z.string().default(() => Math.random().toString(36).slice(2, 11)),
@@ -34,6 +46,7 @@ export const AnnotationSchema = z.object({
     opacity: z.number().min(0).max(1).default(1),
   }).default({ strokeColor: '#000000', strokeWidth: 2, opacity: 1 }),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  narration: NarrationMetadataSchema.optional(),
 });
 
 export type Annotation = z.infer<typeof AnnotationSchema>;

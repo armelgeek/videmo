@@ -17,7 +17,7 @@ export const StoryboardEditPanel = memo(function StoryboardEditPanel({
   onClose,
 }: StoryboardEditPanelProps) {
   const [prompt, setPrompt] = useState(panel?.prompt || "")
-  const [duration, setDuration] = useState(panel?.duration || 5)
+  const [duration, setDuration] = useState<number>(panel?.duration || 5)
 
   const handleSave = useCallback(() => {
     if (panel) {

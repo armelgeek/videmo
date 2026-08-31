@@ -40,5 +40,6 @@ export const workflowStepSchema = z.enum([
   "whiteboard",
   "voiceChoice",
   "editor",
+  "editor-summary",
 ]);
 export type WorkflowStep = z.infer<typeof workflowStepSchema>;

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { useToastContext } from '@/components/ui/sonner';
+import { blobUrlToDataUrl } from '../audio/audio-serialization';
 import type { AudioTrack } from '../audio/types';
 
 export function AudioPanel() {
@@ -13,31 +14,37 @@ export function AudioPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToastContext();
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const url = URL.createObjectURL(file);
-    const el = new Audio(url);
-    el.addEventListener('loadedmetadata', () => {
-      const track: AudioTrack = {
+    const blobUrl = URL.createObjectURL(file);
+    const el = new Audio(blobUrl);
+    el.addEventListener('loadedmetadata', async () => {
+      // A blob: URL is dead after a reload, so persist the audio as a data:
+      // URL. If that conversion fails we keep the blob: URL — it still plays
+      // for this session — and must NOT revoke it, or the track we just
+      // stored would point at a revoked URL ("no supported sources").
+      const dataUrl = await blobUrlToDataUrl(blobUrl);
+      if (dataUrl) URL.revokeObjectURL(blobUrl);
+
+      setAudioTrack({
         id: `audio-${Date.now()}`,
-        url,
+        url: dataUrl ?? blobUrl,
         source: 'upload',
         name: file.name,
         volume: 1,
         muted: false,
         offsetMs: 0,
         durationMs: el.duration * 1000,
-      };
-      setAudioTrack(track);
+      });
     });
     // Without this, a load failure (bad codec, blocked by CSP, network
     // error) leaves the panel silently stuck on the upload input forever —
     // see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md's
     // error table ("Échec de chargement -> Toast d'erreur").
     el.addEventListener('error', () => {
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(blobUrl);
       toast.error('Failed to load audio file');
     });
   };

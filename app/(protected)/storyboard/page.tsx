@@ -545,8 +545,8 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
       setNarrationProgress(100);
       setTimeout(() => {
         setIsGeneratingNarration(false);
-        setStep("editor");
-        saveSession({ step: "editor", selectedVoice: voiceId });
+        setStep("editor-summary");
+        saveSession({ step: "editor-summary", selectedVoice: voiceId });
       }, 500);
     }, 3000);
   };
@@ -586,7 +586,12 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
     setDismissedBanners((prev) => new Set([...prev, id]));
   };
 
-  const getStepIndex = (s: string) => STEPS.findIndex((step) => step.key === s);
+  // The summary is a sub-screen of the Editor stage, not its own bubble in
+  // STEPS — map it onto "editor" so the stepper stays highlighted there.
+  const getStepIndex = (s: string) =>
+    STEPS.findIndex(
+      (step) => step.key === (s === "editor-summary" ? "editor" : s),
+    );
   const currentStepIndex = getStepIndex(step);
 
   const canNavigateToStep = (index: number) => {
@@ -1444,7 +1449,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                   {/* Tabs */}
                   <div className="flex gap-2 border-b border-border/50">
                     <button
-                      onClick={() => setSelectedVoice(null)}
+                      onClick={() => setSelectedVoice("")}
                       className={cn(
                         "px-4 py-2 text-sm font-medium transition-colors",
                         !selectedVoice ||
@@ -1770,12 +1775,12 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                   ? storyboardPanels
                   : DEMO_FINAL_SEQUENCE.storyboard
                 ).map((p, i) => ({
-                  id: p.id || `sb-${i}`,
+                  id: ("id" in p && p.id) || `sb-${i}`,
                   prompt: p.prompt,
                   imageUrl: p.imageUrl,
                   linkedImageUrl: p.linkedImageUrl,
                   videoUrl: p.videoUrl,
-                  mediaId: `media-video-${p.id || i}`,
+                  mediaId: `media-video-${("id" in p && p.id) || i}`,
                   status: "idle" as const,
                   type: p.linkedImageUrl
                     ? ("transition" as const)
