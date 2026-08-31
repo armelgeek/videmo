@@ -5,7 +5,6 @@ import { AudioManager } from './audio-manager';
 
 export interface AudioClockState {
   manager: AudioManager | null;
-  currentMs: number;
   durationMs: number;
   isReady: boolean;
 }
@@ -14,7 +13,6 @@ export function useAudioClock(url: string | null): AudioClockState {
   const managerRef = useRef<AudioManager | null>(null);
   const [state, setState] = useState<AudioClockState>({
     manager: null,
-    currentMs: 0,
     durationMs: 0,
     isReady: false,
   });
@@ -23,7 +21,7 @@ export function useAudioClock(url: string | null): AudioClockState {
     if (!url) {
       managerRef.current?.destroy();
       managerRef.current = null;
-      setState({ manager: null, currentMs: 0, durationMs: 0, isReady: false });
+      setState({ manager: null, durationMs: 0, isReady: false });
       return;
     }
 
@@ -31,9 +29,10 @@ export function useAudioClock(url: string | null): AudioClockState {
     managerRef.current = manager;
     manager.load(url);
 
-    const unsubscribeTime = manager.onTimeUpdate((ms) => {
-      setState((prev) => ({ ...prev, currentMs: ms }));
-    });
+    // Deliberately NOT subscribed to timeupdate: the playback position is read
+    // straight off the manager inside the rAF loop. Publishing it through
+    // React state re-rendered the whole renderer several times a second for a
+    // value no one consumed.
 
     const el = manager.getElement();
     const onLoadedMetadata = () => {
@@ -45,11 +44,10 @@ export function useAudioClock(url: string | null): AudioClockState {
     };
     el.addEventListener('loadedmetadata', onLoadedMetadata);
 
-    setState({ manager, currentMs: 0, durationMs: 0, isReady: false });
+    setState({ manager, durationMs: 0, isReady: false });
 
     return () => {
       el.removeEventListener('loadedmetadata', onLoadedMetadata);
-      unsubscribeTime();
       manager.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

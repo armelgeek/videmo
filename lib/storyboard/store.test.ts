@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { useStoryboardStore, mergeStoryboardStorePersistedState } from "./store";
+import {
+  useStoryboardStore,
+  mergeStoryboardStorePersistedState,
+  serializeAudioTrack,
+} from "./store";
 import type { AudioTrack, TranscriptCue } from "@/lib/whiteboard-animation/audio/types";
 import type { StoryboardStoreState } from "./store";
 
@@ -123,8 +127,43 @@ describe("mergeStoryboardStorePersistedState", () => {
 
     const merged = mergeStoryboardStorePersistedState(persisted, makeCurrentState());
 
-    expect(merged.whiteboardConfig.audio).toEqual(track);
+    expect(merged.whiteboardConfig.audio).toMatchObject({
+      id: "audio-1",
+      name: "narration.mp3",
+      volume: 0.5,
+      durationMs: 3000,
+    });
     expect(merged.whiteboardConfig.transcript).toEqual(cues);
+  });
+
+  it("survives a save/load round trip without losing the durable audio URL", () => {
+    // The regression this guards: hydration rewrites `url` into a fresh blob:
+    // for playback, and persisting the state verbatim wrote that blob: back
+    // over the data: original. One more reload and the track was gone for good.
+    const dataUrl = "data:audio/mpeg;base64,SUQzBAAAAAA=";
+    const saved: AudioTrack = {
+      id: "audio-1", url: dataUrl, source: "upload", name: "narration.mp3",
+      volume: 1, muted: false, offsetMs: 0, durationMs: 3000,
+    };
+
+    const loadOnce = (stored: AudioTrack) =>
+      mergeStoryboardStorePersistedState(
+        { whiteboardConfig: { audio: stored } },
+        makeCurrentState()
+      ).whiteboardConfig.audio!;
+
+    let live = loadOnce(saved);
+    expect(live.persistUrl).toBe(dataUrl);
+
+    // Two full cycles: the old code already lost the URL on the second.
+    for (let i = 0; i < 2; i++) {
+      const stored = serializeAudioTrack(live)!;
+      expect(stored.url).toBe(dataUrl);
+      expect(stored.persistUrl).toBeUndefined();
+      live = loadOnce(stored);
+    }
+
+    expect(live.persistUrl).toBe(dataUrl);
   });
 
   it("falls back to current state entirely when nothing was persisted", () => {

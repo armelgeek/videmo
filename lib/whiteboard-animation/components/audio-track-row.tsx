@@ -17,7 +17,16 @@ import type { Annotation } from '../schema';
  * track and explicitly no source media (see use-annotation-timeline.ts),
  * so the narration track is kept separate rather than forced into it.
  */
-export function AudioTrackRow() {
+export interface AudioTrackRowProps {
+  /**
+   * The timeline's horizontal viewport. Supplied, the lane adopts the ruler's
+   * pixels-per-second and scroll offset; omitted, it falls back to filling the
+   * available width.
+   */
+  viewport?: { scrollLeft: number; contentWidth: number; zoomLevel: number };
+}
+
+export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
   const audio = useStoryboardStore((s) => s.whiteboardConfig.audio);
   const setAudioTrack = useStoryboardStore((s) => s.setAudioTrack);
   const annotations = useStoryboardStore((s) => s.whiteboardConfig.annotations);
@@ -109,15 +118,36 @@ export function AudioTrackRow() {
         )}
       </div>
 
-      {/* Clip lane */}
-      <div className="flex-1 min-w-0 relative bg-zinc-950/60 p-1">
+      {/* Clip lane. It mirrors the timeline's scroll content rather than
+          filling the width: the clip has to sit under the same pixels as the
+          ruler above, or the playhead drifts away from it on zoom/scroll. */}
+      <div className="flex-1 min-w-0 relative bg-zinc-950/60 py-1 overflow-hidden">
         {audio ? (
           <div
-            className={`relative w-full h-full rounded border overflow-hidden ${
+            className="relative h-full"
+            style={
+              viewport
+                ? {
+                    width: viewport.contentWidth,
+                    transform: `translateX(${-viewport.scrollLeft}px)`,
+                  }
+                : { width: '100%' }
+            }
+          >
+          <div
+            className={`absolute top-0 bottom-0 rounded border overflow-hidden ${
               audio.muted
                 ? 'bg-emerald-900/15 border-emerald-900/40 opacity-50'
                 : 'bg-emerald-900/40 border-emerald-400'
             }`}
+            style={
+              viewport
+                ? {
+                    left: (audio.offsetMs / 1000) * viewport.zoomLevel,
+                    width: (audio.durationMs / 1000) * viewport.zoomLevel,
+                  }
+                : { left: 0, right: 0 }
+            }
           >
             <span className="absolute top-0.5 left-1.5 z-10 text-[10px] font-medium text-emerald-100 truncate max-w-[calc(100%-0.75rem)] drop-shadow-md">
               {audio.name}
@@ -171,6 +201,7 @@ export function AudioTrackRow() {
                 ))}
               </div>
             )}
+          </div>
           </div>
         ) : (
           <div className="w-full h-full rounded border border-dashed border-white/10 flex items-center justify-center text-[10px] text-zinc-500">

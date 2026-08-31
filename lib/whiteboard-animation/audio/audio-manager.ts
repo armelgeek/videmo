@@ -72,7 +72,15 @@ export class AudioManager {
    * here rather than assume a loaded manager is a running clock.
    */
   isUsableClock(): boolean {
-    return this.el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && !this.el.error;
+    return (
+      this.el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+      !this.el.error &&
+      !this.el.ended &&
+      // Mid-seek the position is in flux and briefly reports the target
+      // rather than what is playing. Reading it as a clock makes the caller
+      // chase a value that is about to change under it.
+      !this.el.seeking
+    );
   }
 
   getDurationMs(): number {

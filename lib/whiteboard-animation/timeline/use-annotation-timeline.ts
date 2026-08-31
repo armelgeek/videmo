@@ -21,6 +21,7 @@ const MAX_ZOOM = 400;
 export function useAnnotationTimeline() {
   const annotations = useUnifiedEngineStore((s) => s.animation.annotations);
   const currentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
+  const videoDuration = useUnifiedEngineStore((s) => s.timeline.duration);
   const isPlaying = useUnifiedEngineStore((s) => s.timeline.isPlaying);
   const fps = useUnifiedEngineStore((s) => s.timeline.fps);
   const selectedClipId = useUnifiedEngineStore((s) => s.ui.selectedClipId);
@@ -80,7 +81,11 @@ export function useAnnotationTimeline() {
     tracks: view.tracks,
     clips: view.clips,
     mediaMap: view.mediaMap,
-    duration: view.durationSeconds,
+    // The ruler spans the VIDEO, which narration can extend past the last
+    // annotation: the drawing ends, the clip does not. Falling back to the
+    // schedule keeps a project with no narration unchanged.
+    duration:
+      videoDuration > 0 ? videoDuration / 1000 : view.durationSeconds,
     currentTime: currentTime / 1000,
     frameRate: fps,
     isPlaying,
