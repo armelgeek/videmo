@@ -423,6 +423,7 @@ export function useWhiteboardRenderer({
 
     stoppedRef.current = false;
     let last = performance.now();
+    let isFirstFrame = true;
     const manager = audioClock.manager;
     if (manager) {
       // Reset to beginning if replaying from the end
@@ -440,6 +441,15 @@ export function useWhiteboardRenderer({
     }
     const step = (now: number) => {
       if (stoppedRef.current) return;
+
+      // After pause/resume, first frame timing can be stale — sync to current position
+      if (isFirstFrame && manager) {
+        lastAudioMsRef.current = manager.getCurrentMs();
+        last = now;
+        isFirstFrame = false;
+        frame = requestAnimationFrame(step);
+        return;
+      }
 
       if (manager) {
         const audioNowMs = manager.getCurrentMs();
