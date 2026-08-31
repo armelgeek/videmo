@@ -375,7 +375,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
     }),
     {
       name: "storyboard-workflow-store",
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => localStorage),
       merge: mergeStoryboardStorePersistedState,
       partialize: (state: StoryboardStoreState) => ({
         step: state.step,
