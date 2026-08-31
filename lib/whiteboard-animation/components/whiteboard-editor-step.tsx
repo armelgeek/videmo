@@ -1,17 +1,18 @@
-'use client';
+"use client";
 
-import { useRef, useEffect } from 'react';
-import { WhiteboardConfigPanel } from './whiteboard-config-panel';
-import { AudioPanel } from './audio-panel';
-import { TranscriptPanel } from './transcript-panel';
-import { Button } from '@/components/ui/button';
-import { RotateCcw } from 'lucide-react';
-import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
-import { useWhiteboardRenderer } from '../hooks/use-whiteboard-renderer';
-import { AnnotationTimeline } from '../timeline/annotation-timeline';
-import { AudioTrackRow } from './audio-track-row';
-import type { WhiteboardConfig } from '@/lib/storyboard/store';
-import { tailleCanvas, cssAspectRatio, type RatioProjet } from '../canvas-size';
+import { useRef, useEffect } from "react";
+import { WhiteboardConfigPanel } from "./whiteboard-config-panel";
+import { AudioPanel } from "./audio-panel";
+import { TranscriptPanel } from "./transcript-panel";
+import { Button } from "@/components/ui/button";
+import { RotateCcw } from "lucide-react";
+import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
+import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
+import { AnnotationTimeline } from "../timeline/annotation-timeline";
+import { AudioTrackRow } from "./audio-track-row";
+import { TimelinePlayhead } from "./timeline-playhead";
+import type { WhiteboardConfig } from "@/lib/storyboard/store";
+import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
 
 interface WhiteboardEditorStepProps {
   config: WhiteboardConfig;
@@ -33,7 +34,8 @@ export function WhiteboardEditorStep({
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  const { width: canvasWidth, height: canvasHeight } = tailleCanvas(aspectRatio);
+  const { width: canvasWidth, height: canvasHeight } =
+    tailleCanvas(aspectRatio);
 
   // Connect to unified engine
   const {
@@ -87,20 +89,6 @@ export function WhiteboardEditorStep({
     <div className="w-full h-full flex gap-6 overflow-hidden">
       {/* Left: Canvas Preview */}
       <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-4 justify-start">
-        {/* Header */}
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold">Whiteboard Preview</h2>
-          <div className="flex gap-4 text-sm text-muted-foreground">
-            <span>{config.animStyle}</span>
-            <span>{config.handStyle}</span>
-            <span>{aspectRatio}</span>
-            <span>{Math.round(progress)}%</span>
-            {annotations.length > 0 && (
-              <span>{annotations.length} annotations</span>
-            )}
-          </div>
-        </div>
-
         {/* Canvas Container — suit le ratio du projet et reste plafonne en
             hauteur pour que le timeline et la lecture restent au-dessus de la
             ligne de flottaison. */}
@@ -135,8 +123,12 @@ export function WhiteboardEditorStep({
           />
         </div>
 
-        <AnnotationTimeline />
-        <AudioTrackRow />
+        {/* Timeline + Audio Track with shared playhead cursor */}
+        <div className="relative">
+          <AnnotationTimeline />
+          <AudioTrackRow />
+          <TimelinePlayhead />
+        </div>
 
         {/* Play/pause lives in the timeline toolbar; only reset is extra. */}
         <div className="flex gap-2">
@@ -162,8 +154,10 @@ export function WhiteboardEditorStep({
             // Sync each field with engine
             if (updates.animStyle) setAnimStyle(updates.animStyle);
             if (updates.handStyle) setHandStyle(updates.handStyle);
-            if (updates.revealSpeed !== undefined) setRevealSpeed(updates.revealSpeed);
-            if (updates.handSpeed !== undefined) setHandSpeed(updates.handSpeed);
+            if (updates.revealSpeed !== undefined)
+              setRevealSpeed(updates.revealSpeed);
+            if (updates.handSpeed !== undefined)
+              setHandSpeed(updates.handSpeed);
             if (updates.chunks !== undefined) setChunks(updates.chunks);
             if (updates.canvasBg) setCanvasBg(updates.canvasBg);
           }}
@@ -174,11 +168,7 @@ export function WhiteboardEditorStep({
 
         {/* Navigation Buttons */}
         <div className="flex gap-2 sticky bottom-0 bg-background pt-4 border-t">
-          <Button
-            variant="outline"
-            onClick={onNavigateBack}
-            className="flex-1"
-          >
+          <Button variant="outline" onClick={onNavigateBack} className="flex-1">
             ← Back
           </Button>
           <Button
