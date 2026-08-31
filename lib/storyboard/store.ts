@@ -131,10 +131,31 @@ function deserializeAudioTrack(
 ): AudioTrack | null {
   if (!audio) return null;
 
+  // Remember what was stored: it is the only form that survives the next
+  // reload, and the blob: below will not.
+  const persistUrl = audio.persistUrl ?? audio.url;
+
   return {
     ...audio,
-    url: dataUrlToBlobUrl(audio.url),
+    persistUrl,
+    url: dataUrlToBlobUrl(persistUrl),
   };
+}
+
+/**
+ * Store the durable URL, never the runtime blob:.
+ *
+ * Hydration turns the saved data: URL into a fresh blob: for playback. Writing
+ * the state back verbatim persisted THAT blob:, overwriting the data: original,
+ * so the track was dead on the following load and unrecoverable after it.
+ */
+export function serializeAudioTrack(audio: AudioTrack | null): AudioTrack | null {
+  if (!audio) return null;
+
+  const { persistUrl, ...rest } = audio;
+  // Only the durable URL is written, so it is not stored twice — a base64
+  // narration is large enough to matter in localStorage.
+  return { ...rest, url: persistUrl ?? audio.url };
 }
 
 /**
@@ -391,7 +412,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           canvasBg: state.whiteboardConfig.canvasBg,
           annotations: state.whiteboardConfig.annotations,
           annotationConfig: state.whiteboardConfig.annotationConfig,
-          audio: state.whiteboardConfig.audio,
+          audio: serializeAudioTrack(state.whiteboardConfig.audio),
           transcript: state.whiteboardConfig.transcript,
         },
       }),

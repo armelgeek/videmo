@@ -31,6 +31,9 @@ export function AudioPanel() {
       setAudioTrack({
         id: `audio-${Date.now()}`,
         url: dataUrl ?? blobUrl,
+        // What gets saved. Undefined when the conversion failed, in which case
+        // the blob: plays for this session but cannot be restored later.
+        persistUrl: dataUrl ?? undefined,
         source: 'upload',
         name: file.name,
         volume: 1,
