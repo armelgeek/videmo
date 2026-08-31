@@ -52,6 +52,13 @@ const BIG_GAP_MS = 1000;
 const RESYNC_COOLDOWN_MS = 1000;
 
 /**
+ * Gap between the store's time and the engine's own that means somebody moved
+ * the playhead. During playback the engine writes both on every tick, so they
+ * sit on top of each other; anything wider came from outside.
+ */
+const EXTERNAL_SEEK_MS = 100;
+
+/**
  * Paliers d'assets de main, du plus petit au plus grand. CUSTOM_HANDS decrit
  * chacun avec ses propres coordonnees de pointe, et handDrawRect attend le
  * palier NOMINAL correspondant : le figer alors que le canvas change de taille
@@ -460,6 +467,97 @@ export function useWhiteboardRenderer({
     return anim;
   };
 
+  /**
+   * Repaint the drawing as it stands at `targetMs`, leaving a live engine
+   * primed there.
+   *
+   * Shared by scrubbing and by a seek made DURING playback: a running loop
+   * cannot simply be told a new time, because the engine only ticks forward
+   * and its next frame would write the old position straight back.
+   */
+  const repositionTo = (
+    targetMs: number,
+    canvas: HTMLCanvasElement,
+    handCanvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    hctx: CanvasRenderingContext2D
+  ) => {
+    const offscreen = ensureOffscreen(canvas);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    paintBackground(ctx, canvas.width, canvas.height);
+    hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+
+    stoppedRef.current = false;
+    seekingRef.current = true;
+    try {
+      const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
+      const schedule = anim.annotationManager?.schedule;
+
+      // Le moteur tournant au 1x fidele, son horloge avance exactement du
+      // delta fourni : le pas du rejeu est donc la ms demandee.
+      const advance = (from: number, to: number) => {
+        for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
+          if (stoppedRef.current) break;
+          const slice = Math.min(SEEK_STEP_MS, to - elapsed);
+          anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
+        }
+      };
+
+      if (!schedule || schedule.length === 0) {
+        // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
+        // depuis le debut donne la bonne image.
+        advance(0, targetMs);
+      } else {
+        // Premiere region non terminee a cet instant.
+        const idx = schedule.findIndex((s: any) => targetMs < s.endMs);
+
+        if (idx === -1) {
+          // Apres la derniere region : le moteur tamponne toute l'image en
+          // terminant, y compris ce qu'aucune region ne couvre.
+          const rf = rectArtwork(canvas);
+          ctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
+        } else {
+          for (let i = 0; i < idx; i++) {
+            const rect = regionRect(schedule[i].annot.region, canvas);
+            if (rect) {
+              ctx.drawImage(
+                offscreen,
+                rect.x, rect.y, rect.w, rect.h,
+                rect.x, rect.y, rect.w, rect.h
+              );
+            }
+          }
+
+          const entry = schedule[idx];
+          if (targetMs >= entry.startMs) {
+            // Dans la region : on repart de sa frontiere, deja peinte.
+            anim.primeAt?.(entry.startMs);
+            advance(entry.startMs, targetMs);
+          } else {
+            // Dans une pause entre deux annotations : rien de plus a tracer,
+            // et la main n'a pas a rester figee sur le dernier trait.
+            anim.primeAt?.(targetMs);
+          }
+        }
+      }
+
+      // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
+      // l'instance est consommee, un Play repartira du debut.
+      animRef.current = stoppedRef.current ? null : anim;
+    } catch (err) {
+      console.error('Failed to seek animation engine:', err);
+    } finally {
+      seekingRef.current = false;
+      stoppedRef.current = false;
+      // Seeking redefines whether the drawing is behind us: landing before
+      // the end of the schedule must let playback rebuild and draw again.
+      drawingDoneRef.current =
+        drawingSpanRef.current > 0 && targetMs >= drawingSpanRef.current;
+    }
+
+    engineTimeRef.current = targetMs;
+  };
+
   useEffect(() => {
     // Pausing must freeze the frame: keep the instance and the painted canvas
     // so resuming continues instead of restarting.
@@ -538,6 +636,24 @@ export function useWhiteboardRenderer({
       const delta = parked ? 0 : rawDelta;
 
       const s = useUnifiedEngineStore.getState();
+
+      // The playhead can be moved WHILE playing — clicking the ruler, say.
+      // currentTime is an INPUT then, not the engine's own output: the engine
+      // has to be replayed to the new position, or the very next tick writes
+      // the old one back and the click looks like it did nothing.
+      if (
+        Math.abs(s.timeline.currentTime - engineTimeRef.current) >
+        EXTERNAL_SEEK_MS
+      ) {
+        repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
+        if (manager?.isUsableClock()) {
+          manager.seekMs(engineTimeRef.current);
+          lastResyncAt = now;
+        }
+        frame = requestAnimationFrame(step);
+        return;
+      }
+
       if (drawingDoneRef.current) {
         // Drawing complete, narration still running: hold the image and run
         // the clock out to the end of the video.
@@ -652,80 +768,7 @@ export function useWhiteboardRenderer({
 
     // Un drag emet un flot de seeks : on n'en rejoue qu'un par frame.
     const raf = requestAnimationFrame(() => {
-      const offscreen = ensureOffscreen(canvas);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      paintBackground(ctx, canvas.width, canvas.height);
-      hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
-
-      stoppedRef.current = false;
-      seekingRef.current = true;
-      try {
-        const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
-        const schedule = anim.annotationManager?.schedule;
-
-        // Le moteur tournant au 1x fidele, son horloge avance exactement du
-        // delta fourni : le pas du rejeu est donc la ms demandee.
-        const advance = (from: number, to: number) => {
-          for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
-            if (stoppedRef.current) break;
-            const slice = Math.min(SEEK_STEP_MS, to - elapsed);
-            anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
-          }
-        };
-
-        if (!schedule || schedule.length === 0) {
-          // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
-          // depuis le debut donne la bonne image.
-          advance(0, currentTime);
-        } else {
-          // Premiere region non terminee a cet instant.
-          const idx = schedule.findIndex((s: any) => currentTime < s.endMs);
-
-          if (idx === -1) {
-            // Apres la derniere region : le moteur tamponne toute l'image en
-            // terminant, y compris ce qu'aucune region ne couvre.
-            const rf = rectArtwork(canvas);
-            ctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
-          } else {
-            for (let i = 0; i < idx; i++) {
-              const rect = regionRect(schedule[i].annot.region, canvas);
-              if (rect) {
-                ctx.drawImage(
-                  offscreen,
-                  rect.x, rect.y, rect.w, rect.h,
-                  rect.x, rect.y, rect.w, rect.h
-                );
-              }
-            }
-
-            const entry = schedule[idx];
-            if (currentTime >= entry.startMs) {
-              // Dans la region : on repart de sa frontiere, deja peinte.
-              anim.primeAt?.(entry.startMs);
-              advance(entry.startMs, currentTime);
-            } else {
-              // Dans une pause entre deux annotations : rien de plus a tracer,
-              // et la main n'a pas a rester figee sur le dernier trait.
-              anim.primeAt?.(currentTime);
-            }
-          }
-        }
-
-        // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
-        // l'instance est consommee, un Play repartira du debut.
-        animRef.current = stoppedRef.current ? null : anim;
-      } catch (err) {
-        console.error('Failed to seek animation engine:', err);
-      } finally {
-        seekingRef.current = false;
-        stoppedRef.current = false;
-        // Seeking redefines whether the drawing is behind us: landing before
-        // the end of the schedule must let playback rebuild and draw again.
-        drawingDoneRef.current =
-          drawingSpanRef.current > 0 && currentTime >= drawingSpanRef.current;
-      }
-
-      engineTimeRef.current = currentTime;
+      repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
     });
 
     return () => cancelAnimationFrame(raf);
