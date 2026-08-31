@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { WhiteboardConfigPanel } from "./whiteboard-config-panel";
 import { AudioPanel } from "./audio-panel";
 import { TranscriptPanel } from "./transcript-panel";
@@ -29,6 +29,10 @@ export function WhiteboardEditorStep({
   onNavigateBack,
   onNavigateNext,
 }: WhiteboardEditorStepProps) {
+  // Shared so the narration lane lines up with the timeline ruler above it.
+  const [timelineViewport, setTimelineViewport] = useState<
+    { scrollLeft: number; contentWidth: number; zoomLevel: number } | undefined
+  >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
   const annotationCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -126,10 +130,11 @@ export function WhiteboardEditorStep({
         </div>
 
         {/* Annotation timeline, with the narration lane below it. The playhead
-            is drawn by the timeline itself. */}
+            is drawn by the timeline itself, so the lane has to borrow the same
+            scale and scroll offset to stay under it. */}
         <div className="relative">
-          <AnnotationTimeline />
-          <AudioTrackRow />
+          <AnnotationTimeline onViewportChange={setTimelineViewport} />
+          <AudioTrackRow viewport={timelineViewport} />
         </div>
 
         {/* Play/pause lives in the timeline toolbar; only reset is extra. */}

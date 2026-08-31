@@ -75,6 +75,17 @@ interface TimelineProps {
    * value when the ruler should stop close to the content.
    */
   endPadding?: number;
+  /**
+   * Reports the horizontal viewport so a lane rendered OUTSIDE this component
+   * can line up with the ruler: same pixels-per-second, same scroll offset.
+   * Without it such a lane keeps its own scale and drifts away from the
+   * playhead as soon as the timeline is scrolled or zoomed.
+   */
+  onViewportChange?: (viewport: {
+    scrollLeft: number;
+    contentWidth: number;
+    zoomLevel: number;
+  }) => void;
 }
 
 export const Timeline = memo(function Timeline({
@@ -130,6 +141,7 @@ export const Timeline = memo(function Timeline({
   onZoomToFit,
   onOverwriteClips,
   endPadding,
+  onViewportChange,
 }: TimelineProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const headerContainerRef = useRef<HTMLDivElement>(null);
@@ -173,6 +185,11 @@ export const Timeline = memo(function Timeline({
     const calculatedWidth = maxTime * zoomLevel + padding;
     return Math.max(calculatedWidth, viewportWidth || 800);
   }, [clips, currentTime, duration, zoomLevel, viewportWidth, endPadding]);
+
+  // Publish the viewport for lanes rendered outside this component.
+  useEffect(() => {
+    onViewportChange?.({ scrollLeft, contentWidth: totalWidth, zoomLevel });
+  }, [onViewportChange, scrollLeft, totalWidth, zoomLevel]);
 
   const {
     snapConfig,

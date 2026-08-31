@@ -35,8 +35,11 @@ const TIMELINE_THEME: React.CSSProperties = {
  * sequence. Positions are derived, never stored.
  */
 /** Width of the track-header gutter that sits left of the clips. Exported so
- *  sibling track rows (e.g. AudioTrackRow) can align their own gutter. */
-export const TRACK_HEADER_PX = 132;
+ *  sibling track rows (e.g. AudioTrackRow) can align their own gutter.
+ *
+ *  Must match the Timeline's own header (`w-32`). It was 132 against that 128,
+ *  which offset every sibling lane by 4px before any scrolling came into it. */
+export const TRACK_HEADER_PX = 128;
 
 /**
  * The video editor keeps a full viewport of empty timeline past the last clip
@@ -50,7 +53,18 @@ export const TRACK_HEADER_PX = 132;
  */
 const END_PADDING_PX = 0;
 
-export const AnnotationTimeline: React.FC = () => {
+export interface AnnotationTimelineProps {
+  /** Lets a sibling lane match the ruler's scale and scroll offset. */
+  onViewportChange?: (viewport: {
+    scrollLeft: number;
+    contentWidth: number;
+    zoomLevel: number;
+  }) => void;
+}
+
+export const AnnotationTimeline: React.FC<AnnotationTimelineProps> = ({
+  onViewportChange,
+}) => {
   const { fitZoomTo, ...timeline } = useAnnotationTimeline();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -75,7 +89,11 @@ export const AnnotationTimeline: React.FC = () => {
       style={TIMELINE_THEME}
       className="shrink-0 min-w-0 w-full overflow-hidden border-t border-border"
     >
-      <Timeline {...timeline} endPadding={END_PADDING_PX} />
+      <Timeline
+        {...timeline}
+        endPadding={END_PADDING_PX}
+        onViewportChange={onViewportChange}
+      />
     </div>
   );
 };
