@@ -293,6 +293,15 @@ export function useWhiteboardRenderer({
 
   // ---- engine-driven playback --------------------------------------------
 
+  // Sync animation duration to audio duration when audio loads
+  useEffect(() => {
+    if (audioClock.isReady && audioClock.durationMs > 0) {
+      const store = useUnifiedEngineStore.getState();
+      // Set timeline duration to match audio duration
+      store.setDuration(audioClock.durationMs);
+    }
+  }, [audioClock.isReady, audioClock.durationMs]);
+
   // Changing what the engine was built from invalidates the instance, so the
   // next play rebuilds it. Reveal speed is read live in tick(), so it is absent.
   useEffect(() => {
