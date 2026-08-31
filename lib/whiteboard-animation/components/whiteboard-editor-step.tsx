@@ -31,7 +31,8 @@ export function WhiteboardEditorStep({
 }: WhiteboardEditorStepProps) {
   // Shared so the narration lane lines up with the timeline ruler above it.
   const [timelineViewport, setTimelineViewport] = useState<
-    { scrollLeft: number; contentWidth: number; zoomLevel: number } | undefined
+    | { scrollEl: HTMLElement | null; contentWidth: number; zoomLevel: number }
+    | undefined
   >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);

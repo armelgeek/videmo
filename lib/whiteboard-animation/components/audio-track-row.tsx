@@ -1,7 +1,7 @@
 'use client';
 
 import { Music, Volume2, VolumeX, Mic2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { ClipWaveform } from '@/lib/editor/components/clip-waveform';
 import { NarrationGenerationModal } from './narration-generation-modal';
@@ -23,10 +23,31 @@ export interface AudioTrackRowProps {
    * pixels-per-second and scroll offset; omitted, it falls back to filling the
    * available width.
    */
-  viewport?: { scrollLeft: number; contentWidth: number; zoomLevel: number };
+  viewport?: {
+    scrollEl: HTMLElement | null;
+    contentWidth: number;
+    zoomLevel: number;
+  };
 }
 
 export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
+  // The lane follows the timeline's scroll imperatively. Auto-scroll during
+  // playback fires ~22 times a second; routing that through state re-rendered
+  // this whole subtree at the same rate for what is one CSS transform.
+  const laneRef = useRef<HTMLDivElement>(null);
+  const scrollEl = viewport?.scrollEl ?? null;
+  useEffect(() => {
+    const lane = laneRef.current;
+    if (!lane) return;
+    const apply = () => {
+      lane.style.transform = `translateX(${-(scrollEl?.scrollLeft ?? 0)}px)`;
+    };
+    apply();
+    if (!scrollEl) return;
+    scrollEl.addEventListener('scroll', apply, { passive: true });
+    return () => scrollEl.removeEventListener('scroll', apply);
+  }, [scrollEl, viewport?.contentWidth, viewport?.zoomLevel]);
+
   const audio = useStoryboardStore((s) => s.whiteboardConfig.audio);
   const setAudioTrack = useStoryboardStore((s) => s.setAudioTrack);
   const annotations = useStoryboardStore((s) => s.whiteboardConfig.annotations);
@@ -124,15 +145,9 @@ export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
       <div className="flex-1 min-w-0 relative bg-zinc-950/60 py-1 overflow-hidden">
         {audio ? (
           <div
+            ref={laneRef}
             className="relative h-full"
-            style={
-              viewport
-                ? {
-                    width: viewport.contentWidth,
-                    transform: `translateX(${-viewport.scrollLeft}px)`,
-                  }
-                : { width: '100%' }
-            }
+            style={viewport ? { width: viewport.contentWidth } : { width: '100%' }}
           >
           <div
             className={`absolute top-0 bottom-0 rounded border overflow-hidden ${

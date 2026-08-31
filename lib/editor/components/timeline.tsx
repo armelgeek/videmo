@@ -80,9 +80,14 @@ interface TimelineProps {
    * can line up with the ruler: same pixels-per-second, same scroll offset.
    * Without it such a lane keeps its own scale and drifts away from the
    * playhead as soon as the timeline is scrolled or zoomed.
+   *
+   * The scroll ELEMENT is handed over rather than its offset: auto-scroll
+   * during playback moves it ~22 times a second, and pushing that through
+   * React state re-rendered the whole subtree at the same rate. Consumers
+   * listen on the element and update themselves imperatively.
    */
   onViewportChange?: (viewport: {
-    scrollLeft: number;
+    scrollEl: HTMLElement | null;
     contentWidth: number;
     zoomLevel: number;
   }) => void;
@@ -186,10 +191,15 @@ export const Timeline = memo(function Timeline({
     return Math.max(calculatedWidth, viewportWidth || 800);
   }, [clips, currentTime, duration, zoomLevel, viewportWidth, endPadding]);
 
-  // Publish the viewport for lanes rendered outside this component.
+  // Publish the viewport for lanes rendered outside this component. Scroll
+  // offset is deliberately NOT a dependency — see onViewportChange's contract.
   useEffect(() => {
-    onViewportChange?.({ scrollLeft, contentWidth: totalWidth, zoomLevel });
-  }, [onViewportChange, scrollLeft, totalWidth, zoomLevel]);
+    onViewportChange?.({
+      scrollEl: scrollContainerRef.current,
+      contentWidth: totalWidth,
+      zoomLevel,
+    });
+  }, [onViewportChange, totalWidth, zoomLevel]);
 
   const {
     snapConfig,

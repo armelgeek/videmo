@@ -56,7 +56,7 @@ const END_PADDING_PX = 0;
 export interface AnnotationTimelineProps {
   /** Lets a sibling lane match the ruler's scale and scroll offset. */
   onViewportChange?: (viewport: {
-    scrollLeft: number;
+    scrollEl: HTMLElement | null;
     contentWidth: number;
     zoomLevel: number;
   }) => void;
