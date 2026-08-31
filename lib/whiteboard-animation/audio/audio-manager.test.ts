@@ -75,6 +75,45 @@ describe("AudioManager", () => {
     expect(cb).not.toHaveBeenCalled();
   });
 
+  describe("isUsableClock", () => {
+    const setReadyState = (el: HTMLMediaElement, value: number) =>
+      Object.defineProperty(el, "readyState", { value, configurable: true });
+
+    it("is false for a stalled load that never errors", () => {
+      // The bug this guards: a stalled track sits at HAVE_NOTHING with no
+      // `error` event, so an error check alone reports it as playable and the
+      // renderer freezes waiting for a clock that never ticks.
+      const el = manager.getElement();
+      setReadyState(el, 0);
+      expect(el.error).toBeFalsy();
+      expect(manager.isUsableClock()).toBe(false);
+    });
+
+    it("is false while only metadata has arrived", () => {
+      const el = manager.getElement();
+      setReadyState(el, HTMLMediaElement.HAVE_METADATA);
+      expect(manager.isUsableClock()).toBe(false);
+    });
+
+    it("is true once current data is available", () => {
+      const el = manager.getElement();
+      setReadyState(el, HTMLMediaElement.HAVE_CURRENT_DATA);
+      expect(manager.isUsableClock()).toBe(true);
+    });
+
+    it("is false when the element reports an error despite buffered data", () => {
+      const el = manager.getElement();
+      setReadyState(el, HTMLMediaElement.HAVE_ENOUGH_DATA);
+      // jsdom exposes no MediaError constructor; the code value is all
+      // isUsableClock cares about.
+      Object.defineProperty(el, "error", {
+        value: { code: 3 },
+        configurable: true,
+      });
+      expect(manager.isUsableClock()).toBe(false);
+    });
+  });
+
   it("destroy removes all listeners and pauses playback", () => {
     const cb = vi.fn();
     manager.onTimeUpdate(cb);

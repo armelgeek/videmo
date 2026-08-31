@@ -65,6 +65,16 @@ export class AudioManager {
     return this.el.currentTime * 1000;
   }
 
+  /**
+   * True once the element holds enough data for currentTime to actually
+   * advance. A stalled load leaves readyState at HAVE_NOTHING without ever
+   * firing `error`, so callers that drive timing from this clock must check
+   * here rather than assume a loaded manager is a running clock.
+   */
+  isUsableClock(): boolean {
+    return this.el.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && !this.el.error;
+  }
+
   getDurationMs(): number {
     return this.durationMs;
   }

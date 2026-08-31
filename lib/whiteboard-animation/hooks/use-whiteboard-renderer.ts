@@ -414,16 +414,13 @@ export function useWhiteboardRenderer({
 
     let frame = 0;
 
-    // Always clear canvas when starting playback (fresh play or resume after pause)
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    paintBackground(ctx, canvas.width, canvas.height);
-    hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
-
-    // Resume path: the engine already holds its progress (pause, or a seek that
-    // just replayed one), so keep ticking instead of rebuilding.
+    // Clear canvas only when starting a fresh animation (no engine, replaying from end)
     if (!animRef.current) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      paintBackground(ctx, canvas.width, canvas.height);
+      hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+
       const offscreen = ensureOffscreen(canvas);
-      stoppedRef.current = false;
       try {
         animRef.current = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
       } catch (err) {
@@ -451,19 +448,42 @@ export function useWhiteboardRenderer({
         console.error('Failed to start audio playback:', err);
       });
     }
+    // Whether the audio drove the previous frame. A stalled track can become
+    // usable mid-run, and the switch needs handling (see below).
+    let wasAudioClock = false;
+
     const step = (now: number) => {
       if (stoppedRef.current) return;
 
+      // A loaded track is not yet a running clock: a stalled load sits at
+      // readyState 0 forever without firing `error`. Deciding per frame — not
+      // once at start — keeps a stalled track from freezing the animation, and
+      // lets a slow one take over as soon as it is genuinely ready.
+      const audioClockLive = manager?.isUsableClock() ?? false;
+
       // After pause/resume, first frame timing can be stale — sync to current position
-      if (isFirstFrame && manager) {
-        lastAudioMsRef.current = manager.getCurrentMs();
+      if (isFirstFrame) {
+        if (manager && audioClockLive) lastAudioMsRef.current = manager.getCurrentMs();
         last = now;
         isFirstFrame = false;
+        wasAudioClock = audioClockLive;
         frame = requestAnimationFrame(step);
         return;
       }
 
-      if (manager) {
+      if (manager && audioClockLive) {
+        if (!wasAudioClock) {
+          // The track just became usable while the wall clock was driving.
+          // Move the audio to where the drawing already is, rather than
+          // letting the drift check yank the drawing back to the audio's 0.
+          manager.seekMs(engineTimeRef.current);
+          lastAudioMsRef.current = engineTimeRef.current;
+          wasAudioClock = true;
+          last = now;
+          frame = requestAnimationFrame(step);
+          return;
+        }
+
         const audioNowMs = manager.getCurrentMs();
         const { deltaMs, nextLastAudioMs, needsResync, resyncTargetMs } =
           computeAudioDelta({
@@ -483,8 +503,9 @@ export function useWhiteboardRenderer({
           engineTimeRef.current += deltaMs;
         }
       } else {
-        // No audio loaded: fall back to wall-clock timing, unchanged from
-        // before this task.
+        // No audio, or a track that is not yet a running clock: fall back to
+        // wall-clock timing so the animation plays instead of freezing.
+        wasAudioClock = false;
         const delta = Math.min(100, now - last);
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
       }
