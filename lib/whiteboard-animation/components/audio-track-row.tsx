@@ -135,7 +135,7 @@ export function AudioTrackRow() {
 
             {/* Annotation Segments Overlay */}
             {annotationPositions.length > 0 && (
-              <div className="absolute inset-0 pointer-events-none flex">
+              <div className="absolute bottom-0 inset-x-0 pointer-events-none flex h-3">
                 {annotationPositions.map((ann, idx) => (
                   <div
                     key={ann.id}
@@ -144,15 +144,15 @@ export function AudioTrackRow() {
                       left: `${ann.startPercent}%`,
                       width: `${ann.endPercent - ann.startPercent}%`,
                       backgroundColor: ann.narration?.audioUrl
-                        ? 'rgba(34, 197, 94, 0.08)' // green tint for generated
-                        : 'transparent',
+                        ? 'rgba(34, 197, 94, 0.5)' // green tint for generated
+                        : 'rgba(255, 255, 255, 0.1)',
                     }}
                     onMouseEnter={() => setHoveredAnnotationId(ann.id)}
                     onMouseLeave={() => setHoveredAnnotationId(null)}
                   >
                     {/* Hover Label */}
                     {hoveredAnnotationId === ann.id && (
-                      <div className="absolute bottom-full mb-1 left-0 bg-black/80 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-20 pointer-events-auto">
+                      <div className="absolute -top-6 left-0 bg-black/80 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-20 pointer-events-auto">
                         {ann.text || `Annotation ${idx + 1}`}
                       </div>
                     )}
@@ -161,10 +161,10 @@ export function AudioTrackRow() {
                     {hoveredAnnotationId === ann.id && (
                       <button
                         onClick={() => setSelectedAnnotationForNarration(ann)}
-                        className="absolute inset-0 flex items-center justify-center pointer-events-auto bg-black/40 hover:bg-black/60 transition-colors rounded"
+                        className="absolute inset-0 flex items-center justify-center pointer-events-auto bg-black/60 hover:bg-black/80 transition-colors"
                         title={ann.narration?.audioUrl ? 'Regenerate narration' : 'Generate narration'}
                       >
-                        <Mic2 className="w-3 h-3 text-white" />
+                        <Mic2 className="w-2.5 h-2.5 text-white" />
                       </button>
                     )}
                   </div>
