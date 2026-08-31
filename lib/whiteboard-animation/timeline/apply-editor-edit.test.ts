@@ -252,3 +252,28 @@ describe("resize-duration against the video length", () => {
     expect(out[0].reveal.durationMs).toBe(9000);
   });
 });
+
+describe("resizing repeatedly, as a drag does", () => {
+  it("keeps clamping across successive calls of one drag", () => {
+    // The regression: a drag calls the edit on every mousemove. When the cap
+    // was derived from "is the video longer than the drawing", the first clamp
+    // made the drawing exactly as long as the video, the condition went false,
+    // and every later call of the SAME drag ran unclamped.
+    const seq = [annotation("a", 1000, 300), annotation("b", 1000)];
+    const CAP = 3000;
+
+    let current = seq;
+    for (const seconds of [2, 4, 8, 16]) {
+      current = applyEditorEdit(
+        { kind: "resize-duration", id: "b", durationSeconds: seconds },
+        current,
+        CAP,
+      );
+      const total = deriveTimeline(current).totalDurationMs;
+      expect(total).toBeLessThanOrEqual(CAP);
+    }
+
+    // "b" starts at 1300ms, so it can only ever reach 1700ms.
+    expect(current[1].reveal.durationMs).toBe(1700);
+  });
+});
