@@ -425,6 +425,11 @@ export function useWhiteboardRenderer({
     let last = performance.now();
     const manager = audioClock.manager;
     if (manager) {
+      // Reset to beginning if replaying from the end
+      const currentMs = manager.getCurrentMs();
+      if (currentMs >= manager.getDurationMs() - 100) {
+        manager.seekMs(0);
+      }
       lastAudioMsRef.current = manager.getCurrentMs();
       // The audio element is the clock this loop reads from every frame —
       // without starting it, getCurrentMs() stays frozen at 0 forever and
