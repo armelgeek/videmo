@@ -30,16 +30,39 @@ function withReveal(
 export function applyEditorEdit(
   edit: TimelineEdit,
   annotations: Annotation[],
+  /**
+   * Hard end of the video, when something other than the drawing sets it —
+   * a narration track. An annotation may then not be stretched past it.
+   *
+   * Left undefined when the annotations themselves define the length: the
+   * video would simply grow with them, and capping would make the clip
+   * impossible to lengthen at all.
+   */
+  maxEndMs?: number,
 ): Annotation[] {
   switch (edit.kind) {
-    case "resize-duration":
+    case "resize-duration": {
+      const requested = Math.max(MIN_DURATION_MS, toMs(edit.durationSeconds));
+      let durationMs = requested;
+
+      if (maxEndMs !== undefined) {
+        // Positions are derived, never stored, so the room left is measured
+        // on the recomputed start rather than on anything the clip carries.
+        const entry = deriveTimeline(annotations).annotations.find(
+          (a) => a.id === edit.id,
+        );
+        if (entry) {
+          const room = maxEndMs - (entry.reveal.startMs ?? 0);
+          durationMs = Math.max(MIN_DURATION_MS, Math.min(requested, room));
+        }
+      }
+
       return annotations.map((annotation) =>
         annotation.id === edit.id
-          ? withReveal(annotation, {
-              durationMs: Math.max(MIN_DURATION_MS, toMs(edit.durationSeconds)),
-            })
+          ? withReveal(annotation, { durationMs })
           : annotation,
       );
+    }
 
     case "resize-gap":
       return annotations.map((annotation) =>

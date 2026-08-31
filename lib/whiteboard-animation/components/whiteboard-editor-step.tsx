@@ -7,9 +7,15 @@ import { TranscriptPanel } from "./transcript-panel";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
+import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
+import {
+  toEngineAnnotations,
+  toStoredAnnotations,
+} from "../timeline/annotation-interop";
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
 import { AudioTrackRow } from "./audio-track-row";
+import { TimelinePlayhead } from "./timeline-playhead";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
 
@@ -31,7 +37,8 @@ export function WhiteboardEditorStep({
 }: WhiteboardEditorStepProps) {
   // Shared so the narration lane lines up with the timeline ruler above it.
   const [timelineViewport, setTimelineViewport] = useState<
-    { scrollLeft: number; contentWidth: number; zoomLevel: number } | undefined
+    | { scrollEl: HTMLElement | null; contentWidth: number; zoomLevel: number }
+    | undefined
   >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -74,7 +81,24 @@ export function WhiteboardEditorStep({
     // The video lasts as long as its narration, and this length survives a
     // media element that stalls before reporting one.
     audioDurationMs: config.audio?.durationMs ?? null,
+    savedAnnotations: config.annotations
+      ? toEngineAnnotations(config.annotations)
+      : null,
   });
+
+  // Mirror timeline edits into the saved project. The editor works on the
+  // engine store, which is memory only; the persisted copy lives in
+  // whiteboardConfig, and nothing connected the two — so resizing a clip
+  // survived until the next reload and no further.
+  const engineAnnotations = useUnifiedEngineStore(
+    (s) => s.animation.annotations,
+  );
+  useEffect(() => {
+    // Never write an empty set: on mount the engine store is still empty and
+    // this would erase the very annotations we are about to seed from.
+    if (engineAnnotations.length === 0) return;
+    onConfigChange({ annotations: toStoredAnnotations(engineAnnotations) });
+  }, [engineAnnotations]);
 
   // Sync config with engine (Zustand setters are stable, safe to use without listing as deps)
   useEffect(() => {
@@ -135,6 +159,7 @@ export function WhiteboardEditorStep({
         <div className="relative">
           <AnnotationTimeline onViewportChange={setTimelineViewport} />
           <AudioTrackRow viewport={timelineViewport} />
+          <TimelinePlayhead viewport={timelineViewport} />
         </div>
 
         {/* Play/pause lives in the timeline toolbar; only reset is extra. */}

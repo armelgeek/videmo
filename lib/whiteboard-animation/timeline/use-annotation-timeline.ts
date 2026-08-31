@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { TimelineClip } from "@/lib/editor/types";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
+import { useStoryboardStore } from "@/lib/storyboard/store";
 import { applyEditorEdit, type TimelineEdit } from "./apply-editor-edit";
 import { deriveTimeline } from "./derive-timeline";
 import { interpretClipUpdate } from "./interpret-clip-update";
@@ -22,6 +23,11 @@ export function useAnnotationTimeline() {
   const annotations = useUnifiedEngineStore((s) => s.animation.annotations);
   const currentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
   const videoDuration = useUnifiedEngineStore((s) => s.timeline.duration);
+  // Read from the project rather than inferred from the timeline: it must stay
+  // a fixed ceiling for the whole of a drag.
+  const narrationMs = useStoryboardStore(
+    (s) => s.whiteboardConfig.audio?.durationMs ?? 0,
+  );
   const isPlaying = useUnifiedEngineStore((s) => s.timeline.isPlaying);
   const fps = useUnifiedEngineStore((s) => s.timeline.fps);
   const selectedClipId = useUnifiedEngineStore((s) => s.ui.selectedClipId);
@@ -43,9 +49,20 @@ export function useAnnotationTimeline() {
 
   const edit = useCallback(
     (change: TimelineEdit) => {
-      setAnnotations(applyEditorEdit(change, annotations));
+      // The cap is the NARRATION, not the current video length.
+      //
+      // A drag calls this on every mousemove. Deriving the cap from
+      // `videoDuration > drawingMs` made it disappear the instant the first
+      // clamp brought the drawing up to the video length: the condition went
+      // false and the rest of the drag ran unclamped, so a clip could still be
+      // stretched well past the end.
+      //
+      // With no narration the annotations themselves define the length, the
+      // video simply grows with them, and capping would freeze them.
+      const capMs = narrationMs > 0 ? narrationMs : undefined;
+      setAnnotations(applyEditorEdit(change, annotations, capMs));
     },
-    [annotations, setAnnotations],
+    [annotations, setAnnotations, narrationMs],
   );
 
   const onClipUpdate = useCallback(

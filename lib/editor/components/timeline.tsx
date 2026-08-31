@@ -76,13 +76,29 @@ interface TimelineProps {
    */
   endPadding?: number;
   /**
+   * Hide the scroll bars while keeping the area scrollable. The annotation
+   * timeline is only a few rows tall, where a permanent bar eats a visible
+   * slice of the lane for little benefit.
+   */
+  hideScrollbar?: boolean;
+  /**
+   * Draw this component's own playhead. False when the host renders a single
+   * cursor spanning several lanes, which would otherwise sit on top of it.
+   */
+  showPlayhead?: boolean;
+  /**
    * Reports the horizontal viewport so a lane rendered OUTSIDE this component
    * can line up with the ruler: same pixels-per-second, same scroll offset.
    * Without it such a lane keeps its own scale and drifts away from the
    * playhead as soon as the timeline is scrolled or zoomed.
+   *
+   * The scroll ELEMENT is handed over rather than its offset: auto-scroll
+   * during playback moves it ~22 times a second, and pushing that through
+   * React state re-rendered the whole subtree at the same rate. Consumers
+   * listen on the element and update themselves imperatively.
    */
   onViewportChange?: (viewport: {
-    scrollLeft: number;
+    scrollEl: HTMLElement | null;
     contentWidth: number;
     zoomLevel: number;
   }) => void;
@@ -142,6 +158,8 @@ export const Timeline = memo(function Timeline({
   onOverwriteClips,
   endPadding,
   onViewportChange,
+  showPlayhead = true,
+  hideScrollbar = false,
 }: TimelineProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const headerContainerRef = useRef<HTMLDivElement>(null);
@@ -186,10 +204,15 @@ export const Timeline = memo(function Timeline({
     return Math.max(calculatedWidth, viewportWidth || 800);
   }, [clips, currentTime, duration, zoomLevel, viewportWidth, endPadding]);
 
-  // Publish the viewport for lanes rendered outside this component.
+  // Publish the viewport for lanes rendered outside this component. Scroll
+  // offset is deliberately NOT a dependency — see onViewportChange's contract.
   useEffect(() => {
-    onViewportChange?.({ scrollLeft, contentWidth: totalWidth, zoomLevel });
-  }, [onViewportChange, scrollLeft, totalWidth, zoomLevel]);
+    onViewportChange?.({
+      scrollEl: scrollContainerRef.current,
+      contentWidth: totalWidth,
+      zoomLevel,
+    });
+  }, [onViewportChange, totalWidth, zoomLevel]);
 
   const {
     snapConfig,
@@ -450,7 +473,11 @@ export const Timeline = memo(function Timeline({
                 scrollContainerRef.current.scrollTop;
             }
           }}
-          className="flex-1 overflow-x-auto overflow-y-auto relative bg-[var(--surface-0)] custom-scrollbar"
+          className={`flex-1 overflow-x-auto overflow-y-auto relative bg-[var(--surface-0)] ${
+            hideScrollbar
+              ? "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              : "custom-scrollbar"
+          }`}
           onMouseDown={(e) => {
             const target = e.target as HTMLElement;
             if (!target.closest("[data-clip]")) {
@@ -510,6 +537,7 @@ export const Timeline = memo(function Timeline({
                 style={{ width: `${totalWidth}px` }}
               >
                 {/* Playhead Line (Interactive) */}
+                {showPlayhead && (
                 <div
                   className="absolute top-0 bottom-0 z-50 group/playhead"
                   style={{
@@ -542,6 +570,7 @@ export const Timeline = memo(function Timeline({
                     }`}
                   />
                 </div>
+                )}
 
                 {/* Snap Indicator Line */}
                 {snapIndicator !== null && (

@@ -207,3 +207,73 @@ describe("applyEditorEdit — general", () => {
     expect(result).toEqual(sequence);
   });
 });
+
+describe("resize-duration against the video length", () => {
+  // "a" starts at 300ms (its own gap) and runs 1000ms.
+  const seq = [annotation("a", 1000, 300), annotation("b", 1000)];
+
+  it("caps a clip at the end of the video", () => {
+    const out = applyEditorEdit(
+      { kind: "resize-duration", id: "a", durationSeconds: 9 },
+      seq,
+      2000,
+    );
+    // 300ms in, so 1700ms of room — not the 9000ms asked for.
+    expect(out[0].reveal.durationMs).toBe(1700);
+    const derived = deriveTimeline(out);
+    expect(derived.annotations[0].reveal.to).toBe(2000);
+  });
+
+  it("leaves a clip that fits untouched", () => {
+    const out = applyEditorEdit(
+      { kind: "resize-duration", id: "a", durationSeconds: 1.2 },
+      seq,
+      5000,
+    );
+    expect(out[0].reveal.durationMs).toBe(1200);
+  });
+
+  it("never caps below the minimum, even with no room left", () => {
+    const out = applyEditorEdit(
+      { kind: "resize-duration", id: "a", durationSeconds: 5 },
+      seq,
+      300,
+    );
+    expect(out[0].reveal.durationMs).toBe(MIN_DURATION_MS);
+  });
+
+  it("does not cap when the annotations themselves set the length", () => {
+    // The trap: with no narration the video IS the drawing, so capping to it
+    // would make every clip impossible to lengthen. The caller passes no cap.
+    const out = applyEditorEdit(
+      { kind: "resize-duration", id: "a", durationSeconds: 9 },
+      seq,
+    );
+    expect(out[0].reveal.durationMs).toBe(9000);
+  });
+});
+
+describe("resizing repeatedly, as a drag does", () => {
+  it("keeps clamping across successive calls of one drag", () => {
+    // The regression: a drag calls the edit on every mousemove. When the cap
+    // was derived from "is the video longer than the drawing", the first clamp
+    // made the drawing exactly as long as the video, the condition went false,
+    // and every later call of the SAME drag ran unclamped.
+    const seq = [annotation("a", 1000, 300), annotation("b", 1000)];
+    const CAP = 3000;
+
+    let current = seq;
+    for (const seconds of [2, 4, 8, 16]) {
+      current = applyEditorEdit(
+        { kind: "resize-duration", id: "b", durationSeconds: seconds },
+        current,
+        CAP,
+      );
+      const total = deriveTimeline(current).totalDurationMs;
+      expect(total).toBeLessThanOrEqual(CAP);
+    }
+
+    // "b" starts at 1300ms, so it can only ever reach 1700ms.
+    expect(current[1].reveal.durationMs).toBe(1700);
+  });
+});

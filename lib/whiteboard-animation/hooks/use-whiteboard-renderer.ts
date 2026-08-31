@@ -8,10 +8,11 @@ import {
   projectAnnotations,
 } from '../data/scene-premium-bag';
 import { rectContenu, reprojeterRegion, type RectContenu } from '../canvas-size';
+import type { Annotation } from '@/lib/unified-engine/types';
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { normalizeGaps } from '../timeline/normalize-gaps';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
-import { computeAudioDelta } from './audio-delta';
+import { DRIFT_MAX_MS } from './audio-delta';
 import { useAudioClock } from '../audio/use-audio-clock';
 
 const AnimationFactory = require('../lib/index');
@@ -30,6 +31,33 @@ const SCENE_IMAGE = '/scene-premium-bag.png';
  * projets deja enregistres mais n'est plus lu.
  */
 const ENGINE_DEFAULT_SPEED = 40;
+
+/**
+ * A gap this long is not a slow frame, it is rAF having been parked — a
+ * backgrounded tab, a blocked main thread. That time was not animated and
+ * must not be replayed as one jump, so it is dropped and the narration
+ * realigns instead.
+ *
+ * Ordinary slow frames are NOT clamped: a frame that really took 300ms
+ * consumed 300ms of the video. The old blanket 100ms ceiling silently lost
+ * everything past it, which is why a heavy style took ~16s to play 11.2s of
+ * timeline (WHITEBOARD_EDITOR_TODO 3.2).
+ */
+const BIG_GAP_MS = 1000;
+
+/**
+ * Minimum spacing between two corrections of the narration. Each one is a
+ * seek, and a seek is audible; without a floor a persistent offset would be
+ * "corrected" on every frame and turn into a stutter.
+ */
+const RESYNC_COOLDOWN_MS = 1000;
+
+/**
+ * Gap between the store's time and the engine's own that means somebody moved
+ * the playhead. During playback the engine writes both on every tick, so they
+ * sit on top of each other; anything wider came from outside.
+ */
+const EXTERNAL_SEEK_MS = 100;
 
 /**
  * Paliers d'assets de main, du plus petit au plus grand. CUSTOM_HANDS decrit
@@ -79,6 +107,12 @@ export interface UseWhiteboardRendererProps {
    * duration.
    */
   audioDurationMs?: number | null;
+  /**
+   * Annotations restored from the saved project. Preferred over the demo
+   * scene when seeding: without this, a reopened project silently came back
+   * with the demo sequence and every edit made to it was lost.
+   */
+  savedAnnotations?: Annotation[] | null;
 }
 
 export function useWhiteboardRenderer({
@@ -91,6 +125,7 @@ export function useWhiteboardRenderer({
   audioVolume = 1,
   audioMuted = false,
   audioDurationMs = null,
+  savedAnnotations = null,
 }: UseWhiteboardRendererProps) {
   const {
     progress,
@@ -141,9 +176,6 @@ export function useWhiteboardRenderer({
   // running: with narration longer than the schedule, the finished image is
   // held on screen while the audio plays out.
   const drawingDoneRef = useRef(false);
-  // Last audio-clock reading consumed by the rAF loop. Distinct from
-  // engineTimeRef, which tracks what the engine itself has rendered to.
-  const lastAudioMsRef = useRef(0);
 
   // Muted still plays (silently) to keep serving as the clock — only volume
   // and the mute flag change, never whether it plays.
@@ -202,6 +234,15 @@ export function useWhiteboardRenderer({
     if (!seededRef.current && store.animation.annotations.length === 0) {
       seededRef.current = true;
       rectRef.current = rect;
+
+      // A saved project wins over the demo scene. Its regions are already in
+      // canvas pixels from the session that wrote them, so they are taken as
+      // they are; only the demo sequence needs projecting onto the artwork.
+      if (savedAnnotations && savedAnnotations.length > 0) {
+        store.setAnnotations(savedAnnotations);
+        return;
+      }
+
       // normalizeGaps turns the authored absolute startMs into the derived
       // model (order + duration + gap) the timeline editor works with.
       // Les regions sont projetees sur le RECTANGLE D'ARTWORK, pas sur le
@@ -443,6 +484,97 @@ export function useWhiteboardRenderer({
     return anim;
   };
 
+  /**
+   * Repaint the drawing as it stands at `targetMs`, leaving a live engine
+   * primed there.
+   *
+   * Shared by scrubbing and by a seek made DURING playback: a running loop
+   * cannot simply be told a new time, because the engine only ticks forward
+   * and its next frame would write the old position straight back.
+   */
+  const repositionTo = (
+    targetMs: number,
+    canvas: HTMLCanvasElement,
+    handCanvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+    hctx: CanvasRenderingContext2D
+  ) => {
+    const offscreen = ensureOffscreen(canvas);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    paintBackground(ctx, canvas.width, canvas.height);
+    hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+
+    stoppedRef.current = false;
+    seekingRef.current = true;
+    try {
+      const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
+      const schedule = anim.annotationManager?.schedule;
+
+      // Le moteur tournant au 1x fidele, son horloge avance exactement du
+      // delta fourni : le pas du rejeu est donc la ms demandee.
+      const advance = (from: number, to: number) => {
+        for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
+          if (stoppedRef.current) break;
+          const slice = Math.min(SEEK_STEP_MS, to - elapsed);
+          anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
+        }
+      };
+
+      if (!schedule || schedule.length === 0) {
+        // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
+        // depuis le debut donne la bonne image.
+        advance(0, targetMs);
+      } else {
+        // Premiere region non terminee a cet instant.
+        const idx = schedule.findIndex((s: any) => targetMs < s.endMs);
+
+        if (idx === -1) {
+          // Apres la derniere region : le moteur tamponne toute l'image en
+          // terminant, y compris ce qu'aucune region ne couvre.
+          const rf = rectArtwork(canvas);
+          ctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
+        } else {
+          for (let i = 0; i < idx; i++) {
+            const rect = regionRect(schedule[i].annot.region, canvas);
+            if (rect) {
+              ctx.drawImage(
+                offscreen,
+                rect.x, rect.y, rect.w, rect.h,
+                rect.x, rect.y, rect.w, rect.h
+              );
+            }
+          }
+
+          const entry = schedule[idx];
+          if (targetMs >= entry.startMs) {
+            // Dans la region : on repart de sa frontiere, deja peinte.
+            anim.primeAt?.(entry.startMs);
+            advance(entry.startMs, targetMs);
+          } else {
+            // Dans une pause entre deux annotations : rien de plus a tracer,
+            // et la main n'a pas a rester figee sur le dernier trait.
+            anim.primeAt?.(targetMs);
+          }
+        }
+      }
+
+      // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
+      // l'instance est consommee, un Play repartira du debut.
+      animRef.current = stoppedRef.current ? null : anim;
+    } catch (err) {
+      console.error('Failed to seek animation engine:', err);
+    } finally {
+      seekingRef.current = false;
+      stoppedRef.current = false;
+      // Seeking redefines whether the drawing is behind us: landing before
+      // the end of the schedule must let playback rebuild and draw again.
+      drawingDoneRef.current =
+        drawingSpanRef.current > 0 && targetMs >= drawingSpanRef.current;
+    }
+
+    engineTimeRef.current = targetMs;
+  };
+
   useEffect(() => {
     // Pausing must freeze the frame: keep the instance and the painted canvas
     // so resuming continues instead of restarting.
@@ -492,116 +624,94 @@ export function useWhiteboardRenderer({
     let last = performance.now();
     let isFirstFrame = true;
     const manager = audioClock.manager;
-    if (manager) {
-      // The narration IS the clock, so it has to start from where the timeline
-      // is. Reset and scrubbing move the timeline only; leaving the element
-      // where it was let it drag the drawing to that position on the next play
-      // — a Reset then Play would jump straight back to the old spot.
-      // Tolerance, not equality: seeking re-buffers, and a plain resume leaves
-      // a few ms of gap. Correcting that on every pause/play reloaded the
-      // track each time and stuttered the drawing for nothing.
-      const timelineMs = useUnifiedEngineStore.getState().timeline.currentTime;
-      if (Math.abs(manager.getCurrentMs() - timelineMs) > 250) {
-        manager.seekMs(timelineMs);
-      }
-      lastAudioMsRef.current = manager.getCurrentMs();
-      // The audio element is the clock this loop reads from every frame —
-      // without starting it, getCurrentMs() stays frozen at 0 forever and
-      // the engine never advances.
-      manager.play().catch((err) => {
-        console.error('Failed to start audio playback:', err);
-      });
-    }
-    // Whether the audio drove the previous frame. A stalled track can become
-    // usable mid-run, and the switch needs handling (see below).
-    let wasAudioClock = false;
-    // Guards that hand-over against repeating: one correction per run.
-    let didHandover = false;
+    // The narration is NOT started here. An element that is not ready yet
+    // would play from a stale position and come in behind the drawing, so
+    // starting it is deferred to the loop, which aligns it the moment it can
+    // actually play. The drawing never waits for that.
+    let audioStarted = false;
+    let lastResyncAt = 0;
 
     const step = (now: number) => {
       if (stoppedRef.current) return;
 
-      // A loaded track is not yet a running clock: a stalled load sits at
-      // readyState 0 forever without firing `error`. Deciding per frame — not
-      // once at start — keeps a stalled track from freezing the animation, and
-      // lets a slow one take over as soon as it is genuinely ready.
-      const audioClockLive = manager?.isUsableClock() ?? false;
-
-      // After pause/resume, first frame timing can be stale — sync to current position
+      // The first frame after a start or a resume carries a stale timestamp.
       if (isFirstFrame) {
-        if (manager && audioClockLive) lastAudioMsRef.current = manager.getCurrentMs();
         last = now;
         isFirstFrame = false;
-        wasAudioClock = audioClockLive;
+        frame = requestAnimationFrame(step);
+        return;
+      }
+
+      // The WALL CLOCK owns the timeline. The engine only ticks forward and
+      // cannot be moved backwards, so driving it from a media element — which
+      // buffers, seeks, stalls and ends — meant any hiccup there stopped the
+      // drawing outright.
+      const rawDelta = now - last;
+      last = now;
+      // A real slow frame is honoured in full; only a parked rAF is dropped.
+      const parked = rawDelta > BIG_GAP_MS;
+      const delta = parked ? 0 : rawDelta;
+
+      const s = useUnifiedEngineStore.getState();
+
+      // The playhead can be moved WHILE playing — clicking the ruler, say.
+      // currentTime is an INPUT then, not the engine's own output: the engine
+      // has to be replayed to the new position, or the very next tick writes
+      // the old one back and the click looks like it did nothing.
+      if (
+        Math.abs(s.timeline.currentTime - engineTimeRef.current) >
+        EXTERNAL_SEEK_MS
+      ) {
+        repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
+        if (manager?.isUsableClock()) {
+          manager.seekMs(engineTimeRef.current);
+          lastResyncAt = now;
+        }
         frame = requestAnimationFrame(step);
         return;
       }
 
       if (drawingDoneRef.current) {
-        // Drawing complete, narration still running: hold the image and just
-        // advance the clock so the run ends at the video duration.
-        const s = useUnifiedEngineStore.getState();
-        const next =
-          manager && audioClockLive
-            ? manager.getCurrentMs()
-            : s.timeline.currentTime + Math.min(100, now - last);
+        // Drawing complete, narration still running: hold the image and run
+        // the clock out to the end of the video.
+        const next = s.timeline.currentTime + delta;
         engineTimeRef.current = next;
         s.setCurrentTime(next);
-      } else if (manager && audioClockLive) {
-        if (!wasAudioClock) {
-          // The track just became usable while the wall clock was driving.
-          // Move the audio to where the drawing already is, rather than
-          // letting the drift check yank the drawing back to the audio's 0.
-          //
-          // At most ONE correction per run, and only for a gap worth fixing.
-          // Seeking re-buffers, which drops the element below "usable" and
-          // sends the next frame down the wall-clock branch, which re-arms
-          // this handover — so correcting unconditionally ping-ponged
-          // seek/re-buffer forever and the engine was never ticked at all.
-          if (!didHandover) {
-            didHandover = true;
-            if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > 250) {
-              manager.seekMs(engineTimeRef.current);
-            }
-          }
-          lastAudioMsRef.current = manager.getCurrentMs();
-          wasAudioClock = true;
-          last = now;
-          frame = requestAnimationFrame(step);
-          return;
-        }
-
-        const audioNowMs = manager.getCurrentMs();
-        const { deltaMs, nextLastAudioMs, needsResync, resyncTargetMs } =
-          computeAudioDelta({
-            audioNowMs,
-            lastAudioMs: lastAudioMsRef.current,
-            engineTimeMs: engineTimeRef.current,
-          });
-        lastAudioMsRef.current = nextLastAudioMs;
-
-        if (needsResync) {
-          // Re-sync via the existing bounded seek path: writing currentTime
-          // through the store re-triggers the seek effect below, which
-          // replays only the active region (14-34ms), not the whole timeline.
-          useUnifiedEngineStore.getState().setCurrentTime(resyncTargetMs);
-        } else if (deltaMs > 0) {
-          animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, deltaMs);
-          engineTimeRef.current += deltaMs;
-        }
       } else {
-        // No audio, or a track that is not yet a running clock: fall back to
-        // wall-clock timing so the animation plays instead of freezing.
-        wasAudioClock = false;
-        const delta = Math.min(100, now - last);
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
+      }
+
+      // The narration FOLLOWS the drawing. A track that cannot report a
+      // position is left alone rather than allowed to hold up the picture.
+      if (manager?.isUsableClock()) {
+        if (!audioStarted) {
+          // First moment it can actually play. Align it on the drawing, which
+          // has been running meanwhile, so a track that took a while to load
+          // does not come in behind and then have to be dragged forward.
+          if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > DRIFT_MAX_MS) {
+            manager.seekMs(engineTimeRef.current);
+          }
+          manager.play().catch((err) => {
+            console.error('Failed to start audio playback:', err);
+          });
+          audioStarted = true;
+          lastResyncAt = now;
+        } else if (parked || now - lastResyncAt > RESYNC_COOLDOWN_MS) {
+          // Correcting is a seek, and a seek is audible: rate-limited, so a
+          // renderer that cannot keep up drifts audibly once a second instead
+          // of stuttering every frame. A parked tab is realigned immediately —
+          // the offset there is the whole time away, not jitter.
+          if (Math.abs(manager.getCurrentMs() - engineTimeRef.current) > DRIFT_MAX_MS) {
+            manager.seekMs(engineTimeRef.current);
+            lastResyncAt = now;
+          }
+        }
       }
 
       // Annotation styles finish their schedule without ever calling
       // finishAnim, which left the transport running past the end: the button
       // stayed on Pause and the run was never marked stopped. Ending it here
       // makes "finished" observable to the rest of the renderer.
-      const s = useUnifiedEngineStore.getState();
       if (
         s.timeline.duration > 0 &&
         s.timeline.currentTime >= s.timeline.duration - 1
@@ -615,7 +725,6 @@ export function useWhiteboardRenderer({
         return;
       }
 
-      last = now;
       if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
     frame = requestAnimationFrame(step);
@@ -676,80 +785,7 @@ export function useWhiteboardRenderer({
 
     // Un drag emet un flot de seeks : on n'en rejoue qu'un par frame.
     const raf = requestAnimationFrame(() => {
-      const offscreen = ensureOffscreen(canvas);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      paintBackground(ctx, canvas.width, canvas.height);
-      hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
-
-      stoppedRef.current = false;
-      seekingRef.current = true;
-      try {
-        const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
-        const schedule = anim.annotationManager?.schedule;
-
-        // Le moteur tournant au 1x fidele, son horloge avance exactement du
-        // delta fourni : le pas du rejeu est donc la ms demandee.
-        const advance = (from: number, to: number) => {
-          for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
-            if (stoppedRef.current) break;
-            const slice = Math.min(SEEK_STEP_MS, to - elapsed);
-            anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
-          }
-        };
-
-        if (!schedule || schedule.length === 0) {
-          // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
-          // depuis le debut donne la bonne image.
-          advance(0, currentTime);
-        } else {
-          // Premiere region non terminee a cet instant.
-          const idx = schedule.findIndex((s: any) => currentTime < s.endMs);
-
-          if (idx === -1) {
-            // Apres la derniere region : le moteur tamponne toute l'image en
-            // terminant, y compris ce qu'aucune region ne couvre.
-            const rf = rectArtwork(canvas);
-            ctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
-          } else {
-            for (let i = 0; i < idx; i++) {
-              const rect = regionRect(schedule[i].annot.region, canvas);
-              if (rect) {
-                ctx.drawImage(
-                  offscreen,
-                  rect.x, rect.y, rect.w, rect.h,
-                  rect.x, rect.y, rect.w, rect.h
-                );
-              }
-            }
-
-            const entry = schedule[idx];
-            if (currentTime >= entry.startMs) {
-              // Dans la region : on repart de sa frontiere, deja peinte.
-              anim.primeAt?.(entry.startMs);
-              advance(entry.startMs, currentTime);
-            } else {
-              // Dans une pause entre deux annotations : rien de plus a tracer,
-              // et la main n'a pas a rester figee sur le dernier trait.
-              anim.primeAt?.(currentTime);
-            }
-          }
-        }
-
-        // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
-        // l'instance est consommee, un Play repartira du debut.
-        animRef.current = stoppedRef.current ? null : anim;
-      } catch (err) {
-        console.error('Failed to seek animation engine:', err);
-      } finally {
-        seekingRef.current = false;
-        stoppedRef.current = false;
-        // Seeking redefines whether the drawing is behind us: landing before
-        // the end of the schedule must let playback rebuild and draw again.
-        drawingDoneRef.current =
-          drawingSpanRef.current > 0 && currentTime >= drawingSpanRef.current;
-      }
-
-      engineTimeRef.current = currentTime;
+      repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
     });
 
     return () => cancelAnimationFrame(raf);
