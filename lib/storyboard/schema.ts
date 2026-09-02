@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AnnotationSchema } from "@/lib/whiteboard-animation/schema";
 
 export const videoModelSchema = z.enum([
   "veo3.1-fast",
@@ -21,15 +22,20 @@ export type ProjectParams = z.infer<typeof projectParamsSchema>;
 
 export const storyboardPanelSchema = z.object({
   id: z.string(),
+  title: z.string().optional(),
+  clipType: z.string().optional(),
   imageUrl: z.string(),
   linkedImageUrl: z.string().optional(),
   prompt: z.string(),
+  narration: z.string().optional(),
+  visualPrompt: z.string().optional(),
   duration: z.number().default(5),
   videoUrl: z.string().optional(),
   audioUrl: z.string().optional(),
   isGenerating: z.boolean().default(false),
   error: z.string().optional(),
   model: videoModelSchema.optional(),
+  annotations: z.array(AnnotationSchema).optional(),
 });
 export type StoryboardPanel = z.infer<typeof storyboardPanelSchema>;
 

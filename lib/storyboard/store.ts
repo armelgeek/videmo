@@ -69,6 +69,7 @@ export interface StoryboardStoreState {
   projectParams: ProjectParams;
   script: string;
   storyboardPanels: StoryboardPanel[];
+  activeClipIndex: number;
   selectedVoice: string;
   isGenerating: boolean;
   whiteboardConfig: WhiteboardConfig;
@@ -80,6 +81,7 @@ export interface StoryboardStoreState {
   setProjectParams: (params: Partial<ProjectParams>) => void;
   setScript: (script: string) => void;
   setStoryboardPanels: (panels: StoryboardPanel[]) => void;
+  setActiveClipIndex: (index: number) => void;
   updatePanel: (id: string, updates: Partial<StoryboardPanel>) => void;
   setSelectedVoice: (voiceId: string) => void;
   setIsGenerating: (isGenerating: boolean) => void;
@@ -213,6 +215,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
       projectParams: DEFAULT_PROJECT_PARAMS,
       script: "",
       storyboardPanels: [],
+      activeClipIndex: 0,
       selectedVoice: "default",
       isGenerating: false,
       whiteboardConfig: DEFAULT_WHITEBOARD_CONFIG,
@@ -227,6 +230,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
       setScript: (script: string) => set({ script }),
       setStoryboardPanels: (storyboardPanels: StoryboardPanel[]) =>
         set({ storyboardPanels }),
+      setActiveClipIndex: (activeClipIndex: number) => set({ activeClipIndex }),
       updatePanel: (id: string, updates: Partial<StoryboardPanel>) =>
         set((state) => ({
           storyboardPanels: state.storyboardPanels.map((p) =>
@@ -317,6 +321,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
             duration: p.duration,
             videoUrl: p.videoUrl,
             audioUrl: p.audioUrl,
+            annotations: (p as any).annotations,
             isGenerating: false,
           }),
         );
@@ -349,15 +354,16 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
         const aspectRatio = state.projectParams.aspectRatio || "16:9";
 
         state.storyboardPanels.forEach((p: StoryboardPanel, i: number) => {
-          if (p.videoUrl) {
+          const mediaUrl = p.videoUrl || p.imageUrl;
+          if (mediaUrl) {
             mediaList.push({
               id: `media-video-${p.id || i}`,
-              url: p.videoUrl,
-              prompt: p.prompt,
-              duration: p.duration,
+              url: mediaUrl,
+              prompt: p.prompt || p.visualPrompt || p.narration || "",
+              duration: p.duration || 5,
               aspectRatio,
               status: "ready",
-              type: "video",
+              type: p.videoUrl ? "video" : "image",
               resolution: { width: 1280, height: 720 },
             });
           }
@@ -365,8 +371,8 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
             mediaList.push({
               id: `media-audio-${p.id || i}`,
               url: p.audioUrl,
-              prompt: `Audio: ${p.prompt}`,
-              duration: p.duration,
+              prompt: `Audio: ${p.prompt || p.narration || ""}`,
+              duration: p.duration || 5,
               aspectRatio,
               status: "ready",
               type: "audio",
@@ -384,14 +390,15 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
         let startTime = 0;
 
         state.storyboardPanels.forEach((p: StoryboardPanel, i: number) => {
-          if (p.videoUrl) {
+          const mediaUrl = p.videoUrl || p.imageUrl;
+          if (mediaUrl) {
             clips.push({
               speed: 1,
               id: `clip-${p.id || i}`,
               mediaId: `media-video-${p.id || i}`,
               trackId: "v1",
               start: startTime,
-              duration: p.duration,
+              duration: p.duration || 5,
               offset: 0,
             });
           }
@@ -402,11 +409,11 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
               mediaId: `media-audio-${p.id || i}`,
               trackId: "a1",
               start: startTime,
-              duration: p.duration,
+              duration: p.duration || 5,
               offset: 0,
             });
           }
-          startTime += p.duration;
+          startTime += p.duration || 5;
         });
 
         return clips;

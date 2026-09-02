@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import type { Annotation } from "@/lib/unified-engine/types";
 import type { TimelineClip } from "@/lib/editor/types";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { useStoryboardStore } from "@/lib/storyboard/store";
@@ -16,11 +17,15 @@ const MAX_ZOOM = 400;
 /**
  * Wires the unified engine store to the NLE timeline component.
  *
- * Every write funnels through applyEditorEdit, so the derived model is the only
- * thing that ever reaches the store.
+ * When `globalAnnotations` is provided, the timeline displays that sequence
+ * (all clips chained) while the engine store keeps only the active panel's
+ * annotations for canvas rendering. Writes still go through applyEditorEdit
+ * on the active-panel annotations in the store.
  */
-export function useAnnotationTimeline() {
-  const annotations = useUnifiedEngineStore((s) => s.animation.annotations);
+export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
+  const storeAnnotations = useUnifiedEngineStore((s) => s.animation.annotations);
+  /** Source of truth for DISPLAY: global sequence when provided, active panel otherwise. */
+  const annotations = globalAnnotations ?? storeAnnotations;
   const currentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
   const videoDuration = useUnifiedEngineStore((s) => s.timeline.duration);
   // Read from the project rather than inferred from the timeline: it must stay

@@ -33,6 +33,8 @@ import {
   Volume2,
   Users,
   Download,
+  Copy,
+  Plus,
 } from "lucide-react";
 import Image from "next/image";
 import { DEMO_FINAL_SEQUENCE } from "@/lib/demo-data";
@@ -308,49 +310,160 @@ export default function StoryboardPage() {
     }
   }, [step]);
 
-  // Initialize editable clips when storyboardData changes
+  const syncClipsToStore = (clipsToSync: any[], imagesToSync: string[]) => {
+    const panels = clipsToSync
+      .filter((clip) => !clip.isSection)
+      .map((clip, i) => {
+        const image =
+          imagesToSync[i] ||
+          clip.imageUrl ||
+          DEMO_FINAL_SEQUENCE.storyboard[i % DEMO_FINAL_SEQUENCE.storyboard.length]?.imageUrl ||
+          "";
+        const prompt = clip.visualPrompt || clip.summary || clip.title || `Clip ${i + 1}`;
+        return {
+          id: clip.id || `sb-clip-${i}`,
+          title: clip.title || `Clip ${i + 1}`,
+          clipType: clip.clipType || "content",
+          imageUrl: image,
+          prompt,
+          narration: clip.summary || clip.narration || "",
+          visualPrompt: clip.visualPrompt || clip.summary || prompt,
+          duration: typeof clip.duration === "number" ? clip.duration : 5,
+          isGenerating: false,
+        };
+      });
+    setStoryboardPanels(panels);
+  };
+
+  // Initialize editable clips when storyboardData changes or step is storyboard
   useEffect(() => {
-    if (storyboardData?.storyboard?.clipOutlines) {
-      setEditableClips(storyboardData.storyboard.clipOutlines);
+    if (step === "storyboard") {
+      if (storyboardData?.storyboard?.clipOutlines && storyboardData.storyboard.clipOutlines.length > 0) {
+        const formattedClips = storyboardData.storyboard.clipOutlines.map((c: any, idx: number) => ({
+          id: c.id || `clip-${idx}`,
+          index: idx,
+          clipType: c.clipType || "content",
+          title: c.title || `Clip ${idx + 1}`,
+          summary: c.summary || c.narration || "",
+          visualPrompt: c.visualPrompt || c.summary || `Visual for clip ${idx + 1}`,
+          duration: typeof c.duration === "number" ? c.duration : 5,
+          isSection: !!c.isSection,
+        }));
+        setEditableClips(formattedClips);
+        if (generatedImages.length === 0) {
+          const initialImgs = formattedClips.map((_: any, i: number) =>
+            DEMO_FINAL_SEQUENCE.storyboard[i % DEMO_FINAL_SEQUENCE.storyboard.length]?.imageUrl || ""
+          );
+          setGeneratedImages(initialImgs);
+          syncClipsToStore(formattedClips, initialImgs);
+        } else {
+          syncClipsToStore(formattedClips, generatedImages);
+        }
+      } else if (editableClips.length === 0) {
+        const demoClips = DEMO_FINAL_SEQUENCE.storyboard.map((p, idx) => ({
+          id: `clip-${idx}`,
+          index: idx,
+          clipType: idx === 0 ? "intro" : idx === DEMO_FINAL_SEQUENCE.storyboard.length - 1 ? "outro" : "content",
+          title: `Scene ${idx + 1}`,
+          summary: p.prompt,
+          visualPrompt: p.prompt,
+          duration: p.duration || 5,
+          isSection: false,
+        }));
+        const demoImgs = DEMO_FINAL_SEQUENCE.storyboard.map((p) => p.imageUrl);
+        setEditableClips(demoClips);
+        setGeneratedImages(demoImgs);
+        syncClipsToStore(demoClips, demoImgs);
+        if (!storyboardData) {
+          setStoryboardData({
+            storyboard: { clipOutlines: demoClips, title: "Demo Storyboard" },
+            content: promptContent || "Demo Concept",
+            params: projectParams,
+          });
+        }
+      }
     }
-  }, [storyboardData]);
+  }, [step, storyboardData]);
+
+  const updateClipField = (index: number, updates: Record<string, any>) => {
+    const newClips = [...editableClips];
+    newClips[index] = { ...newClips[index], ...updates };
+    setEditableClips(newClips);
+    syncClipsToStore(newClips, generatedImages);
+  };
+
+  const duplicateClip = (index: number) => {
+    const sourceClip = editableClips[index];
+    const sourceImg = generatedImages[index] || "";
+    const newClip = {
+      ...sourceClip,
+      id: `clip-${Date.now()}`,
+      title: `${sourceClip.title || "Clip"} (Copy)`,
+    };
+    const newClips = [...editableClips];
+    newClips.splice(index + 1, 0, newClip);
+
+    const newImages = [...generatedImages];
+    newImages.splice(index + 1, 0, sourceImg);
+
+    setEditableClips(newClips);
+    setGeneratedImages(newImages);
+    syncClipsToStore(newClips, newImages);
+    toast.success("Clip duplicated");
+  };
 
   const deleteClip = (index: number) => {
-    setEditableClips(editableClips.filter((_, i) => i !== index));
+    const newClips = editableClips.filter((_, i) => i !== index);
+    const newImages = generatedImages.filter((_, i) => i !== index);
+    setEditableClips(newClips);
+    setGeneratedImages(newImages);
+    syncClipsToStore(newClips, newImages);
+    toast.info("Clip deleted");
   };
 
   const addClip = (afterIndex?: number) => {
+    const targetIdx = afterIndex !== undefined ? afterIndex + 1 : editableClips.length;
     const newClip = {
+      id: `clip-${Date.now()}`,
       index: editableClips.length,
       clipType: "content" as const,
       title: `Clip ${editableClips.length + 1}`,
-      summary: "New clip description",
+      summary: "New clip script narration...",
+      visualPrompt: "Visual description for clip...",
+      duration: 5,
       isSection: false,
     };
-    if (afterIndex !== undefined) {
-      const newClips = [...editableClips];
-      newClips.splice(afterIndex + 1, 0, newClip);
-      setEditableClips(newClips);
-    } else {
-      setEditableClips([...editableClips, newClip]);
-    }
+    const newClips = [...editableClips];
+    newClips.splice(targetIdx, 0, newClip);
+
+    const defaultImg = DEMO_FINAL_SEQUENCE.storyboard[newClips.length % DEMO_FINAL_SEQUENCE.storyboard.length]?.imageUrl || "";
+    const newImages = [...generatedImages];
+    newImages.splice(targetIdx, 0, defaultImg);
+
+    setEditableClips(newClips);
+    setGeneratedImages(newImages);
+    syncClipsToStore(newClips, newImages);
+    toast.success("New clip added");
   };
 
   const addSection = (afterIndex?: number) => {
+    const targetIdx = afterIndex !== undefined ? afterIndex + 1 : editableClips.length;
     const newSection = {
+      id: `section-${Date.now()}`,
       index: editableClips.length,
       clipType: "section" as const,
       title: "New Section",
       summary: "",
+      visualPrompt: "",
+      duration: 0,
       isSection: true,
     };
-    if (afterIndex !== undefined) {
-      const newClips = [...editableClips];
-      newClips.splice(afterIndex + 1, 0, newSection);
-      setEditableClips(newClips);
-    } else {
-      setEditableClips([...editableClips, newSection]);
-    }
+    const newClips = [...editableClips];
+    newClips.splice(targetIdx, 0, newSection);
+
+    setEditableClips(newClips);
+    syncClipsToStore(newClips, generatedImages);
+    toast.success("New section added");
   };
 
   const moveClip = (fromIndex: number, direction: "up" | "down") => {
@@ -362,38 +475,53 @@ export default function StoryboardPage() {
       newClips[toIndex],
       newClips[fromIndex],
     ];
+
+    const newImages = [...generatedImages];
+    if (fromIndex < newImages.length && toIndex < newImages.length) {
+      [newImages[fromIndex], newImages[toIndex]] = [
+        newImages[toIndex],
+        newImages[fromIndex],
+      ];
+    }
+
     setEditableClips(newClips);
+    setGeneratedImages(newImages);
+    syncClipsToStore(newClips, newImages);
   };
 
   const generateImagesProgressively = async () => {
     const demoImages = DEMO_FINAL_SEQUENCE.storyboard.map((p) => p.imageUrl);
-    const totalToGenerate = Math.min(
-      demoImages.length,
-      storyboardData?.storyboard.clipOutlines.length || 0,
-    );
+    const totalToGenerate = editableClips.filter((c) => !c.isSection).length || 1;
 
     setIsGeneratingImages(true);
     setGeneratingProgress({ current: 0, total: totalToGenerate });
     const newImages: string[] = [];
 
     for (let i = 0; i < totalToGenerate; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      newImages.push(demoImages[i]);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const demoImg = demoImages[i % demoImages.length];
+      newImages.push(demoImg);
       setGeneratedImages([...newImages]);
       setGeneratingProgress({ current: i + 1, total: totalToGenerate });
     }
 
     setIsGeneratingImages(false);
+    syncClipsToStore(editableClips, newImages);
+    toast.success(`Generated ${totalToGenerate} visuals for timeline clips`);
   };
 
   const regenerateImageForClip = async (clipIndex: number) => {
     const demoImages = DEMO_FINAL_SEQUENCE.panels.map((p) => p.imageUrl);
-    if (demoImages[clipIndex]) {
-      const newImages = [...generatedImages];
-      newImages[clipIndex] = demoImages[clipIndex];
-      setGeneratedImages(newImages);
-      await new Promise((resolve) => setTimeout(resolve, 800));
+    const newImages = [...generatedImages];
+    const currentImg = newImages[clipIndex];
+    let nextIndex = (clipIndex + 1) % demoImages.length;
+    if (demoImages[nextIndex] === currentImg) {
+      nextIndex = (nextIndex + 1) % demoImages.length;
     }
+    newImages[clipIndex] = demoImages[nextIndex] || DEMO_FINAL_SEQUENCE.storyboard[0].imageUrl;
+    setGeneratedImages(newImages);
+    syncClipsToStore(editableClips, newImages);
+    toast.success(`Regenerated visual for clip ${clipIndex + 1}`);
   };
 
   const playVoicePreview = (voiceId: string) => {
@@ -1069,17 +1197,8 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
             </div>
           )}
 
-          {step === "storyboard" && !storyboardData && (
-            <div className="max-w-2xl mx-auto py-12 text-center space-y-4">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
-              <p className="text-muted-foreground">
-                Generating storyboard from your script...
-              </p>
-            </div>
-          )}
-
-          {step === "storyboard" && storyboardData && (
-            <div className="max-w-5xl mx-auto space-y-8 pt-6 h-full overflow-y-auto">
+          {step === "storyboard" && (
+            <div className="max-w-5xl mx-auto space-y-6 pt-4 h-full overflow-y-auto pb-12">
               {/* Progress Bar */}
               {isGeneratingImages && (
                 <div className="bg-card border border-border rounded-lg p-4 space-y-2">
@@ -1087,14 +1206,14 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                     <div className="flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin text-primary" />
                       <span className="text-sm font-medium">
-                        Generating images... {generatingProgress.current} of{" "}
+                        Generating clip visuals... {generatingProgress.current} of{" "}
                         {generatingProgress.total}
                       </span>
                     </div>
                     <span className="text-xs text-muted-foreground">
                       {Math.round(
                         (generatingProgress.current /
-                          generatingProgress.total) *
+                          Math.max(1, generatingProgress.total)) *
                           100,
                       )}
                       %
@@ -1104,7 +1223,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                     <div
                       className="h-full bg-primary transition-all duration-300"
                       style={{
-                        width: `${(generatingProgress.current / generatingProgress.total) * 100}%`,
+                        width: `${(generatingProgress.current / Math.max(1, generatingProgress.total)) * 100}%`,
                       }}
                     />
                   </div>
@@ -1112,16 +1231,16 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
               )}
 
               {/* Header */}
-              <div className="space-y-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <h2 className="text-3xl font-bold">Storyboard</h2>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-3xl font-bold">Storyboard & Timeline Clips</h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Review and customize each clip
+                      Customize titles, durations, script narration, and visual prompts for each clip.
                     </p>
                   </div>
                   {/* Action Buttons */}
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
                       onClick={() => setStep("scriptValidation")}
@@ -1130,94 +1249,128 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                     >
                       ← Script
                     </Button>
-                    {generatedImages.length > 0 ? (
-                      <Button
-                        onClick={() => {
-                          setStep("voiceChoice");
-                          saveSession({
-                            step: "voiceChoice",
-                            storyboardData,
-                            generatedImages,
-                          });
-                        }}
-                        size="sm"
-                        className="bg-primary hover:bg-primary/90"
-                      >
-                        <Film className="w-3.5 h-3.5 mr-1.5" />
-                        Continue to Voice
-                      </Button>
-                    ) : (
-                      <Button
-                        onClick={generateImagesProgressively}
-                        disabled={isGeneratingImages}
-                        size="sm"
-                        title={`Generate ${editableClips.length} images`}
-                      >
-                        {isGeneratingImages ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            <Wand2 className="w-3.5 h-3.5 mr-1.5" />
-                            Generate ({editableClips.length})
-                          </>
-                        )}
-                      </Button>
-                    )}
+                    <Button
+                      onClick={generateImagesProgressively}
+                      disabled={isGeneratingImages}
+                      size="sm"
+                      variant="outline"
+                      title="Generate or update visuals for all clips"
+                    >
+                      {isGeneratingImages ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-3.5 h-3.5 mr-1.5 text-primary" />
+                          Generate Visuals ({editableClips.filter((c) => !c.isSection).length})
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        syncClipsToStore(editableClips, generatedImages);
+                        setStep("voiceChoice");
+                        saveSession({
+                          step: "voiceChoice",
+                          storyboardData,
+                          generatedImages,
+                        });
+                      }}
+                      size="sm"
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      <Film className="w-3.5 h-3.5 mr-1.5" />
+                      Continue to Voice
+                    </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Add Clip Button */}
-              <div className="flex justify-center py-4">
-                <Button
-                  variant="outline"
-                  onClick={() => addClip()}
-                  size="sm"
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  + Clip
-                </Button>
+              {/* Add Clip / Add Section Toolbar */}
+              <div className="flex items-center justify-between border-y border-border/50 py-3 px-2">
+                <div className="text-xs text-muted-foreground font-medium">
+                  {editableClips.filter((c) => !c.isSection).length} Clips • Total Duration:{" "}
+                  {editableClips
+                    .filter((c) => !c.isSection)
+                    .reduce((acc, c) => acc + (c.duration || 5), 0)}s
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => addClip()}
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Clip
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => addSection()}
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    + Section Header
+                  </Button>
+                </div>
               </div>
 
-              {/* Clips & Sections */}
-              <div className="grid gap-4">
+              {/* Clips & Sections List */}
+              <div className="space-y-4">
                 {editableClips.map((item, i) => (
-                  <>
+                  <div key={item.id || `item-${i}`} className="space-y-2">
                     <div
-                      key={i}
                       className={`group rounded-xl p-4 transition-all ${
                         item.isSection
-                          ? "bg-muted/20 border border-border/50"
-                          : "bg-gradient-to-br from-card to-card/50 border border-border hover:border-primary/50 hover:shadow-lg flex flex-col"
+                          ? "bg-muted/20 border border-border/50 flex items-center justify-between"
+                          : "bg-gradient-to-br from-card to-card/60 border border-border hover:border-primary/50 hover:shadow-lg flex flex-col gap-4"
                       }`}
                     >
                       {/* Header Row */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center font-semibold text-primary">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 text-sm">
                             {i + 1}
                           </div>
-                          <div>
-                            <h3 className="text-lg font-semibold">
-                              {item.title}
-                            </h3>
-                            <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium capitalize inline-block mt-1">
-                              {item.clipType}
-                            </span>
+                          <div className="flex-1 min-w-0 flex items-center gap-2">
+                            {/* Editable Title */}
+                            <input
+                              type="text"
+                              value={item.title || ""}
+                              onChange={(e) => updateClipField(i, { title: e.target.value })}
+                              className="text-base font-semibold bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary focus:outline-none px-1 py-0.5 w-full max-w-sm transition-colors text-foreground"
+                              placeholder={`Clip ${i + 1} title...`}
+                            />
+                            {/* Clip Type Badge / Selector */}
+                            <Select
+                              value={item.clipType || "content"}
+                              onValueChange={(val) =>
+                                updateClipField(i, { clipType: val, isSection: val === "section" })
+                              }
+                            >
+                              <SelectTrigger className="w-28 h-7 text-xs bg-primary/10 border-0 text-primary font-medium rounded-full px-2.5">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="intro">Intro</SelectItem>
+                                <SelectItem value="content">Content</SelectItem>
+                                <SelectItem value="outro">Outro</SelectItem>
+                                <SelectItem value="section">Section</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => moveClip(i, "up")}
                             disabled={i === 0}
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            title="Move up"
                           >
                             ↑
                           </Button>
@@ -1226,96 +1379,119 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                             size="sm"
                             onClick={() => moveClip(i, "down")}
                             disabled={i === editableClips.length - 1}
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            title="Move down"
                           >
                             ↓
                           </Button>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => deleteClip(i)}
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => duplicateClip(i)}
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            title="Duplicate clip"
                           >
-                            ✕
+                            <Copy className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteClip(i)}
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                            title="Delete clip"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </div>
 
-                      {/* Content - Horizontal Layout */}
+                      {/* Content - Horizontal / Grid Layout for non-section clips */}
                       {!item.isSection && (
-                        <div className="flex gap-4">
-                          {/* Left: Image Preview + Bottom Info */}
-                          <div className="flex-1 min-w-0 flex flex-col gap-2">
-                            <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border/40 bg-gradient-to-br from-muted/20 via-card to-muted/20 flex items-center justify-center group hover:border-border/60 hover:from-muted/30 hover:via-card hover:to-muted/30 transition-all duration-300">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Left Column: Image Preview + Duration */}
+                          <div className="flex flex-col gap-3">
+                            <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border/40 bg-gradient-to-br from-muted/20 via-card to-muted/20 flex items-center justify-center group/img hover:border-border/60 transition-all duration-300">
                               {generatedImages[i] ? (
                                 <Image
                                   src={generatedImages[i]}
-                                  alt={`Visual for ${item.title}`}
+                                  alt={`Visual for ${item.title || i + 1}`}
                                   fill
                                   className="object-cover"
                                 />
                               ) : (
-                                <div className="flex flex-col items-center justify-center gap-2 text-center">
-                                  {isGeneratingImages &&
-                                  generatingProgress.current > i ? (
+                                <div className="flex flex-col items-center justify-center gap-2 text-center p-4">
+                                  {isGeneratingImages && generatingProgress.current > i ? (
                                     <>
-                                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                                      <p className="text-xs text-muted-foreground">
-                                        Generating...
-                                      </p>
+                                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                                      <p className="text-xs text-muted-foreground">Generating visual...</p>
                                     </>
                                   ) : (
                                     <>
-                                      <Film className="w-5 h-5 text-muted-foreground/40" />
-                                      <p className="text-xs text-muted-foreground">
-                                        Ready for image
-                                      </p>
+                                      <Film className="w-6 h-6 text-muted-foreground/40" />
+                                      <p className="text-xs text-muted-foreground">Visual preview ready</p>
                                     </>
                                   )}
                                 </div>
                               )}
-                              {/* Regenerate Button - Overlay */}
+                              {/* Overlay Regenerate Button */}
                               <button
                                 onClick={() => regenerateImageForClip(i)}
-                                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg p-1.5"
+                                className="absolute top-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity bg-background/90 backdrop-blur-sm border border-border hover:bg-muted text-foreground rounded-lg px-2 py-1 text-xs flex items-center gap-1.5 shadow-md"
                                 title="Regenerate image for this clip"
                               >
                                 <RefreshCw className="w-3.5 h-3.5" />
+                                <span>Regenerate</span>
                               </button>
                             </div>
 
-                            {/* Duration Badge & Description - Below Image */}
-                            <div className="space-y-2">
-                              <div className="inline-block px-2 py-1 rounded-md bg-muted/50 border border-border/50">
+                            {/* Duration Selector */}
+                            <div className="flex items-center justify-between bg-muted/30 border border-border/50 rounded-lg px-3 py-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                                 <span className="text-xs font-medium text-muted-foreground">
-                                  5 sec
+                                  Clip Duration:
                                 </span>
                               </div>
-                              <div>
-                                <label className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
-                                  Description
-                                </label>
-                                <textarea
-                                  defaultValue={item.summary}
-                                  placeholder="Visual description"
-                                  className="w-full text-xs bg-muted/50 border border-border/50 rounded-lg p-2 resize-none focus:border-primary focus:ring-1 focus:ring-primary outline-none"
-                                  rows={2}
-                                />
-                              </div>
+                              <Select
+                                value={String(item.duration || 5)}
+                                onValueChange={(val) =>
+                                  updateClipField(i, { duration: Number(val) })
+                                }
+                              >
+                                <SelectTrigger className="h-7 text-xs bg-background border-border/60 rounded-md w-28">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="3">3 seconds</SelectItem>
+                                  <SelectItem value="5">5 seconds</SelectItem>
+                                  <SelectItem value="8">8 seconds</SelectItem>
+                                  <SelectItem value="10">10 seconds</SelectItem>
+                                  <SelectItem value="12">12 seconds</SelectItem>
+                                  <SelectItem value="15">15 seconds</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
 
-                          {/* Right: Narration & Visual Prompt */}
-                          <div className="w-1/3 flex flex-col gap-3">
-                            {/* Narration */}
+                          {/* Right Column: Script Narration & Visual Prompt */}
+                          <div className="flex flex-col gap-3">
+                            {/* Script Narration */}
                             <div>
                               <label className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
-                                Narration
+                                Script Narration
                               </label>
-                              <div className="w-full text-xs bg-muted/30 border border-border/50 rounded-lg p-2 italic text-foreground/80 min-h-16 flex items-center">
-                                {item.summary ||
-                                  "Narration will be extracted..."}
-                              </div>
+                              <textarea
+                                value={item.summary || item.narration || ""}
+                                onChange={(e) =>
+                                  updateClipField(i, {
+                                    summary: e.target.value,
+                                    narration: e.target.value,
+                                  })
+                                }
+                                placeholder="Voice narration for this clip..."
+                                className="w-full text-xs bg-muted/40 border border-border/50 rounded-lg p-2.5 resize-none focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors text-foreground"
+                                rows={3}
+                              />
                             </div>
 
                             {/* Visual Prompt */}
@@ -1324,9 +1500,12 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                                 Visual Prompt
                               </label>
                               <textarea
-                                defaultValue={item.summary}
-                                placeholder="Describe the visual style..."
-                                className="w-full text-xs bg-muted/50 border border-border/50 rounded-lg p-2 resize-none focus:border-primary focus:ring-1 focus:ring-primary outline-none"
+                                value={item.visualPrompt || item.summary || ""}
+                                onChange={(e) =>
+                                  updateClipField(i, { visualPrompt: e.target.value })
+                                }
+                                placeholder="Visual prompt for AI image generation..."
+                                className="w-full text-xs bg-muted/40 border border-border/50 rounded-lg p-2.5 resize-none focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors text-foreground"
                                 rows={3}
                               />
                             </div>
@@ -1335,52 +1514,48 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                       )}
                     </div>
 
-                    {i < editableClips.length - 1 && (
-                      <div className="flex justify-center py-2">
-                        <Button
-                          variant="ghost"
-                          onClick={() => addSection(i)}
-                          size="sm"
-                          className="text-xs text-muted-foreground hover:text-foreground"
-                        >
-                          {item.isSection ? "↓ Clip" : "↓ Section"}
-                        </Button>
-                      </div>
-                    )}
-                  </>
+                    {/* Inline add clip / add section divider */}
+                    <div className="flex justify-center py-1 opacity-40 hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        onClick={() => addClip(i)}
+                        size="sm"
+                        className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1 px-2"
+                      >
+                        <Plus className="w-3 h-3" /> Insert clip after
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
 
-              {/* Action Buttons - Only when images are generated */}
-              {generatedImages.length > 0 && (
-                <div className="flex gap-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setGeneratedImages([]);
-                    }}
-                    className="flex-1"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Regenerate
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      handleStoryboardGenerated(
-                        storyboardData.storyboard,
-                        storyboardData.content,
-                        storyboardData.params,
-                        generatedImages,
-                      )
-                    }
-                    disabled={generatedImages.length === 0}
-                    className="flex-1"
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Continue to Voice
-                  </Button>
-                </div>
-              )}
+              {/* Bottom Action Bar */}
+              <div className="flex gap-4 pt-4 border-t border-border/50">
+                <Button
+                  variant="outline"
+                  onClick={generateImagesProgressively}
+                  disabled={isGeneratingImages}
+                  className="flex-1"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Regenerate All Visuals
+                </Button>
+                <Button
+                  onClick={() => {
+                    syncClipsToStore(editableClips, generatedImages);
+                    setStep("voiceChoice");
+                    saveSession({
+                      step: "voiceChoice",
+                      storyboardData,
+                      generatedImages,
+                    });
+                  }}
+                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Continue to Voice
+                </Button>
+              </div>
             </div>
           )}
 

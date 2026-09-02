@@ -27,8 +27,15 @@ function formatMs(ms: number) {
  * store : l'ordre du tableau est la source de verite, les temps absolus s'en
  * deduisent. On n'appelle pas useDerivedAnnotations, qui ecrirait la duree.
  */
-export function AnnotationListPanel({ className }: { className?: string }) {
-  const annotations = useUnifiedEngineStore((s) => s.animation.annotations);
+export function AnnotationListPanel({
+  className,
+  annotations: annotationsProp,
+}: {
+  className?: string;
+  annotations?: import("@/lib/unified-engine/types").Annotation[];
+}) {
+  const storeAnnotations = useUnifiedEngineStore((s) => s.animation.annotations);
+  const annotations = annotationsProp ?? storeAnnotations;
   const selectedIndex = useUnifiedEngineStore(
     (s) => s.ui.selectedAnnotationIndex,
   );
