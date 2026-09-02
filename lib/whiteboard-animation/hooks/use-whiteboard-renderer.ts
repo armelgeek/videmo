@@ -426,6 +426,19 @@ export function useWhiteboardRenderer({
     animRef.current = null;
     drawingDoneRef.current = false;
     pendingClipResyncRef.current = true;
+    // Rebuild here rather than leaving it to the next animation frame. Handing
+    // it to the loop cost a whole frame of dead time — a visible pause before
+    // the new clip started drawing — for no benefit: the store already holds
+    // the new sequence by the time this effect runs.
+    const canvas = canvasRef.current;
+    const handCanvas = handCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const hctx = handCanvas?.getContext('2d');
+    const s = useUnifiedEngineStore.getState();
+    if (canvas && handCanvas && ctx && hctx && imageRef.current && s.timeline.isPlaying) {
+      pendingClipResyncRef.current = false;
+      repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
+    }
   }, [sequenceKey]);
 
   // Offscreen holds the source artwork the engine reveals from.
