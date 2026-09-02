@@ -414,7 +414,14 @@ export function useWhiteboardRenderer({
   // the run loop from rebuilding, and the canvas would hold that last frame for
   // the rest of the video. The clock and the narration are deliberately left
   // alone — only the drawing restarts, on a timeline that never rewinds.
-  const sequenceKey = annotations.map((a) => a.id).join('|');
+  // Ids alone do NOT identify a clip's sequence: every clip carries the same
+  // five annotations, so they repeat verbatim from one clip to the next. The
+  // reveal times are what differ, each clip sitting at its own offset on the
+  // global timeline — without them this key never changes, the engine is never
+  // invalidated, and the drawing is never replayed for the new clip.
+  const sequenceKey = annotations
+    .map((a) => `${a.id}@${a.reveal.from}`)
+    .join('|');
   useEffect(() => {
     animRef.current = null;
     drawingDoneRef.current = false;
