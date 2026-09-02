@@ -165,6 +165,14 @@ export function WhiteboardEditorStep({
     );
   }, [engineCurrentTime, allAnnotations, currentPlayingClip]);
 
+  // Auto-switch to clip currently playing
+  const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
+  useEffect(() => {
+    if (currentPlayingClip && currentPlayingClip.panelIdx !== activeClipIndex) {
+      setActiveClipIndex(currentPlayingClip.panelIdx);
+    }
+  }, [currentPlayingClip?.panelIdx, activeClipIndex, setActiveClipIndex]);
+
   // Sync config with engine
   useEffect(() => {
     setAnimStyle(config.animStyle);
