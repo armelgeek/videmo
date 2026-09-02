@@ -919,8 +919,8 @@ export function useWhiteboardRenderer({
     return () => cancelAnimationFrame(raf);
   }, [currentTime, isPlaying, imageLoaded]);
 
-  // Static preview only at the very start (or after Reset). Pausing mid-run
-  // must leave the engine's partial frame on screen.
+  // Apercu statique au tout debut (t=0 ou Reset). En pause en cours de lecture,
+  // animRef est conserve pour pouvoir reprendre sans repartir du debut.
   useEffect(() => {
     if (isPlaying || currentTime > 0) return;
     animRef.current = null;
