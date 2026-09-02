@@ -81,27 +81,6 @@ export function WhiteboardEditorStep({
     setCurrentTime,
   } = useUnifiedEngine();
 
-  // Enable canvas rendering.
-  const { isOverlayHidden } = useWhiteboardRenderer({
-    canvasRef,
-    canvasWidth,
-    canvasHeight,
-    handCanvasRef,
-    imageUrl:
-      activePanel?.imageUrl ||
-      DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
-      "/scene-premium-bag.png",
-    audioUrl: config.audio?.url ?? null,
-    audioVolume: config.audio?.volume ?? 1,
-    audioMuted: config.audio?.muted ?? false,
-    audioDurationMs: config.audio?.durationMs ?? null,
-    savedAnnotations: activePanel?.annotations
-      ? toEngineAnnotations(activePanel.annotations)
-      : config.annotations
-        ? toEngineAnnotations(config.annotations)
-        : null,
-  });
-
   // ── Global timeline sequence ─────────────────────────────────────────────
   // All panels' annotations chained end-to-end for the timeline display.
   // Each id is prefixed with its panel index to stay unique across panels.
@@ -135,33 +114,48 @@ export function WhiteboardEditorStep({
     return result;
   }, [allAnnotations]);
 
-  // ── Engine store = active panel, positioned on the GLOBAL clock ───────────
+  // Enable canvas rendering.
+  const { isOverlayHidden } = useWhiteboardRenderer({
+    canvasRef,
+    canvasWidth,
+    canvasHeight,
+    handCanvasRef,
+    imageUrl:
+      activePanel?.imageUrl ||
+      DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
+      "/scene-premium-bag.png",
+    audioUrl: config.audio?.url ?? null,
+    audioVolume: config.audio?.volume ?? 1,
+    audioMuted: config.audio?.muted ?? false,
+    audioDurationMs: config.audio?.durationMs ?? null,
+    savedAnnotations: activePanel?.annotations
+      ? toEngineAnnotations(activePanel.annotations)
+      : config.annotations
+        ? toEngineAnnotations(config.annotations)
+        : null,
+    // Global offset of the active clip on the shared narration clock. The
+    // engine always receives 0-based annotations; the renderer translates.
+    clipOffsetMs: panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0,
+  });
+
+
+  // ── Engine store = active panel, 0-based local annotations ──────────────
   // The clock never rewinds: it runs 0..narration once, and the narration
-  // rides it. So the active clip's annotations have to carry global
-  // timestamps, not restart at zero.
+  // rides it. The engine, however, only ever sees clip-local time (starting
+  // at 0). The renderer receives `clipOffsetMs` and translates global↔local
+  // at every boundary: repositionTo, setProgress, and the finish condition.
   //
-  // deriveTimeline computes `startMs = cursor + gapBeforeMs` walking from 0,
-  // so pushing the clip's global offset into the FIRST annotation's gap makes
-  // it emit global times everywhere — including inside useDerivedAnnotations,
-  // which re-derives and would otherwise flatten any timestamps written here.
-  const activePanelAnnotations = useMemo(() => {
-    const local = toEngineAnnotations(activePanel?.annotations || []);
-    if (local.length === 0) return local;
-    const offsetMs =
-      panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0;
-    return local.map((a, i) =>
-      i === 0
-        ? {
-            ...a,
-            reveal: {
-              ...a.reveal,
-              gapBeforeMs: (a.reveal.gapBeforeMs ?? 0) + offsetMs,
-            },
-          }
-        : a,
-    );
+  // Previously the global offset was folded into gapBeforeMs[0] here, which
+  // made the engine start its internal clock at ~24 000 ms and caused paceStep
+  // to emit zero points for the first ~30 frames (the Δelapsed/duration ratio
+  // started at epsilon instead of growing from a real interval).
+  const activePanelAnnotations = useMemo(
+    () => toEngineAnnotations(activePanel?.annotations || []),
+    // panelBoundaries is intentionally excluded: the annotations themselves
+    // are local and do not depend on where the clip sits on the global ruler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeClipIndex, storyboardPanels, panelBoundaries]);
+    [activeClipIndex, storyboardPanels],
+  );
 
   useEffect(() => {
     useUnifiedEngineStore.getState().setAnnotations(activePanelAnnotations);

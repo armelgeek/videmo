@@ -115,6 +115,17 @@ export interface UseWhiteboardRendererProps {
    * with the demo sequence and every edit made to it was lost.
    */
   savedAnnotations?: Annotation[] | null;
+  /**
+   * Global start of this clip on the shared narration clock, in milliseconds.
+   *
+   * The engine always receives 0-based (clip-local) annotations. This value
+   * is used by the renderer to translate between the global clock that the
+   * store and the narration use, and the local clock that the engine uses.
+   *
+   * Clip 1: 0 ms (no translation needed).
+   * Clip N: sum of all preceding clips' durations.
+   */
+  clipOffsetMs?: number;
 }
 
 export function useWhiteboardRenderer({
@@ -129,6 +140,7 @@ export function useWhiteboardRenderer({
   audioMuted = false,
   audioDurationMs = null,
   savedAnnotations = null,
+  clipOffsetMs = 0,
 }: UseWhiteboardRendererProps) {
   const {
     progress,
@@ -207,6 +219,12 @@ export function useWhiteboardRenderer({
   // span, which is shorter than the video whenever narration outlasts it.
   const drawingSpanRef = useRef(0);
   drawingSpanRef.current = derivedAnnotations.totalDurationMs;
+
+  // Global offset of this clip on the narration clock. Kept in a ref so the
+  // rAF closure always reads the current clip without a dependency on
+  // clipOffsetMs that would tear down and restart the loop on every clip change.
+  const clipOffsetMsRef = useRef(0);
+  clipOffsetMsRef.current = clipOffsetMs;
 
   // ---- assets -------------------------------------------------------------
 
@@ -419,9 +437,9 @@ export function useWhiteboardRenderer({
   // reveal times are what differ, each clip sitting at its own offset on the
   // global timeline — without them this key never changes, the engine is never
   // invalidated, and the drawing is never replayed for the new clip.
-  const sequenceKey = annotations
+  const sequenceKey = `${clipOffsetMs}:${annotations
     .map((a) => `${a.id}@${a.reveal.from}`)
-    .join('|');
+    .join('|')}`;
   useEffect(() => {
     animRef.current = null;
     drawingDoneRef.current = false;
@@ -507,13 +525,14 @@ export function useWhiteboardRenderer({
         setProgress: (p: number) => {
           if (stoppedRef.current || seekingRef.current) return;
           const s = useUnifiedEngineStore.getState();
-          // p runs over the DRAWING, which is shorter than the video when
-          // narration outlasts it — scaling by the video duration here would
-          // race the playhead ahead of the strokes.
+          // p runs over the DRAWING (clip-local 0..localDuration). Scale back
+          // to local ms, then add the clip's global offset to get the store
+          // time that the narration and the ruler already speak.
           const span = drawingSpanRef.current || s.timeline.duration;
-          const ms = Math.min(1, Math.max(0, p)) * span;
-          engineTimeRef.current = ms;
-          s.setCurrentTime(ms);
+          const localMs = Math.min(1, Math.max(0, p)) * span;
+          const globalMs = localMs + clipOffsetMsRef.current;
+          engineTimeRef.current = globalMs;
+          s.setCurrentTime(globalMs);
         },
         finishAnim: () => {
           if (seekingRef.current) {
@@ -523,13 +542,15 @@ export function useWhiteboardRenderer({
           }
           // The drawing is done; the video may not be. Retire the engine and
           // hold the finished image — the loop runs the clock out to the end.
+          // localSpan is the clip's own duration; the global end is offset + span.
           drawingDoneRef.current = true;
           animRef.current = null;
           hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
           const s = useUnifiedEngineStore.getState();
-          const span = drawingSpanRef.current || s.timeline.duration;
-          engineTimeRef.current = span;
-          if (span >= s.timeline.duration - 1) {
+          const localSpan = drawingSpanRef.current || s.timeline.duration;
+          const globalEnd = localSpan + clipOffsetMsRef.current;
+          engineTimeRef.current = globalEnd;
+          if (globalEnd >= s.timeline.duration - 1) {
             // No narration left to play out: the video ends with the drawing.
             stoppedRef.current = true;
             s.setCurrentTime(s.timeline.duration);
@@ -561,78 +582,81 @@ export function useWhiteboardRenderer({
     ctx: CanvasRenderingContext2D,
     hctx: CanvasRenderingContext2D
   ) => {
+    // The engine always works in clip-local time (0-based). Translate the
+    // global store position into the local frame before replaying.
+    const localTarget = Math.max(0, targetMs - clipOffsetMsRef.current);
     const offscreen = ensureOffscreen(canvas);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     paintBackground(ctx, canvas.width, canvas.height);
     hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
 
     stoppedRef.current = false;
-    seekingRef.current = true;
-    try {
-      const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
-      const schedule = anim.annotationManager?.schedule;
+      seekingRef.current = true;
+      try {
+        const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
+        const schedule = anim.annotationManager?.schedule;
 
-      // Le moteur tournant au 1x fidele, son horloge avance exactement du
-      // delta fourni : le pas du rejeu est donc la ms demandee.
-      const advance = (from: number, to: number) => {
-        for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
-          if (stoppedRef.current) break;
-          const slice = Math.min(SEEK_STEP_MS, to - elapsed);
-          anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
-        }
-      };
+        // Le moteur tournant au 1x fidele, son horloge avance exactement du
+        // delta fourni : le pas du rejeu est donc la ms demandee.
+        const advance = (from: number, to: number) => {
+          for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
+            if (stoppedRef.current) break;
+            const slice = Math.min(SEEK_STEP_MS, to - elapsed);
+            anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
+          }
+        };
 
-      if (!schedule || schedule.length === 0) {
-        // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
-        // depuis le debut donne la bonne image.
-        advance(0, targetMs);
-      } else {
-        // Premiere region non terminee a cet instant.
-        const idx = schedule.findIndex((s: any) => targetMs < s.endMs);
-
-        if (idx === -1) {
-          // Apres la derniere region : le moteur tamponne toute l'image en
-          // terminant, y compris ce qu'aucune region ne couvre.
-          const rf = rectArtwork(canvas);
-          ctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
+        if (!schedule || schedule.length === 0) {
+          // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
+          // depuis le debut donne la bonne image.
+          advance(0, localTarget);
         } else {
-          for (let i = 0; i < idx; i++) {
-            const rect = regionRect(schedule[i].annot.region, canvas);
-            if (rect) {
-              ctx.drawImage(
-                offscreen,
-                rect.x, rect.y, rect.w, rect.h,
-                rect.x, rect.y, rect.w, rect.h
-              );
+          // Premiere region non terminee a cet instant (en temps LOCAL).
+          const idx = schedule.findIndex((s: any) => localTarget < s.endMs);
+
+          if (idx === -1) {
+            // Apres la derniere region : le moteur tamponne toute l'image en
+            // terminant, y compris ce qu'aucune region ne couvre.
+            const rf = rectArtwork(canvas);
+            ctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
+          } else {
+            for (let i = 0; i < idx; i++) {
+              const rect = regionRect(schedule[i].annot.region, canvas);
+              if (rect) {
+                ctx.drawImage(
+                  offscreen,
+                  rect.x, rect.y, rect.w, rect.h,
+                  rect.x, rect.y, rect.w, rect.h
+                );
+              }
+            }
+
+            const entry = schedule[idx];
+            if (localTarget >= entry.startMs) {
+              // Dans la region : on repart de sa frontiere, deja peinte.
+              anim.primeAt?.(entry.startMs);
+              advance(entry.startMs, localTarget);
+            } else {
+              // Dans une pause entre deux annotations : rien de plus a tracer,
+              // et la main n'a pas a rester figee sur le dernier trait.
+              anim.primeAt?.(localTarget);
             }
           }
-
-          const entry = schedule[idx];
-          if (targetMs >= entry.startMs) {
-            // Dans la region : on repart de sa frontiere, deja peinte.
-            anim.primeAt?.(entry.startMs);
-            advance(entry.startMs, targetMs);
-          } else {
-            // Dans une pause entre deux annotations : rien de plus a tracer,
-            // et la main n'a pas a rester figee sur le dernier trait.
-            anim.primeAt?.(targetMs);
-          }
         }
-      }
 
-      // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
-      // l'instance est consommee, un Play repartira du debut.
-      animRef.current = stoppedRef.current ? null : anim;
-    } catch (err) {
-      console.error('Failed to seek animation engine:', err);
-    } finally {
-      seekingRef.current = false;
-      stoppedRef.current = false;
-      // Seeking redefines whether the drawing is behind us: landing before
-      // the end of the schedule must let playback rebuild and draw again.
-      drawingDoneRef.current =
-        drawingSpanRef.current > 0 && targetMs >= drawingSpanRef.current;
-    }
+        // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
+        // l'instance est consommee, un Play repartira du debut.
+        animRef.current = stoppedRef.current ? null : anim;
+      } catch (err) {
+        console.error('Failed to seek animation engine:', err);
+      } finally {
+        seekingRef.current = false;
+        stoppedRef.current = false;
+        // Seeking redefines whether the drawing is behind us: landing before
+        // the end of the schedule must let playback rebuild and draw again.
+        drawingDoneRef.current =
+          drawingSpanRef.current > 0 && localTarget >= drawingSpanRef.current;
+      }
 
     engineTimeRef.current = targetMs;
   };
