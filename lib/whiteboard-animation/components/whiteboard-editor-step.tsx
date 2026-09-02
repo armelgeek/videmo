@@ -167,28 +167,27 @@ export function WhiteboardEditorStep({
     useUnifiedEngineStore.getState().setAnnotations(activePanelAnnotations);
   }, [activePanelAnnotations]);
 
-  const engineCurrentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
-
-  const currentPlayingAnnotation = useMemo(
-    () =>
-      deriveTimeline(activePanelAnnotations).annotations.find(
-        (a) => engineCurrentTime >= a.reveal.from && engineCurrentTime <= a.reveal.to,
-      ) ?? null,
-    [engineCurrentTime, activePanelAnnotations],
-  );
-
   // ── Follow the clock into the next clip ───────────────────────────────────
   // Only the displayed clip changes; the clock and the narration carry on.
-  const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
-
+  //
+  // Subscribed to rather than selected: the clock ticks every frame, and
+  // reading it as state re-rendered this whole editor — canvas, timeline,
+  // annotation list, config panel and clip rail — sixty times a second, to
+  // change a clip index roughly once every twelve seconds.
   useEffect(() => {
-    const playing = panelBoundaries.find(
-      (b) => engineCurrentTime >= b.startMs && engineCurrentTime < b.endMs,
-    );
-    if (playing && playing.panelIdx !== activeClipIndex) {
-      setActiveClipIndex(playing.panelIdx);
-    }
-  }, [engineCurrentTime, panelBoundaries, activeClipIndex, setActiveClipIndex]);
+    if (panelBoundaries.length === 0) return;
+    return useUnifiedEngineStore.subscribe((state) => {
+      const t = state.timeline.currentTime;
+      const playing = panelBoundaries.find(
+        (b) => t >= b.startMs && t < b.endMs,
+      );
+      if (!playing) return;
+      const storyboard = useStoryboardStore.getState();
+      if (playing.panelIdx !== storyboard.activeClipIndex) {
+        storyboard.setActiveClipIndex(playing.panelIdx);
+      }
+    });
+  }, [panelBoundaries]);
 
   // Sync config with engine
   useEffect(() => {
@@ -243,19 +242,6 @@ export function WhiteboardEditorStep({
           />
         </div>
 
-        {/* Playback indicator */}
-        <div className="shrink-0 px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg">
-          <div className="text-xs font-semibold text-primary">
-            Clip {activeClipIndex + 1} / {storyboardPanels.length}
-            {currentPlayingAnnotation && ` • ${currentPlayingAnnotation.text || currentPlayingAnnotation.id}`}
-          </div>
-          {currentPlayingAnnotation && (
-            <div className="text-xs text-muted-foreground mt-1">
-              {(currentPlayingAnnotation.reveal.from / 1000).toFixed(1)}s –{" "}
-              {(currentPlayingAnnotation.reveal.to / 1000).toFixed(1)}s
-            </div>
-          )}
-        </div>
 
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
