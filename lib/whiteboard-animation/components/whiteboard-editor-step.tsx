@@ -176,8 +176,17 @@ export function WhiteboardEditorStep({
   // change a clip index roughly once every twelve seconds.
   useEffect(() => {
     if (panelBoundaries.length === 0) return;
+    let lastTime = -1;
     return useUnifiedEngineStore.subscribe((state) => {
+      // The subscription fires on ANY change to the engine store, and picking
+      // a clip writes its annotations there. Without these two guards that
+      // write was read back as "the clock says clip 1", which cancelled the
+      // selection the user had just made.
       const t = state.timeline.currentTime;
+      if (t === lastTime) return;
+      lastTime = t;
+      if (!state.timeline.isPlaying) return;
+
       const playing = panelBoundaries.find(
         (b) => t >= b.startMs && t < b.endMs,
       );
@@ -188,6 +197,20 @@ export function WhiteboardEditorStep({
       }
     });
   }, [panelBoundaries]);
+
+  // ── Picking a clip moves the playhead onto it ─────────────────────────────
+  // The ruler spans the whole sequence, so a clip is a window on it. Selecting
+  // one without seeking left the playhead wherever it was, editing a clip the
+  // timeline was not pointing at. Skipped while playing: there the clip
+  // follows the clock, not the other way round.
+  const selectedClipRef = useRef(activeClipIndex);
+  useEffect(() => {
+    if (selectedClipRef.current === activeClipIndex) return;
+    selectedClipRef.current = activeClipIndex;
+    if (useUnifiedEngineStore.getState().timeline.isPlaying) return;
+    const window = panelBoundaries.find((b) => b.panelIdx === activeClipIndex);
+    if (window) setCurrentTime(window.startMs);
+  }, [activeClipIndex, panelBoundaries, setCurrentTime]);
 
   // Sync config with engine
   useEffect(() => {
