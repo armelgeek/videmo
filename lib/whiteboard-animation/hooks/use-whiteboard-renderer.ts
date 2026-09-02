@@ -869,8 +869,7 @@ export function useWhiteboardRenderer({
   // croitre avec la position cherchee.
   useEffect(() => {
     if (isPlaying || !imageLoaded) return;
-    // t = 0 est deja rendu par l'apercu statique.
-    if (currentTime <= 0) return;
+    if (currentTime < 0) return;
     // Ecriture du moteur lui-meme (progression, fin de lecture) : rien a faire.
     if (Math.abs(currentTime - engineTimeRef.current) < 1) return;
 

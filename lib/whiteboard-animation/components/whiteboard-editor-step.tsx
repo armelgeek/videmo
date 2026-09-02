@@ -173,13 +173,11 @@ export function WhiteboardEditorStep({
     let lastTime = -1;
     return useUnifiedEngineStore.subscribe((state) => {
       // The subscription fires on ANY change to the engine store, and picking
-      // a clip writes its annotations there. Without these two guards that
-      // write was read back as "the clock says clip 1", which cancelled the
-      // selection the user had just made.
+      // a clip writes its annotations there. `lastTime` prevents redundant updates
+      // when other store properties change.
       const t = state.timeline.currentTime;
       if (t === lastTime) return;
       lastTime = t;
-      if (!state.timeline.isPlaying) return;
 
       const playing = panelBoundaries.find(
         (b) => t >= b.startMs && t < b.endMs,
