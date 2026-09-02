@@ -1,23 +1,25 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { WhiteboardConfigPanel } from "./whiteboard-config-panel";
 import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
-import {
-  toEngineAnnotations,
-  toStoredAnnotations,
-} from "../timeline/annotation-interop";
+import { toEngineAnnotations } from "../timeline/annotation-interop";
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
+import { deriveTimeline } from "../timeline/derive-timeline";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
 import { AnnotationListPanel } from "./annotation-list-panel";
 import { AudioTrackRow } from "./audio-track-row";
 import { TimelinePlayhead } from "./timeline-playhead";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
+import { useStoryboardStore } from "@/lib/storyboard/store";
+import { DEMO_STORYBOARD } from "@/lib/demo-data";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
+import { ClipSelectorBar } from "./clip-selector-bar";
+
 
 /** Konva touche `window` des son chargement : pas d'evaluation au rendu serveur. */
 const AnnotationOverlay = dynamic(
@@ -56,6 +58,11 @@ export function WhiteboardEditorStep({
   const { width: canvasWidth, height: canvasHeight } =
     tailleCanvas(aspectRatio);
 
+  const storyboardPanels = useStoryboardStore((s) => s.storyboardPanels);
+  const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
+
+  const activePanel = storyboardPanels[activeClipIndex] || storyboardPanels[0];
+
   // Connect to unified engine
   const {
     progress,
@@ -75,52 +82,96 @@ export function WhiteboardEditorStep({
   } = useUnifiedEngine();
 
   // Enable canvas rendering.
-  // Pas d'annotationCanvasRef : les regions sont rendues par AnnotationOverlay
-  // (Konva), qui les rend deplacables et redimensionnables la ou le trace
-  // imperatif n'etait qu'un repere inerte.
   const { isOverlayHidden } = useWhiteboardRenderer({
     canvasRef,
     canvasWidth,
     canvasHeight,
     handCanvasRef,
-    // Muted still plays (silently) to keep serving as the clock — only the
-    // absence of a track falls back to wall-clock timing.
+    imageUrl:
+      activePanel?.imageUrl ||
+      DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
+      "/scene-premium-bag.png",
     audioUrl: config.audio?.url ?? null,
     audioVolume: config.audio?.volume ?? 1,
     audioMuted: config.audio?.muted ?? false,
-    // The video lasts as long as its narration, and this length survives a
-    // media element that stalls before reporting one.
     audioDurationMs: config.audio?.durationMs ?? null,
-    savedAnnotations: config.annotations
-      ? toEngineAnnotations(config.annotations)
-      : null,
+    savedAnnotations: activePanel?.annotations
+      ? toEngineAnnotations(activePanel.annotations)
+      : config.annotations
+        ? toEngineAnnotations(config.annotations)
+        : null,
   });
 
-  // Mirror timeline edits into the saved project. The editor works on the
-  // engine store, which is memory only; the persisted copy lives in
-  // whiteboardConfig, and nothing connected the two — so resizing a clip
-  // survived until the next reload and no further.
-  const engineAnnotations = useUnifiedEngineStore(
-    (s) => s.animation.annotations,
-  );
-  useEffect(() => {
-    // Never write an empty set: on mount the engine store is still empty and
-    // this would erase the very annotations we are about to seed from.
-    if (engineAnnotations.length === 0) return;
-    onConfigChange({ annotations: toStoredAnnotations(engineAnnotations) });
-  }, [engineAnnotations]);
+  // ── Global timeline sequence ─────────────────────────────────────────────
+  // All panels' annotations chained end-to-end for the timeline display.
+  // Each id is prefixed with its panel index to stay unique across panels.
+  const allAnnotations = useMemo(() => {
+    return storyboardPanels.flatMap((panel, panelIdx) =>
+      toEngineAnnotations(panel.annotations || []).map((a) => ({
+        ...a,
+        id: `p${panelIdx}-${a.id}`,
+      }))
+    );
+  }, [storyboardPanels]);
 
-  // Sync config with engine (Zustand setters are stable, safe to use without listing as deps)
+  // Panel time boundaries derived from the global sequence.
+  // Used to auto-switch activeClipIndex as the playhead moves.
+  const panelBoundaries = useMemo(() => {
+    if (allAnnotations.length === 0) return [];
+    const derived = deriveTimeline(allAnnotations);
+    const result: { panelIdx: number; startMs: number; endMs: number }[] = [];
+    derived.annotations.forEach((ann) => {
+      const match = ann.id.match(/^p(\d+)-/);
+      if (!match) return;
+      const pi = parseInt(match[1], 10);
+      const last = result[result.length - 1];
+      if (last && last.panelIdx === pi) {
+        last.endMs = ann.reveal.to;
+      } else {
+        result.push({ panelIdx: pi, startMs: ann.reveal.from, endMs: ann.reveal.to });
+      }
+    });
+    return result;
+  }, [allAnnotations]);
+
+  // ── Engine store = active panel only (canvas + Konva overlay) ────────────
+  const activePanelAnnotations = useMemo(
+    () => toEngineAnnotations(activePanel?.annotations || []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeClipIndex, storyboardPanels],
+  );
+
+  useEffect(() => {
+    useUnifiedEngineStore.getState().setAnnotations(activePanelAnnotations);
+    setCurrentTime(0);
+  }, [activePanelAnnotations]);
+
+  // ── Auto-switch clip based on playhead position in the global timeline ───
+  const engineCurrentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
+  const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
+
+  useEffect(() => {
+    if (!panelBoundaries.length) return;
+    // Find the panel whose time window contains the cursor.
+    // Fall back to the last panel when the cursor is past the end.
+    const boundary =
+      panelBoundaries.find(
+        (b) => engineCurrentTime >= b.startMs && engineCurrentTime <= b.endMs,
+      ) ?? (engineCurrentTime > 0 ? panelBoundaries[panelBoundaries.length - 1] : panelBoundaries[0]);
+    if (boundary && boundary.panelIdx !== activeClipIndex) {
+      setActiveClipIndex(boundary.panelIdx);
+    }
+  }, [engineCurrentTime, panelBoundaries, activeClipIndex, setActiveClipIndex]);
+
+  // Sync config with engine
   useEffect(() => {
     setAnimStyle(config.animStyle);
     setHandStyle(config.handStyle);
     setRevealSpeed(config.revealSpeed);
     setHandSpeed(config.handSpeed);
     setChunks(config.chunks);
-    // Le fond est toujours blanc : le reglage a ete retire du panneau, mais
-    // un projet enregistre avant peut encore porter "black" ou "none".
     setCanvasBg("white");
-  }, [config]); // Only config, not the setters which are stable from Zustand
+  }, [config]);
 
   // Reset animation when needed
   const resetAnimation = () => {
@@ -129,11 +180,12 @@ export function WhiteboardEditorStep({
 
   return (
     <div className="w-full h-full flex gap-4 overflow-hidden">
-      {/* Left: Canvas Preview */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-4 justify-start">
-        {/* Canvas Container — suit le ratio du projet et reste plafonne en
-            hauteur pour que le timeline et la lecture restent au-dessus de la
-            ligne de flottaison. */}
+      {/* Column 1: Vertical Clip Selector Sidebar */}
+      <ClipSelectorBar />
+
+      {/* Column 2: Canvas Preview & Annotation Timeline */}
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3 justify-start overflow-y-auto">
+        {/* Canvas Container */}
         <div
           className="shrink-0 mx-auto w-full rounded-lg border border-white/10 bg-black overflow-hidden relative"
           style={{
@@ -168,7 +220,7 @@ export function WhiteboardEditorStep({
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
         <div className="relative">
-          <AnnotationTimeline onViewportChange={setTimelineViewport} />
+          <AnnotationTimeline onViewportChange={setTimelineViewport} globalAnnotations={allAnnotations} />
           <AudioTrackRow viewport={timelineViewport} />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
