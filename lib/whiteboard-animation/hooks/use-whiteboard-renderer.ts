@@ -683,8 +683,11 @@ export function useWhiteboardRenderer({
         }
       }
 
-      // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
-      // l'instance est consommee, un Play repartira du debut.
+      // Rebind the engine's drawing context from the seek buffer (bctx) back to
+      // the visible canvas context (ctx) so that subsequent live ticks during rAF
+      // draw directly onto the screen instead of the offscreen buffer.
+      anim.ctx = ctx;
+      anim.fillBg = () => paintBackground(ctx, canvas.width, canvas.height);
       animRef.current = stoppedRef.current ? null : anim;
     } catch (err) {
       console.error('Failed to seek animation engine:', err);
