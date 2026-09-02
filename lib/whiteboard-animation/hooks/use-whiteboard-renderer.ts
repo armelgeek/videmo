@@ -587,12 +587,26 @@ export function useWhiteboardRenderer({
    * and its next frame would write the old position straight back.
    */
   const seekBufferRef = useRef<HTMLCanvasElement | null>(null);
+  const handSeekBufferRef = useRef<HTMLCanvasElement | null>(null);
 
   const getSeekBuffer = (w: number, h: number) => {
     let buffer = seekBufferRef.current;
     if (!buffer) {
       buffer = document.createElement('canvas');
       seekBufferRef.current = buffer;
+    }
+    if (buffer.width !== w || buffer.height !== h) {
+      buffer.width = w;
+      buffer.height = h;
+    }
+    return buffer;
+  };
+
+  const getHandSeekBuffer = (w: number, h: number) => {
+    let buffer = handSeekBufferRef.current;
+    if (!buffer) {
+      buffer = document.createElement('canvas');
+      handSeekBufferRef.current = buffer;
     }
     if (buffer.width !== w || buffer.height !== h) {
       buffer.width = w;
@@ -620,20 +634,23 @@ export function useWhiteboardRenderer({
     const localTarget = Math.max(0, targetMs - clipOffsetMsRef.current);
     const offscreen = ensureOffscreen(canvas);
 
-    // Buffer canvas pour le double-buffering
+    // Buffer canvas pour le double-buffering de l'image et de la main
     const buffer = getSeekBuffer(canvas.width, canvas.height);
     const bctx = buffer.getContext('2d');
     if (!bctx) return;
 
+    const handBuffer = getHandSeekBuffer(handCanvas.width, handCanvas.height);
+    const hbctx = handBuffer.getContext('2d');
+    if (!hbctx) return;
+
     bctx.clearRect(0, 0, buffer.width, buffer.height);
     paintBackground(bctx, buffer.width, buffer.height);
-    hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+    hbctx.clearRect(0, 0, handBuffer.width, handBuffer.height);
 
     stoppedRef.current = false;
     seekingRef.current = true;
     try {
-      const anim = buildEngine(canvas, handCanvas, bctx, hctx, offscreen);
-      const schedule = anim.annotationManager?.schedule;
+      const anim = buildEngine(canvas, handCanvas, bctx, hbctx, offscreen);
 
       // Le moteur tournant au 1x fidele, son horloge avance exactement du
       // delta fourni : le pas du rejeu est donc la ms demandee.
@@ -648,10 +665,11 @@ export function useWhiteboardRenderer({
       anim.primeAt?.(0);
       advance(0, localTarget);
 
-      // Rebind the engine's drawing context from the seek buffer (bctx) back to
-      // the visible canvas context (ctx) so that subsequent live ticks during rAF
-      // draw directly onto the screen instead of the offscreen buffer.
+      // Rebind the engine's drawing context from the seek buffers back to
+      // the visible canvas contexts (ctx and hctx) so that subsequent live ticks during rAF
+      // draw directly onto the screen instead of the offscreen buffers.
       anim.ctx = ctx;
+      anim.hctx = hctx;
       anim.fillBg = () => paintBackground(ctx, canvas.width, canvas.height);
       animRef.current = stoppedRef.current ? null : anim;
     } catch (err) {
@@ -665,9 +683,12 @@ export function useWhiteboardRenderer({
         drawingSpanRef.current > 0 && localTarget >= drawingSpanRef.current;
     }
 
-    // Copie atomique du buffer vers le canvas d'affichage
+    // Copie atomique des deux buffers vers les canvas d'affichage
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(buffer, 0, 0);
+
+    hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+    hctx.drawImage(handBuffer, 0, 0);
 
     engineTimeRef.current = targetMs;
   };
