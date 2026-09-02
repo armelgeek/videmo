@@ -171,15 +171,15 @@ export function WhiteboardEditorStep({
 
   // Auto-switch to clip currently playing
   const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
-  const prevClipRef = useRef<number | null>(null);
+  const prevClipIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (currentPlayingClip && currentPlayingClip.panelIdx !== activeClipIndex) {
+    if (currentPlayingClip && currentPlayingClip.panelIdx !== activeClipIndex && currentPlayingClip.panelIdx !== prevClipIdRef.current) {
+      prevClipIdRef.current = currentPlayingClip.panelIdx;
       setActiveClipIndex(currentPlayingClip.panelIdx);
       setCurrentTime(0);
     }
-    prevClipRef.current = activeClipIndex;
-  }, [currentPlayingClip?.panelIdx, activeClipIndex, setActiveClipIndex]);
+  }, [currentPlayingClip?.panelIdx]);
 
   // Sync config with engine
   useEffect(() => {
