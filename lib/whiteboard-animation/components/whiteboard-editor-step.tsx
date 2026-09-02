@@ -54,26 +54,12 @@ export function WhiteboardEditorStep({
   >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
-  const prevActiveClipIndexRef = useRef<number | null>(null);
 
   const { width: canvasWidth, height: canvasHeight } =
     tailleCanvas(aspectRatio);
 
   const storyboardPanels = useStoryboardStore((s) => s.storyboardPanels);
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
-
-  const activePanel = storyboardPanels[activeClipIndex] || storyboardPanels[0];
-
-  // Reset time when manually selecting a different clip
-  useEffect(() => {
-    if (
-      prevActiveClipIndexRef.current !== null &&
-      prevActiveClipIndexRef.current !== activeClipIndex
-    ) {
-      setCurrentTime(0);
-    }
-    prevActiveClipIndexRef.current = activeClipIndex;
-  }, [activeClipIndex]);
 
   // Connect to unified engine
   const {
@@ -153,13 +139,33 @@ export function WhiteboardEditorStep({
     [activeClipIndex, storyboardPanels],
   );
 
-  useEffect(() => {
-    useUnifiedEngineStore.getState().setAnnotations(activePanelAnnotations);
-  }, [activePanelAnnotations]);
+  // Adjust annotation timestamps to global timeline position
+  const annotationsWithGlobalTime = useMemo(() => {
+    const clipBoundary = panelBoundaries.find((b) => b.panelIdx === activeClipIndex);
+    if (!clipBoundary || activePanelAnnotations.length === 0) {
+      return activePanelAnnotations;
+    }
 
-  // ── Current playback position (for indicator) ─────────────────────────────
-  // Tracks which clip/annotation is currently playing in the global timeline.
+    const offset = clipBoundary.startMs;
+    return activePanelAnnotations.map((a) => ({
+      ...a,
+      reveal: {
+        ...a.reveal,
+        startMs: (a.reveal.startMs || 0) + offset,
+        from: a.reveal.from + offset,
+        to: a.reveal.to + offset,
+      },
+    }));
+  }, [activePanelAnnotations, activeClipIndex, panelBoundaries]);
+
+  useEffect(() => {
+    useUnifiedEngineStore.getState().setAnnotations(annotationsWithGlobalTime);
+  }, [annotationsWithGlobalTime]);
+
+  // ── Current playback position (for indicator & auto-switch) ────────────────
   const engineCurrentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
+
+  // Find which clip is currently playing based on global timeline position
   const currentPlayingClip = useMemo(() => {
     if (!panelBoundaries.length) return null;
     return (
@@ -175,6 +181,14 @@ export function WhiteboardEditorStep({
       (a) => engineCurrentTime >= a.reveal.from && engineCurrentTime <= a.reveal.to,
     );
   }, [engineCurrentTime, allAnnotations, currentPlayingClip]);
+
+  // Auto-switch to the clip that's currently playing
+  const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
+  useEffect(() => {
+    if (currentPlayingClip && currentPlayingClip.panelIdx !== activeClipIndex) {
+      setActiveClipIndex(currentPlayingClip.panelIdx);
+    }
+  }, [currentPlayingClip?.panelIdx, activeClipIndex, setActiveClipIndex]);
 
   // Sync config with engine
   useEffect(() => {
