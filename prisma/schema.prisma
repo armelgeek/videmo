@@ -313,3 +313,46 @@ model EmailChangeRequest {
   @@index([userId])
   @@index([token])
 }
+
+model TimelineClip {
+  id        String   @id @default(cuid())
+  mediaId   String
+  trackId   String
+  start     Float
+  duration  Float
+  offset    Float
+  speed     Float    @default(1)
+  volume    Float    @default(1)
+  isLocked  Boolean  @default(false)
+
+  annotations Annotation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([trackId])
+}
+
+model Annotation {
+  id        String   @id @default(cuid())
+  clipId    String
+  clip      TimelineClip @relation(fields: [clipId], references: [id], onDelete: Cascade)
+
+  label     String   @db.VarChar(255)
+  type      String   @db.VarChar(50)
+  narrativeRole String? @db.VarChar(255)
+  subtitle  String?  @db.Text
+  sequence  Int?
+
+  region    Json
+  startMs   Int
+  durationMs Int
+
+  reveal    Json
+  handPath  Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clipId])
+}
