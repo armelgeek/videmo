@@ -228,6 +228,20 @@ export function useWhiteboardRenderer({
 
   // ---- assets -------------------------------------------------------------
 
+  // Preload hand sprites ONCE on mount so clip switches don't re-instantiate
+  // 16 Image objects and trigger redundant asset requests.
+  useEffect(() => {
+    ['custom1', 'custom2', 'custom3', 'custom4'].forEach((key) => {
+      PALIERS_MAIN.forEach((palier) => {
+        const h = new Image();
+        h.src = handAssetUrl(key, palier);
+        h.onload = () => {
+          handImagesRef.current[`${key}@${palier}`] = h;
+        };
+      });
+    });
+  }, []);
+
   useEffect(() => {
     // Only the FIRST artwork gates the renderer. Later ones arrive because the
     // playing clip changed, and dropping imageLoaded there would tear the run
@@ -254,16 +268,6 @@ export function useWhiteboardRenderer({
       if (isFirstArtwork) setImageLoaded(true);
     };
     img.onerror = () => console.error('Failed to load scene image', targetSrc);
-
-    ['custom1', 'custom2', 'custom3', 'custom4'].forEach((key) => {
-      PALIERS_MAIN.forEach((palier) => {
-        const h = new Image();
-        h.src = handAssetUrl(key, palier);
-        h.onload = () => {
-          handImagesRef.current[`${key}@${palier}`] = h;
-        };
-      });
-    });
 
     return () => {
       cancelled = true;
