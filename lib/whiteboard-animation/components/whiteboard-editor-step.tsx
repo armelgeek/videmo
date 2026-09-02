@@ -61,6 +61,8 @@ export function WhiteboardEditorStep({
   const storyboardPanels = useStoryboardStore((s) => s.storyboardPanels);
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
 
+  const activePanel = storyboardPanels[activeClipIndex] || storyboardPanels[0];
+
   // Connect to unified engine
   const {
     progress,
