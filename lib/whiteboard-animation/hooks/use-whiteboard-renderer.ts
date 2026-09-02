@@ -645,43 +645,8 @@ export function useWhiteboardRenderer({
         }
       };
 
-      if (!schedule || schedule.length === 0) {
-        // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
-        // depuis le debut donne la bonne image.
-        advance(0, localTarget);
-      } else {
-        // Premiere region non terminee a cet instant (en temps LOCAL).
-        const idx = schedule.findIndex((s: any) => localTarget < s.endMs);
-
-        if (idx === -1) {
-          // Apres la derniere region : le moteur tamponne toute l'image en
-          // terminant, y compris ce qu'aucune region ne couvre.
-          const rf = rectArtwork(canvas);
-          bctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
-        } else {
-          for (let i = 0; i < idx; i++) {
-            const rect = regionRect(schedule[i].annot.region, canvas);
-            if (rect) {
-              bctx.drawImage(
-                offscreen,
-                rect.x, rect.y, rect.w, rect.h,
-                rect.x, rect.y, rect.w, rect.h
-              );
-            }
-          }
-
-          const entry = schedule[idx];
-          if (localTarget >= entry.startMs) {
-            // Dans la region : on repart de sa frontiere, deja peinte.
-            anim.primeAt?.(entry.startMs);
-            advance(entry.startMs, localTarget);
-          } else {
-            // Dans une pause entre deux annotations : rien de plus a tracer,
-            // et la main n'a pas a rester figee sur le dernier trait.
-            anim.primeAt?.(localTarget);
-          }
-        }
-      }
+      anim.primeAt?.(0);
+      advance(0, localTarget);
 
       // Rebind the engine's drawing context from the seek buffer (bctx) back to
       // the visible canvas context (ctx) so that subsequent live ticks during rAF
