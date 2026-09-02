@@ -151,11 +151,15 @@ export function WhiteboardEditorStep({
 
   const currentPlayingClip = useMemo(() => {
     if (!panelBoundaries.length) return null;
-    return (
-      panelBoundaries.find(
-        (b) => engineCurrentTime >= b.startMs && engineCurrentTime <= b.endMs,
-      ) ?? (engineCurrentTime > 0 ? panelBoundaries[panelBoundaries.length - 1] : null)
+    // Find clip containing current time. Use < (not <=) for end boundary to move to next clip when time equals endMs
+    const clip = panelBoundaries.find(
+      (b) => engineCurrentTime >= b.startMs && engineCurrentTime < b.endMs,
     );
+    // If no exact match and we're past all clips, use last one
+    if (!clip && engineCurrentTime > 0) {
+      return panelBoundaries[panelBoundaries.length - 1];
+    }
+    return clip || null;
   }, [engineCurrentTime, panelBoundaries]);
 
   const currentPlayingAnnotation = useMemo(() => {
