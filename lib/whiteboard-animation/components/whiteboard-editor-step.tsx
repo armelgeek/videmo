@@ -114,75 +114,81 @@ export function WhiteboardEditorStep({
     );
   }, [storyboardPanels]);
 
-  // Panel time boundaries derived from the global sequence.
-  // Used to auto-switch activeClipIndex as the playhead moves.
+  // Where each clip sits on the global timeline. Derived once from the full
+  // chain, so a clip's window is the same number the ruler and the narration
+  // already use.
   const panelBoundaries = useMemo(() => {
     if (allAnnotations.length === 0) return [];
-    const derived = deriveTimeline(allAnnotations);
     const result: { panelIdx: number; startMs: number; endMs: number }[] = [];
-    derived.annotations.forEach((ann) => {
-      const match = ann.id.match(/^p(\d+)-/);
-      if (!match) return;
-      const pi = parseInt(match[1], 10);
+    deriveTimeline(allAnnotations).annotations.forEach((ann) => {
+      const panelIdx = Number(ann.id.match(/^p(\d+)-/)?.[1]);
+      if (Number.isNaN(panelIdx)) return;
       const last = result[result.length - 1];
-      if (last && last.panelIdx === pi) {
-        last.endMs = ann.reveal.to;
-      } else {
-        result.push({ panelIdx: pi, startMs: ann.reveal.from, endMs: ann.reveal.to });
-      }
+      if (last && last.panelIdx === panelIdx) last.endMs = ann.reveal.to;
+      else
+        result.push({
+          panelIdx,
+          startMs: ann.reveal.from,
+          endMs: ann.reveal.to,
+        });
     });
     return result;
   }, [allAnnotations]);
 
-  // ── Engine store = active panel only (canvas + Konva overlay) ────────────
-  const activePanelAnnotations = useMemo(
-    () => toEngineAnnotations(activePanel?.annotations || []),
+  // ── Engine store = active panel, positioned on the GLOBAL clock ───────────
+  // The clock never rewinds: it runs 0..narration once, and the narration
+  // rides it. So the active clip's annotations have to carry global
+  // timestamps, not restart at zero.
+  //
+  // deriveTimeline computes `startMs = cursor + gapBeforeMs` walking from 0,
+  // so pushing the clip's global offset into the FIRST annotation's gap makes
+  // it emit global times everywhere — including inside useDerivedAnnotations,
+  // which re-derives and would otherwise flatten any timestamps written here.
+  const activePanelAnnotations = useMemo(() => {
+    const local = toEngineAnnotations(activePanel?.annotations || []);
+    if (local.length === 0) return local;
+    const offsetMs =
+      panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0;
+    return local.map((a, i) =>
+      i === 0
+        ? {
+            ...a,
+            reveal: {
+              ...a.reveal,
+              gapBeforeMs: (a.reveal.gapBeforeMs ?? 0) + offsetMs,
+            },
+          }
+        : a,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeClipIndex, storyboardPanels],
-  );
+  }, [activeClipIndex, storyboardPanels, panelBoundaries]);
 
   useEffect(() => {
     useUnifiedEngineStore.getState().setAnnotations(activePanelAnnotations);
   }, [activePanelAnnotations]);
 
-  // ── Current playback position (for indicator) ──────────────────────────────
-  // Tracks which clip/annotation is currently playing in the global timeline.
   const engineCurrentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
 
-  const currentPlayingClip = useMemo(() => {
-    if (!panelBoundaries.length) return null;
-    // Find clip containing current time. When time is exactly at boundary, prefer next clip
-    for (let i = 0; i < panelBoundaries.length; i++) {
-      const b = panelBoundaries[i];
-      if (engineCurrentTime >= b.startMs && engineCurrentTime < b.endMs) {
-        return b;
-      }
-    }
-    // If we're at or past the last boundary, return the last clip
-    if (engineCurrentTime >= panelBoundaries[panelBoundaries.length - 1]?.startMs) {
-      return panelBoundaries[panelBoundaries.length - 1];
-    }
-    return null;
-  }, [engineCurrentTime, panelBoundaries]);
+  const currentPlayingAnnotation = useMemo(
+    () =>
+      deriveTimeline(activePanelAnnotations).annotations.find(
+        (a) => engineCurrentTime >= a.reveal.from && engineCurrentTime <= a.reveal.to,
+      ) ?? null,
+    [engineCurrentTime, activePanelAnnotations],
+  );
 
-  const currentPlayingAnnotation = useMemo(() => {
-    if (!allAnnotations.length || !currentPlayingClip) return null;
-    return allAnnotations.find(
-      (a) => engineCurrentTime >= a.reveal.from && engineCurrentTime <= a.reveal.to,
-    );
-  }, [engineCurrentTime, allAnnotations, currentPlayingClip]);
-
-  // Auto-switch to clip currently playing
+  // ── Follow the clock into the next clip ───────────────────────────────────
+  // Only the displayed clip changes; the clock and the narration carry on.
   const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
-  const prevClipIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (currentPlayingClip && currentPlayingClip.panelIdx !== activeClipIndex && currentPlayingClip.panelIdx !== prevClipIdRef.current) {
-      prevClipIdRef.current = currentPlayingClip.panelIdx;
-      setActiveClipIndex(currentPlayingClip.panelIdx);
-      setCurrentTime(0);
+    const playing = panelBoundaries.find(
+      (b) => engineCurrentTime >= b.startMs && engineCurrentTime < b.endMs,
+    );
+    if (playing && playing.panelIdx !== activeClipIndex) {
+      setActiveClipIndex(playing.panelIdx);
     }
-  }, [currentPlayingClip?.panelIdx]);
+  }, [engineCurrentTime, panelBoundaries, activeClipIndex, setActiveClipIndex]);
 
   // Sync config with engine
   useEffect(() => {
@@ -238,19 +244,18 @@ export function WhiteboardEditorStep({
         </div>
 
         {/* Playback indicator */}
-        {currentPlayingClip && (
-          <div className="shrink-0 px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg">
-            <div className="text-xs font-semibold text-primary">
-              Playing: Clip {currentPlayingClip.panelIdx + 1}
-              {currentPlayingAnnotation && ` • ${currentPlayingAnnotation.id.split("-")[1]}`}
-            </div>
-            {currentPlayingAnnotation && (
-              <div className="text-xs text-muted-foreground mt-1">
-                {currentPlayingAnnotation.text || `${(currentPlayingAnnotation.reveal.from / 1000).toFixed(2)}s - ${(currentPlayingAnnotation.reveal.to / 1000).toFixed(2)}s`}
-              </div>
-            )}
+        <div className="shrink-0 px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg">
+          <div className="text-xs font-semibold text-primary">
+            Clip {activeClipIndex + 1} / {storyboardPanels.length}
+            {currentPlayingAnnotation && ` • ${currentPlayingAnnotation.text || currentPlayingAnnotation.id}`}
           </div>
-        )}
+          {currentPlayingAnnotation && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {(currentPlayingAnnotation.reveal.from / 1000).toFixed(1)}s –{" "}
+              {(currentPlayingAnnotation.reveal.to / 1000).toFixed(1)}s
+            </div>
+          )}
+        </div>
 
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same

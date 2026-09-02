@@ -94,6 +94,8 @@ export interface UseWhiteboardRendererProps {
   canvasHeight: number;
   handCanvasRef: React.RefObject<HTMLCanvasElement | null>;
   annotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  /** Dynamic clip image background URL */
+  imageUrl?: string | null;
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
@@ -121,6 +123,7 @@ export function useWhiteboardRenderer({
   canvasHeight,
   handCanvasRef,
   annotationCanvasRef,
+  imageUrl = null,
   audioUrl = null,
   audioVolume = 1,
   audioMuted = false,
@@ -176,6 +179,11 @@ export function useWhiteboardRenderer({
   // running: with narration longer than the schedule, the finished image is
   // held on screen while the audio plays out.
   const drawingDoneRef = useRef(false);
+  // A new clip took over and its engine has to be placed on the running clock
+  // before it draws. Its annotations start at the clip's global offset, so a
+  // freshly built engine would otherwise animate its way through that whole
+  // lead-in gap instead of skipping it.
+  const pendingClipResyncRef = useRef(false);
 
   // Muted still plays (silently) to keep serving as the clock — only volume
   // and the mute flag change, never whether it plays.
@@ -203,13 +211,31 @@ export function useWhiteboardRenderer({
   // ---- assets -------------------------------------------------------------
 
   useEffect(() => {
+    // Only the FIRST artwork gates the renderer. Later ones arrive because the
+    // playing clip changed, and dropping imageLoaded there would tear the run
+    // loop down mid-playback — which pauses the narration and leaves the old
+    // rAF writing the clock alongside the new one, running it fast. The new
+    // artwork is swapped in on arrival instead, and the engine rebuilt around
+    // it, while the loop and the narration carry on untouched.
+    const isFirstArtwork = !imageRef.current;
+    if (isFirstArtwork) setImageLoaded(false);
+
+    let cancelled = false;
     const img = new Image();
-    img.src = SCENE_IMAGE;
+    const targetSrc = imageUrl || SCENE_IMAGE;
+    img.src = targetSrc;
     img.onload = () => {
+      if (cancelled) return;
       imageRef.current = img;
-      setImageLoaded(true);
+      // The engine reveals from an offscreen copy of the artwork, so both it
+      // and the instance built from it belong to the previous clip.
+      offscreenRef.current = null;
+      animRef.current = null;
+      drawingDoneRef.current = false;
+      pendingClipResyncRef.current = true;
+      if (isFirstArtwork) setImageLoaded(true);
     };
-    img.onerror = () => console.error('Failed to load scene image', SCENE_IMAGE);
+    img.onerror = () => console.error('Failed to load scene image', targetSrc);
 
     ['custom1', 'custom2', 'custom3', 'custom4'].forEach((key) => {
       PALIERS_MAIN.forEach((palier) => {
@@ -220,7 +246,11 @@ export function useWhiteboardRenderer({
         };
       });
     });
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageUrl]);
 
   // Amorcage de la scene de demo, puis suivi de la forme du canvas.
   const seededRef = useRef(false);
@@ -378,6 +408,18 @@ export function useWhiteboardRenderer({
   useEffect(() => {
     animRef.current = null;
   }, [animStyle, handStyle, handSpeed, chunks]);
+
+  // Switching clip swaps the whole sequence under the engine. `drawingDone` has
+  // to fall with it: the previous clip having finished is what otherwise keeps
+  // the run loop from rebuilding, and the canvas would hold that last frame for
+  // the rest of the video. The clock and the narration are deliberately left
+  // alone — only the drawing restarts, on a timeline that never rewinds.
+  const sequenceKey = annotations.map((a) => a.id).join('|');
+  useEffect(() => {
+    animRef.current = null;
+    drawingDoneRef.current = false;
+    pendingClipResyncRef.current = true;
+  }, [sequenceKey]);
 
   // Offscreen holds the source artwork the engine reveals from.
   const ensureOffscreen = (canvas: HTMLCanvasElement) => {
@@ -654,6 +696,17 @@ export function useWhiteboardRenderer({
 
       const s = useUnifiedEngineStore.getState();
 
+      // A clip just took over. Place its engine on the clock the narration is
+      // already running on: repositionTo skips the lead-in gap rather than
+      // animating through it. Deliberately NOT the seek path below — the
+      // narration is one continuous take and must never be dragged back.
+      if (pendingClipResyncRef.current) {
+        pendingClipResyncRef.current = false;
+        repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
+        if (!stoppedRef.current) frame = requestAnimationFrame(step);
+        return;
+      }
+
       // The playhead can be moved WHILE playing — clicking the ruler, say.
       // currentTime is an INPUT then, not the engine's own output: the engine
       // has to be replayed to the new position, or the very next tick writes
@@ -803,7 +856,7 @@ export function useWhiteboardRenderer({
       ?.getContext('2d')
       ?.clearRect(0, 0, handCanvas.width, handCanvas.height);
     drawStaticPreview();
-  }, [isPlaying, currentTime, imageLoaded, canvasBg, canvasRef, handCanvasRef]);
+  }, [isPlaying, currentTime, imageLoaded, canvasBg, canvasRef, handCanvasRef, imageUrl]);
 
   // ---- annotation overlay -------------------------------------------------
 
