@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export interface MediaItem {
   id: string
   url: string
@@ -102,3 +104,76 @@ export interface AppState {
   selectionType: "library" | "timeline" | null
   markers?: Marker[] // Array of timeline markers/chapters
 }
+
+export interface Annotation {
+  id: string
+  clipId: string
+  label: string
+  type: 'text' | 'object' | 'prop' | 'symbol' | 'structure'
+  region: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  startMs: number        // Relative to clip start
+  durationMs: number
+  reveal: {
+    direction: 'top_to_bottom' | 'bottom_to_top' | 'left_to_right' | 'right_to_left'
+    style: 'iris' | 'wipe' | ''
+    maskPaddingPx: number
+    protectedRegions: any[]
+  }
+  handPath: {
+    start: [number, number]
+    end: [number, number]
+    easing: 'easeInOut' | 'easeIn' | 'easeOut' | 'linear'
+  }
+  narrativeRole?: string
+  sequence?: number
+  subtitle?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface AnnotationDisplay extends Annotation {
+  absoluteStartSeconds: number  // Calculated: clip.start + startMs/1000
+  absoluteEndSeconds: number
+}
+
+// Zod Validation Schemas
+
+export const AnnotationRegionSchema = z.object({
+  x: z.number().min(0),
+  y: z.number().min(0),
+  width: z.number().min(1),
+  height: z.number().min(1),
+})
+
+export const AnnotationRevealSchema = z.object({
+  direction: z.enum(['top_to_bottom', 'bottom_to_top', 'left_to_right', 'right_to_left']),
+  style: z.enum(['iris', 'wipe', '']),
+  maskPaddingPx: z.number().min(0),
+  protectedRegions: z.array(z.any()).default([]),
+})
+
+export const AnnotationHandPathSchema = z.object({
+  start: z.tuple([z.number(), z.number()]),
+  end: z.tuple([z.number(), z.number()]),
+  easing: z.enum(['easeInOut', 'easeIn', 'easeOut', 'linear']),
+})
+
+export const CreateAnnotationSchema = z.object({
+  label: z.string().min(1).max(255),
+  type: z.enum(['text', 'object', 'prop', 'symbol', 'structure']),
+  region: AnnotationRegionSchema,
+  startMs: z.number().min(0),
+  durationMs: z.number().min(1),
+  reveal: AnnotationRevealSchema,
+  handPath: AnnotationHandPathSchema,
+  narrativeRole: z.string().optional(),
+  sequence: z.number().optional(),
+  subtitle: z.string().optional(),
+})
+
+export const UpdateAnnotationSchema = CreateAnnotationSchema.partial()
