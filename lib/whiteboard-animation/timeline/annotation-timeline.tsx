@@ -60,12 +60,16 @@ export interface AnnotationTimelineProps {
     contentWidth: number;
     zoomLevel: number;
   }) => void;
+  /** When provided, the timeline displays this full sequence (all clips
+   *  chained) instead of the engine store's active-panel annotations. */
+  globalAnnotations?: import("@/lib/unified-engine/types").Annotation[];
 }
 
-export const AnnotationTimeline: React.FC<AnnotationTimelineProps> = ({
+const AnnotationTimelineImpl: React.FC<AnnotationTimelineProps> = ({
   onViewportChange,
+  globalAnnotations,
 }) => {
-  const { fitZoomTo, ...timeline } = useAnnotationTimeline();
+  const { fitZoomTo, ...timeline } = useAnnotationTimeline(globalAnnotations);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const { duration } = timeline;
@@ -99,3 +103,12 @@ export const AnnotationTimeline: React.FC<AnnotationTimelineProps> = ({
     </div>
   );
 };
+
+/**
+ * The NLE is the most expensive subtree in the editor, and both of its props
+ * are stable — a setState and a memoised sequence. Without this it re-rendered
+ * purely because its parent did, which the parent does on every clip handover.
+ * It still subscribes to the engine store itself, so the playhead and the
+ * clips keep tracking playback.
+ */
+export const AnnotationTimeline = React.memo(AnnotationTimelineImpl);

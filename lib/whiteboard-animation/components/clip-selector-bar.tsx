@@ -25,18 +25,56 @@ function ClipSelectorBarImpl() {
       </div>
 
       <div className="flex flex-col gap-2">
-        {storyboardPanels.map((panel, idx) => {
-          const isActive = idx === activeClipIndex;
-          const displayImage =
-            panel.imageUrl ||
-            DEMO_STORYBOARD.panels[idx % DEMO_STORYBOARD.panels.length]
-              ?.imageUrl;
-          const annotationCount = panel.annotations?.length || 0;
+        {storyboardPanels.map((panel, idx) => (
+          <ClipThumb
+            key={panel.id || idx}
+            idx={idx}
+            isActive={idx === activeClipIndex}
+            title={panel.title || `Clip ${idx + 1}`}
+            duration={panel.duration || 5}
+            annotationCount={panel.annotations?.length || 0}
+            imageUrl={
+              panel.imageUrl ||
+              DEMO_STORYBOARD.panels[idx % DEMO_STORYBOARD.panels.length]
+                ?.imageUrl
+            }
+            onSelect={setActiveClipIndex}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
-          return (
+interface ClipThumbProps {
+  idx: number;
+  isActive: boolean;
+  title: string;
+  duration: number;
+  annotationCount: number;
+  imageUrl: string;
+  onSelect: (idx: number) => void;
+}
+
+/**
+ * One rail entry, memoised on primitives. Selecting a clip changes exactly two
+ * of them — the one leaving and the one arriving — but the rail re-rendered all
+ * ten, thumbnails included, which was the second cost of every switch. The
+ * click handler takes the index rather than closing over it, so the identity
+ * stays stable and memo actually holds.
+ */
+const ClipThumb = memo(function ClipThumb({
+  idx,
+  isActive,
+  title,
+  duration,
+  annotationCount,
+  imageUrl,
+  onSelect,
+}: ClipThumbProps) {
+  return (
             <button
-              key={panel.id || idx}
-              onClick={() => setActiveClipIndex(idx)}
+              onClick={() => onSelect(idx)}
               className={`group/clip relative flex flex-col gap-2 p-2 rounded-xl border transition-all text-left ${
                 isActive
                   ? "bg-primary/10 border-primary shadow-sm ring-1 ring-primary/40"
@@ -46,9 +84,10 @@ function ClipSelectorBarImpl() {
               {/* Thumbnail */}
               <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black/20 border border-border/40 shrink-0 flex items-center justify-center">
                 <Image
-                  src={displayImage}
-                  alt={panel.title || `Clip ${idx + 1}`}
+                  src={imageUrl}
+                  alt={title}
                   fill
+                  sizes="224px"
                   className="object-cover"
                 />
                 <span className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
@@ -63,11 +102,11 @@ function ClipSelectorBarImpl() {
                     isActive ? "text-primary font-bold" : "text-foreground"
                   }`}
                 >
-                  {panel.title || `Clip ${idx + 1}`}
+                  {title}
                 </span>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="text-[10px] text-muted-foreground font-mono">
-                    {panel.duration || 5}s
+                    {duration}s
                   </span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium flex items-center gap-1">
                     <Layers className="w-2.5 h-2.5" />
@@ -76,12 +115,8 @@ function ClipSelectorBarImpl() {
                 </div>
               </div>
             </button>
-          );
-        })}
-      </div>
-    </div>
   );
-}
+});
 
 export const ClipSelectorBar = memo(ClipSelectorBarImpl);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   Select,
   SelectContent,
@@ -57,7 +58,7 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function WhiteboardConfigPanel({
+function WhiteboardConfigPanelImpl({
   config,
   onChange,
 }: WhiteboardConfigPanelProps) {
@@ -168,3 +169,11 @@ export function WhiteboardConfigPanel({
     </div>
   );
 }
+
+/**
+ * Settings do not move when the playing clip does, but this panel was the most
+ * expensive subtree to re-render in the editor — which happens on every
+ * handover. Memoised against a config object and an onChange that both hold
+ * their identity across those renders.
+ */
+export const WhiteboardConfigPanel = memo(WhiteboardConfigPanelImpl);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { WhiteboardConfigPanel } from "./whiteboard-config-panel";
 import { Button } from "@/components/ui/button";
@@ -200,9 +200,27 @@ export function WhiteboardEditorStep({
   }, [config]);
 
   // Reset animation when needed
-  const resetAnimation = () => {
+  const resetAnimation = useCallback(() => {
     setCurrentTime(0);
-  };
+  }, [setCurrentTime]);
+
+  // Stable identity: as an inline closure this was rebuilt on every render of
+  // the editor, which re-rendered the settings panel on every clip handover —
+  // the single most expensive subtree here, for settings that had not moved.
+  const handleConfigChange = useCallback(
+    (updates: Partial<WhiteboardConfig>) => {
+      // Le store pour la persistance, le moteur pour le rendu.
+      onConfigChange(updates);
+      if (updates.animStyle) setAnimStyle(updates.animStyle);
+      if (updates.handStyle) setHandStyle(updates.handStyle);
+      if (updates.revealSpeed !== undefined) setRevealSpeed(updates.revealSpeed);
+      if (updates.handSpeed !== undefined) setHandSpeed(updates.handSpeed);
+      if (updates.chunks !== undefined) setChunks(updates.chunks);
+    },
+    // Zustand setters are stable; only the parent callback can change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onConfigChange],
+  );
 
   return (
     <div className="w-full h-full flex gap-4 overflow-hidden">
@@ -235,11 +253,13 @@ export function WhiteboardEditorStep({
               venu regarder : il s'efface donc pendant la lecture et revient a
               l'arret, fin de lecture comprise — d'ou isOverlayHidden, que
               use-whiteboard-renderer calcule en sachant aussi quand on scrube. */}
-          <AnnotationOverlay
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-            hidden={isOverlayHidden}
-          />
+          
+            <AnnotationOverlay
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              hidden={isOverlayHidden}
+            />
+          
         </div>
 
 
@@ -272,16 +292,7 @@ export function WhiteboardEditorStep({
       <div className="w-72 shrink-0 min-h-0 flex flex-col gap-3">
         <WhiteboardConfigPanel
           config={config}
-          onChange={(updates) => {
-            // Le store pour la persistance, le moteur pour le rendu.
-            onConfigChange(updates);
-            if (updates.animStyle) setAnimStyle(updates.animStyle);
-            if (updates.handStyle) setHandStyle(updates.handStyle);
-            if (updates.revealSpeed !== undefined)
-              setRevealSpeed(updates.revealSpeed);
-            if (updates.handSpeed !== undefined) setHandSpeed(updates.handSpeed);
-            if (updates.chunks !== undefined) setChunks(updates.chunks);
-          }}
+          onChange={handleConfigChange}
         />
 
         <AnnotationListPanel className="flex-1" />
