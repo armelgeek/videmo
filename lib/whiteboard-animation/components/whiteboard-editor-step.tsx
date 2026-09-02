@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { RotateCcw } from "lucide-react";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
-import { toEngineAnnotations } from "../timeline/annotation-interop";
+import { toEngineAnnotations, toStoredAnnotations } from "../timeline/annotation-interop";
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { deriveTimeline } from "../timeline/derive-timeline";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
@@ -140,15 +140,6 @@ export function WhiteboardEditorStep({
 
 
   // ── Engine store = active panel, 0-based local annotations ──────────────
-  // The clock never rewinds: it runs 0..narration once, and the narration
-  // rides it. The engine, however, only ever sees clip-local time (starting
-  // at 0). The renderer receives `clipOffsetMs` and translates global↔local
-  // at every boundary: repositionTo, setProgress, and the finish condition.
-  //
-  // Previously the global offset was folded into gapBeforeMs[0] here, which
-  // made the engine start its internal clock at ~24 000 ms and caused paceStep
-  // to emit zero points for the first ~30 frames (the Δelapsed/duration ratio
-  // started at epsilon instead of growing from a real interval).
   const activePanelAnnotations = useMemo(
     () => toEngineAnnotations(activePanel?.annotations || []),
     // panelBoundaries is intentionally excluded: the annotations themselves
@@ -160,6 +151,25 @@ export function WhiteboardEditorStep({
   useEffect(() => {
     useUnifiedEngineStore.getState().setAnnotations(activePanelAnnotations);
   }, [activePanelAnnotations]);
+
+  // ── Sync engine annotation edits back to persistent storyboard store ──────
+  useEffect(() => {
+    let lastAnns = useUnifiedEngineStore.getState().animation.annotations;
+    return useUnifiedEngineStore.subscribe((state) => {
+      const anns = state.animation.annotations;
+      if (anns === lastAnns) return;
+      lastAnns = anns;
+
+      const storyboard = useStoryboardStore.getState();
+      const currentPanel = storyboard.storyboardPanels[storyboard.activeClipIndex];
+      if (currentPanel) {
+        const storedAnns = toStoredAnnotations(anns);
+        if (JSON.stringify(currentPanel.annotations) !== JSON.stringify(storedAnns)) {
+          storyboard.updatePanel(currentPanel.id, { annotations: storedAnns });
+        }
+      }
+    });
+  }, []);
 
   // ── Follow the clock into the next clip ───────────────────────────────────
   // Only the displayed clip changes; the clock and the narration carry on.
