@@ -171,7 +171,6 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
       style={{
         opacity: hidden ? 0 : 1,
         pointerEvents: hidden ? 'none' : 'auto',
-        transition: 'opacity 120ms ease',
       }}
     >
       {ready && (

@@ -256,9 +256,10 @@ export function useWhiteboardRenderer({
     const img = new Image();
     const targetSrc = imageUrl || SCENE_IMAGE;
     img.src = targetSrc;
-    img.onload = () => {
+
+    const applyImage = (loadedImg: HTMLImageElement) => {
       if (cancelled) return;
-      imageRef.current = img;
+      imageRef.current = loadedImg;
       // The engine reveals from an offscreen copy of the artwork, so both it
       // and the instance built from it belong to the previous clip.
       offscreenRef.current = null;
@@ -267,7 +268,13 @@ export function useWhiteboardRenderer({
       pendingClipResyncRef.current = true;
       if (isFirstArtwork) setImageLoaded(true);
     };
-    img.onerror = () => console.error('Failed to load scene image', targetSrc);
+
+    if (img.complete && img.naturalWidth > 0) {
+      applyImage(img);
+    } else {
+      img.onload = () => applyImage(img);
+      img.onerror = () => console.error('Failed to load scene image', targetSrc);
+    }
 
     return () => {
       cancelled = true;
@@ -579,6 +586,28 @@ export function useWhiteboardRenderer({
    * cannot simply be told a new time, because the engine only ticks forward
    * and its next frame would write the old position straight back.
    */
+  const seekBufferRef = useRef<HTMLCanvasElement | null>(null);
+
+  const getSeekBuffer = (w: number, h: number) => {
+    let buffer = seekBufferRef.current;
+    if (!buffer) {
+      buffer = document.createElement('canvas');
+      seekBufferRef.current = buffer;
+    }
+    if (buffer.width !== w || buffer.height !== h) {
+      buffer.width = w;
+      buffer.height = h;
+    }
+    return buffer;
+  };
+
+  /**
+   * Repositionne le moteur sans passer par la boucle rAF.
+   *
+   * Utilise un canvas buffer en memoire pour assembler la frame (fond, regions
+   * tamponnees et rejeu) avant de la copier en une seule passe atomique sur le
+   * canvas visible. Cela elimine tout clignotement/flash d'ecran pendant le drag.
+   */
   const repositionTo = (
     targetMs: number,
     canvas: HTMLCanvasElement,
@@ -590,77 +619,87 @@ export function useWhiteboardRenderer({
     // global store position into the local frame before replaying.
     const localTarget = Math.max(0, targetMs - clipOffsetMsRef.current);
     const offscreen = ensureOffscreen(canvas);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    paintBackground(ctx, canvas.width, canvas.height);
+
+    // Buffer canvas pour le double-buffering
+    const buffer = getSeekBuffer(canvas.width, canvas.height);
+    const bctx = buffer.getContext('2d');
+    if (!bctx) return;
+
+    bctx.clearRect(0, 0, buffer.width, buffer.height);
+    paintBackground(bctx, buffer.width, buffer.height);
     hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
 
     stoppedRef.current = false;
-      seekingRef.current = true;
-      try {
-        const anim = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
-        const schedule = anim.annotationManager?.schedule;
+    seekingRef.current = true;
+    try {
+      const anim = buildEngine(canvas, handCanvas, bctx, hctx, offscreen);
+      const schedule = anim.annotationManager?.schedule;
 
-        // Le moteur tournant au 1x fidele, son horloge avance exactement du
-        // delta fourni : le pas du rejeu est donc la ms demandee.
-        const advance = (from: number, to: number) => {
-          for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
-            if (stoppedRef.current) break;
-            const slice = Math.min(SEEK_STEP_MS, to - elapsed);
-            anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
-          }
-        };
+      // Le moteur tournant au 1x fidele, son horloge avance exactement du
+      // delta fourni : le pas du rejeu est donc la ms demandee.
+      const advance = (from: number, to: number) => {
+        for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
+          if (stoppedRef.current) break;
+          const slice = Math.min(SEEK_STEP_MS, to - elapsed);
+          anim.tick?.(ENGINE_DEFAULT_SPEED, slice);
+        }
+      };
 
-        if (!schedule || schedule.length === 0) {
-          // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
-          // depuis le debut donne la bonne image.
-          advance(0, localTarget);
+      if (!schedule || schedule.length === 0) {
+        // Pas d'annotations : le style s'anime d'un bloc, seul un rejeu
+        // depuis le debut donne la bonne image.
+        advance(0, localTarget);
+      } else {
+        // Premiere region non terminee a cet instant (en temps LOCAL).
+        const idx = schedule.findIndex((s: any) => localTarget < s.endMs);
+
+        if (idx === -1) {
+          // Apres la derniere region : le moteur tamponne toute l'image en
+          // terminant, y compris ce qu'aucune region ne couvre.
+          const rf = rectArtwork(canvas);
+          bctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
         } else {
-          // Premiere region non terminee a cet instant (en temps LOCAL).
-          const idx = schedule.findIndex((s: any) => localTarget < s.endMs);
+          for (let i = 0; i < idx; i++) {
+            const rect = regionRect(schedule[i].annot.region, canvas);
+            if (rect) {
+              bctx.drawImage(
+                offscreen,
+                rect.x, rect.y, rect.w, rect.h,
+                rect.x, rect.y, rect.w, rect.h
+              );
+            }
+          }
 
-          if (idx === -1) {
-            // Apres la derniere region : le moteur tamponne toute l'image en
-            // terminant, y compris ce qu'aucune region ne couvre.
-            const rf = rectArtwork(canvas);
-            ctx.drawImage(imageRef.current!, rf.x, rf.y, rf.w, rf.h);
+          const entry = schedule[idx];
+          if (localTarget >= entry.startMs) {
+            // Dans la region : on repart de sa frontiere, deja peinte.
+            anim.primeAt?.(entry.startMs);
+            advance(entry.startMs, localTarget);
           } else {
-            for (let i = 0; i < idx; i++) {
-              const rect = regionRect(schedule[i].annot.region, canvas);
-              if (rect) {
-                ctx.drawImage(
-                  offscreen,
-                  rect.x, rect.y, rect.w, rect.h,
-                  rect.x, rect.y, rect.w, rect.h
-                );
-              }
-            }
-
-            const entry = schedule[idx];
-            if (localTarget >= entry.startMs) {
-              // Dans la region : on repart de sa frontiere, deja peinte.
-              anim.primeAt?.(entry.startMs);
-              advance(entry.startMs, localTarget);
-            } else {
-              // Dans une pause entre deux annotations : rien de plus a tracer,
-              // et la main n'a pas a rester figee sur le dernier trait.
-              anim.primeAt?.(localTarget);
-            }
+            // Dans une pause entre deux annotations : rien de plus a tracer,
+            // et la main n'a pas a rester figee sur le dernier trait.
+            anim.primeAt?.(localTarget);
           }
         }
-
-        // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
-        // l'instance est consommee, un Play repartira du debut.
-        animRef.current = stoppedRef.current ? null : anim;
-      } catch (err) {
-        console.error('Failed to seek animation engine:', err);
-      } finally {
-        seekingRef.current = false;
-        stoppedRef.current = false;
-        // Seeking redefines whether the drawing is behind us: landing before
-        // the end of the schedule must let playback rebuild and draw again.
-        drawingDoneRef.current =
-          drawingSpanRef.current > 0 && localTarget >= drawingSpanRef.current;
       }
+
+      // finishAnim() a pu s'armer si on cherche la toute fin : dans ce cas
+      // l'instance est consommee, un Play repartira du debut.
+      animRef.current = stoppedRef.current ? null : anim;
+    } catch (err) {
+      console.error('Failed to seek animation engine:', err);
+    } finally {
+      seekingRef.current = false;
+      stoppedRef.current = false;
+      // Seeking redefines whether the drawing is behind us: landing before
+      // the end of the schedule must let playback rebuild and draw again.
+      drawingDoneRef.current =
+        drawingSpanRef.current > 0 && localTarget >= drawingSpanRef.current;
+    }
+
+    // Copie atomique du buffer vers le canvas d'affichage
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(buffer, 0, 0);
 
     engineTimeRef.current = targetMs;
   };
