@@ -54,6 +54,7 @@ export function WhiteboardEditorStep({
   >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
+  const prevActiveClipIndexRef = useRef<number | null>(null);
 
   const { width: canvasWidth, height: canvasHeight } =
     tailleCanvas(aspectRatio);
@@ -62,6 +63,17 @@ export function WhiteboardEditorStep({
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
 
   const activePanel = storyboardPanels[activeClipIndex] || storyboardPanels[0];
+
+  // Reset time when manually selecting a different clip
+  useEffect(() => {
+    if (
+      prevActiveClipIndexRef.current !== null &&
+      prevActiveClipIndexRef.current !== activeClipIndex
+    ) {
+      setCurrentTime(0);
+    }
+    prevActiveClipIndexRef.current = activeClipIndex;
+  }, [activeClipIndex]);
 
   // Connect to unified engine
   const {
@@ -143,25 +155,26 @@ export function WhiteboardEditorStep({
 
   useEffect(() => {
     useUnifiedEngineStore.getState().setAnnotations(activePanelAnnotations);
-    setCurrentTime(0);
   }, [activePanelAnnotations]);
 
-  // ── Auto-switch clip based on playhead position in the global timeline ───
+  // ── Current playback position (for indicator) ─────────────────────────────
+  // Tracks which clip/annotation is currently playing in the global timeline.
   const engineCurrentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
-  const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
-
-  useEffect(() => {
-    if (!panelBoundaries.length) return;
-    // Find the panel whose time window contains the cursor.
-    // Fall back to the last panel when the cursor is past the end.
-    const boundary =
+  const currentPlayingClip = useMemo(() => {
+    if (!panelBoundaries.length) return null;
+    return (
       panelBoundaries.find(
         (b) => engineCurrentTime >= b.startMs && engineCurrentTime <= b.endMs,
-      ) ?? (engineCurrentTime > 0 ? panelBoundaries[panelBoundaries.length - 1] : panelBoundaries[0]);
-    if (boundary && boundary.panelIdx !== activeClipIndex) {
-      setActiveClipIndex(boundary.panelIdx);
-    }
-  }, [engineCurrentTime, panelBoundaries, activeClipIndex, setActiveClipIndex]);
+      ) ?? (engineCurrentTime > 0 ? panelBoundaries[panelBoundaries.length - 1] : null)
+    );
+  }, [engineCurrentTime, panelBoundaries]);
+
+  const currentPlayingAnnotation = useMemo(() => {
+    if (!allAnnotations.length || !currentPlayingClip) return null;
+    return allAnnotations.find(
+      (a) => engineCurrentTime >= a.reveal.from && engineCurrentTime <= a.reveal.to,
+    );
+  }, [engineCurrentTime, allAnnotations, currentPlayingClip]);
 
   // Sync config with engine
   useEffect(() => {
@@ -215,6 +228,21 @@ export function WhiteboardEditorStep({
             hidden={isOverlayHidden}
           />
         </div>
+
+        {/* Playback indicator */}
+        {currentPlayingClip && (
+          <div className="shrink-0 px-4 py-2 bg-primary/10 border border-primary/30 rounded-lg">
+            <div className="text-xs font-semibold text-primary">
+              Playing: Clip {currentPlayingClip.panelIdx + 1}
+              {currentPlayingAnnotation && ` • ${currentPlayingAnnotation.id.split("-")[1]}`}
+            </div>
+            {currentPlayingAnnotation && (
+              <div className="text-xs text-muted-foreground mt-1">
+                {currentPlayingAnnotation.text || `${(currentPlayingAnnotation.reveal.from / 1000).toFixed(2)}s - ${(currentPlayingAnnotation.reveal.to / 1000).toFixed(2)}s`}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
