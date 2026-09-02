@@ -167,10 +167,14 @@ export function WhiteboardEditorStep({
 
   // Auto-switch to clip currently playing
   const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
+  const prevClipRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (currentPlayingClip && currentPlayingClip.panelIdx !== activeClipIndex) {
       setActiveClipIndex(currentPlayingClip.panelIdx);
+      setCurrentTime(0);
     }
+    prevClipRef.current = activeClipIndex;
   }, [currentPlayingClip?.panelIdx, activeClipIndex, setActiveClipIndex]);
 
   // Sync config with engine
