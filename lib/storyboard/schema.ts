@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AnnotationSchema } from "@/lib/whiteboard-animation/schema";
+import type { TransitionName } from "@/lib/whiteboard-animation/timeline/clip-transitions";
 
 export const videoModelSchema = z.enum([
   "veo3.1-fast",
@@ -20,6 +21,26 @@ export const projectParamsSchema = z.object({
 });
 export type ProjectParams = z.infer<typeof projectParamsSchema>;
 
+/**
+ * `satisfies` verrouille cette liste sur le type de clip-transitions : ajouter
+ * ici un nom qu'il ne connait pas casse la compilation, plutot que de laisser
+ * les deux definitions diverger en silence.
+ */
+const TRANSITION_NAMES = [
+  "none",
+  "cut",
+  "fade",
+  "slideup",
+  "slidedown",
+  "slideleft",
+  "slideright",
+] as const satisfies readonly TransitionName[];
+
+export const transitionSchema = z.object({
+  type: z.enum(TRANSITION_NAMES),
+  durationMs: z.number().nonnegative(),
+});
+
 export const storyboardPanelSchema = z.object({
   id: z.string(),
   title: z.string().optional(),
@@ -36,6 +57,7 @@ export const storyboardPanelSchema = z.object({
   error: z.string().optional(),
   model: videoModelSchema.optional(),
   annotations: z.array(AnnotationSchema).optional(),
+  transition: transitionSchema.optional(),
 });
 export type StoryboardPanel = z.infer<typeof storyboardPanelSchema>;
 
