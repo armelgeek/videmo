@@ -60,18 +60,18 @@ export function WhiteboardEditorStep({
   // Apercu = on regarde le dessin, sans les cadres ni les poignees.
   const [isPreviewMode, setIsPreviewMode] = useState(false);
 
-  // Le mode suit la lecture : lancer bascule en apercu, mettre en pause ramene
-  // a l'edition. C'est le geste qu'on fait de toute facon, et le commutateur
-  // n'a plus a etre touche dans le cas courant. Il reste pour forcer l'apercu a
-  // l'arret — regarder le dessin nu, ou une image revelee, sans lancer la
-  // lecture.
+  // C'est le MODE qui pilote la lecture, et non l'inverse : passer en apercu
+  // lance l'animation, revenir en edition l'arrete. Le commutateur est la
+  // commande principale — « montre-moi l'animation » / « laisse-moi
+  // travailler » — le play/pause de la timeline restant utilisable a cote.
   //
-  // Selectionner isPlaying est sans danger, contrairement a l'horloge plus bas :
-  // il ne change qu'aux bornes de la lecture.
-  const isPlaying = useUnifiedEngineStore((s) => s.timeline.isPlaying);
+  // Aucun retour du moteur vers le mode, donc aucune boucle : une lecture
+  // arrivee a son terme laisse le mode sur apercu, a l'arret, ou le canvas
+  // montre l'etat revele. Rebasculer en apercu relance alors depuis le debut,
+  // la boucle de lecture rejouant d'elle-meme quand on est gare a la fin.
   useEffect(() => {
-    setIsPreviewMode(isPlaying);
-  }, [isPlaying]);
+    useUnifiedEngineStore.getState().setIsPlaying(isPreviewMode);
+  }, [isPreviewMode]);
 
   const { width: canvasWidth, height: canvasHeight } =
     tailleCanvas(aspectRatio);
