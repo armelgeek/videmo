@@ -756,6 +756,26 @@ export function useWhiteboardRenderer({
       }
     }
 
+    // Un rejeu de seek atteignant la fin du trace passe par finishAnim, qui
+    // vide animRef et leve drawingDone. Si la position courante est EN DECA de
+    // cette fin, le dessin n'est pourtant pas derriere nous : sans reamorcage
+    // le bloc suivant ne reconstruit rien et la lecture fait tourner l'horloge
+    // sur une image figee, sans main ni progression.
+    //
+    // On reamorce a la position courante plutot que de laisser reconstruire
+    // depuis zero : un moteur neuf repartirait du debut du trace alors que
+    // l'horloge, elle, est deja au milieu.
+    if (!animRef.current && drawingDoneRef.current) {
+      const s = useUnifiedEngineStore.getState();
+      const local = Math.max(0, s.timeline.currentTime - clipOffsetMsRef.current);
+      if (drawingSpanRef.current > 0 && local < drawingSpanRef.current) {
+        drawingDoneRef.current = false;
+        if (local > 0) {
+          repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
+        }
+      }
+    }
+
     // Clear and rebuild only for a fresh run. A finished drawing held while
     // narration plays out has no engine either, and must not be wiped when
     // playback resumes.
@@ -1073,5 +1093,9 @@ export function useWhiteboardRenderer({
     });
   }, [annotations, annotationCanvasRef, isOverlayHidden]);
 
-  return { isOverlayHidden };
+  // isScrubbing sort d'ici parce que le deplacement du curseur n'est pas qu'une
+  // affaire de rendu : franchir une frontiere de clip change le clip actif, et
+  // l'appelant ne doit pas replacer la tete de lecture sous les doigts de qui
+  // scrube.
+  return { isOverlayHidden, isScrubbing: scrubbing };
 }

@@ -133,7 +133,7 @@ export function WhiteboardEditorStep({
   }, [allAnnotations]);
 
   // Enable canvas rendering.
-  const { isOverlayHidden } = useWhiteboardRenderer({
+  const { isOverlayHidden, isScrubbing } = useWhiteboardRenderer({
     canvasRef,
     canvasWidth,
     canvasHeight,
@@ -156,6 +156,11 @@ export function WhiteboardEditorStep({
     // engine always receives 0-based annotations; the renderer translates.
     clipOffsetMs: panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0,
   });
+
+  // Lu dans un effet declenche par le clip actif, pas par le scrub : une valeur
+  // en dependance le ferait courir apres l'etat au lieu de le consulter.
+  const isScrubbingRef = useRef(isScrubbing);
+  isScrubbingRef.current = isScrubbing;
 
 
   // ── Engine store = active panel, 0-based local annotations ──────────────
@@ -224,10 +229,16 @@ export function WhiteboardEditorStep({
   // one without seeking left the playhead wherever it was, editing a clip the
   // timeline was not pointing at. Skipped while playing: there the clip
   // follows the clock, not the other way round.
+  //
+  // Skipped while scrubbing for the same reason: crossing a clip boundary
+  // changes the active clip, which fired this effect and snapped the playhead
+  // back to that clip's start — the cursor jumped to the beginning of the clip
+  // under the hand dragging it, most visibly when rewinding.
   const selectedClipRef = useRef(activeClipIndex);
   useEffect(() => {
     if (selectedClipRef.current === activeClipIndex) return;
     selectedClipRef.current = activeClipIndex;
+    if (isScrubbingRef.current) return;
     if (useUnifiedEngineStore.getState().timeline.isPlaying) return;
     const window = panelBoundaries.find((b) => b.panelIdx === activeClipIndex);
     if (window) setCurrentTime(window.startMs);
