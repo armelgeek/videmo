@@ -777,6 +777,16 @@ export function useWhiteboardRenderer({
     hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
     hctx.drawImage(handBuffer, 0, 0);
 
+    // Au scrub, pas besoin d'instantane : le rejeu vient de composer le clip
+    // sortant jusqu'a la fin de son trace dans `buffer`, ce qui EST l'image
+    // recherchee. Sans ce bloc, traverser une frontiere au curseur ne montrerait
+    // aucune transition.
+    const enTransition = transitionAt(clipsRef.current, targetMs);
+    if (enTransition) {
+      appliquerTransition(enTransition, ctx, buffer, canvas.width, canvas.height);
+      hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+    }
+
     engineTimeRef.current = targetMs;
   };
 
