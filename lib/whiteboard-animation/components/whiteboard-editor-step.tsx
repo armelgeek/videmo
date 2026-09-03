@@ -16,6 +16,7 @@ import { AnnotationTimeline } from "../timeline/annotation-timeline";
 import { AnnotationListPanel } from "./annotation-list-panel";
 import { AudioTrackRow } from "./audio-track-row";
 import { TimelinePlayhead } from "./timeline-playhead";
+import { ClipTransitionMarkers } from "./clip-transition-markers";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { DEMO_STORYBOARD } from "@/lib/demo-data";
@@ -350,6 +351,7 @@ export function WhiteboardEditorStep({
         <div className="relative">
           <AnnotationTimeline onViewportChange={setTimelineViewport} globalAnnotations={allAnnotations} />
           <AudioTrackRow viewport={timelineViewport} />
+          <ClipTransitionMarkers clips={clipWindows} viewport={timelineViewport} />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
 
