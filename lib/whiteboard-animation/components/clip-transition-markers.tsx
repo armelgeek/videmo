@@ -58,6 +58,9 @@ export function ClipTransitionMarkers({ clips, viewport, onResize }: ClipTransit
           marqueur={m}
           type={clips[m.panelIdx].transition?.type ?? "fade"}
           scrollLeft={scrollLeft}
+          pxParMs={pxParMs}
+          blancMs={clips[m.panelIdx + 1].startMs - clips[m.panelIdx].endMs}
+          onResize={onResize}
         />
       ))}
     </div>
@@ -68,13 +71,45 @@ function TransitionCard({
   marqueur,
   type,
   scrollLeft,
+  pxParMs,
+  blancMs,
+  onResize,
 }: {
   marqueur: TransitionMarker;
   type: string;
   scrollLeft: number;
+  pxParMs: number;
+  /** Largeur du blanc disponible a cette frontiere, en ms — plafond du drag. */
+  blancMs: number;
+  onResize?: (panelIdx: number, durationMs: number) => void;
 }) {
   const left = TRACK_HEADER_PX + marqueur.x - scrollLeft;
   const couleur = COULEUR_PAR_TYPE[type] ?? COULEUR_PAR_TYPE.fade;
+
+  // Meme protocole que TimelinePlayhead.startDrag : mousedown local,
+  // mousemove/mouseup sur document pour suivre le curseur hors de la carte.
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pxParMs <= 0 || !onResize) return;
+
+    const x0 = e.clientX;
+    const largeurInitialeMs = marqueur.width / pxParMs;
+
+    const onMove = (ev: MouseEvent) => {
+      const deltaMs = (ev.clientX - x0) / pxParMs;
+      const dureeMs = Math.round(
+        Math.min(blancMs, Math.max(0, largeurInitialeMs + deltaMs)),
+      );
+      onResize(marqueur.panelIdx, dureeMs);
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
 
   return (
     <div
@@ -86,6 +121,13 @@ function TransitionCard({
         opacity: 0.55,
       }}
       title={`Transition : ${type}`}
-    />
+    >
+      {/* Poignee : bord droit, zone de prise elargie pour rester saisissable
+          meme quand la carte est etroite. */}
+      <div
+        className="absolute -right-1 top-0 bottom-0 w-3 cursor-ew-resize"
+        onMouseDown={startDrag}
+      />
+    </div>
   );
 }

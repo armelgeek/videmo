@@ -155,6 +155,7 @@ export function WhiteboardEditorStep({
         startMs: b.startMs,
         endMs: b.endMs,
         transition: storyboardPanels[b.panelIdx]?.transition,
+        panelId: storyboardPanels[b.panelIdx]?.id,
       })),
     [panelBoundaries, storyboardPanels],
   );
@@ -351,7 +352,20 @@ export function WhiteboardEditorStep({
         <div className="relative">
           <AnnotationTimeline onViewportChange={setTimelineViewport} globalAnnotations={allAnnotations} />
           <AudioTrackRow viewport={timelineViewport} />
-          <ClipTransitionMarkers clips={clipWindows} viewport={timelineViewport} />
+          <ClipTransitionMarkers
+            clips={clipWindows}
+            viewport={timelineViewport}
+            onResize={(panelIdx, durationMs) => {
+              const panelId = clipWindows[panelIdx]?.panelId;
+              const panel = storyboardPanels.find((p) => p.id === panelId);
+              if (!panel?.transition) return;
+              useStoryboardStore
+                .getState()
+                .updatePanel(panel.id, {
+                  transition: { ...panel.transition, durationMs },
+                });
+            }}
+          />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
 
