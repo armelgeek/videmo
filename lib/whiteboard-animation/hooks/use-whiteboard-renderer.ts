@@ -388,10 +388,20 @@ export function useWhiteboardRenderer({
     ctx.fillRect(0, 0, w, h);
   };
 
-  const drawHandSprite = (tipX: number, tipY: number) => {
+  /**
+   * `target` permet de peindre AILLEURS que sur le canvas visible. Le rejeu de
+   * seek compose dans un tampon puis le blitte : en visant le canvas visible en
+   * dur, la main y etait bien dessinee, puis aussitot effacee par la copie du
+   * tampon reste vide. Elle ne s'affichait donc jamais pendant un scrub.
+   */
+  const drawHandSprite = (
+    tipX: number,
+    tipY: number,
+    target?: CanvasRenderingContext2D
+  ) => {
     const handCanvas = handCanvasRef.current;
     if (!handCanvas) return;
-    const hctx = handCanvas.getContext('2d');
+    const hctx = target ?? handCanvas.getContext('2d');
     if (!hctx) return;
 
     hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
@@ -514,6 +524,10 @@ export function useWhiteboardRenderer({
     hctx: CanvasRenderingContext2D,
     offscreen: HTMLCanvasElement
   ) => {
+    // Renseigne juste apres la construction : les callbacks y relisent la cible
+    // de rendu courante, que repositionTo rebranche.
+    let built: any = null;
+
     const store = useUnifiedEngineStore.getState();
     const engineState: any = {
       canvasW: canvas.width,
@@ -546,7 +560,12 @@ export function useWhiteboardRenderer({
           const tipX = typeof a === 'number' ? a : b;
           const tipY = typeof a === 'number' ? b : c;
           if (typeof tipX === 'number' && typeof tipY === 'number') {
-            drawHandSprite(tipX, tipY);
+            // On relit la cible sur l'instance a CHAQUE appel plutot que de
+            // capturer hctx : repositionTo rebranche anim.hctx du tampon vers
+            // le canvas visible pour que la reprise apres un seek dessine a
+            // l'ecran. Une cible capturee resterait sur le tampon, et la main
+            // disparaitrait a la reprise.
+            drawHandSprite(tipX, tipY, built?.hctx ?? hctx);
           }
         },
         setProgress: (p: number) => {
@@ -589,6 +608,7 @@ export function useWhiteboardRenderer({
       },
     });
 
+    built = anim;
     anim.setup?.();
     activeStyleRef.current = animStyle;
     return anim;
