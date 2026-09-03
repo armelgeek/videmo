@@ -6,9 +6,20 @@ import type { TimelineClip } from "@/lib/editor/types";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { applyEditorEdit, type TimelineEdit } from "./apply-editor-edit";
+import { toEngineAnnotations, toStoredAnnotations } from "./annotation-interop";
 import { deriveTimeline } from "./derive-timeline";
 import { interpretClipUpdate } from "./interpret-clip-update";
 import { toEditorTimeline } from "./to-editor-timeline";
+
+/**
+ * Retrouve le panneau proprietaire d'un id d'annotation de la chaine globale,
+ * et l'id LOCAL a ce panneau — inverse exact du prefixage fait dans
+ * whiteboard-editor-step.tsx (`p${panelIdx}-${id}`).
+ */
+function panneauDe(id: string): { panelIdx: number; localId: string } | null {
+  const m = id.match(/^p(\d+)-(.+)$/);
+  return m ? { panelIdx: Number(m[1]), localId: m[2] } : null;
+}
 
 const DEFAULT_ZOOM = 100;
 const MIN_ZOOM = 10;
@@ -52,6 +63,9 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
   const derived = useMemo(() => deriveTimeline(annotations), [annotations]);
   const view = useMemo(() => toEditorTimeline(derived), [derived]);
 
+  const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
+  const storyboardPanels = useStoryboardStore((s) => s.storyboardPanels);
+
   const edit = useCallback(
     (change: TimelineEdit) => {
       // The cap is the NARRATION, not the current video length.
@@ -65,9 +79,56 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
       // With no narration the annotations themselves define the length, the
       // video simply grows with them, and capping would freeze them.
       const capMs = narrationMs > 0 ? narrationMs : undefined;
-      setAnnotations(applyEditorEdit(change, annotations, capMs));
+
+      // Les ids touches par ce changement : `id` sur 4 variantes, `ids` sur
+      // delete/duplicate. Sans prefixe pN- (chaine locale a un seul panneau,
+      // globalAnnotations absent), on retombe sur le comportement d'origine :
+      // ecriture directe dans le store, aucun panneau a router.
+      const idsBruts = "id" in change ? [change.id] : change.ids;
+      const decodes = idsBruts.map(panneauDe);
+
+      if (!globalAnnotations || decodes.some((d) => d === null)) {
+        setAnnotations(applyEditorEdit(change, annotations, capMs));
+        return;
+      }
+
+      // Regroupe par panneau : delete/duplicate peuvent viser plusieurs
+      // panneaux a la fois, mais applyEditorEdit ne doit jamais voir plus
+      // d'un panneau a la fois.
+      const parPanneau = new Map<number, string[]>();
+      decodes.forEach((d) => {
+        if (!d) return;
+        const liste = parPanneau.get(d.panelIdx) ?? [];
+        liste.push(d.localId);
+        parPanneau.set(d.panelIdx, liste);
+      });
+
+      parPanneau.forEach((localIds, panelIdx) => {
+        const panel = storyboardPanels[panelIdx];
+        if (!panel) return;
+
+        const locales = toEngineAnnotations(panel.annotations ?? []);
+
+        // Reconstruit un TimelineEdit purement LOCAL a ce panneau : les ids
+        // globaux (pN-xxx) redeviennent les ids locaux que ce panneau connait.
+        const changeLocal: TimelineEdit =
+          "id" in change
+            ? { ...change, id: localIds[0] }
+            : { ...change, ids: localIds };
+
+        const misesAJour = applyEditorEdit(changeLocal, locales, capMs);
+        const stockees = toStoredAnnotations(misesAJour);
+
+        useStoryboardStore.getState().updatePanel(panel.id, { annotations: stockees });
+
+        // Le store moteur ne represente que le panneau ACTIF : une edition
+        // ailleurs ne doit ni le lire ni l'ecraser.
+        if (panelIdx === activeClipIndex) {
+          setAnnotations(misesAJour);
+        }
+      });
     },
-    [annotations, setAnnotations, narrationMs],
+    [annotations, globalAnnotations, storyboardPanels, activeClipIndex, setAnnotations, narrationMs],
   );
 
   const onClipUpdate = useCallback(
