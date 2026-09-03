@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { markerGeometry, type TransitionMarker } from "../timeline/transition-marker-geometry";
 import type { ClipWindow } from "../timeline/clip-transitions";
 import { TRACK_HEADER_PX } from "../timeline/annotation-timeline";
 
 /** Une couleur distincte par type, pour reconnaitre la transition d'un coup d'oeil. */
+const RULER_HEIGHT_PX = 32;
+const ANNOTATION_ROW_HEIGHT_PX = 44;
+
 const COULEUR_PAR_TYPE: Record<string, string> = {
   fade: "#a855f7",
   slideup: "#38bdf8",
@@ -37,13 +40,46 @@ export function ClipTransitionMarkers({ clips, viewport, onResize }: ClipTransit
   const zoomLevel = viewport?.zoomLevel ?? 0;
   const [scrollLeft, setScrollLeft] = useState(0);
 
+  // La couche se cale explicitement sur la BANDE ANNOTATION, pas sur tout
+  // `inset-0` du parent ni sur tout scrollEl : ce dernier contient la regle
+  // ET les pistes empilees (Timeline les rend dans le meme conteneur
+  // scrollable — voir lib/editor/components/timeline.tsx, scrollContainerRef
+  // enveloppe TimelineRuler et les pistes). S'y caler sans corriger etirait la
+  // carte sur toute cette hauteur, regle comprise.
+  //
+  // RULER_HEIGHT_PX = 32 : hauteur fixe de TimelineRuler (`h-8`,
+  // timeline-ruler.tsx). ANNOTATION_ROW_HEIGHT_PX = 44 : hauteur mesuree d'un
+  // bloc d'annotation a l'ecran — la seule piste que cette timeline rend
+  // (use-annotation-timeline.ts : "a single fixed track").
+  // TimelinePlayhead traverse volontairement toutes les pistes ; une carte de
+  // transition doit au contraire rester confinee a celle des blocs.
+  const ref = useRef<HTMLDivElement>(null);
+  const [rect, setRect] = useState({ top: 0 });
+
   useEffect(() => {
     if (!scrollEl) return;
+    const place = () => {
+      const parent = ref.current?.parentElement;
+      if (!parent) return;
+      const top =
+        scrollEl.getBoundingClientRect().top -
+        parent.getBoundingClientRect().top +
+        RULER_HEIGHT_PX;
+      setRect({ top: Math.max(0, top) });
+    };
+    place();
     const onScroll = () => setScrollLeft(scrollEl.scrollLeft);
     onScroll();
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
-    return () => scrollEl.removeEventListener("scroll", onScroll);
-  }, [scrollEl]);
+    window.addEventListener("resize", place);
+    const observer = new ResizeObserver(place);
+    observer.observe(scrollEl);
+    return () => {
+      scrollEl.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", place);
+      observer.disconnect();
+    };
+  }, [scrollEl, zoomLevel]);
 
   if (!viewport || zoomLevel <= 0) return null;
 
@@ -51,18 +87,26 @@ export function ClipTransitionMarkers({ clips, viewport, onResize }: ClipTransit
   const marqueurs = markerGeometry(clips, pxParMs);
 
   return (
-    <div className="absolute inset-0 pointer-events-none z-30">
-      {marqueurs.map((m) => (
-        <TransitionCard
-          key={m.panelIdx}
-          marqueur={m}
-          type={clips[m.panelIdx].transition?.type ?? "fade"}
-          scrollLeft={scrollLeft}
-          pxParMs={pxParMs}
-          blancMs={clips[m.panelIdx + 1].startMs - clips[m.panelIdx].endMs}
-          onResize={onResize}
-        />
-      ))}
+    <div
+      ref={ref}
+      className="absolute pointer-events-none z-30"
+      style={{ top: rect.top, height: ANNOTATION_ROW_HEIGHT_PX, left: 0, right: 0 }}
+    >
+      {marqueurs.map((m) => {
+        const left = TRACK_HEADER_PX + m.x - scrollLeft;
+        const isVisible = left + Math.max(4, m.width) > TRACK_HEADER_PX;
+        return isVisible ? (
+          <TransitionCard
+            key={m.panelIdx}
+            marqueur={m}
+            type={clips[m.panelIdx].transition?.type ?? "fade"}
+            scrollLeft={scrollLeft}
+            pxParMs={pxParMs}
+            blancMs={clips[m.panelIdx + 1].startMs - clips[m.panelIdx].endMs}
+            onResize={onResize}
+          />
+        ) : null;
+      })}
     </div>
   );
 }
@@ -99,7 +143,7 @@ function TransitionCard({
     const onMove = (ev: MouseEvent) => {
       const deltaMs = (ev.clientX - x0) / pxParMs;
       const dureeMs = Math.round(
-        Math.min(blancMs, Math.max(0, largeurInitialeMs + deltaMs)),
+        Math.min(blancMs, Math.max(50, largeurInitialeMs + deltaMs)),
       );
       onResize(marqueur.panelIdx, dureeMs);
     };

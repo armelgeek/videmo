@@ -2,6 +2,7 @@
 
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import type { TransitionName } from "../timeline/clip-transitions";
+import type { ClipWindow } from "../timeline/clip-transitions";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -23,7 +24,11 @@ const NOMS: { value: TransitionName; label: string }[] = [
 
 const DUREE_PAR_DEFAUT_MS = 300;
 
-export function ClipTransitionPicker() {
+export interface ClipTransitionPickerProps {
+  clips?: ClipWindow[];
+}
+
+export function ClipTransitionPicker({ clips }: ClipTransitionPickerProps) {
   const panels = useStoryboardStore((s) => s.storyboardPanels);
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
   const updatePanel = useStoryboardStore((s) => s.updatePanel);
@@ -33,6 +38,11 @@ export function ClipTransitionPicker() {
 
   const courant: TransitionName = panel.transition?.type ?? "none";
 
+  const clip = clips?.[activeClipIndex];
+  const nextClip = clips?.[activeClipIndex + 1];
+  const blanc = nextClip && clip ? nextClip.startMs - clip.endMs : 0;
+  const isDisabled = blanc <= 0 && courant !== "none";
+
   return (
     <div className="space-y-2 border-t pt-3">
       <Label htmlFor="clip-transition" className="text-xs">
@@ -40,6 +50,7 @@ export function ClipTransitionPicker() {
       </Label>
       <Select
         value={courant}
+        disabled={isDisabled}
         onValueChange={(type) =>
           updatePanel(panel.id, {
             transition: {
@@ -49,20 +60,26 @@ export function ClipTransitionPicker() {
           })
         }
       >
-        <SelectTrigger id="clip-transition">
+        <SelectTrigger id="clip-transition" className={isDisabled ? "opacity-50 cursor-not-allowed" : ""}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {NOMS.map((n) => (
-            <SelectItem key={n.value} value={n.value}>
+            <SelectItem key={n.value} value={n.value} disabled={n.value !== "none" && blanc <= 0}>
               {n.label}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      <p className="text-xs text-muted-foreground">
-        Sa durée est plafonnée au silence disponible avant le clip suivant.
-      </p>
+      {blanc <= 0 ? (
+        <p className="text-xs text-destructive">
+          Aucun silence avant le clip suivant. Allongez le blanc pour ajouter une transition.
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          Sa durée est plafonnée au silence disponible avant le clip suivant ({blanc}ms).
+        </p>
+      )}
     </div>
   );
 }

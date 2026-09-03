@@ -407,7 +407,7 @@ export function WhiteboardEditorStep({
           onChange={handleConfigChange}
         />
 
-        <ClipTransitionPicker />
+        <ClipTransitionPicker clips={clipWindows} />
 
         <AnnotationListPanel className="flex-1" />
 
