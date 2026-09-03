@@ -10,6 +10,7 @@ import {
 import { rectContenu, reprojeterRegion, type RectContenu } from '../canvas-size';
 import type { Annotation } from '@/lib/unified-engine/types';
 import { deriveTimeline } from '../timeline/derive-timeline';
+import { transitionAt, type ClipWindow } from '../timeline/clip-transitions';
 import { normalizeGaps } from '../timeline/normalize-gaps';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
 import { DRIFT_MAX_MS } from './audio-delta';
@@ -18,6 +19,7 @@ import { useAudioClock } from '../audio/use-audio-clock';
 const AnimationFactory = require('../lib/index');
 const { CUSTOM_HANDS } = require('../lib/hands');
 const { handDrawRect } = require('../lib/handLayout');
+const { resoudreTransition } = require('../lib/transitions');
 
 const SCENE_IMAGE = '/scene-premium-bag.png';
 
@@ -126,6 +128,12 @@ export interface UseWhiteboardRendererProps {
    * Clip N: sum of all preceding clips' durations.
    */
   clipOffsetMs?: number;
+  /**
+   * Sequence complete, pour savoir ou tombent les blancs entre clips.
+   * clipOffsetMs reste par ailleurs inchange : il designe le clip ACTIF et sert
+   * a passer de l'horloge globale a l'horloge locale du moteur.
+   */
+  clips?: ClipWindow[];
 }
 
 export function useWhiteboardRenderer({
@@ -141,6 +149,7 @@ export function useWhiteboardRenderer({
   audioDurationMs = null,
   savedAnnotations = null,
   clipOffsetMs = 0,
+  clips = [],
 }: UseWhiteboardRendererProps) {
   const {
     progress,
@@ -376,6 +385,58 @@ export function useWhiteboardRenderer({
     if (bg === 'none') return;
     ctx.fillStyle = bg === 'black' ? '#111111' : bg?.startsWith('#') ? bg : '#ffffff';
     ctx.fillRect(0, 0, w, h);
+  };
+
+  // Lue depuis la closure rAF, qui ne se reconstruit pas a chaque rendu.
+  const clipsRef = useRef<ClipWindow[]>(clips);
+  clipsRef.current = clips;
+
+  const snapshotRef = useRef<HTMLCanvasElement | null>(null);
+  const snapshotValideRef = useRef(false);
+  const fondRef = useRef<HTMLCanvasElement | null>(null);
+
+  const canvasTampon = (
+    ref: React.MutableRefObject<HTMLCanvasElement | null>,
+    w: number,
+    h: number
+  ) => {
+    let c = ref.current;
+    if (!c) {
+      c = document.createElement('canvas');
+      ref.current = c;
+    }
+    if (c.width !== w || c.height !== h) {
+      c.width = w;
+      c.height = h;
+    }
+    return c;
+  };
+
+  /**
+   * Applique la transition PAR-DESSUS le dessin deja compose.
+   *
+   * Le cote entrant est le FOND, pas le clip suivant : pendant le blanc, le
+   * sortant a fini de tracer et l'entrant n'a rien a montrer. La transition lit
+   * donc « le sortant s'en va ».
+   */
+  const appliquerTransition = (
+    active: { name: string; t: number },
+    ctx: CanvasRenderingContext2D,
+    sortante: HTMLCanvasElement,
+    w: number,
+    h: number
+  ) => {
+    const fn = resoudreTransition(active.name);
+    if (!fn) return;
+
+    const fond = canvasTampon(fondRef, w, h);
+    const fctx = fond.getContext('2d');
+    if (!fctx) return;
+    fctx.clearRect(0, 0, w, h);
+    paintBackground(fctx, w, h);
+
+    ctx.clearRect(0, 0, w, h);
+    fn(ctx, sortante, fond, active.t, w, h);
   };
 
   /**
@@ -867,6 +928,31 @@ export function useWhiteboardRenderer({
         s.setCurrentTime(next);
       } else {
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
+      }
+
+      // Post-composition. Pendant un blanc le moteur ne dessine plus — le bloc
+      // ci-dessus a pris la branche « image tenue » — donc le canvas porte
+      // encore la derniere image du clip sortant. On la fige au premier passage,
+      // puis on repeint depuis elle a chaque frame : sans instantane, la frame
+      // suivante fondrait le resultat du fondu precedent.
+      const enTransition = transitionAt(
+        clipsRef.current,
+        useUnifiedEngineStore.getState().timeline.currentTime
+      );
+      if (enTransition) {
+        const snap = canvasTampon(snapshotRef, canvas.width, canvas.height);
+        if (!snapshotValideRef.current) {
+          const sctx = snap.getContext('2d');
+          if (sctx) {
+            sctx.clearRect(0, 0, snap.width, snap.height);
+            sctx.drawImage(canvas, 0, 0);
+          }
+          snapshotValideRef.current = true;
+        }
+        appliquerTransition(enTransition, ctx, snap, canvas.width, canvas.height);
+        hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+      } else {
+        snapshotValideRef.current = false;
       }
 
       // The narration FOLLOWS the drawing. A track that cannot report a

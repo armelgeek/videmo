@@ -146,6 +146,17 @@ export function WhiteboardEditorStep({
     return result;
   }, [allAnnotations]);
 
+  // Les frontieres, enrichies de la transition de sortie de chaque panneau.
+  const clipWindows = useMemo(
+    () =>
+      panelBoundaries.map((b) => ({
+        startMs: b.startMs,
+        endMs: b.endMs,
+        transition: storyboardPanels[b.panelIdx]?.transition,
+      })),
+    [panelBoundaries, storyboardPanels],
+  );
+
   // Enable canvas rendering.
   const { isOverlayHidden, isScrubbing } = useWhiteboardRenderer({
     canvasRef,
@@ -168,6 +179,7 @@ export function WhiteboardEditorStep({
     // Global offset of the active clip on the shared narration clock. The
     // engine always receives 0-based annotations; the renderer translates.
     clipOffsetMs: panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0,
+    clips: clipWindows,
   });
 
   // Lu dans un effet declenche par le clip actif, pas par le scrub : une valeur
