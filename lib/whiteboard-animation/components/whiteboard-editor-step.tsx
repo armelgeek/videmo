@@ -60,17 +60,31 @@ export function WhiteboardEditorStep({
   // Apercu = on regarde le dessin, sans les cadres ni les poignees.
   const [isPreviewMode, setIsPreviewMode] = useState(false);
 
-  // C'est le MODE qui pilote la lecture, et non l'inverse : passer en apercu
-  // lance l'animation, revenir en edition l'arrete. Le commutateur est la
-  // commande principale — « montre-moi l'animation » / « laisse-moi
-  // travailler » — le play/pause de la timeline restant utilisable a cote.
+  // C'est le MODE qui pilote la lecture, et non l'inverse. Les deux sens sont
+  // volontairement DISSYMETRIQUES, car ce ne sont pas deux faces d'un meme
+  // interrupteur :
   //
-  // Aucun retour du moteur vers le mode, donc aucune boucle : une lecture
-  // arrivee a son terme laisse le mode sur apercu, a l'arret, ou le canvas
-  // montre l'etat revele. Rebasculer en apercu relance alors depuis le debut,
-  // la boucle de lecture rejouant d'elle-meme quand on est gare a la fin.
+  //  - vers l'apercu, on REJOUE le clip depuis son debut. « Montre-moi
+  //    l'animation » ne veut pas dire « reprends ou tu en etais » ; c'est ce
+  //    qui distingue le commutateur d'un simple play.
+  //  - vers l'edition, on met simplement en PAUSE. L'image revelee reste a
+  //    l'ecran, les cadres reviennent par-dessus, et le moteur garde son etat.
+  //    Sortir du visionnage ne doit rien effacer.
+  //
+  // Rien ne remonte du moteur vers le mode : pas de boucle, et le play/pause de
+  // la timeline reste utilisable a cote sans deplacer le commutateur.
   useEffect(() => {
-    useUnifiedEngineStore.getState().setIsPlaying(isPreviewMode);
+    const store = useUnifiedEngineStore.getState();
+    if (!isPreviewMode) {
+      store.setIsPlaying(false);
+      return;
+    }
+    const window = panelBoundaries.find((b) => b.panelIdx === activeClipIndex);
+    store.setCurrentTime(window ? window.startMs : 0);
+    store.setIsPlaying(true);
+    // panelBoundaries et activeClipIndex sont lus au moment du basculement, pas
+    // suivis : changer de clip ne doit pas relancer une lecture en cours.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPreviewMode]);
 
   const { width: canvasWidth, height: canvasHeight } =
@@ -142,7 +156,6 @@ export function WhiteboardEditorStep({
       activePanel?.imageUrl ||
       DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
       "/scene-premium-bag.png",
-    previewMode: isPreviewMode,
     audioUrl: config.audio?.url ?? null,
     audioVolume: config.audio?.volume ?? 1,
     audioMuted: config.audio?.muted ?? false,

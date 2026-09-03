@@ -96,15 +96,6 @@ export interface UseWhiteboardRendererProps {
   annotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   /** Dynamic clip image background URL */
   imageUrl?: string | null;
-  /**
-   * Apercu : au repos, le canvas montre l'etat REVELE a l'instant courant.
-   * En edition (defaut) il montre l'illustration COMPLETE — on y place des
-   * cadres sur le dessin, il faut le voir en entier. Le reveal partiel donnait
-   * une image tronquee, comme figee en pleine animation.
-   *
-   * Sans effet pendant la lecture : la boucle anime dans les deux modes.
-   */
-  previewMode?: boolean;
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
@@ -144,7 +135,6 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
   imageUrl = null,
-  previewMode = false,
   audioUrl = null,
   audioVolume = 1,
   audioMuted = false,
@@ -756,6 +746,19 @@ export function useWhiteboardRenderer({
       }
     }
 
+    // Demarrer AU DEBUT d'un clip est un rejeu, pas une reprise. Un moteur
+    // conserve d'une lecture precedente redemarrerait la ou il s'etait arrete,
+    // alors que l'horloge, elle, est revenue au debut : le trace repartirait
+    // du milieu. On le consomme pour forcer la reconstruction plus bas.
+    {
+      const s = useUnifiedEngineStore.getState();
+      if (s.timeline.currentTime - clipOffsetMsRef.current <= 0) {
+        animRef.current = null;
+        drawingDoneRef.current = false;
+        engineTimeRef.current = 0;
+      }
+    }
+
     // Un rejeu de seek atteignant la fin du trace passe par finishAnim, qui
     // vide animRef et leve drawingDone. Si la position courante est EN DECA de
     // cette fin, le dessin n'est pourtant pas derriere nous : sans reamorcage
@@ -975,26 +978,28 @@ export function useWhiteboardRenderer({
     return () => cancelAnimationFrame(raf);
   }, [currentTime, isPlaying, imageLoaded]);
 
-  // Apercu statique au tout debut (t=0 ou Reset). En pause en cours de lecture,
-  // animRef est conserve pour pouvoir reprendre sans repartir du debut.
+  // Apercu statique au DEBUT DU CLIP (rien de revele encore, ou Reset).
+  //
+  // Le critere est le temps LOCAL au clip, pas la position globale. Le garde
+  // d'origine comparait currentTime a 0 : au debut du deuxieme clip il vaut
+  // deja plusieurs milliers de ms, l'apercu se retirait donc et plus rien ne
+  // peignait l'illustration — les annotations flottaient sur un canvas vide.
+  //
+  // Au-dela de ce debut on ne repeint pas : une lecture mise en pause doit
+  // garder son image revelee, et pouvoir reprendre la ou elle en etait.
   useEffect(() => {
     if (isPlaying) return;
-    // Pendant un scrub c'est le seek qui peint, dans les DEUX modes : deplacer
-    // le curseur doit montrer ou en est le dessin. Couper ce retour en edition
-    // rendait le scrub aveugle. On reprend la main quand il se calme, d'ou
+    // Pendant un scrub c'est le seek qui peint : deplacer le curseur doit
+    // montrer ou en est le dessin. On reprend la main quand il se calme, d'ou
     // scrubbing dans les deps — le meme delai que le retour du calque.
     if (scrubbing) return;
-    // En apercu, au-dela de 0, l'etat revele reste affiche.
-    if (previewMode && currentTime > 0) return;
 
-    // Seul le retour a 0 remet le moteur a zero. En edition on repeint aussi
-    // au-dela, mais une lecture mise en pause doit pouvoir reprendre la ou elle
-    // en etait : on ne touche pas a son etat.
-    if (currentTime <= 0) {
-      animRef.current = null;
-      drawingDoneRef.current = false;
-      engineTimeRef.current = 0;
-    }
+    const local = currentTime - clipOffsetMsRef.current;
+    if (local > 0) return;
+
+    animRef.current = null;
+    drawingDoneRef.current = false;
+    engineTimeRef.current = 0;
     const handCanvas = handCanvasRef.current;
     handCanvas
       ?.getContext('2d')
@@ -1002,7 +1007,6 @@ export function useWhiteboardRenderer({
     drawStaticPreview();
   }, [
     isPlaying,
-    previewMode,
     scrubbing,
     currentTime,
     imageLoaded,
@@ -1026,9 +1030,11 @@ export function useWhiteboardRenderer({
   // d'animation en cours a preserver ici.
   useEffect(() => {
     if (artworkVersion === 0 || isPlaying) return;
-    // Les autres cas sont couverts par l'apercu statique, qui suit desormais
-    // artworkVersion : edition a toute position, et apercu a 0.
-    if (!previewMode || currentTime <= 0) return;
+    // Le debut de clip est couvert par l'apercu statique, qui suit desormais
+    // artworkVersion. Ne reste ici que le cas d'une illustration remplacee
+    // ALORS qu'on est deja engage dans le clip : il faut alors rejouer le
+    // reveal pour la montrer a la bonne etape.
+    if (currentTime - clipOffsetMsRef.current <= 0) return;
 
     const canvas = canvasRef.current;
     const handCanvas = handCanvasRef.current;
@@ -1040,7 +1046,7 @@ export function useWhiteboardRenderer({
     // currentTime hors des deps : on repeint quand l'illustration change, pas a
     // chaque tick d'horloge — le scrub ci-dessus s'en charge deja.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artworkVersion, isPlaying, previewMode]);
+  }, [artworkVersion, isPlaying]);
 
   // ---- annotation overlay -------------------------------------------------
 
