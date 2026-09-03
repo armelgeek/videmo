@@ -57,10 +57,21 @@ export function WhiteboardEditorStep({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Apercu = on regarde le dessin, sans les cadres ni les poignees. Le masquage
-  // automatique pendant la lecture reste, mais il ne se commandait pas : on ne
-  // pouvait pas voir le rendu nu a l'arret. Ce commutateur le rend explicite.
+  // Apercu = on regarde le dessin, sans les cadres ni les poignees.
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+
+  // Le mode suit la lecture : lancer bascule en apercu, mettre en pause ramene
+  // a l'edition. C'est le geste qu'on fait de toute facon, et le commutateur
+  // n'a plus a etre touche dans le cas courant. Il reste pour forcer l'apercu a
+  // l'arret — regarder le dessin nu, ou une image revelee, sans lancer la
+  // lecture.
+  //
+  // Selectionner isPlaying est sans danger, contrairement a l'horloge plus bas :
+  // il ne change qu'aux bornes de la lecture.
+  const isPlaying = useUnifiedEngineStore((s) => s.timeline.isPlaying);
+  useEffect(() => {
+    setIsPreviewMode(isPlaying);
+  }, [isPlaying]);
 
   const { width: canvasWidth, height: canvasHeight } =
     tailleCanvas(aspectRatio);
