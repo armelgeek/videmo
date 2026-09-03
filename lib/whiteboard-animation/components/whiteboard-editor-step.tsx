@@ -266,25 +266,25 @@ export function WhiteboardEditorStep({
             ref={canvasRef}
             width={canvasWidth}
             height={canvasHeight}
-            className="w-full h-full object-contain"
+            className="absolute inset-0 w-full h-full object-contain z-10"
           />
           <canvas
             ref={handCanvasRef}
             width={canvasWidth}
             height={canvasHeight}
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none z-20"
           />
           {/* Calque d'edition des annotations. Il masque le dessin qu'on est
               venu regarder : il s'efface donc pendant la lecture et revient a
               l'arret, fin de lecture comprise — d'ou isOverlayHidden, que
               use-whiteboard-renderer calcule en sachant aussi quand on scrube. */}
-          
+
             <AnnotationOverlay
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
               hidden={isOverlayHidden}
             />
-          
+
         </div>
 
 
