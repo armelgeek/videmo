@@ -913,9 +913,6 @@ export function useWhiteboardRenderer({
   // croitre avec la position cherchee.
   useEffect(() => {
     if (isPlaying || !imageLoaded) return;
-    // En edition le repos montre l'illustration complete : rejouer le reveal
-    // ici la tronquerait a chaque deplacement du curseur.
-    if (!previewMode) return;
     if (currentTime < 0) return;
     // Ecriture du moteur lui-meme (progression, fin de lecture) : rien a faire.
     if (Math.abs(currentTime - engineTimeRef.current) < 1) return;
@@ -936,13 +933,18 @@ export function useWhiteboardRenderer({
     });
 
     return () => cancelAnimationFrame(raf);
-  }, [currentTime, isPlaying, imageLoaded, previewMode]);
+  }, [currentTime, isPlaying, imageLoaded]);
 
   // Apercu statique au tout debut (t=0 ou Reset). En pause en cours de lecture,
   // animRef est conserve pour pouvoir reprendre sans repartir du debut.
   useEffect(() => {
     if (isPlaying) return;
-    // En apercu, au-dela de 0, c'est le seek ci-dessus qui peint l'etat revele.
+    // Pendant un scrub c'est le seek qui peint, dans les DEUX modes : deplacer
+    // le curseur doit montrer ou en est le dessin. Couper ce retour en edition
+    // rendait le scrub aveugle. On reprend la main quand il se calme, d'ou
+    // scrubbing dans les deps — le meme delai que le retour du calque.
+    if (scrubbing) return;
+    // En apercu, au-dela de 0, l'etat revele reste affiche.
     if (previewMode && currentTime > 0) return;
 
     // Seul le retour a 0 remet le moteur a zero. En edition on repeint aussi
@@ -961,6 +963,7 @@ export function useWhiteboardRenderer({
   }, [
     isPlaying,
     previewMode,
+    scrubbing,
     currentTime,
     imageLoaded,
     artworkVersion,
