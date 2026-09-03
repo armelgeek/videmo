@@ -4,6 +4,8 @@ import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { WhiteboardConfigPanel } from "./whiteboard-config-panel";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { RotateCcw } from "lucide-react";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
@@ -54,6 +56,11 @@ export function WhiteboardEditorStep({
   >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Apercu = on regarde le dessin, sans les cadres ni les poignees. Le masquage
+  // automatique pendant la lecture reste, mais il ne se commandait pas : on ne
+  // pouvait pas voir le rendu nu a l'arret. Ce commutateur le rend explicite.
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
 
   const { width: canvasWidth, height: canvasHeight } =
     tailleCanvas(aspectRatio);
@@ -282,7 +289,7 @@ export function WhiteboardEditorStep({
             <AnnotationOverlay
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
-              hidden={isOverlayHidden}
+              hidden={isOverlayHidden || isPreviewMode}
             />
 
         </div>
@@ -298,7 +305,7 @@ export function WhiteboardEditorStep({
         </div>
 
         {/* Play/pause lives in the timeline toolbar; only reset is extra. */}
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -308,6 +315,21 @@ export function WhiteboardEditorStep({
             <RotateCcw className="w-4 h-4" />
             Reset
           </Button>
+
+          <div className="ml-auto flex items-center gap-2">
+            <Label
+              htmlFor="annotation-preview-mode"
+              className="cursor-pointer text-xs text-muted-foreground"
+            >
+              {isPreviewMode ? "Aperçu" : "Édition"}
+            </Label>
+            <Switch
+              id="annotation-preview-mode"
+              checked={isPreviewMode}
+              onCheckedChange={setIsPreviewMode}
+              aria-label="Basculer entre édition et aperçu des annotations"
+            />
+          </div>
         </div>
       </div>
 
