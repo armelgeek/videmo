@@ -96,6 +96,15 @@ export interface UseWhiteboardRendererProps {
   annotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   /** Dynamic clip image background URL */
   imageUrl?: string | null;
+  /**
+   * Apercu : au repos, le canvas montre l'etat REVELE a l'instant courant.
+   * En edition (defaut) il montre l'illustration COMPLETE — on y place des
+   * cadres sur le dessin, il faut le voir en entier. Le reveal partiel donnait
+   * une image tronquee, comme figee en pleine animation.
+   *
+   * Sans effet pendant la lecture : la boucle anime dans les deux modes.
+   */
+  previewMode?: boolean;
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
@@ -135,6 +144,7 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
   imageUrl = null,
+  previewMode = false,
   audioUrl = null,
   audioVolume = 1,
   audioMuted = false,
@@ -903,6 +913,9 @@ export function useWhiteboardRenderer({
   // croitre avec la position cherchee.
   useEffect(() => {
     if (isPlaying || !imageLoaded) return;
+    // En edition le repos montre l'illustration complete : rejouer le reveal
+    // ici la tronquerait a chaque deplacement du curseur.
+    if (!previewMode) return;
     if (currentTime < 0) return;
     // Ecriture du moteur lui-meme (progression, fin de lecture) : rien a faire.
     if (Math.abs(currentTime - engineTimeRef.current) < 1) return;
@@ -923,21 +936,39 @@ export function useWhiteboardRenderer({
     });
 
     return () => cancelAnimationFrame(raf);
-  }, [currentTime, isPlaying, imageLoaded]);
+  }, [currentTime, isPlaying, imageLoaded, previewMode]);
 
   // Apercu statique au tout debut (t=0 ou Reset). En pause en cours de lecture,
   // animRef est conserve pour pouvoir reprendre sans repartir du debut.
   useEffect(() => {
-    if (isPlaying || currentTime > 0) return;
-    animRef.current = null;
-    drawingDoneRef.current = false;
-    engineTimeRef.current = 0;
+    if (isPlaying) return;
+    // En apercu, au-dela de 0, c'est le seek ci-dessus qui peint l'etat revele.
+    if (previewMode && currentTime > 0) return;
+
+    // Seul le retour a 0 remet le moteur a zero. En edition on repeint aussi
+    // au-dela, mais une lecture mise en pause doit pouvoir reprendre la ou elle
+    // en etait : on ne touche pas a son etat.
+    if (currentTime <= 0) {
+      animRef.current = null;
+      drawingDoneRef.current = false;
+      engineTimeRef.current = 0;
+    }
     const handCanvas = handCanvasRef.current;
     handCanvas
       ?.getContext('2d')
       ?.clearRect(0, 0, handCanvas.width, handCanvas.height);
     drawStaticPreview();
-  }, [isPlaying, currentTime, imageLoaded, canvasBg, canvasRef, handCanvasRef, imageUrl]);
+  }, [
+    isPlaying,
+    previewMode,
+    currentTime,
+    imageLoaded,
+    artworkVersion,
+    canvasBg,
+    canvasRef,
+    handCanvasRef,
+    imageUrl,
+  ]);
 
   // Repeint a l'ARRIVEE de l'illustration quand on est a l'arret.
   //
@@ -952,6 +983,9 @@ export function useWhiteboardRenderer({
   // d'animation en cours a preserver ici.
   useEffect(() => {
     if (artworkVersion === 0 || isPlaying) return;
+    // Les autres cas sont couverts par l'apercu statique, qui suit desormais
+    // artworkVersion : edition a toute position, et apercu a 0.
+    if (!previewMode || currentTime <= 0) return;
 
     const canvas = canvasRef.current;
     const handCanvas = handCanvasRef.current;
@@ -959,16 +993,11 @@ export function useWhiteboardRenderer({
     const hctx = handCanvas?.getContext('2d');
     if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
 
-    if (currentTime <= 0) {
-      hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
-      drawStaticPreview();
-    } else {
-      repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
-    }
+    repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
     // currentTime hors des deps : on repeint quand l'illustration change, pas a
     // chaque tick d'horloge — le scrub ci-dessus s'en charge deja.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [artworkVersion, isPlaying]);
+  }, [artworkVersion, isPlaying, previewMode]);
 
   // ---- annotation overlay -------------------------------------------------
 

@@ -131,6 +131,7 @@ export function WhiteboardEditorStep({
       activePanel?.imageUrl ||
       DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
       "/scene-premium-bag.png",
+    previewMode: isPreviewMode,
     audioUrl: config.audio?.url ?? null,
     audioVolume: config.audio?.volume ?? 1,
     audioMuted: config.audio?.muted ?? false,
