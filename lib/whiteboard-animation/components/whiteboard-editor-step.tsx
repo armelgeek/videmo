@@ -21,6 +21,7 @@ import { useStoryboardStore } from "@/lib/storyboard/store";
 import { DEMO_STORYBOARD } from "@/lib/demo-data";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
 import { ClipSelectorBar } from "./clip-selector-bar";
+import { ClipTransitionPicker } from "./clip-transition-picker";
 
 
 /** Konva touche `window` des son chargement : pas d'evaluation au rendu serveur. */
@@ -389,6 +390,8 @@ export function WhiteboardEditorStep({
           config={config}
           onChange={handleConfigChange}
         />
+
+        <ClipTransitionPicker />
 
         <AnnotationListPanel className="flex-1" />
 
