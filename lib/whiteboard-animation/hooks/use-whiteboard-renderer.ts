@@ -204,6 +204,11 @@ export function useWhiteboardRenderer({
     audioClock.manager?.setMuted(audioMuted);
   }, [audioClock.manager, audioVolume, audioMuted]);
   const [imageLoaded, setImageLoaded] = useState(false);
+  // Incremente a CHAQUE illustration posee, la premiere comprise. imageLoaded ne
+  // bascule que pour la premiere (voir le chargement plus bas) : sans ce
+  // compteur, l'arrivee d'une illustration de clip suivant ne reveille aucun
+  // effet, l'image etant portee par une ref.
+  const [artworkVersion, setArtworkVersion] = useState(0);
   // Vrai pendant qu'on scrube. Le seek ne "joue" pas — isPlaying reste faux —
   // mais l'utilisateur regarde le dessin, pas les cadres : le calque doit
   // s'effacer la aussi. Un delai de retour evite qu'il ne clignote entre deux
@@ -267,6 +272,7 @@ export function useWhiteboardRenderer({
       drawingDoneRef.current = false;
       pendingClipResyncRef.current = true;
       if (isFirstArtwork) setImageLoaded(true);
+      setArtworkVersion((v) => v + 1);
     };
 
     if (img.complete && img.naturalWidth > 0) {
@@ -932,6 +938,37 @@ export function useWhiteboardRenderer({
       ?.clearRect(0, 0, handCanvas.width, handCanvas.height);
     drawStaticPreview();
   }, [isPlaying, currentTime, imageLoaded, canvasBg, canvasRef, handCanvasRef, imageUrl]);
+
+  // Repeint a l'ARRIVEE de l'illustration quand on est a l'arret.
+  //
+  // Elle est posee de facon asynchrone, et pour tout clip place apres 0 rien ne
+  // la peignait : l'apercu statique ci-dessus se retire des que currentTime > 0,
+  // et le seek ne se redeclenche pas — son garde engineTimeRef voit une position
+  // inchangee, et imageLoaded ne bascule que pour la PREMIERE illustration. Le
+  // canvas gardait donc celle du clip precedent, ou rien, sous un calque
+  // d'annotations redevenu visible : les cadres flottaient sans dessin.
+  //
+  // applyImage vient de vider animRef et offscreenRef : il n'y a aucun etat
+  // d'animation en cours a preserver ici.
+  useEffect(() => {
+    if (artworkVersion === 0 || isPlaying) return;
+
+    const canvas = canvasRef.current;
+    const handCanvas = handCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    const hctx = handCanvas?.getContext('2d');
+    if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
+
+    if (currentTime <= 0) {
+      hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+      drawStaticPreview();
+    } else {
+      repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
+    }
+    // currentTime hors des deps : on repeint quand l'illustration change, pas a
+    // chaque tick d'horloge — le scrub ci-dessus s'en charge deja.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artworkVersion, isPlaying]);
 
   // ---- annotation overlay -------------------------------------------------
 
