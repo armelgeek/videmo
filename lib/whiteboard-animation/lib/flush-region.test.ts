@@ -5,7 +5,7 @@ function makeHarness() {
   const ctx = { drawImage: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(), clearRect: vi.fn() };
   const hctx = { clearRect: vi.fn() };
   const offscreen = { width: 800, height: 600 };
-  const state = {
+  const state: any = {
     canvasW: 800,
     canvasH: 600,
     contentBounds: { x: 0, y: 0, w: 800, h: 600 },
