@@ -49,3 +49,6 @@ audit-*.png
 audit-*.json
 *-test-results.json
 PLAYWRIGHT_QA_AUDIT_REPORT.md
+
+# Videos rendues par l export whiteboard
+.renders/
