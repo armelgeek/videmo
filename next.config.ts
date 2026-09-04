@@ -6,6 +6,17 @@ const nextConfig: NextConfig = {
   // ni l'un ni l'autre ne survit a un passage par le bundler. jsdom charge ses
   // modules dynamiquement, ce que le bundler ne sait pas suivre non plus.
   serverExternalPackages: ["canvas", "fluent-ffmpeg", "jsdom"],
+  // Le worker de rendu est lance par spawn, donc AUCUN import ne le designe :
+  // le traceur de Next ne le voit pas et output:"standalone" ne le copierait
+  // pas. Il faut donc l'inclure explicitement, avec le moteur qu'il charge et
+  // les images de mains qu'il dessine.
+  outputFileTracingIncludes: {
+    "/api/whiteboard/render": [
+      "./lib/whiteboard-animation/server/**",
+      "./lib/whiteboard-animation/lib/**",
+      "./public/images/**",
+    ],
+  },
   async headers() {
     return [
       {

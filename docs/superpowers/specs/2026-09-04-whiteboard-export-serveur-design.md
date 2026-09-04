@@ -202,14 +202,56 @@ Le test de fumée est marqué lent : il lance ffmpeg.
 
 ## Risques connus
 
-### `fork()` depuis une route Next
+### ~~`fork()` depuis une route Next~~ — s'est produit, et corrigé
 
-`fork()` exige un chemin de fichier réel à l'exécution. Le build Next n'émet
-pas forcément `render-worker.js` comme fichier autonome. Le worker doit donc
-être un `.js` simple, résolu par un chemin absolu depuis la racine du projet et
-exclu du bundle (`serverExternalPackages` pour `canvas` et `fluent-ffmpeg`).
-**À vérifier sur un `next build` réel avant de considérer la tâche finie** —
-c'est le point le plus susceptible de ne marcher qu'en développement.
+Le risque s'est matérialisé au premier `next build`. **Turbopack analyse
+statiquement le premier argument de `fork()`** et tente de le résoudre comme un
+import :
+
+```
+Module not found: Can't resolve './ROOT/.../render-worker.js'
+server relative imports are not implemented yet.
+```
+
+Le chemin était pourtant construit à l'exécution avec `join(process.cwd(), …)` :
+le bundler le replie quand même. Aucun réglage de `serverExternalPackages` n'y
+change rien, puisque le problème n'est pas la résolution d'un paquet mais le
+traçage de `fork` lui-même.
+
+**Correctif retenu** : `spawn(process.execPath, [WORKER], { stdio: ["pipe",
+"pipe", "pipe", "ipc"] })`. Sémantiquement identique — le canal `ipc` rend
+`child.send()` et les messages, donc le protocole du worker est inchangé — mais
+le chemin n'est plus qu'un argument de ligne de commande, que le bundler n'a
+aucune raison de résoudre. Vérifié : même sortie qu'avec `fork` (12 images,
+progression `[45, 90, 100]`, code de sortie 0).
+
+`serverExternalPackages: ["canvas", "fluent-ffmpeg", "jsdom"]` reste nécessaire
+par ailleurs : ce sont des binaires natifs ou à chargement dynamique.
+
+### Le worker et le traçage `standalone`
+
+Le passage à `spawn` a un corollaire : plus aucun import ne désigne le worker,
+donc le traceur de fichiers de Next ne peut pas le connaître. Or ce projet
+déploie en `output: "standalone"`, qui ne copie que ce qui est tracé. Le worker
+doit donc être inclus explicitement — de même que le moteur et les images de
+mains, qu'il charge par chemin et jamais par import.
+
+```ts
+outputFileTracingIncludes: {
+  "/api/whiteboard/render": [
+    "./lib/whiteboard-animation/server/**",
+    "./lib/whiteboard-animation/lib/**",
+    "./public/images/**",
+  ],
+},
+```
+
+**Vérifié** sur un build réel : `.next/standalone/**` contient le worker, le
+moteur, le binaire natif `canvas` et `public/images/`.
+
+Réserve honnête : je n'ai pas mesuré ce que le standalone contiendrait *sans*
+cette configuration. Elle est justifiée par construction — rien n'importe le
+worker — mais son caractère indispensable n'est pas prouvé expérimentalement.
 
 ### Dépendance native
 
