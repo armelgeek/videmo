@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import { fork } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -19,8 +19,13 @@ import {
 const OUTPUT_DIR =
   process.env.RENDER_OUTPUT_DIR || join(process.cwd(), ".renders");
 
-// fork() exige un chemin reel a l'execution : le worker est un .js resolu
-// depuis la racine, pas un module du bundle.
+// Le worker est un fichier reel sur le disque, pas un module du bundle.
+//
+// spawn et non fork : Turbopack analyse STATIQUEMENT le premier argument de
+// fork() et tente de le resoudre comme un import, ce qui fait echouer le build
+// ("server relative imports are not implemented yet"). Passe a spawn, le chemin
+// n'est plus qu'un argument de ligne de commande. Le canal 'ipc' rend
+// child.send() et les messages, donc le protocole du worker est inchange.
 const WORKER = join(
   process.cwd(),
   "lib/whiteboard-animation/server/render-worker.js",
@@ -56,7 +61,9 @@ export async function POST(request: NextRequest) {
   mkdirSync(OUTPUT_DIR, { recursive: true });
   const outputPath = join(OUTPUT_DIR, `${job.id}.mp4`);
 
-  const child = fork(WORKER, { stdio: "pipe" });
+  const child = spawn(process.execPath, [WORKER], {
+    stdio: ["pipe", "pipe", "pipe", "ipc"],
+  });
   attachChild(job.id, child);
   updateRenderJob(job.id, { status: "rendering" });
 
