@@ -12,12 +12,12 @@ describe("markerGeometry", () => {
     expect(markerGeometry(clips, 1)).toEqual([{ panelIdx: 0, x: 1000, width: 300 }]);
   });
 
-  it("ne plafonne pas si la duree demandee est plus courte que le blanc", () => {
+  it("occupe tout le blanc disponible entre les deux clips", () => {
     const clips: ClipWindow[] = [
       { startMs: 0, endMs: 1000, transition: { type: "fade", durationMs: 100 } },
       { startMs: 1300, endMs: 2000 },
     ];
-    expect(markerGeometry(clips, 1)).toEqual([{ panelIdx: 0, x: 1000, width: 100 }]);
+    expect(markerGeometry(clips, 1)).toEqual([{ panelIdx: 0, x: 1000, width: 300 }]);
   });
 
   it("ignore une frontiere sans transition ou marquee none", () => {

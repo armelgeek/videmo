@@ -53,6 +53,8 @@ export const TRACK_HEADER_PX = 128;
  */
 const END_PADDING_PX = 0;
 
+import type { ClipWindow } from "./clip-transitions";
+
 export interface AnnotationTimelineProps {
   /** Lets a sibling lane match the ruler's scale and scroll offset. */
   onViewportChange?: (viewport: {
@@ -63,11 +65,17 @@ export interface AnnotationTimelineProps {
   /** When provided, the timeline displays this full sequence (all clips
    *  chained) instead of the engine store's active-panel annotations. */
   globalAnnotations?: import("@/lib/unified-engine/types").Annotation[];
+  clipWindows?: ClipWindow[];
+  onTransitionResize?: (panelIdx: number, durationMs: number) => void;
+  onTransitionTypeChange?: (panelIdx: number, type: string) => void;
 }
 
 const AnnotationTimelineImpl: React.FC<AnnotationTimelineProps> = ({
   onViewportChange,
   globalAnnotations,
+  clipWindows,
+  onTransitionResize,
+  onTransitionTypeChange,
 }) => {
   const { fitZoomTo, ...timeline } = useAnnotationTimeline(globalAnnotations);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -99,6 +107,9 @@ const AnnotationTimelineImpl: React.FC<AnnotationTimelineProps> = ({
         hideScrollbar
         showPlayhead={false}
         onViewportChange={onViewportChange}
+        clipWindows={clipWindows}
+        onTransitionResize={onTransitionResize}
+        onTransitionTypeChange={onTransitionTypeChange}
       />
     </div>
   );

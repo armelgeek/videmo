@@ -33,7 +33,7 @@ export function markerGeometry(
     const blanc = entrant.startMs - sortant.endMs;
     if (blanc <= 0) continue;
 
-    const duree = Math.min(transition.durationMs, blanc);
+    const duree = blanc;
     if (duree <= 0) continue;
 
     marqueurs.push({

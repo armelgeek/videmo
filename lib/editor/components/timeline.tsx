@@ -14,6 +14,11 @@ import { useTimelineDrag } from "../hooks/use-timeline-drag";
 import { useTimelineSelection } from "../hooks/use-timeline-selection";
 import { useScrollPosition } from "../hooks/use-virtualized-clips";
 import { FilmIcon } from "./icons";
+import {
+  markerGeometry,
+  type TransitionMarker,
+} from "@/lib/whiteboard-animation/timeline/transition-marker-geometry";
+import type { ClipWindow } from "@/lib/whiteboard-animation/timeline/clip-transitions";
 
 interface TimelineProps {
   tracks: Track[];
@@ -69,6 +74,9 @@ interface TimelineProps {
   onOverwriteClips?: (movedClipIds: string[]) => void;
   storyboardPanels?: any[];
   onStoryboardPanelClick?: (panel: any, index: number) => void;
+  clipWindows?: ClipWindow[];
+  onTransitionResize?: (panelIdx: number, durationMs: number) => void;
+  onTransitionTypeChange?: (panelIdx: number, type: string) => void;
   /**
    * Empty space kept past the end of the content, in px. Defaults to a full
    * viewport so the video editor can scroll beyond the last clip; pass a small
@@ -158,6 +166,9 @@ export const Timeline = memo(function Timeline({
   onOverwriteClips,
   endPadding,
   onViewportChange,
+  clipWindows,
+  onTransitionResize,
+  onTransitionTypeChange,
   showPlayhead = true,
   hideScrollbar = false,
 }: TimelineProps) {
@@ -333,8 +344,14 @@ export const Timeline = memo(function Timeline({
       viewportWidth || scrollContainerRef.current.clientWidth || 800;
     const halfWidth = viewWidth / 2;
 
-    if (playheadX >= currentScrollLeft + halfWidth || playheadX < currentScrollLeft) {
-      scrollContainerRef.current.scrollLeft = Math.max(0, playheadX - halfWidth);
+    if (
+      playheadX >= currentScrollLeft + halfWidth ||
+      playheadX < currentScrollLeft
+    ) {
+      scrollContainerRef.current.scrollLeft = Math.max(
+        0,
+        playheadX - halfWidth,
+      );
     }
   }, [currentTime, zoomLevel, viewportWidth, isPlaying, isDraggingPlayhead]);
 
@@ -538,38 +555,38 @@ export const Timeline = memo(function Timeline({
               >
                 {/* Playhead Line (Interactive) */}
                 {showPlayhead && (
-                <div
-                  className="absolute top-0 bottom-0 z-50 group/playhead"
-                  style={{
-                    transform: `translateX(${currentTime * zoomLevel}px)`,
-                  }}
-                >
-                  {/* Hit Area */}
                   <div
-                    className="absolute -left-2 w-4 h-full cursor-ew-resize z-50"
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      setIsDraggingPlayhead(true);
+                    className="absolute top-0 bottom-0 z-50 group/playhead"
+                    style={{
+                      transform: `translateX(${currentTime * zoomLevel}px)`,
                     }}
-                  />
-                  {/* Visual Line */}
-                  <div
-                    className={`absolute left-0 w-0.5 h-full bg-red-500 pointer-events-none shadow-[0_0_6px_rgba(239,68,68,0.6)] ${
-                      isDraggingPlayhead
-                        ? "w-1 bg-red-400 shadow-[0_0_12px_rgba(239,68,68,1)]"
-                        : ""
-                    }`}
-                  />
-                  {/* Head/Handle */}
-                  <div
-                    className={`absolute -left-[5.5px] top-0 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] pointer-events-none transition-colors ${
-                      isDraggingPlayhead
-                        ? "border-t-white"
-                        : "border-t-[var(--accent-primary)] group-hover/playhead:border-t-[var(--accent-text)]"
-                    }`}
-                  />
-                </div>
+                  >
+                    {/* Hit Area */}
+                    <div
+                      className="absolute -left-2 w-4 h-full cursor-ew-resize z-50"
+                      onMouseDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        setIsDraggingPlayhead(true);
+                      }}
+                    />
+                    {/* Visual Line */}
+                    <div
+                      className={`absolute left-0 w-0.5 h-full bg-red-500 pointer-events-none shadow-[0_0_6px_rgba(239,68,68,0.6)] ${
+                        isDraggingPlayhead
+                          ? "w-1 bg-red-400 shadow-[0_0_12px_rgba(239,68,68,1)]"
+                          : ""
+                      }`}
+                    />
+                    {/* Head/Handle */}
+                    <div
+                      className={`absolute -left-[5.5px] top-0 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] pointer-events-none transition-colors ${
+                        isDraggingPlayhead
+                          ? "border-t-white"
+                          : "border-t-[var(--accent-primary)] group-hover/playhead:border-t-[var(--accent-text)]"
+                      }`}
+                    />
+                  </div>
                 )}
 
                 {/* Snap Indicator Line */}
@@ -603,6 +620,13 @@ export const Timeline = memo(function Timeline({
                     : isText
                       ? "h-12"
                       : "h-11";
+
+                  const pxParMs = zoomLevel / 1000;
+                  const marqueurs =
+                    clipWindows &&
+                    (track.id === "annotations" || track.id === "video")
+                      ? markerGeometry(clipWindows, pxParMs)
+                      : [];
 
                   return (
                     <div
@@ -650,6 +674,20 @@ export const Timeline = memo(function Timeline({
                           />
                         );
                       })}
+
+                      {marqueurs.map((m) => (
+                        <TimelineTransitionCard
+                          key={`trans-${m.panelIdx}`}
+                          marqueur={m}
+                          type={
+                            clipWindows?.[m.panelIdx]?.transition?.type ??
+                            "fade"
+                          }
+                          zoomLevel={zoomLevel}
+                          onResize={onTransitionResize}
+                          onTypeChange={onTransitionTypeChange}
+                        />
+                      ))}
                     </div>
                   );
                 })}
@@ -681,3 +719,164 @@ export const Timeline = memo(function Timeline({
     </div>
   );
 });
+
+const COULEUR_PAR_TYPE: Record<string, string> = {
+  fade: "#2563eb", // Blue-600
+  slideup: "#0284c7", // Sky-600
+  slidedown: "#0369a1", // Sky-700
+  slideleft: "#0d9488", // Teal-600
+  slideright: "#3b82f6", // Blue-500
+};
+
+const LIBELLES_TRANSITIONS: { value: string; label: string }[] = [
+  { value: "fade", label: "Fondu" },
+  { value: "slideup", label: "Glisse vers le haut" },
+  { value: "slidedown", label: "Glisse vers le bas" },
+  { value: "slideleft", label: "Glisse vers la gauche" },
+  { value: "slideright", label: "Glisse vers la droite" },
+  { value: "none", label: "Coupe franche (Supprimer)" },
+];
+
+function TimelineTransitionCard({
+  marqueur,
+  type,
+  zoomLevel,
+  onResize,
+  onTypeChange,
+}: {
+  marqueur: TransitionMarker;
+  type: string;
+  zoomLevel: number;
+  onResize?: (panelIdx: number, durationMs: number) => void;
+  onTypeChange?: (panelIdx: number, type: string) => void;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const pxParMs = zoomLevel / 1000;
+  const couleur = COULEUR_PAR_TYPE[type] ?? COULEUR_PAR_TYPE.fade;
+  const initialDurationMs = Math.round(marqueur.width / pxParMs);
+
+  useEffect(() => {
+    if (showMenu) {
+      const handleClose = (e: MouseEvent) => {
+        if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+          setShowMenu(false);
+        }
+      };
+      window.addEventListener("mousedown", handleClose);
+      return () => window.removeEventListener("mousedown", handleClose);
+    }
+  }, [showMenu]);
+
+  const startDrag = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (pxParMs <= 0 || !onResize) return;
+
+    const x0 = e.clientX;
+    const largeurInitialeMs = marqueur.width / pxParMs;
+    let latestDureeMs = Math.max(50, Math.round(largeurInitialeMs));
+    let rafId: number | null = null;
+
+    const onMove = (ev: MouseEvent) => {
+      const deltaMs = (ev.clientX - x0) / pxParMs;
+      latestDureeMs = Math.max(50, Math.round(largeurInitialeMs + deltaMs));
+
+      if (cardRef.current) {
+        cardRef.current.style.width = `${Math.max(24, latestDureeMs * pxParMs)}px`;
+      }
+      if (labelRef.current) {
+        labelRef.current.textContent = `${type} ${latestDureeMs}ms`;
+      }
+
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          onResize(marqueur.panelIdx, latestDureeMs);
+        });
+      }
+    };
+
+    const onUp = () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      onResize(marqueur.panelIdx, latestDureeMs);
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      data-clip="true"
+      onClick={(e) => {
+        e.stopPropagation();
+        import("@/lib/storyboard/store").then((m) => {
+          m.useStoryboardStore.getState().setActiveClipIndex(marqueur.panelIdx);
+        });
+        setShowMenu((prev) => !prev);
+      }}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+      }}
+      className="absolute top-1 bottom-1 rounded-md z-40 pointer-events-auto flex items-center justify-center border border-blue-300/60 shadow-md transition-all hover:brightness-110 cursor-pointer group/trans-card"
+      style={{
+        left: `${marqueur.x}px`,
+        width: `${Math.max(24, marqueur.width)}px`,
+        backgroundColor: couleur,
+        opacity: 0.95,
+      }}
+      title={`Cliquer pour changer la transition : ${type} (${initialDurationMs}ms)`}
+    >
+      <span
+        ref={labelRef}
+        className="text-[10px] font-bold text-white uppercase tracking-tighter truncate px-1 select-none pointer-events-none drop-shadow"
+      >
+        {type} {initialDurationMs}ms
+      </span>
+
+      <div
+        className="absolute -right-2 top-0 bottom-0 w-4 cursor-ew-resize z-50 flex items-center justify-center group/trans-handle"
+        onMouseDown={startDrag}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="w-1.5 h-6 bg-white rounded-full shadow-md ring-1 ring-black/20 group-hover/trans-handle:scale-125 group-hover/trans-handle:bg-white transition-transform" />
+      </div>
+
+      {showMenu && (
+        <div
+          className="absolute top-full mt-1.5 left-0 z-[100] w-48 bg-[#18181c] border border-white/20 rounded-md shadow-2xl py-1 text-xs animate-in fade-in zoom-in-95 duration-75"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider border-b border-white/10 mb-1">
+            Changer la transition
+          </div>
+          {LIBELLES_TRANSITIONS.map((t) => (
+            <button
+              key={t.value}
+              onClick={() => {
+                onTypeChange?.(marqueur.panelIdx, t.value);
+                setShowMenu(false);
+              }}
+              className={`w-full text-left px-2.5 py-1.5 hover:bg-blue-600/30 flex items-center justify-between transition-colors ${
+                t.value === type
+                  ? "font-bold text-blue-400 bg-blue-500/10"
+                  : "text-neutral-200"
+              }`}
+            >
+              <span>{t.label}</span>
+              {t.value === type && <span className="text-blue-400">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -118,45 +118,95 @@ export function WhiteboardEditorStep({
   // ── Global timeline sequence ─────────────────────────────────────────────
   // All panels' annotations chained end-to-end for the timeline display.
   // Each id is prefixed with its panel index to stay unique across panels.
+  // Assure un blanc par defaut (300ms) pour les panneaux secondaires afin
+  // de reserver l'espace necessaire a l'affichage de la carte de transition.
   const allAnnotations = useMemo(() => {
-    return storyboardPanels.flatMap((panel, panelIdx) =>
-      toEngineAnnotations(panel.annotations || []).map((a) => ({
-        ...a,
-        id: `p${panelIdx}-${a.id}`,
-      }))
-    );
+    return storyboardPanels.flatMap((panel, panelIdx) => {
+      const anns = toEngineAnnotations(panel.annotations || []);
+      if (anns.length === 0) return [];
+      return anns.map((a, aIdx) => {
+        let gapBeforeMs = a.reveal.gapBeforeMs ?? 0;
+        if (panelIdx > 0 && aIdx === 0 && gapBeforeMs === 0) {
+          gapBeforeMs = 300;
+        }
+        return {
+          ...a,
+          id: `p${panelIdx}-${a.id}`,
+          reveal: {
+            ...a.reveal,
+            gapBeforeMs,
+          },
+        };
+      });
+    });
   }, [storyboardPanels]);
 
-  // Where each clip sits on the global timeline. Derived once from the full
-  // chain, so a clip's window is the same number the ruler and the narration
-  // already use.
+  // Where each clip sits on the global timeline.
+  // Panel i > 0 starts where Panel i-1 ends, so that the gap before Panel i
+  // is included in Panel i's boundary (clipOffsetMs).
   const panelBoundaries = useMemo(() => {
     if (allAnnotations.length === 0) return [];
-    const result: { panelIdx: number; startMs: number; endMs: number }[] = [];
+    
+    const drawingSpans: { panelIdx: number; drawStartMs: number; drawEndMs: number }[] = [];
     deriveTimeline(allAnnotations).annotations.forEach((ann) => {
       const panelIdx = Number(ann.id.match(/^p(\d+)-/)?.[1]);
       if (Number.isNaN(panelIdx)) return;
-      const last = result[result.length - 1];
-      if (last && last.panelIdx === panelIdx) last.endMs = ann.reveal.to;
-      else
-        result.push({
+      const last = drawingSpans[drawingSpans.length - 1];
+      if (last && last.panelIdx === panelIdx) {
+        last.drawEndMs = ann.reveal.to;
+      } else {
+        drawingSpans.push({
           panelIdx,
-          startMs: ann.reveal.from,
-          endMs: ann.reveal.to,
+          drawStartMs: ann.reveal.from,
+          drawEndMs: ann.reveal.to,
         });
+      }
     });
+
+    const result: { panelIdx: number; startMs: number; endMs: number; drawStartMs: number; drawEndMs: number }[] = [];
+    let prevEndMs = 0;
+    for (const span of drawingSpans) {
+      const startMs = prevEndMs;
+      const endMs = Math.max(startMs, span.drawEndMs);
+      result.push({
+        panelIdx: span.panelIdx,
+        startMs,
+        endMs,
+        drawStartMs: span.drawStartMs,
+        drawEndMs: span.drawEndMs,
+      });
+      prevEndMs = endMs;
+    }
+
     return result;
   }, [allAnnotations]);
 
-  // Les frontieres, enrichies de la transition de sortie de chaque panneau.
+  // Les frontieres de clips pour le moteur de transition et les marqueurs.
+  // sortant.endMs est la fin du dessin du panneau sortant,
+  // entrant.startMs est le debut du dessin du panneau entrant.
   const clipWindows = useMemo(
     () =>
-      panelBoundaries.map((b) => ({
-        startMs: b.startMs,
-        endMs: b.endMs,
-        transition: storyboardPanels[b.panelIdx]?.transition,
-        panelId: storyboardPanels[b.panelIdx]?.id,
-      })),
+      panelBoundaries.map((b, idx) => {
+        const next = panelBoundaries[idx + 1];
+        const blanc = next ? Math.max(0, next.drawStartMs - b.drawEndMs) : 0;
+        let transition = storyboardPanels[b.panelIdx]?.transition;
+
+        if (blanc > 0 && transition && transition.type !== "none") {
+          transition = {
+            ...transition,
+            durationMs: blanc,
+          };
+        } else {
+          transition = transition ?? { type: "none", durationMs: blanc };
+        }
+
+        return {
+          startMs: b.drawStartMs,
+          endMs: b.drawEndMs,
+          transition,
+          panelId: storyboardPanels[b.panelIdx]?.id,
+        };
+      }),
     [panelBoundaries, storyboardPanels],
   );
 
@@ -350,22 +400,99 @@ export function WhiteboardEditorStep({
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
         <div className="relative">
-          <AnnotationTimeline onViewportChange={setTimelineViewport} globalAnnotations={allAnnotations} />
-          <AudioTrackRow viewport={timelineViewport} />
-          <ClipTransitionMarkers
-            clips={clipWindows}
-            viewport={timelineViewport}
-            onResize={(panelIdx, durationMs) => {
-              const panelId = clipWindows[panelIdx]?.panelId;
-              const panel = storyboardPanels.find((p) => p.id === panelId);
-              if (!panel?.transition) return;
-              useStoryboardStore
-                .getState()
-                .updatePanel(panel.id, {
-                  transition: { ...panel.transition, durationMs },
-                });
+          <AnnotationTimeline
+            onViewportChange={setTimelineViewport}
+            globalAnnotations={allAnnotations}
+            clipWindows={clipWindows}
+            onTransitionResize={(panelIdx, durationMs) => {
+              const sortantPanel = storyboardPanels[panelIdx];
+              const entrantPanel = storyboardPanels[panelIdx + 1];
+              if (!sortantPanel?.transition) return;
+
+              const newDuration = Math.max(50, durationMs);
+              useStoryboardStore.getState().updatePanel(sortantPanel.id, {
+                transition: { ...sortantPanel.transition, durationMs: newDuration },
+              });
+
+              if (entrantPanel) {
+                const sortantWindow = clipWindows[panelIdx];
+                const entrantWindow = clipWindows[panelIdx + 1];
+                const currentBlanc =
+                  entrantWindow && sortantWindow
+                    ? entrantWindow.startMs - sortantWindow.endMs
+                    : 0;
+
+                const deltaNeeded = newDuration - currentBlanc;
+                if (deltaNeeded !== 0) {
+                  const anns = toEngineAnnotations(entrantPanel.annotations ?? []);
+                  if (anns.length > 0) {
+                    const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
+                    const newGap = Math.max(50, currentGap + deltaNeeded);
+                    anns[0] = {
+                      ...anns[0],
+                      reveal: {
+                        ...anns[0].reveal,
+                        gapBeforeMs: newGap,
+                      },
+                    };
+                    const updatedStored = toStoredAnnotations(anns);
+                    useStoryboardStore.getState().updatePanel(entrantPanel.id, {
+                      annotations: updatedStored,
+                    });
+
+                    if (panelIdx + 1 === useStoryboardStore.getState().activeClipIndex) {
+                      useUnifiedEngineStore.getState().setAnnotations(anns);
+                    }
+                  }
+                }
+              }
+            }}
+            onTransitionTypeChange={(panelIdx, newType) => {
+              const sortantPanel = storyboardPanels[panelIdx];
+              const entrantPanel = storyboardPanels[panelIdx + 1];
+              if (!sortantPanel) return;
+
+              const currentDuration = sortantPanel.transition?.durationMs ?? 300;
+              useStoryboardStore.getState().updatePanel(sortantPanel.id, {
+                transition: {
+                  type: newType as any,
+                  durationMs: currentDuration,
+                },
+              });
+
+              if (newType !== "none" && entrantPanel) {
+                const sortantWindow = clipWindows[panelIdx];
+                const entrantWindow = clipWindows[panelIdx + 1];
+                const currentBlanc =
+                  entrantWindow && sortantWindow
+                    ? entrantWindow.startMs - sortantWindow.endMs
+                    : 0;
+
+                if (currentBlanc === 0) {
+                  const anns = toEngineAnnotations(entrantPanel.annotations ?? []);
+                  if (anns.length > 0) {
+                    const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
+                    anns[0] = {
+                      ...anns[0],
+                      reveal: {
+                        ...anns[0].reveal,
+                        gapBeforeMs: currentGap + 300,
+                      },
+                    };
+                    const updatedStored = toStoredAnnotations(anns);
+                    useStoryboardStore.getState().updatePanel(entrantPanel.id, {
+                      annotations: updatedStored,
+                    });
+
+                    if (panelIdx + 1 === useStoryboardStore.getState().activeClipIndex) {
+                      useUnifiedEngineStore.getState().setAnnotations(anns);
+                    }
+                  }
+                }
+              }
             }}
           />
+          <AudioTrackRow viewport={timelineViewport} />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
 
