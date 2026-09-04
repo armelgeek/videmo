@@ -47,6 +47,7 @@ export const AnnotationSchema = z.object({
   }).default({ strokeColor: '#000000', strokeWidth: 2, opacity: 1 }),
   metadata: z.record(z.string(), z.unknown()).optional(),
   narration: NarrationMetadataSchema.optional(),
+  animStyle: z.string().optional(),
 });
 
 export type Annotation = z.infer<typeof AnnotationSchema>;

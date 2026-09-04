@@ -526,7 +526,7 @@ export function useWhiteboardRenderer({
   // global timeline — without them this key never changes, the engine is never
   // invalidated, and the drawing is never replayed for the new clip.
   const sequenceKey = `${clipOffsetMs}:${annotations
-    .map((a) => `${a.id}@${a.reveal.from}`)
+    .map((a) => `${a.id}@${a.reveal.from}:${a.animStyle || ''}`)
     .join('|')}`;
   useEffect(() => {
     animRef.current = null;
@@ -588,6 +588,7 @@ export function useWhiteboardRenderer({
       handSpeed,
       hand: normalizeHandKey(handStyle),
       tileSlider: chunks,
+      animStyle,
       // Les bornes suivent l'artwork : hors de ce rectangle il n'y a que du
       // fond, et le tampon de fin ne doit pas y baver.
       contentBounds: rectArtwork(canvas),
