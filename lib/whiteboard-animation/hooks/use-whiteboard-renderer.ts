@@ -12,6 +12,7 @@ import type { Annotation } from '@/lib/unified-engine/types';
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { transitionAt, type ClipWindow } from '../timeline/clip-transitions';
 import { normalizeGaps } from '../timeline/normalize-gaps';
+import { planSeek } from '../timeline/plan-seek';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
 import { DRIFT_MAX_MS } from './audio-delta';
 import { useAudioClock } from '../audio/use-audio-clock';
@@ -746,8 +747,31 @@ export function useWhiteboardRenderer({
         }
       };
 
-      anim.primeAt?.(0);
-      advance(0, localTarget);
+      // Le rejeu est borne a UNE region : l'image a la frontiere d'une
+      // annotation est le fond plus les regions precedentes estampillees, on la
+      // peint au lieu de la rejouer. Sans cela le cout croit avec la position
+      // cherchee (134 ms en bout de timeline sur une scene de 11 s).
+      const plan = planSeek(anim.annotationManager?.schedule, localTarget);
+      const artwork = rectArtwork(canvas);
+      const schedule = anim.annotationManager?.schedule;
+
+      if (plan.stampAll) {
+        bctx.drawImage(offscreen, 0, 0);
+      } else {
+        for (const i of plan.stampRegions) {
+          const rect = regionRect(schedule[i].annot.region, artwork);
+          if (rect) {
+            bctx.drawImage(
+              offscreen,
+              rect.x, rect.y, rect.w, rect.h,
+              rect.x, rect.y, rect.w, rect.h
+            );
+          }
+        }
+      }
+
+      anim.primeAt?.(plan.primeAt);
+      if (plan.advance) advance(plan.advance.from, plan.advance.to);
 
       // Rebind the engine's drawing context from the seek buffers back to
       // the visible canvas contexts (ctx and hctx) so that subsequent live ticks during rAF
@@ -1028,12 +1052,15 @@ export function useWhiteboardRenderer({
   /** Delai avant que le calque d'annotations ne revienne apres un scrub. */
   const SCRUB_RETOUR_MS = 400;
 
-  /** Rect d'une region, borne au canvas — meme calcul que _enterRegion. */
-  const regionRect = (r: any, canvas: HTMLCanvasElement) => {
-    const x = Math.max(0, Math.floor(r.x));
-    const y = Math.max(0, Math.floor(r.y));
-    const x2 = Math.min(canvas.width, Math.ceil(r.x + r.width));
-    const y2 = Math.min(canvas.height, Math.ceil(r.y + r.height));
+  /** Rect d'une region, borne a l'artwork — meme calcul que _enterRegion. */
+  const regionRect = (
+    r: any,
+    bounds: { x: number; y: number; w: number; h: number }
+  ) => {
+    const x = Math.max(bounds.x, Math.floor(r.x));
+    const y = Math.max(bounds.y, Math.floor(r.y));
+    const x2 = Math.min(bounds.x + bounds.w, Math.ceil(r.x + r.width));
+    const y2 = Math.min(bounds.y + bounds.h, Math.ceil(r.y + r.height));
     return x2 <= x || y2 <= y ? null : { x, y, w: x2 - x, h: y2 - y };
   };
 
