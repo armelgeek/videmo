@@ -32,6 +32,9 @@ export const renderRequestSchema = z.object({
   quality: z.enum(["720p", "1080p"]),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]),
   project: z.object({
+    annotationSpace: z
+      .object({ width: z.number().positive(), height: z.number().positive() })
+      .optional(),
     scenes: z.array(z.any()).min(1),
     narration: z.any().optional(),
     animStyle: z.string().optional(),

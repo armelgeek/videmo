@@ -1956,6 +1956,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
               const project = toRenderProject({
                 panels: storyboardPanels,
                 config: whiteboardConfig,
+                aspectRatio: projectParams.aspectRatio,
               });
               const res = await fetch("/api/whiteboard/render", {
                 method: "POST",

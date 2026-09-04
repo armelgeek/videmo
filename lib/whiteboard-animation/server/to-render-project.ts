@@ -1,5 +1,6 @@
 import { toEngineAnnotations } from "@/lib/whiteboard-animation/timeline/annotation-interop";
 import { deriveTimeline } from "@/lib/whiteboard-animation/timeline/derive-timeline";
+import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import type { StoryboardPanel } from "@/lib/storyboard/schema";
 
@@ -11,6 +12,8 @@ export interface RenderScene {
 }
 
 export interface RenderProject {
+  /** Repere dans lequel l'editeur a ecrit les regions : le canvas de l'apercu. */
+  annotationSpace: { width: number; height: number };
   animStyle: string;
   hand: string;
   handSpeed: number;
@@ -29,9 +32,11 @@ const FIDELE_1X = 40;
 export function toRenderProject({
   panels,
   config,
+  aspectRatio = "16:9",
 }: {
   panels: StoryboardPanel[];
   config: WhiteboardConfig;
+  aspectRatio?: string;
 }): RenderProject {
   // persistUrl et non url : `url` est une blob: URL, qui n'existe que dans
   // l'onglet qui l'a creee. Envoyee au rendu, ffmpeg ne peut pas la lire et la
@@ -39,6 +44,10 @@ export function toRenderProject({
   const audioUrl = config.audio?.persistUrl ?? config.audio?.url ?? null;
 
   return {
+    // Les regions sont enregistrees en pixels du canvas d'apercu, dont la
+    // taille ne depend que du ratio. Le renderer en a besoin pour les ramener
+    // dans l'espace naturel de l'image avant SA propre projection.
+    annotationSpace: tailleCanvas(aspectRatio),
     animStyle: config.animStyle,
     hand: config.handStyle,
     handSpeed: config.handSpeed ?? 5,
