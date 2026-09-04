@@ -12,7 +12,7 @@ const getFactory = () => {
   if (!JSAnimationFactory) {
     try {
       // eslint-disable-next-line global-require
-      const factoryModule = require('./index.js');
+      const factoryModule = require('./lib/index.js');
       JSAnimationFactory = factoryModule.AnimationFactory || factoryModule.default || factoryModule;
     } catch (error) {
       console.warn('Could not load animation factory:', error);
