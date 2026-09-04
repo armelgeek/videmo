@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ExportModal } from "@/lib/editor/components/export-modal";
+import { toRenderProject } from "@/lib/whiteboard-animation/server/to-render-project";
 import { ShortcutsModal } from "@/lib/editor/components/shortcuts-modal";
 import { MasterGenerator } from "@/lib/automator/master-generator";
 import { Button } from "@/components/ui/button";
@@ -233,6 +234,7 @@ export default function StoryboardPage() {
     setProjectParams,
     script,
     setScript,
+    storyboardPanels,
     setStoryboardPanels,
     updatePanel,
     selectedVoice,
@@ -257,6 +259,7 @@ export default function StoryboardPage() {
     "idle" | "init" | "audio" | "video" | "encoding" | "complete"
   >("idle");
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const renderJobIdRef = useRef<string | null>(null);
   const [editableClips, setEditableClips] = useState<any[]>([]);
 
   const [hasLoadedSession, setHasLoadedSession] = useState(false);
@@ -1944,22 +1947,75 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
         <ExportModal
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
-          onStartExport={(resolution) => {
-            toast.success(`Exporting in ${resolution}...`);
+          onStartExport={async (resolution) => {
             setExportPhase("init");
             setIsExporting(true);
-            // TODO: Implement actual export logic
-            setTimeout(() => {
-              setExportPhase("complete");
+            setExportProgress(0);
+            setDownloadUrl(null);
+            try {
+              const project = toRenderProject({
+                panels: storyboardPanels,
+                config: whiteboardConfig,
+              });
+              const res = await fetch("/api/whiteboard/render", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({
+                  quality: resolution,
+                  aspectRatio: projectParams.aspectRatio,
+                  project,
+                }),
+              });
+              if (!res.ok) {
+                throw new Error((await res.json()).error || "Export refuse");
+              }
+              const { jobId } = await res.json();
+              renderJobIdRef.current = jobId;
+              setExportPhase("encoding");
+
+              // Interrogation plutot qu'un websocket : un rendu dure des
+              // minutes, une seconde de latence sur une barre ne se voit pas.
+              for (;;) {
+                await new Promise((r) => setTimeout(r, 1000));
+                if (renderJobIdRef.current !== jobId) return;
+                const s = await fetch(
+                  `/api/whiteboard/render/${jobId}`
+                ).then((r) => r.json());
+                setExportProgress(s.progress ?? 0);
+                if (s.status === "done") {
+                  setDownloadUrl(`/api/whiteboard/render/${jobId}/file`);
+                  setExportPhase("complete");
+                  break;
+                }
+                if (s.status === "error") {
+                  throw new Error(s.error || "Le rendu a echoue");
+                }
+                if (s.status === "cancelled") {
+                  setExportPhase("idle");
+                  break;
+                }
+              }
+            } catch (err) {
+              toast.error(
+                err instanceof Error ? err.message : "Export echoue"
+              );
+              setExportPhase("idle");
+            } finally {
               setIsExporting(false);
-              setDownloadUrl("video.mp4");
-            }, 2000);
+            }
           }}
           isExporting={isExporting}
           exportProgress={exportProgress}
           exportPhase={exportPhase}
           downloadUrl={downloadUrl}
           onCancel={() => {
+            const id = renderJobIdRef.current;
+            // Remis a null AVANT la requete : la boucle d'interrogation compare
+            // cette reference et s'arrete d'elle-meme.
+            renderJobIdRef.current = null;
+            if (id) {
+              void fetch(`/api/whiteboard/render/${id}`, { method: "DELETE" });
+            }
             setIsExporting(false);
             setExportPhase("idle");
             setDownloadUrl(null);
