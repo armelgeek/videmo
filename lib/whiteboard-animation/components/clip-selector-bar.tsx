@@ -1,9 +1,10 @@
 "use client";
 
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import Image from "next/image";
 import { Layers } from "lucide-react";
 import { useStoryboardStore } from "@/lib/storyboard/store";
+import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { DEMO_STORYBOARD } from "@/lib/demo-data";
 
 /** Takes no props and reads the store itself, so a parent re-render — the
@@ -13,6 +14,20 @@ function ClipSelectorBarImpl() {
   const storyboardPanels = useStoryboardStore((s) => s.storyboardPanels);
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
   const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
+
+  // Pendant la lecture, le clip actif SUIT l'horloge : whiteboard-editor-step
+  // le recale a chaque frame sur le clip joue. Un clic etait donc annule au
+  // 16e de seconde suivant. Choisir un clip a la main est une intention de
+  // navigation, pas de lecture : on met en pause d'abord, l'effet de seek de
+  // l'editeur amene ensuite la tete de lecture sur ce clip.
+  const handleSelect = useCallback(
+    (idx: number) => {
+      const engine = useUnifiedEngineStore.getState();
+      if (engine.timeline.isPlaying) engine.setIsPlaying(false);
+      setActiveClipIndex(idx);
+    },
+    [setActiveClipIndex],
+  );
 
   if (!storyboardPanels || storyboardPanels.length === 0) return null;
 
@@ -38,7 +53,7 @@ function ClipSelectorBarImpl() {
               DEMO_STORYBOARD.panels[idx % DEMO_STORYBOARD.panels.length]
                 ?.imageUrl
             }
-            onSelect={setActiveClipIndex}
+            onSelect={handleSelect}
           />
         ))}
       </div>

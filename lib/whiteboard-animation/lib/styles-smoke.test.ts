@@ -102,6 +102,53 @@ function run(style: string) {
   return { anim, finished };
 }
 
+/** Nombre de ticks de `deltaMs` avant que finishAnim ne soit appele. */
+function ticksUntilFinish(globalStyle: string, annotStyles: (string | null)[]) {
+  let ticks: number | null = null;
+  const state: any = {
+    canvasW: W,
+    canvasH: H,
+    speed: 40,
+    handSpeed: 5,
+    hand: "custom1",
+    tileSlider: 30,
+    contentBounds: { x: 0, y: 0, w: W, h: H },
+    annotations: [
+      { region: { x: 0, y: 0, width: 90, height: 60 }, reveal: { from: 0, to: 400 } },
+      { region: { x: 100, y: 60, width: 90, height: 60 }, reveal: { from: 600, to: 1000 } },
+    ],
+  };
+  annotStyles.forEach((st, i) => {
+    if (st) state.annotations[i].animStyle = st;
+  });
+
+  const anim = AnimationFactory.create(globalStyle, {
+    state,
+    ctx: fakeCtx(),
+    hctx: fakeCtx(),
+    offscreen: fakeCanvas(),
+    callbacks: {
+      fillBg: () => undefined,
+      drawHand: () => undefined,
+      setProgress: () => undefined,
+      finishAnim: () => undefined,
+      resScale: () => 1,
+      resPointScale: () => 1,
+    },
+  });
+  anim.finishAnim = () => {
+    if (ticks === null) ticks = seen;
+  };
+
+  anim.setup?.();
+  let seen = 0;
+  for (let i = 0; i < 120; i++) {
+    seen = i + 1;
+    anim.tick?.(40, 20);
+  }
+  return ticks;
+}
+
 describe("styles exposes dans l'UI", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -171,5 +218,16 @@ describe("styles exposes dans l'UI", () => {
       for (let i = 0; i < 60; i++) anim.tick?.(40, 20);
     }).not.toThrow();
     expect(finished.called).toBe(true);
+  });
+  it("un style par annotation ne fait pas avancer l'horloge deux fois", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    // La timeline dure 1000 ms ; a 20 ms/tick la fin tombe au tick 50.
+    // Quand l'instance pretee rejouait son propre withAnnotationAwareness,
+    // elle re-incrementait elapsedMs et l'animation se terminait trop tot.
+    const reference = ticksUntilFinish("chunkjump", [null, null]);
+    expect(reference).toBe(50);
+    expect(ticksUntilFinish("chunkjump", ["scribble", null])).toBe(reference);
+    expect(ticksUntilFinish("chunkjump", ["scribble", "contour"])).toBe(reference);
+    expect(ticksUntilFinish("nervous", [null, "gesture"])).toBe(reference);
   });
 });
