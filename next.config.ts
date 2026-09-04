@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // canvas est un binaire natif et fluent-ffmpeg pilote un binaire externe :
+  // ni l'un ni l'autre ne survit a un passage par le bundler. jsdom charge ses
+  // modules dynamiquement, ce que le bundler ne sait pas suivre non plus.
+  serverExternalPackages: ["canvas", "fluent-ffmpeg", "jsdom"],
   async headers() {
     return [
       {
