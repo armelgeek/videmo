@@ -61,6 +61,39 @@ describe("toRenderProject", () => {
     expect(p.scenes[0].annotations).toHaveLength(1);
   });
 
+  it("chaine les bornes absolues d'une scene a l'autre", () => {
+    // toEngineAnnotations met from/to/startMs a ZERO : ce sont des remplacants,
+    // deriveTimeline est cense les recalculer. Sans cela le moteur lit une
+    // fenetre de 1 ms par annotation (bornes() force to = from + 1), chaque
+    // scene ne recoit qu'UNE image — son etat initial — et la video sort
+    // blanche et vide.
+    const p = toRenderProject({
+      panels: [panel("p1", 0, 400), panel("p2", 0, 500)],
+      config,
+    });
+    const bornes = p.scenes.map((s) =>
+      (s.annotations as any[]).map((a) => [a.reveal.from, a.reveal.to]),
+    );
+    expect(bornes).toEqual([[[0, 400]], [[400, 900]]]);
+  });
+
+  it("honore le silence demande avant une annotation", () => {
+    const avecGap: any = {
+      id: "p2",
+      imageUrl: "/img/p2.png",
+      annotations: [
+        {
+          id: "p2-a",
+          region: { x: 0, y: 0, width: 10, height: 10 },
+          reveal: { durationMs: 500, gapBeforeMs: 200 },
+        },
+      ],
+    };
+    const p = toRenderProject({ panels: [panel("p1", 0, 400), avecGap], config });
+    const s2 = (p.scenes[1].annotations as any[])[0];
+    expect([s2.reveal.from, s2.reveal.to]).toEqual([600, 1100]);
+  });
+
   it("rend un projet sans scene si aucun panneau", () => {
     expect(toRenderProject({ panels: [], config }).scenes).toEqual([]);
   });
