@@ -483,7 +483,7 @@ export function useWhiteboardRenderer({
     }
   };
 
-  // Static preview when idle: the finished drawing, no engine involved.
+  // Static preview when idle at start of clip: clean whiteboard background, no pre-drawn raw image.
   const drawStaticPreview = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
@@ -491,10 +491,6 @@ export function useWhiteboardRenderer({
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     paintBackground(ctx, canvas.width, canvas.height);
-    if (imageRef.current) {
-      const r = rectArtwork(canvas);
-      ctx.drawImage(imageRef.current, r.x, r.y, r.w, r.h);
-    }
   };
 
   // ---- engine-driven playback --------------------------------------------

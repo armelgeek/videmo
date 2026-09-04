@@ -66,9 +66,9 @@ export function AnnotationListPanel({
     try {
       const storyboardState = useStoryboardStore.getState();
       const activeClipIndex = storyboardState.activeClipIndex;
-      const activePanel = storyboardState.panels[activeClipIndex];
+      const activePanel = storyboardState.storyboardPanels[activeClipIndex];
       if (activePanel) {
-        const updatedAnnotations = (activePanel.annotations ?? []).map((a, i) =>
+        const updatedAnnotations = (activePanel.annotations ?? []).map((a: any, i: number) =>
           i === index ? { ...a, animStyle: newStyle } : a,
         );
         storyboardState.updatePanel(activePanel.id, {
