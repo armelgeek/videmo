@@ -47,12 +47,12 @@ describe("transitionAt", () => {
     expect(transitionAt(paire(), 2500)).toBeNull();
   });
 
-  it("honore une duree plus courte que le blanc", () => {
+  it("utilise la totalite du blanc disponible pour la transition", () => {
     const clips: ClipWindow[] = [
       { startMs: 0, endMs: 1000, transition: { type: "slideup", durationMs: 100 } },
       { startMs: 1300, endMs: 2000 },
     ];
-    expect(transitionAt(clips, 1050)).toEqual({ name: "slideup", t: 0.5 });
-    expect(transitionAt(clips, 1200)).toBeNull();
+    expect(transitionAt(clips, 1150)).toEqual({ name: "slideup", t: 0.5 });
+    expect(transitionAt(clips, 1300)).toBeNull();
   });
 });

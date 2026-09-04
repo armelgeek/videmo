@@ -24,6 +24,7 @@ export interface Annotation {
     fillColor?: string;
     opacity?: number;
   };
+  animStyle?: string;
 }
 
 export interface InkplainerLayer {

@@ -131,4 +131,45 @@ describe("styles exposes dans l'UI", () => {
     // Sans cela le rAF tournerait indefiniment apres le dernier `to`.
     expect(run(style).finished.called).toBe(true);
   });
+
+  it("supporte des styles d'animation differents par annotation sans planter", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const finished = { called: false };
+    const state: any = {
+      canvasW: W,
+      canvasH: H,
+      speed: 40,
+      handSpeed: 5,
+      hand: "custom1",
+      tileSlider: 30,
+      contentBounds: { x: 0, y: 0, w: W, h: H },
+      annotations: [
+        { region: { x: 0, y: 0, width: 90, height: 60 }, reveal: { from: 0, to: 400 }, animStyle: "scribble" },
+        { region: { x: 100, y: 60, width: 90, height: 60 }, reveal: { from: 600, to: 1000 }, animStyle: "contour" },
+      ],
+    };
+
+    const anim = AnimationFactory.create("chunkjump", {
+      state,
+      ctx: fakeCtx(),
+      hctx: fakeCtx(),
+      offscreen: fakeCanvas(),
+      callbacks: {
+        fillBg: () => undefined,
+        drawHand: () => undefined,
+        setProgress: () => undefined,
+        finishAnim: () => {
+          finished.called = true;
+        },
+        resScale: () => 1,
+        resPointScale: () => 1,
+      },
+    });
+
+    anim.setup?.();
+    expect(() => {
+      for (let i = 0; i < 60; i++) anim.tick?.(40, 20);
+    }).not.toThrow();
+    expect(finished.called).toBe(true);
+  });
 });
