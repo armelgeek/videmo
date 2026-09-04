@@ -57,30 +57,32 @@ Un nettoyage groupé demandera une **migration du store persisté**
 
 ## 3. Moteur / rendu
 
-### 3.1 Mains verticales non calibrées
+### 3.1 ~~Mains verticales non calibrées~~ — fausse alerte, mesurée
 
-**Mesuré** : `CUSTOM_HANDS` déclare `tipX: 0, tipY: 0` pour
-`hand1/2/3vertical`, alors que les versions horizontales ont respectivement
-229 / 166 / 117. Une pointe pile au coin haut-gauche n'est pas plausible.
+`CUSTOM_HANDS` déclare `tipX: 0, tipY: 0` pour les variantes `*vertical`.
+Cela semblait implausible ; **c'est pourtant juste**.
 
-Les assets existent (`hand*vertical-{720,1080,1440}p.png`) mais **ne sont pas
-utilisés** : les employer en portrait mettrait la main au mauvais endroit.
-À calibrer avant de s'en servir — c'est ce qui manque pour que la main soit
-juste en portrait.
+Mesuré sur les neuf assets (`hand{1,2,3}vertical-{720,1080,1440}p.png`) :
+l'extrémité opaque est exactement `(0, 0)` dans chacun. Les images sont
+recadrées au ras de la pointe, qui touche le coin haut-gauche — vérifié
+visuellement sur `hand1vertical-720p` (pointe à ~3 px du coin, le fût noir
+ne commençant qu'à (35, 72)).
 
-### 3.2 Le delta est écrêté à 100 ms
+Méthode validée d'abord sur les mains horizontales déjà calibrées : à
+l'échelle 0,6 utilisée par `hands.js`, elle retrouve 229→229, 325→325,
+448→448, 166→166, 249→248, 345→344.
 
-**Mesuré** : la boucle rAF fait `Math.min(100, delta)`. Quand une frame dépasse
-100 ms, le temps au-delà est perdu et l'horloge du moteur prend du retard sur
-l'horloge réelle. Conséquences observées :
+Rien à calibrer. Si le portrait ne fonctionne pas, la cause est ailleurs.
 
-- Le style **Illustration** met ~16 s à parcourir 11,2 s de timeline (les
-  autres styles : ~12 s).
-- À Reveal speed 100, le ratio mesuré était 1,81 au lieu de 2,5.
+### 3.2 ~~Le delta est écrêté à 100 ms~~ — corrigé dans le chemin vivant
 
-La cadence *interne* reste correcte (la répartition dans chaque fenêtre est
-juste) — c'est la vitesse de défilement qui décroche. Sans effet sur un export
-hors rAF, mais l'aperçu ment sur la durée réelle.
+`use-whiteboard-renderer.ts` ne fait plus `Math.min(100, delta)` : il pose
+`BIG_GAP_MS = 1000` et n'écarte qu'un rAF parqué, en honorant en entier une
+vraie frame lente.
+
+**Subsiste ailleurs** : `lib/editor/EditorEngine.js:593` garde
+`Math.min(100, _now - state._lastFrameMs)`, et `ENGINE_LIMITATIONS.md`
+documente encore l'ancien comportement.
 
 ### 3.3 Granularité absente pour 9 styles sur 13
 
@@ -118,10 +120,8 @@ cohérent aujourd'hui, mais à garder en tête si le besoin revient.
 réglages retirés du panneau principal. Deux UI qui divergent sur le même
 moteur.
 
-`components/whiteboard-editor-panel.tsx` porte une **erreur TypeScript
-préexistante** (`Cannot find name 'setLayers'`, ligne 122), ce qui suggère un
-composant mort ou jamais compilé sur ce chemin. À trancher : aligner ou
-supprimer.
+~~`components/whiteboard-editor-panel.tsx` porte une erreur TypeScript
+(`Cannot find name 'setLayers'`)~~ — l'erreur n'existe plus.
 
 `lib/editor/components/preview-player.tsx` monte le canvas whiteboard en
 **1920×1080 en dur**, sans suivre le ratio du projet — contrairement à l'étape
@@ -140,9 +140,16 @@ consommateur de `useWhiteboardRenderer`, à aligner sur `tailleCanvas`.
   sont couverts par `styles-smoke.test.ts` (la factory les connaît, ils
   traversent une timeline annotée sans lever, ils appellent `finishAnim`) mais
   leur rendu visuel n'a pas été inspecté.
-- **Le seek n'a pas de test automatisé.** Le rejeu borné à une région a été
-  vérifié à la main (14–34 ms quelle que soit la position, contre 42–143 ms
-  auparavant) mais rien ne le protège d'une régression.
+- **Le seek côté moteur EST couvert** : `prime-at.test.ts` porte 5 cas sur
+  `primeAt` (borne, position négative, ré-entrée en région, purge de cadence,
+  ré-armement après fin). C'est `repositionTo` côté renderer qui n'a rien.
+- **Le rejeu borné à une région a été perdu.** `repositionTo` fait aujourd'hui
+  `primeAt(0)` puis `advance(0, localTarget)` : le rejeu repart de zéro et son
+  coût redevient linéaire en la position cherchée — exactement ce que `d5f94d0`
+  avait supprimé. Le helper `regionRect` (ligne 1032) et le long commentaire qui
+  décrit la version bornée subsistent, mais `regionRect` n'a **aucun appelant**.
+  Régressé par l'une des corrections de scintillement postérieures
+  (`4792f03`, `d7c4b1e`, `21577fa`, `2c5543d`).
 - **Aucun test ne couvre le drag continu de la tête de lecture** : l'outil
   d'automatisation n'émet qu'un seul événement de position.
 - **Le « retard de la main » d'origine n'a jamais été reproduit.** Trois
@@ -156,12 +163,13 @@ consommateur de `useWhiteboardRenderer`, à aligner sur `tailleCanvas`.
 
 ## 7. Santé du dépôt
 
-- **17 erreurs TypeScript préexistantes**, réparties ainsi : `app/` (6),
-  `lib/dev-panel.tsx` (5), `lib/automator/panel-processor.tsx` (2), puis une
-  chacune dans `whiteboard-editor-panel.tsx`, `image-combiner/index.tsx`,
-  `editor/components/timeline.tsx`, `editor/components/storyboard-edit-panel.tsx`.
-  Aucune dans les fichiers touchés cette session.
-- **138 tests verts** (13 fichiers) dans `lib/whiteboard-animation`.
+- **0 erreur TypeScript** sur tout le dépôt (les 17 d'alors ont été résorbées).
+- **264 tests verts** (32 fichiers) sur le dépôt, dont 220 dans
+  `lib/whiteboard-animation`.
+- **L'arbre moteur dupliqué à la racine a été supprimé** (`78ad9dd`, 28 fichiers).
+  `AnimationFactory.ts` pointait dessus via `require('./index.js')` — donc le
+  futur export aurait rendu avec un moteur privé des correctifs. Il pointe
+  désormais sur `./lib/index.js`.
 - La forme persistée de `WhiteboardConfig` a changé. Zustand fusionne, donc les
   projets existants ne cassent pas, mais leurs valeurs enregistrées pour les
   champs retirés sont désormais ignorées.
