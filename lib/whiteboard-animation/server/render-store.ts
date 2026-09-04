@@ -52,6 +52,22 @@ export function updateRenderJob(id: string, patch: Partial<RenderJob>): void {
   if (e) Object.assign(e.job, patch);
 }
 
+/** Un job qui a atteint l'un de ces etats n'en bouge plus. */
+const TERMINAUX = new Set(["done", "error", "cancelled"]);
+
+/**
+ * Conclut un job, sans jamais revenir sur une conclusion deja prise.
+ *
+ * La sortie du process arrive APRES l'annulation : sans cette garde, un arret
+ * volontaire se reafficherait en erreur. Et un 'done' deja recu ne doit pas
+ * etre defait par le code de sortie qui le suit.
+ */
+export function finalizeRenderJob(id: string, patch: Partial<RenderJob>): void {
+  const e = jobs.get(id);
+  if (!e || TERMINAUX.has(e.job.status)) return;
+  Object.assign(e.job, patch);
+}
+
 export function cancelRenderJob(id: string, userId: string): boolean {
   const e = jobs.get(id);
   if (!e || e.job.userId !== userId) return false;

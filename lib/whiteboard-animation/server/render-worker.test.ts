@@ -21,6 +21,30 @@ function run(message: Record<string, unknown>): Promise<any[]> {
 }
 
 describe("render-worker", () => {
+  it("livre 'done' AVANT de sortir, sans le perdre", async () => {
+    // process.send est asynchrone : un process.exit() immediat coupe avant que
+    // le message parte. La route ne voyait alors qu'une sortie en code 0 sans
+    // 'done', et le job restait fige sur sa derniere progression — observe en
+    // production, bloque a 88 % alors que la video etait complete.
+    const recus = await run({
+      project: {
+        animStyle: "chunkjump", hand: "custom1", handSpeed: 5,
+        speed: 40, tileSlider: 30,
+        scenes: [{
+          id: "s1",
+          canvasImage: join(process.cwd(), "public", "images", "hand1-720p.png"),
+          annotations: [{
+            region: { x: 0, y: 0, width: 60, height: 40 },
+            reveal: { from: 0, to: 200, startMs: 0, durationMs: 200 },
+          }],
+        }],
+      },
+      width: 96, height: 64, fps: 10,
+      outputPath: join(dir, "ok.mp4"),
+    });
+    expect(recus.at(-1)).toMatchObject({ type: "done" });
+  }, 120_000);
+
   it("signale l'erreur et sort en echec sur un projet vide", async () => {
     const recus = await run({
       project: { scenes: [] },

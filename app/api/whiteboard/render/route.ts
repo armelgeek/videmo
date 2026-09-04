@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   renderRequestSchema,
@@ -11,6 +11,7 @@ import {
 import {
   attachChild,
   createRenderJob,
+  finalizeRenderJob,
   updateRenderJob,
 } from "@/lib/whiteboard-animation/server/render-store";
 
@@ -67,28 +68,47 @@ export async function POST(request: NextRequest) {
   attachChild(job.id, child);
   updateRenderJob(job.id, { status: "rendering" });
 
+  // Un message terminal est-il arrive ? process.send etant asynchrone, un
+  // 'done' peut se perdre si le worker sort avant de l'avoir vide. Le job
+  // restait alors fige sur sa derniere progression — observe a 88 % alors que
+  // la video etait complete sur le disque.
+  let conclu = false;
+
   child.on("message", (m: unknown) => {
     const msg = m as { type?: string; value?: number; message?: string };
     if (msg?.type === "progress") {
       updateRenderJob(job.id, { progress: msg.value ?? 0 });
     }
     if (msg?.type === "done") {
-      updateRenderJob(job.id, { status: "done", progress: 100, outputPath });
+      conclu = true;
+      finalizeRenderJob(job.id, { status: "done", progress: 100, outputPath });
     }
     if (msg?.type === "error") {
-      updateRenderJob(job.id, { status: "error", error: msg.message ?? null });
+      conclu = true;
+      finalizeRenderJob(job.id, { status: "error", error: msg.message ?? null });
     }
   });
 
-  child.on("exit", (code) => {
-    // Sortie non nulle sans message d'erreur : tue, ou plante sans avoir pu
-    // rendre compte. Sans ce filet le job resterait "rendering" pour toujours.
-    if (code !== 0) {
-      updateRenderJob(job.id, {
-        status: "error",
-        error: `Worker sorti avec le code ${code}`,
-      });
-    }
+  child.on("exit", (code, signal) => {
+    if (conclu) return;
+
+    // Le worker est parti sans conclure. Le disque tranche : un fichier non
+    // vide signifie que ffmpeg est alle au bout, et l'utilisateur a droit a sa
+    // video meme si le message s'est perdu.
+    const abouti =
+      code === 0 && existsSync(outputPath) && statSync(outputPath).size > 0;
+
+    finalizeRenderJob(
+      job.id,
+      abouti
+        ? { status: "done", progress: 100, outputPath }
+        : {
+            status: "error",
+            error: signal
+              ? `Rendu interrompu (${signal})`
+              : `Worker sorti avec le code ${code} sans produire de video`,
+          },
+    );
   });
 
   child.send({

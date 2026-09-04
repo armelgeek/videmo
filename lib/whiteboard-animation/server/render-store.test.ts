@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  attachChild, cancelRenderJob, createRenderJob, getRenderJob, updateRenderJob,
+  attachChild, cancelRenderJob, createRenderJob, finalizeRenderJob,
+  getRenderJob, updateRenderJob,
 } from "./render-store";
 
 describe("render-store", () => {
@@ -33,6 +34,30 @@ describe("render-store", () => {
     expect(cancelRenderJob(job.id, "u1")).toBe(true);
     expect(kill).toHaveBeenCalledOnce();
     expect(getRenderJob(job.id, "u1")?.status).toBe("cancelled");
+  });
+
+  it("conclut un job encore en cours", () => {
+    const job = createRenderJob("u1");
+    updateRenderJob(job.id, { status: "rendering", progress: 88 });
+    finalizeRenderJob(job.id, { status: "done", progress: 100 });
+    expect(getRenderJob(job.id, "u1")).toMatchObject({ status: "done", progress: 100 });
+  });
+
+  it("n'ecrase pas une annulation deliberee", () => {
+    // La sortie du process suit l'annulation : sans cette garde, un arret
+    // volontaire s'afficherait comme une erreur.
+    const job = createRenderJob("u1");
+    attachChild(job.id, { kill: () => {} });
+    cancelRenderJob(job.id, "u1");
+    finalizeRenderJob(job.id, { status: "error", error: "Rendu interrompu (SIGTERM)" });
+    expect(getRenderJob(job.id, "u1")?.status).toBe("cancelled");
+  });
+
+  it("n'ecrase pas un job deja conclu", () => {
+    const job = createRenderJob("u1");
+    finalizeRenderJob(job.id, { status: "done", progress: 100 });
+    finalizeRenderJob(job.id, { status: "error", error: "trop tard" });
+    expect(getRenderJob(job.id, "u1")).toMatchObject({ status: "done", error: null });
   });
 
   it("un autre utilisateur ne peut pas annuler", () => {
