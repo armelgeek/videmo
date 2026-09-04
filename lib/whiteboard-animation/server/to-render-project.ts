@@ -7,7 +7,7 @@ export interface RenderScene {
   id: string;
   canvasImage: string;
   annotations: unknown[];
-  transition: { transitionAfter: string | null } | null;
+  transition: { transitionAfter: string; transitionMs: number } | null;
 }
 
 export interface RenderProject {
@@ -72,6 +72,7 @@ function scenesAvecBornes(
     const p = panel as StoryboardPanel & {
       imageUrl?: string;
       annotations?: unknown[];
+      transition?: { type: string; durationMs: number };
     };
 
     const source = p.annotations?.length ? p.annotations : config.annotations || [];
@@ -89,11 +90,20 @@ function scenesAvecBornes(
 
     curseur += derive.totalDurationMs;
 
+    // Le storyboard ecrit {type, durationMs}, le moteur lit
+    // {transitionAfter, transitionMs} : sans cette traduction transitionApres()
+    // rend 0 et aucun fondu n'est jamais rendu.
+    const t = p.transition;
+    const transition =
+      t && t.type && t.type !== "none"
+        ? { transitionAfter: t.type, transitionMs: t.durationMs }
+        : null;
+
     return {
       id: p.id,
       canvasImage: p.imageUrl ?? "",
       annotations,
-      transition: null,
+      transition,
     };
   });
 }

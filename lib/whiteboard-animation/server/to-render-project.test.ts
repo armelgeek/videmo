@@ -94,6 +94,29 @@ describe("toRenderProject", () => {
     expect([s2.reveal.from, s2.reveal.to]).toEqual([600, 1100]);
   });
 
+  it("transmet la transition du panneau sous la forme attendue par le moteur", () => {
+    // Le storyboard ecrit {type, durationMs} ; le moteur lit
+    // {transitionAfter, transitionMs}. Sans traduction, transitionApres() rend 0
+    // et aucun fondu n'est jamais rendu.
+    const avecTransition: any = {
+      ...panel("p1", 0, 400),
+      transition: { type: "fade", durationMs: 300 },
+    };
+    const p = toRenderProject({
+      panels: [avecTransition, panel("p2", 0, 400)],
+      config,
+    });
+    expect(p.scenes[0].transition).toEqual({
+      transitionAfter: "fade",
+      transitionMs: 300,
+    });
+  });
+
+  it("laisse la transition nulle quand le panneau n'en declare pas", () => {
+    const p = toRenderProject({ panels: [panel("p1", 0, 400)], config });
+    expect(p.scenes[0].transition).toBeNull();
+  });
+
   it("rend un projet sans scene si aucun panneau", () => {
     expect(toRenderProject({ panels: [], config }).scenes).toEqual([]);
   });
