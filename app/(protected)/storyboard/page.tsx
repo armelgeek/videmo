@@ -50,6 +50,7 @@ import {
   normalizeWorkflowStep,
 } from "@/lib/storyboard/store";
 import { SceneCard } from "@/lib/storyboard/components/scene-card";
+import { resolveStepState } from "@/lib/storyboard/storyboard-clips";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
@@ -355,11 +356,9 @@ export default function StoryboardPage() {
     const panels = clipsToSync
       .filter((clip) => !clip.isSection)
       .map((clip, i) => {
-        const image =
-          imagesToSync[i] ||
-          clip.imageUrl ||
-          DEMO_FINAL_SEQUENCE.storyboard[i % DEMO_FINAL_SEQUENCE.storyboard.length]?.imageUrl ||
-          "";
+        // Une image absente le reste : la remplacer par un visuel de
+        // demonstration l'enregistrait en base comme s'il avait ete produit.
+        const image = imagesToSync[i] || clip.imageUrl || "";
         const prompt = clip.visualPrompt || clip.summary || clip.title || `Clip ${i + 1}`;
         return {
           id: clip.id || `sb-clip-${i}`,
@@ -377,54 +376,27 @@ export default function StoryboardPage() {
   };
 
   // Initialize editable clips when storyboardData changes or step is storyboard
+  /**
+   * Rouvre l'etape a partir de ce qui est enregistre.
+   *
+   * L'ancien code retombait sur DEMO_FINAL_SEQUENCE des que `storyboardData` —
+   * un etat local, donc perdu au rechargement — etait absent, puis ecrivait ces
+   * panneaux de demonstration dans le store : la premiere frappe suivante les
+   * enregistrait par-dessus le vrai projet.
+   */
   useEffect(() => {
-    if (step === "storyboard") {
-      if (storyboardData?.storyboard?.clipOutlines && storyboardData.storyboard.clipOutlines.length > 0) {
-        const formattedClips = storyboardData.storyboard.clipOutlines.map((c: any, idx: number) => ({
-          id: c.id || `clip-${idx}`,
-          index: idx,
-          clipType: c.clipType || "content",
-          title: c.title || `Clip ${idx + 1}`,
-          summary: c.summary || c.narration || "",
-          visualPrompt: c.visualPrompt || c.summary || `Visual for clip ${idx + 1}`,
-          duration: typeof c.duration === "number" ? c.duration : 5,
-          isSection: !!c.isSection,
-        }));
-        setEditableClips(formattedClips);
-        if (generatedImages.length === 0) {
-          const initialImgs = formattedClips.map((_: any, i: number) =>
-            DEMO_FINAL_SEQUENCE.storyboard[i % DEMO_FINAL_SEQUENCE.storyboard.length]?.imageUrl || ""
-          );
-          setGeneratedImages(initialImgs);
-          syncClipsToStore(formattedClips, initialImgs);
-        } else {
-          syncClipsToStore(formattedClips, generatedImages);
-        }
-      } else if (editableClips.length === 0) {
-        const demoClips = DEMO_FINAL_SEQUENCE.storyboard.map((p, idx) => ({
-          id: `clip-${idx}`,
-          index: idx,
-          clipType: idx === 0 ? "intro" : idx === DEMO_FINAL_SEQUENCE.storyboard.length - 1 ? "outro" : "content",
-          title: `Scene ${idx + 1}`,
-          summary: p.prompt,
-          visualPrompt: p.prompt,
-          duration: p.duration || 5,
-          isSection: false,
-        }));
-        const demoImgs = DEMO_FINAL_SEQUENCE.storyboard.map((p) => p.imageUrl);
-        setEditableClips(demoClips);
-        setGeneratedImages(demoImgs);
-        syncClipsToStore(demoClips, demoImgs);
-        if (!storyboardData) {
-          setStoryboardData({
-            storyboard: { clipOutlines: demoClips, title: "Demo Storyboard" },
-            content: promptContent || "Demo Concept",
-            params: projectParams,
-          });
-        }
-      }
-    }
-  }, [step, storyboardData]);
+    if (step !== "storyboard") return;
+    if (editableClips.length > 0) return;
+
+    const { clips, images } = resolveStepState({
+      panels: storyboardPanels,
+      scenes: scriptScenes,
+    });
+    if (clips.length === 0) return;
+
+    setEditableClips(clips);
+    setGeneratedImages(images);
+  }, [step, storyboardPanels, scriptScenes, editableClips.length]);
 
   const updateClipField = (index: number, updates: Record<string, any>) => {
     const newClips = [...editableClips];
@@ -477,9 +449,8 @@ export default function StoryboardPage() {
     const newClips = [...editableClips];
     newClips.splice(targetIdx, 0, newClip);
 
-    const defaultImg = DEMO_FINAL_SEQUENCE.storyboard[newClips.length % DEMO_FINAL_SEQUENCE.storyboard.length]?.imageUrl || "";
     const newImages = [...generatedImages];
-    newImages.splice(targetIdx, 0, defaultImg);
+    newImages.splice(targetIdx, 0, "");
 
     setEditableClips(newClips);
     setGeneratedImages(newImages);
