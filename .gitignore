@@ -52,3 +52,6 @@ PLAYWRIGHT_QA_AUDIT_REPORT.md
 
 # Videos rendues par l export whiteboard
 .renders/
+
+# Espace de travail des exécutions de plan (superpowers)
+.superpowers/
