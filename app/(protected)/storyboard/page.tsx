@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { DEMO_FINAL_SEQUENCE } from "@/lib/demo-data";
-import { saveSession, loadSession, clearSession } from "@/lib/session-storage";
+import { useProjectSync } from "@/lib/storyboard/use-project-sync";
 import { useToastContext } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/lib/app-shell";
@@ -49,6 +49,7 @@ import {
   useStoryboardStore,
   normalizeWorkflowStep,
 } from "@/lib/storyboard/store";
+import { SceneCard } from "@/lib/storyboard/components/scene-card";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
@@ -232,8 +233,12 @@ export default function StoryboardPage() {
     setPromptContent,
     projectParams,
     setProjectParams,
-    script,
-    setScript,
+    scriptTitle,
+    setScriptTitle,
+    scriptScenes,
+    setScriptScenes,
+    updateScene,
+    removeScene,
     storyboardPanels,
     setStoryboardPanels,
     updatePanel,
@@ -290,28 +295,61 @@ export default function StoryboardPage() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!hasLoadedSession) {
-      setHasLoadedSession(true);
-      const session = loadSession();
-      if (session) {
-        setStep(normalizeWorkflowStep(session.step));
-        if (session.promptContent) setPromptContent(session.promptContent);
-        if (session.script) setScript(session.script);
-        if (session.storyboardData) setStoryboardData(session.storyboardData);
-        if (session.generatedImages) setGeneratedImages(session.generatedImages);
-        if (session.selectedVoice) setSelectedVoice(session.selectedVoice);
-        toast.success("Session restored from previous work");
-      }
-    }
-  }, [toast]);
+  // Le projet vit en base : useProjectSync le charge (ou le cree), tient le
+  // bail d'edition et ecrit chaque changement du store.
+  const projectSync = useProjectSync();
 
-  // Auto-generate demo script when reaching validation step
+  const totalScriptDuration = scriptScenes.reduce(
+    (total, scene) => total + scene.duration,
+    0,
+  );
+
+  const [isGeneratingScript, setIsGeneratingScript] = useState(false);
+  const [scriptError, setScriptError] = useState<string | null>(null);
+
+  // Le script est ecrit par l'agent a partir du prompt et des parametres. Le
+  // garde sur les scenes deja presentes evite de regenerer — donc de repayer un
+  // appel modele — en revenant sur l'etape depuis le storyboard.
   useEffect(() => {
-    if (step === "scriptValidation" && !script) {
-      setScript(generateDemoScript());
-    }
-  }, [step]);
+    if (step !== "scriptValidation" || isGeneratingScript) return;
+    if (scriptScenes.length > 0) return;
+    if (!promptContent.trim()) return;
+
+    let cancelled = false;
+    setIsGeneratingScript(true);
+    setScriptError(null);
+
+    (async () => {
+      try {
+        const response = await fetch("/api/generate-script", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: promptContent, ...projectParams }),
+        });
+        const body = await response.json();
+        if (cancelled) return;
+
+        if (!response.ok) {
+          setScriptError(body.error ?? `HTTP ${response.status}`);
+          return;
+        }
+        setScriptTitle(body.title ?? "");
+        setScriptScenes(body.scenes ?? []);
+      } catch (error) {
+        if (!cancelled) {
+          setScriptError(
+            error instanceof Error ? error.message : "Network error",
+          );
+        }
+      } finally {
+        if (!cancelled) setIsGeneratingScript(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step, promptContent]);
 
   const syncClipsToStore = (clipsToSync: any[], imagesToSync: string[]) => {
     const panels = clipsToSync
@@ -570,71 +608,33 @@ export default function StoryboardPage() {
   const handlePromptSubmit = (content: string) => {
     setPromptContent(content);
     setStep("scriptValidation");
-    saveSession({
-      step: "scriptValidation",
-      promptContent: content,
-      projectParams,
-    });
   };
 
-  const handleScriptValidated = async (validatedScript: string) => {
-    const finalScript = validatedScript || generateDemoScript();
-    setScript(finalScript);
-
-    // Auto-generate storyboard from script
-    try {
-      const response = await fetch("/api/generate-storyboard", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: promptContent,
-          style: projectParams.style,
-          format: projectParams.format,
-          aspectRatio: projectParams.aspectRatio,
-          language: projectParams.language,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setStoryboardData({
-          storyboard: data.storyboard,
-          content: promptContent,
-          params: projectParams,
-        });
-      }
-    } catch (error) {
-      console.error("Error generating storyboard:", error);
-    }
+  /**
+   * Les scenes approuvees deviennent le storyboard.
+   *
+   * L'ancien parcours rappelait /api/generate-storyboard, qui reinventait des
+   * `clipOutlines` a partir du seul prompt : le travail de l'agent — et les
+   * corrections faites juste au-dessus — etaient jetes entre les deux etapes.
+   */
+  const handleScriptValidated = async () => {
+    setStoryboardData({
+      storyboard: {
+        title: scriptTitle,
+        clipOutlines: scriptScenes.map((scene) => ({
+          index: scene.index,
+          clipType: scene.clipType,
+          title: scene.title,
+          summary: scene.narration,
+          visualPrompt: scene.imagePrompt,
+          duration: scene.duration,
+        })),
+      },
+      content: promptContent,
+      params: projectParams,
+    });
 
     setStep("storyboard");
-    saveSession({
-      step: "storyboard",
-      promptContent,
-      script: finalScript,
-    });
-  };
-
-  const generateDemoScript = () => {
-    return `SCENE 1: OPENING
-Narrator: "Welcome to an exciting journey of discovery. Today, we're exploring ideas that will transform the way you think."
-
-SCENE 2: CONTEXT
-Narrator: "Let's start with the fundamentals. Understanding these core concepts is crucial to everything that follows."
-
-SCENE 3: MAIN POINT 1
-Narrator: "First, consider how this principle works in real-world scenarios. Notice the pattern emerging."
-
-SCENE 4: EXAMPLE
-Narrator: "Here's a practical example that demonstrates this perfectly. Pay attention to the details."
-
-SCENE 5: KEY INSIGHT
-Narrator: "This insight changes everything. It's the turning point in our understanding."
-
-SCENE 6: CONCLUSION
-Narrator: "As we've seen, these concepts work together harmoniously. Remember these key takeaways as you move forward."`
-      .split("\n")
-      .join("\n");
   };
 
   const handleStoryboardGenerated = (
@@ -647,11 +647,6 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
     setStoryboardData(data);
     setGeneratedImages(images);
     setStep("voiceChoice");
-    saveSession({
-      step: "voiceChoice",
-      storyboardData: data,
-      generatedImages: images,
-    });
   };
 
   const handleVoiceSelected = (voiceId: string) => {
@@ -677,32 +672,22 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
       setTimeout(() => {
         setIsGeneratingNarration(false);
         setStep("whiteboard");
-        saveSession({ step: "whiteboard", selectedVoice: voiceId });
       }, 500);
     }, 3000);
   };
 
-  const handleSaveProgress = () => {
-    saveSession({
-      step,
-      promptContent: promptContent || undefined,
-      script: script || undefined,
-      storyboardData: storyboardData || undefined,
-      generatedImages: generatedImages.length > 0 ? generatedImages : undefined,
-      selectedVoice: selectedVoice || undefined,
-    });
-    toast.success("Progress saved to browser storage");
+  const handleSaveProgress = async () => {
+    await projectSync.saveNow();
+    toast.success("Project saved");
   };
 
   const handleClearSession = () => {
     if (confirm("Clear all saved progress? This cannot be undone.")) {
-      clearSession();
-      setStep("prompt");
-      setPromptContent("");
-      setScript("");
+      resetWorkflow();
       setStoryboardData(null);
       setGeneratedImages([]);
-      setSelectedVoice("default");
+      // resetWorkflow repart de l'etape prompt : l'abonnement du hook ecrit
+      // cet etat vide dans le projet, donc rien a effacer a la main.
       toast.info("Session cleared");
     }
   };
@@ -723,7 +708,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
   const canNavigateToStep = (index: number) => {
     if (index === 0) return true;
     if (index === 1) return !!promptContent;
-    if (index === 2) return !!script;
+    if (index === 2) return scriptScenes.length > 0;
     if (index === 3) return generatedImages.length > 0;
     if (index === 4) return !!selectedVoice;
     return false;
@@ -1124,24 +1109,50 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {script
-                          ? `${script.split("\n").length} lines`
-                          : "0 lines"}
+                        {scriptScenes.length > 0
+                          ? `${scriptScenes.length} scenes · ${totalScriptDuration}s`
+                          : "0 scenes"}
                       </span>
                     </div>
 
                     {/* Content */}
                     <div className="p-4 bg-background min-h-screen max-h-screen overflow-y-auto">
-                      {script ? (
-                        <div className="space-y-0 text-sm font-mono text-foreground/90">
-                          {script.split("\n").map((line, i) => (
-                            <div key={i} className="flex gap-3 items-start">
-                              <span className="text-muted-foreground/60 select-none min-w-12 text-right shrink-0">
-                                {i + 1}
-                              </span>
-                              <span>{line || " "}</span>
-                            </div>
+                      {scriptScenes.length > 0 ? (
+                        <div className="space-y-3">
+                          {scriptScenes.map((scene) => (
+                            <SceneCard
+                              key={scene.index}
+                              scene={scene}
+                              onChange={(updates) =>
+                                updateScene(scene.index, updates)
+                              }
+                              onRemove={
+                                scriptScenes.length > 1
+                                  ? () => removeScene(scene.index)
+                                  : undefined
+                              }
+                            />
                           ))}
+                        </div>
+                      ) : isGeneratingScript ? (
+                        <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                          <p className="text-sm">Writing your script...</p>
+                        </div>
+                      ) : scriptError ? (
+                        <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-6">
+                          <AlertTriangle className="w-6 h-6 text-destructive" />
+                          <p className="text-sm text-destructive">{scriptError}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setScriptError(null);
+                              setStep("prompt");
+                            }}
+                          >
+                            Back to prompt
+                          </Button>
                         </div>
                       ) : (
                         <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -1158,9 +1169,24 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                     <div>
                       <h3 className="font-semibold text-sm mb-2">Status</h3>
                       <div className="flex items-center gap-2 text-sm">
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <div
+                          className={cn(
+                            "w-2 h-2 rounded-full",
+                            scriptError
+                              ? "bg-destructive"
+                              : isGeneratingScript
+                                ? "bg-amber-500 animate-pulse"
+                                : "bg-green-500",
+                          )}
+                        />
                         <span className="text-muted-foreground">
-                          {script ? "Ready to validate" : "Pending generation"}
+                          {scriptError
+                            ? "Generation failed"
+                            : isGeneratingScript
+                              ? "Generating..."
+                              : scriptScenes.length > 0
+                                ? "Ready to validate"
+                                : "Pending generation"}
                         </span>
                       </div>
                     </div>
@@ -1169,8 +1195,8 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                       <h3 className="font-semibold text-sm mb-3">Actions</h3>
                       <div className="space-y-2">
                         <Button
-                          onClick={() => handleScriptValidated(script)}
-                          disabled={!script}
+                          onClick={() => void handleScriptValidated()}
+                          disabled={scriptScenes.length === 0}
                           className="w-full"
                         >
                           <Check className="w-4 h-4 mr-2" />
@@ -1275,11 +1301,6 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                       onClick={() => {
                         syncClipsToStore(editableClips, generatedImages);
                         setStep("voiceChoice");
-                        saveSession({
-                          step: "voiceChoice",
-                          storyboardData,
-                          generatedImages,
-                        });
                       }}
                       size="sm"
                       className="bg-primary hover:bg-primary/90"
@@ -1547,11 +1568,6 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
                   onClick={() => {
                     syncClipsToStore(editableClips, generatedImages);
                     setStep("voiceChoice");
-                    saveSession({
-                      step: "voiceChoice",
-                      storyboardData,
-                      generatedImages,
-                    });
                   }}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                 >
@@ -1572,10 +1588,7 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
               }
               onNavigateBack={() => setStep("voiceChoice")}
               nextLabel="Save project"
-              onNavigateNext={() => {
-                saveSession({ step: "whiteboard", storyboardData, generatedImages });
-                toast.success("Project saved");
-              }}
+              onNavigateNext={() => void handleSaveProgress()}
             />
           )}
 
@@ -1979,9 +1992,20 @@ Narrator: "As we've seen, these concepts work together harmoniously. Remember th
               for (;;) {
                 await new Promise((r) => setTimeout(r, 1000));
                 if (renderJobIdRef.current !== jobId) return;
-                const s = await fetch(
-                  `/api/whiteboard/render/${jobId}`
-                ).then((r) => r.json());
+                const r = await fetch(`/api/whiteboard/render/${jobId}`);
+                // Sans ce controle la boucle tournait a l'infini : sur un 404
+                // — serveur redemarre en plein rendu, dossier des rendus vide —
+                // le corps est {error}, donc `status` vaut undefined, aucune
+                // branche de sortie ne se declenche et la barre reste a 0 %
+                // pour toujours, sans le moindre message.
+                if (!r.ok) {
+                  throw new Error(
+                    r.status === 404
+                      ? "Le rendu a ete perdu par le serveur"
+                      : `Suivi du rendu impossible (${r.status})`
+                  );
+                }
+                const s = await r.json();
                 setExportProgress(s.progress ?? 0);
                 if (s.status === "done") {
                   setDownloadUrl(`/api/whiteboard/render/${jobId}/file`);

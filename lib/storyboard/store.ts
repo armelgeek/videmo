@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { type ScriptScene, reindexScenes } from "./script-generation";
 import { DEMO_FINAL_SEQUENCE } from "@/lib/demo-data";
 import {
   ProjectParams,
@@ -67,7 +67,8 @@ export interface StoryboardStoreState {
   projectTitle: string;
   promptContent: string;
   projectParams: ProjectParams;
-  script: string;
+  scriptTitle: string;
+  scriptScenes: ScriptScene[];
   storyboardPanels: StoryboardPanel[];
   activeClipIndex: number;
   selectedVoice: string;
@@ -79,7 +80,10 @@ export interface StoryboardStoreState {
   setProjectTitle: (title: string) => void;
   setPromptContent: (content: string) => void;
   setProjectParams: (params: Partial<ProjectParams>) => void;
-  setScript: (script: string) => void;
+  setScriptTitle: (title: string) => void;
+  setScriptScenes: (scenes: ScriptScene[]) => void;
+  updateScene: (index: number, updates: Partial<ScriptScene>) => void;
+  removeScene: (index: number) => void;
   setStoryboardPanels: (panels: StoryboardPanel[]) => void;
   setActiveClipIndex: (index: number) => void;
   updatePanel: (id: string, updates: Partial<StoryboardPanel>) => void;
@@ -206,14 +210,20 @@ export function mergeStoryboardStorePersistedState(
   };
 }
 
+/**
+ * Aucune persistance locale : le projet vit en base, et lib/storyboard/
+ * use-project-sync.ts fait l'aller-retour. Deux copies concurrentes du meme
+ * document — une en localStorage, une en base — divergeaient des qu'un projet
+ * etait ouvert sur une autre machine.
+ */
 export const useStoryboardStore = create<StoryboardStoreState>()(
-  persist(
-    (set, get) => ({
+  ((set, get) => ({
       step: "prompt",
       projectTitle: "Untitled Project",
       promptContent: "",
       projectParams: DEFAULT_PROJECT_PARAMS,
-      script: "",
+      scriptTitle: "",
+      scriptScenes: [],
       storyboardPanels: [],
       activeClipIndex: 0,
       selectedVoice: "default",
@@ -227,7 +237,21 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
         set((state) => ({
           projectParams: { ...state.projectParams, ...params },
         })),
-      setScript: (script: string) => set({ script }),
+      setScriptTitle: (scriptTitle: string) => set({ scriptTitle }),
+      setScriptScenes: (scenes: ScriptScene[]) =>
+        set({ scriptScenes: reindexScenes(scenes) }),
+      updateScene: (index: number, updates: Partial<ScriptScene>) =>
+        set((state) => ({
+          scriptScenes: state.scriptScenes.map((scene) =>
+            scene.index === index ? { ...scene, ...updates } : scene,
+          ),
+        })),
+      removeScene: (index: number) =>
+        set((state) => ({
+          scriptScenes: reindexScenes(
+            state.scriptScenes.filter((scene) => scene.index !== index),
+          ),
+        })),
       setStoryboardPanels: (storyboardPanels: StoryboardPanel[]) =>
         set({ storyboardPanels }),
       setActiveClipIndex: (activeClipIndex: number) => set({ activeClipIndex }),
@@ -329,7 +353,8 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
         set({
           projectTitle: "A Live-Action Flashback Scene",
           promptContent: DEMO_FINAL_SEQUENCE.masterDescription,
-          script: DEMO_FINAL_SEQUENCE.masterDescription,
+          scriptTitle: "A Live-Action Flashback Scene",
+          scriptScenes: [],
           storyboardPanels: panels,
           selectedVoice: "en-us-male-1",
           step: "whiteboard",
@@ -342,7 +367,8 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           projectTitle: "Untitled Project",
           promptContent: "",
           projectParams: DEFAULT_PROJECT_PARAMS,
-          script: "",
+          scriptTitle: "",
+          scriptScenes: [],
           storyboardPanels: [],
           selectedVoice: "default",
           isGenerating: false,
@@ -418,29 +444,5 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
 
         return clips;
       },
-    }),
-    {
-      name: "storyboard-workflow-store",
-      storage: createJSONStorage(() => localStorage),
-      merge: mergeStoryboardStorePersistedState,
-      partialize: (state: StoryboardStoreState) => ({
-        step: state.step,
-        projectTitle: state.projectTitle,
-        promptContent: state.promptContent,
-        projectParams: state.projectParams,
-        script: state.script,
-        storyboardPanels: state.storyboardPanels,
-        selectedVoice: state.selectedVoice,
-        whiteboardConfig: {
-          animStyle: state.whiteboardConfig.animStyle,
-          handStyle: state.whiteboardConfig.handStyle,
-          canvasBg: state.whiteboardConfig.canvasBg,
-          annotations: state.whiteboardConfig.annotations,
-          annotationConfig: state.whiteboardConfig.annotationConfig,
-          audio: serializeAudioTrack(state.whiteboardConfig.audio),
-          transcript: state.whiteboardConfig.transcript,
-        },
-      }),
-    },
-  ),
+    })),
 );

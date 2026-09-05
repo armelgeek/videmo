@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { scriptSceneSchema } from "@/lib/storyboard/script-generation";
 import {
   projectParamsSchema,
   storyboardPanelSchema,
@@ -9,7 +10,28 @@ import { EphemeralUrlRejectedError } from "./errors";
 export const projectStatusSchema = z.enum(["draft", "ready", "archived"]);
 export const aspectRatioSchema = z.enum(["16:9", "9:16", "1:1"]);
 
-export const projectScriptSchema = z.object({ text: z.string().default("") });
+/**
+ * Le script tel que l'agent le rend : une scene par entree, avec son prompt
+ * d'image, sa duree et son type.
+ *
+ * `text` reste lu pour les projets ecrits avant ce format, ou le script etait
+ * une seule chaine — les aplatir perdait imagePrompt, duration et clipType, que
+ * l'etape suivante devait alors reinventer.
+ */
+export const projectScriptSchema = z.object({
+  title: z.string().default(""),
+  scenes: z.array(scriptSceneSchema).default([]),
+});
+
+/**
+ * Les parametres du store, plus les deux valeurs de l'editeur qui n'ont pas de
+ * colonne a elles. Sans ces cles declarees, z.object les retirait en silence :
+ * le PATCH repondait 200 et le prompt disparaissait a la relecture.
+ */
+export const persistedProjectParamsSchema = projectParamsSchema.extend({
+  promptContent: z.string().optional(),
+  selectedVoice: z.string().optional(),
+});
 
 // Insensible a la casse (le RFC 2397 autorise `DATA:`) et tolerant a un espace
 // de tete, sans quoi le filtre se contourne d'un caractere.
@@ -63,7 +85,7 @@ export const whiteboardConfigSchema = z.object({
 });
 
 export const videoProjectDocumentSchema = z.object({
-  params: projectParamsSchema,
+  params: persistedProjectParamsSchema,
   script: projectScriptSchema,
   panels: z.array(storyboardPanelSchema),
   whiteboardConfig: whiteboardConfigSchema,
@@ -80,7 +102,7 @@ export const updateVideoProjectSchema = z
     status: projectStatusSchema,
     step: workflowStepSchema,
     aspectRatio: aspectRatioSchema,
-    params: projectParamsSchema,
+    params: persistedProjectParamsSchema,
     script: projectScriptSchema,
     panels: z.array(storyboardPanelSchema),
     whiteboardConfig: whiteboardConfigSchema,
@@ -95,8 +117,8 @@ export const listVideoProjectsSchema = z.object({
 });
 
 export const DEFAULT_DOCUMENTS: VideoProjectDocument = {
-  params: projectParamsSchema.parse({}),
-  script: { text: "" },
+  params: persistedProjectParamsSchema.parse({}),
+  script: { title: "", scenes: [] },
   panels: [],
   whiteboardConfig: whiteboardConfigSchema.parse({
     animStyle: "chunkjump",
