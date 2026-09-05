@@ -245,6 +245,7 @@ model Organization {
   slug        String               @unique
   description String?
   logo        String?
+  metadata    String?
   members     OrganizationMember[]
   invitations OrganizationInvitation[]
   createdAt   DateTime             @default(now())

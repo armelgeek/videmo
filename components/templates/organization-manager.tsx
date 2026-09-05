@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Building2, Plus, Users, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
-import { api } from "@/lib/client"
+import { authClient, useSession } from "@/lib/auth-client"
 
 type OrgMember = {
   id: string
@@ -22,11 +22,16 @@ type Organization = {
   name: string
   slug: string
   description: string | null
-  role: string
-  _count: { members: number }
+}
+
+// Le plugin ne derive pas de slug depuis le nom : sans ca, tout nom contenant
+// un espace ou une majuscule ferait echouer la creation.
+function slugify(str: string) {
+  return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 }
 
 export function OrganizationManager() {
+  const { data: session } = useSession()
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null)
   const [members, setMembers] = useState<OrgMember[]>([])
@@ -38,9 +43,9 @@ export function OrganizationManager() {
 
   const loadOrganizations = async () => {
     try {
-      const res = await api.get("/api/organizations")
-      if (!res.ok) throw new Error(res.error)
-      setOrganizations((res.data as any).organizations || [])
+      const { data, error } = await authClient.organization.list()
+      if (error) throw new Error(error.message)
+      setOrganizations((data as Organization[]) || [])
     } catch {
       toast.error("Failed to load organizations")
     } finally {
@@ -50,9 +55,11 @@ export function OrganizationManager() {
 
   const loadMembers = async (orgId: string) => {
     try {
-      const res = await api.get(`/api/organizations/${orgId}/members`)
-      if (!res.ok) throw new Error(res.error)
-      setMembers((res.data as any).members || [])
+      const { data, error } = await authClient.organization.getFullOrganization({
+        query: { organizationId: orgId },
+      })
+      if (error) throw new Error(error.message)
+      setMembers(((data?.members as OrgMember[] | undefined) ?? []))
     } catch {
       toast.error("Failed to load members")
     }
@@ -69,11 +76,12 @@ export function OrganizationManager() {
     if (!newOrgName.trim()) return
     setIsCreating(true)
     try {
-      const res = await api.post("/api/organizations", {
+      const { error } = await authClient.organization.create({
         name: newOrgName,
+        slug: slugify(newOrgName),
         description: newOrgDesc,
       })
-      if (!res.ok) throw new Error(res.error)
+      if (error) throw new Error(error.message)
       toast.success("Organization created!")
       setShowCreate(false)
       setNewOrgName("")
@@ -86,17 +94,24 @@ export function OrganizationManager() {
     }
   }
 
-  const handleRemoveMember = async (userId: string) => {
+  const handleRemoveMember = async (memberId: string) => {
     if (!selectedOrg) return
     try {
-      const res = await api.delete(`/api/organizations/${selectedOrg.id}/members`, { userId })
-      if (!res.ok) throw new Error(res.error || "Failed to remove member")
+      const { error } = await authClient.organization.removeMember({
+        memberIdOrEmail: memberId,
+        organizationId: selectedOrg.id,
+      })
+      if (error) throw new Error(error.message || "Failed to remove member")
       toast.success("Member removed")
       await loadMembers(selectedOrg.id)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to remove member")
     }
   }
+
+  // organization.list() ne renvoie pas le role : il se lit dans les membres de
+  // l'organisation ouverte, seule pour laquelle on les charge.
+  const roleDansOrgOuverte = members.find((m) => m.user.id === session?.user.id)?.role
 
   if (isLoading) {
     return (
@@ -184,15 +199,6 @@ export function OrganizationManager() {
                         <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{org.description}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={org.role === "owner" ? "default" : "secondary"} className="text-xs">
-                        {org.role}
-                      </Badge>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users className="h-3 w-3" />
-                        {org._count.members}
-                      </span>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -218,12 +224,12 @@ export function OrganizationManager() {
                         <Badge variant={m.role === "owner" ? "default" : "secondary"} className="text-xs">
                           {m.role}
                         </Badge>
-                        {selectedOrg.role === "owner" && m.role !== "owner" && (
+                        {roleDansOrgOuverte === "owner" && m.role !== "owner" && (
                           <Button
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => handleRemoveMember(m.user.id)}
+                            onClick={() => handleRemoveMember(m.id)}
                             aria-label={`Remove ${m.user.name}`}
                           >
                             <Trash2 className="h-3.5 w-3.5" />

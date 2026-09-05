@@ -38,6 +38,8 @@ export async function DELETE(
   }
 
   const { jobId } = await params;
+  // Un job deja conclu refuse l'annulation : rien a annuler, et sa video reste
+  // telechargeable.
   if (!cancelRenderJob(jobId, session.user.id)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

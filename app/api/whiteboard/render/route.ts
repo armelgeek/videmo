@@ -89,6 +89,19 @@ export async function POST(request: NextRequest) {
     }
   });
 
+  // SANS ce handler, un echec de spawn TUE LE SERVEUR : un 'error' sans
+  // ecouteur est reemis en exception par EventEmitter, hors de toute pile de
+  // requete, donc hors d'atteinte d'un try/catch ici. Il suffit que le fichier
+  // du worker manque (un build qui ne copie pas lib/), ou que le systeme
+  // refuse un process de plus sous charge (EAGAIN), pour que tout Next tombe.
+  child.on("error", (err) => {
+    conclu = true;
+    finalizeRenderJob(job.id, {
+      status: "error",
+      error: `Worker impossible a lancer : ${err.message}`,
+    });
+  });
+
   child.on("exit", (code, signal) => {
     if (conclu) return;
 
