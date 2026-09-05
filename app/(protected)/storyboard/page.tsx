@@ -38,7 +38,6 @@ import {
   Plus,
 } from "lucide-react";
 import Image from "next/image";
-import { DEMO_FINAL_SEQUENCE } from "@/lib/demo-data";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
 import { useToastContext } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
@@ -501,39 +500,91 @@ export default function StoryboardPage() {
     syncClipsToStore(newClips, newImages);
   };
 
+  /**
+   * Demande un visuel au modele et rend son URL definitive.
+   *
+   * Le projet est designe par son id : la route verifie le droit d'ecriture
+   * AVANT d'appeler le modele, et l'image part au bac d'objets — une `data:`
+   * URL serait refusee a l'enregistrement.
+   */
+  const requestVisual = async (clip: any, sceneIndex: number) => {
+    const response = await fetch("/api/generate-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projectId: projectSync.projectId,
+        sceneIndex,
+        prompt: clip.visualPrompt || clip.summary || clip.title || "",
+        aspectRatio: projectParams.aspectRatio,
+        style: projectParams.style,
+      }),
+    });
+
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+    return body.url as string;
+  };
+
   const generateImagesProgressively = async () => {
-    const demoImages = DEMO_FINAL_SEQUENCE.storyboard.map((p) => p.imageUrl);
-    const totalToGenerate = editableClips.filter((c) => !c.isSection).length || 1;
+    const clips = editableClips.filter((c) => !c.isSection);
+    if (clips.length === 0) return;
+    if (!projectSync.projectId) {
+      toast.error("Project is still loading");
+      return;
+    }
 
     setIsGeneratingImages(true);
-    setGeneratingProgress({ current: 0, total: totalToGenerate });
-    const newImages: string[] = [];
+    setGeneratingProgress({ current: 0, total: clips.length });
 
-    for (let i = 0; i < totalToGenerate; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      const demoImg = demoImages[i % demoImages.length];
-      newImages.push(demoImg);
-      setGeneratedImages([...newImages]);
-      setGeneratingProgress({ current: i + 1, total: totalToGenerate });
+    // Une copie de travail : les visuels deja obtenus sont conserves meme si un
+    // appel echoue au milieu, plutot que de perdre le lot entier.
+    const newImages = [...generatedImages];
+    let failed = 0;
+
+    for (let i = 0; i < clips.length; i++) {
+      try {
+        newImages[i] = await requestVisual(clips[i], i);
+        setGeneratedImages([...newImages]);
+      } catch (error) {
+        failed += 1;
+        console.error(`Visual ${i + 1} failed:`, error);
+        if (failed === 1) {
+          toast.error(
+            error instanceof Error ? error.message : "Visual generation failed",
+          );
+        }
+      }
+      setGeneratingProgress({ current: i + 1, total: clips.length });
     }
 
     setIsGeneratingImages(false);
     syncClipsToStore(editableClips, newImages);
-    toast.success(`Generated ${totalToGenerate} visuals for timeline clips`);
+
+    const done = clips.length - failed;
+    if (done > 0) toast.success(`Generated ${done} visual${done > 1 ? "s" : ""}`);
+    if (failed > 0) toast.error(`${failed} visual${failed > 1 ? "s" : ""} failed`);
   };
 
   const regenerateImageForClip = async (clipIndex: number) => {
-    const demoImages = DEMO_FINAL_SEQUENCE.panels.map((p) => p.imageUrl);
-    const newImages = [...generatedImages];
-    const currentImg = newImages[clipIndex];
-    let nextIndex = (clipIndex + 1) % demoImages.length;
-    if (demoImages[nextIndex] === currentImg) {
-      nextIndex = (nextIndex + 1) % demoImages.length;
+    const clip = editableClips[clipIndex];
+    if (!clip || !projectSync.projectId) return;
+
+    setIsGeneratingImages(true);
+    setGeneratingProgress({ current: clipIndex, total: clipIndex + 1 });
+
+    try {
+      const newImages = [...generatedImages];
+      newImages[clipIndex] = await requestVisual(clip, clipIndex);
+      setGeneratedImages(newImages);
+      syncClipsToStore(editableClips, newImages);
+      toast.success(`Regenerated visual for clip ${clipIndex + 1}`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Visual generation failed",
+      );
+    } finally {
+      setIsGeneratingImages(false);
     }
-    newImages[clipIndex] = demoImages[nextIndex] || DEMO_FINAL_SEQUENCE.storyboard[0].imageUrl;
-    setGeneratedImages(newImages);
-    syncClipsToStore(editableClips, newImages);
-    toast.success(`Regenerated visual for clip ${clipIndex + 1}`);
   };
 
   const playVoicePreview = (voiceId: string) => {
