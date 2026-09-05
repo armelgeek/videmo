@@ -24,6 +24,7 @@ const LIST_SELECT = {
   lockedById: true,
   lockExpiresAt: true,
   createdBy: { select: { id: true, name: true } },
+  lockedBy: { select: { id: true, name: true } },
 } as const;
 
 async function requireRole(viewer: { userId: string; organizationId: string | null }) {
@@ -64,11 +65,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     const now = new Date();
-    const data = rows.map(({ lockedById, lockExpiresAt, ...rest }) => ({
+    const data = rows.map(({ lockedById, lockExpiresAt, lockedBy, ...rest }) => ({
       ...rest,
       lock: {
         state: lockState({ lockedById, lockExpiresAt }, viewer.userId, now),
         byId: lockedById,
+        by: lockedBy,
         expiresAt: lockExpiresAt,
       },
     }));

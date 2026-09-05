@@ -40,7 +40,10 @@ export default async function ProjectsPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-lg font-semibold">Projets</h1>
-      <VideoProjectList canDelete={canAct(member.role, "delete")} />
+      <VideoProjectList
+        canDelete={canAct(member.role, "delete")}
+        canUpdate={canAct(member.role, "update")}
+      />
     </div>
   );
 }

@@ -25,6 +25,7 @@ const FULL_SELECT = {
   lockedById: true,
   lockExpiresAt: true,
   createdBy: { select: { id: true, name: true } },
+  lockedBy: { select: { id: true, name: true } },
 } as const;
 
 async function loadFull(id: string, userId: string) {
@@ -34,12 +35,13 @@ async function loadFull(id: string, userId: string) {
   });
   if (!row) throw new ProjectNotFoundError();
 
-  const { lockedById, lockExpiresAt, ...rest } = row;
+  const { lockedById, lockExpiresAt, lockedBy, ...rest } = row;
   return {
     ...rest,
     lock: {
       state: lockState({ lockedById, lockExpiresAt }, userId, new Date()),
       byId: lockedById,
+      by: lockedBy,
       expiresAt: lockExpiresAt,
     },
   };

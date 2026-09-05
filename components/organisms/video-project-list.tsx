@@ -20,20 +20,35 @@ interface ProjectRow {
   id: string;
   title: string;
   status: string;
+  step: string;
   aspectRatio: string;
   updatedAt: string;
   createdBy: { id: string; name: string } | null;
-  lock: { state: "free" | "held-by-me" | "held-by-other"; byId: string | null };
+  lock: {
+    state: "free" | "held-by-me" | "held-by-other";
+    byId: string | null;
+    by: { id: string; name: string } | null;
+  };
 }
 
 interface ListResponse {
   data: ProjectRow[];
   total: number;
+  page: number;
+  totalPages: number;
 }
 
-export function VideoProjectList({ canDelete }: { canDelete: boolean }) {
+export function VideoProjectList({
+  canDelete,
+  canUpdate,
+}: {
+  canDelete: boolean;
+  canUpdate: boolean;
+}) {
   const router = useRouter();
   const [rows, setRows] = useState<ProjectRow[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<ProjectRow | null>(null);
@@ -41,15 +56,19 @@ export function VideoProjectList({ canDelete }: { canDelete: boolean }) {
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await api.get<ListResponse>("/api/video-projects");
+      const res = await api.get<ListResponse>(`/api/video-projects?page=${page}`);
       if (!res.ok) throw new Error(res.error);
       setRows(res.data.data);
+      setTotalPages(Math.max(1, res.data.totalPages));
+      // Supprimer le dernier projet d'une page la vide : revenir d'un cran
+      // plutot que de rester sur une page qui n'existe plus.
+      if (res.data.data.length === 0 && page > 1) setPage(page - 1);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Chargement impossible");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     load();
@@ -100,9 +119,11 @@ export function VideoProjectList({ canDelete }: { canDelete: boolean }) {
                     >
                       Ouvrir
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setRenaming(project)}>
-                      Renommer
-                    </DropdownMenuItem>
+                    {canUpdate && (
+                      <DropdownMenuItem onClick={() => setRenaming(project)}>
+                        Renommer
+                      </DropdownMenuItem>
+                    )}
                     {canDelete && (
                       <DropdownMenuItem onClick={() => handleDelete(project)}>
                         Supprimer
@@ -116,7 +137,11 @@ export function VideoProjectList({ canDelete }: { canDelete: boolean }) {
                 <Badge variant="secondary">{project.status}</Badge>
                 <Badge variant="outline">{project.aspectRatio}</Badge>
                 {project.lock.state === "held-by-other" && (
-                  <Badge variant="destructive">En cours d'édition</Badge>
+                  <Badge variant="destructive">
+                    {project.lock.by?.name
+                      ? `En cours d'édition par ${project.lock.by.name}`
+                      : "En cours d'édition"}
+                  </Badge>
                 )}
               </div>
 
@@ -126,6 +151,30 @@ export function VideoProjectList({ canDelete }: { canDelete: boolean }) {
               </p>
             </div>
           ))}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-3">
+          <p className="text-xs text-muted-foreground">
+            Page {page} sur {totalPages}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => setPage((current) => Math.max(1, current - 1))}
+          >
+            Précédent
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= totalPages}
+            onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+          >
+            Suivant
+          </Button>
         </div>
       )}
 
