@@ -20,6 +20,10 @@ export async function renameWithLock(
     // expire de lui-même, l'erreur du PATCH est la seule utile à l'appelant.
     try {
       await deps.releaseLock(projectId);
-    } catch {}
+    } catch (error) {
+      // Tracé et non remonté : sans cette ligne, un bail resté pris jusqu'à son
+      // expiration n'aurait aucune explication nulle part.
+      console.warn("releaseLock failed", { projectId, error });
+    }
   }
 }

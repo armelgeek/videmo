@@ -113,9 +113,11 @@ export async function PATCH(
     if (count === 0) {
       const holder = await prisma.videoProject.findUnique({
         where: { id },
-        select: { lockedById: true, lockExpiresAt: true },
+        select: { deletedAt: true, lockedById: true, lockExpiresAt: true },
       });
-      if (!holder) throw new ProjectNotFoundError();
+      // deletedAt fait partie du select : sans lui, un projet supprimé dans la
+      // course rendrait « verrouillé » alors qu'il n'existe plus.
+      if (!holder || holder.deletedAt) throw new ProjectNotFoundError();
       throw new ProjectLockedError(holder.lockedById, holder.lockExpiresAt);
     }
 
