@@ -18,10 +18,11 @@ membres d'une même organisation.
 Deux modèles Prisma, `TimelineClip` et `Annotation`, sont bien en base — mais
 orphelins. `TimelineClip.trackId` est une chaîne libre, il n'y a ni projet, ni
 utilisateur, ni organisation en amont. Conséquence directe :
-`app/api/clips/[clipId]/annotations/route.ts` ne peut vérifier que la présence
-d'une session, donc **tout utilisateur connecté peut lire et modifier les
-annotations de n'importe quel clip**. Ce chantier ferme ce trou en donnant enfin
-un propriétaire aux clips.
+`app/api/clips/[clipId]/annotations/route.ts` ne vérifie rien du tout — ni
+permission, ni même la présence d'une session — parce qu'il n'a personne à qui
+rattacher le clip. **N'importe qui peut donc lire, créer et modifier les
+annotations de n'importe quel clip, sans être connecté.** Ce chantier ferme ce
+trou en donnant enfin un propriétaire aux clips.
 
 Le socle du chantier 0 fournit ce qui manquait : `session.activeOrganizationId`
 et le plugin `organization` de better-auth.
@@ -204,7 +205,9 @@ Un `PATCH` réussi renouvelle le bail : pendant une frappe continue, le chantier
 `expiresAt` si libre ou déjà à nous ; `409` avec `{ lockedBy, expiresAt }`
 sinon.
 **`DELETE /api/video-projects/[id]/lock`** — relâche, seulement si on le tient.
-`204`.
+`200` avec un corps : `apiCall` (`lib/client.ts:21`) appelle toujours
+`response.json()`, donc une réponse vide ferait échouer le client partagé. Même
+raison pour le `DELETE` d'un projet.
 
 L'écriture du bail est un `updateMany` conditionnel :
 
@@ -307,8 +310,9 @@ place, elles ne portent plus de décision.
 8. Un `PATCH` dont un champ, à n'importe quelle profondeur, contient une `data:`
    URL reçoit `400`.
 9. `GET /api/video-projects` ne renvoie aucune colonne `Json`.
-10. `/api/clips/[clipId]/annotations` refuse un utilisateur qui n'appartient pas
-    à l'organisation du projet du clip.
+10. `/api/clips/[clipId]/annotations` refuse une requête sans session (`401`) et
+    un utilisateur qui n'appartient pas à l'organisation du projet du clip
+    (`404`).
 11. `/projects` liste, crée, renomme et supprime, et affiche le porteur du bail.
 12. Un `member` ne voit pas l'entrée *Supprimer*, et un `DELETE` forcé à la main
     reçoit `403`.
