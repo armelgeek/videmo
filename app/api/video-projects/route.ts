@@ -2,9 +2,9 @@ import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canAct } from "@/lib/video-project/access";
-import { ProjectForbiddenError, ProjectNotFoundError } from "@/lib/video-project/errors";
+import { ProjectForbiddenError } from "@/lib/video-project/errors";
 import { lockState } from "@/lib/video-project/lock";
-import { prismaProjectAccessDeps } from "@/lib/video-project/repository";
+import { requireOrganizationRole } from "@/lib/video-project/repository";
 import {
   DEFAULT_DOCUMENTS,
   createVideoProjectSchema,
@@ -27,20 +27,10 @@ const LIST_SELECT = {
   lockedBy: { select: { id: true, name: true } },
 } as const;
 
-async function requireRole(viewer: { userId: string; organizationId: string | null }) {
-  if (!viewer.organizationId) throw new ProjectNotFoundError();
-  const role = await prismaProjectAccessDeps.findRole(
-    viewer.organizationId,
-    viewer.userId,
-  );
-  if (!role) throw new ProjectNotFoundError();
-  return { organizationId: viewer.organizationId, role };
-}
-
 export async function GET(request: NextRequest) {
   try {
     const viewer = await requireViewer();
-    const { organizationId, role } = await requireRole(viewer);
+    const { organizationId, role } = await requireOrganizationRole(viewer);
     if (!canAct(role, "read")) throw new ProjectForbiddenError();
 
     const { page, limit, search } = listVideoProjectsSchema.parse(
@@ -90,7 +80,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const viewer = await requireViewer();
-    const { organizationId, role } = await requireRole(viewer);
+    const { organizationId, role } = await requireOrganizationRole(viewer);
     if (!canAct(role, "create")) throw new ProjectForbiddenError();
 
     const { title } = createVideoProjectSchema.parse(await request.json());

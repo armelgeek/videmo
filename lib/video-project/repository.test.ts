@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ProjectForbiddenError, ProjectNotFoundError } from "./errors";
-import { type ProjectAccessDeps, requireProjectAccess } from "./repository";
+import {
+  type ProjectAccessDeps,
+  requireOrganizationRole,
+  requireProjectAccess,
+} from "./repository";
 
 const PROJECT = { id: "p1", organizationId: "org-1", deletedAt: null };
 const VIEWER = { userId: "u1", organizationId: "org-1" };
@@ -66,4 +70,68 @@ describe("requireProjectAccess", () => {
     );
     expect(result.role).toBe("owner");
   });
+});
+
+describe("requireOrganizationRole", () => {
+  it("returns the active organization and the caller's role", async () => {
+    const result = await requireOrganizationRole(VIEWER, deps());
+    expect(result).toEqual({ organizationId: "org-1", role: "member" });
+  });
+
+  it("throws NotFound when the caller has no active organization", async () => {
+    await expect(
+      requireOrganizationRole({ userId: "u1", organizationId: null }, deps()),
+    ).rejects.toBeInstanceOf(ProjectNotFoundError);
+  });
+
+  it("throws NotFound when the caller is not a member", async () => {
+    await expect(
+      requireOrganizationRole(VIEWER, deps({ findRole: async () => null })),
+    ).rejects.toBeInstanceOf(ProjectNotFoundError);
+  });
+
+  it("looks the role up in the viewer's own organization, never elsewhere", async () => {
+    const seen: string[] = [];
+    await requireOrganizationRole(VIEWER, deps({
+      findRole: async (organizationId) => {
+        seen.push(organizationId);
+        return "member";
+      },
+    }));
+    expect(seen).toEqual(["org-1"]);
+  });
+});
+
+/**
+ * Les deux gardes portaient la même doctrine dans deux implémentations que rien
+ * ne comparait. Ce test est ce qui les empêche de diverger à nouveau.
+ */
+describe("les deux gardes s'accordent sur ce qu'elles ont en commun", () => {
+  const CASES = [
+    { name: "no active organization", viewer: { userId: "u1", organizationId: null }, overrides: {} },
+    { name: "not a member", viewer: VIEWER, overrides: { findRole: async () => null } },
+    { name: "member in good standing", viewer: VIEWER, overrides: {} },
+  ] as const;
+
+  for (const { name, viewer, overrides } of CASES) {
+    it(`gives the same verdict — ${name}`, async () => {
+      const outcome = async (run: () => Promise<unknown>) => {
+        try {
+          await run();
+          return "allowed";
+        } catch (error) {
+          return (error as Error).name;
+        }
+      };
+
+      const viaOrganization = await outcome(() =>
+        requireOrganizationRole(viewer, deps(overrides)),
+      );
+      const viaProject = await outcome(() =>
+        requireProjectAccess("p1", viewer, "read", deps(overrides)),
+      );
+
+      expect(viaProject).toBe(viaOrganization);
+    });
+  }
 });
