@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { emailOTP, twoFactor } from "better-auth/plugins";
+import { emailOTP, organization, twoFactor } from "better-auth/plugins";
 import { prisma } from "./prisma";
+import { choisirOrganisationActive } from "./auth-organisation";
 import { EmailService } from "./email-service";
 import { appConfig } from "./config";
 
@@ -47,6 +48,23 @@ export const auth = betterAuth({
           } catch (error) {
             console.error('❌ [Auth] Failed to send welcome email:', error);
           }
+        },
+      },
+    },
+    session: {
+      create: {
+        before: async (session) => {
+          const appartenances = await prisma.organizationMember.findMany({
+            where: { userId: session.userId },
+            select: { organizationId: true, joinedAt: true },
+          });
+
+          return {
+            data: {
+              ...session,
+              activeOrganizationId: choisirOrganisationActive(appartenances),
+            },
+          };
         },
       },
     },
@@ -111,6 +129,23 @@ export const auth = betterAuth({
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ],
   plugins: [
+    organization({
+      schema: {
+        // Le plugin attend des tables 'member' et 'invitation' ; les notres
+        // portent deja un nom, et renommer une table en production coute plus
+        // cher que cette surcharge.
+        member: {
+          modelName: "organizationMember",
+          fields: { createdAt: "joinedAt" },
+        },
+        invitation: { modelName: "organizationInvitation" },
+        organization: {
+          additionalFields: {
+            description: { type: "string", required: false },
+          },
+        },
+      },
+    }),
     emailOTP({
       overrideDefaultEmailVerification: true,
       async sendVerificationOTP({ email, otp, type }) {
