@@ -6,6 +6,7 @@ import {
   normalizeWorkflowStep,
   serializeAudioTrack,
 } from "./store";
+import { normalizeVoice } from "@/lib/speech/speech-generator";
 import { projectParamsSchema } from "./schema";
 
 /**
@@ -135,7 +136,9 @@ export function fromLoadedProject(project: LoadedProject): ProjectSlice {
     scriptTitle: project.script?.title ?? "",
     scriptText: project.script?.text ?? "",
     storyboardPanels: (project.panels ?? []) as ProjectSlice["storyboardPanels"],
-    selectedVoice: typeof selectedVoice === "string" ? selectedVoice : "default",
+    // Les projets enregistres portent d'anciens identifiants inventes
+    // (en-us-male-1) : les rendre tels quels ferait echouer la synthese.
+    selectedVoice: normalizeVoice(selectedVoice),
     whiteboardConfig: {
       ...DEFAULT_WHITEBOARD_CONFIG,
       ...(project.whiteboardConfig ?? {}),

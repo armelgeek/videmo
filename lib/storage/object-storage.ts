@@ -96,6 +96,19 @@ export function buildImageKey(input: {
   return `projects/${safeProject}/scenes/${input.sceneIndex}-${stamp}-${random}.${extension}`;
 }
 
+export function buildNarrationKey(input: {
+  projectId: string;
+  sceneIndex: number;
+  now?: number;
+  random?: string;
+}): string {
+  const stamp = input.now ?? Date.now();
+  const random = input.random ?? Math.random().toString(36).slice(2, 8);
+  const safeProject = input.projectId.replace(/[^A-Za-z0-9_-]/g, "");
+
+  return `projects/${safeProject}/narration/${input.sceneIndex}-${stamp}-${random}.mp3`;
+}
+
 /** Adaptateur de test : garde les objets en memoire et rend une URL stable. */
 export class InMemoryObjectStorage implements ObjectStorage {
   readonly objects = new Map<string, { body: Uint8Array; contentType: string }>();

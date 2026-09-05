@@ -223,7 +223,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
       scriptText: "",
       storyboardPanels: [],
       activeClipIndex: 0,
-      selectedVoice: "default",
+      selectedVoice: "nova",
       isGenerating: false,
       whiteboardConfig: DEFAULT_WHITEBOARD_CONFIG,
 
@@ -340,7 +340,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           scriptTitle: "A Live-Action Flashback Scene",
           scriptText: DEMO_FINAL_SEQUENCE.masterDescription,
           storyboardPanels: panels,
-          selectedVoice: "en-us-male-1",
+          selectedVoice: "nova",
           step: "whiteboard",
         });
       },
@@ -354,7 +354,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           scriptTitle: "",
           scriptText: "",
           storyboardPanels: [],
-          selectedVoice: "default",
+          selectedVoice: "nova",
           isGenerating: false,
         }),
 

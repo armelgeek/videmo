@@ -1,39 +1,77 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { generateFakeWaveform } from '@/lib/editor/utils/waveform-generator';
+import { type NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import {
+  StorageNotConfiguredError,
+  buildNarrationKey,
+} from "@/lib/storage/object-storage";
+import { getObjectStorage } from "@/lib/storage/s3-storage";
+import {
+  SpeechGenerationFailedError,
+  SpeechGeneratorNotConfiguredError,
+} from "@/lib/speech/speech-generator";
+import { getSpeechGenerator } from "@/lib/speech/openai-speech-generator";
+import { requireProjectAccess } from "@/lib/video-project/repository";
+import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
+
+// Environ trois secondes par scene, plus l'envoi au bac.
+export const maxDuration = 120;
+
+const requestSchema = z.object({
+  projectId: z.string().min(1),
+  sceneIndex: z.number().int().nonnegative(),
+  text: z.string().min(1).max(4000),
+  voice: z.string().default("nova"),
+});
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, voiceId, annotationId } = await request.json();
+    const viewer = await requireViewer();
+    const input = requestSchema.parse(await request.json());
 
-    if (!text || !voiceId || !annotationId) {
+    // Synthetiser coute de l'argent : le droit d'ecrire sur CE projet est
+    // verifie avant d'appeler le moteur, pas apres.
+    await requireProjectAccess(input.projectId, viewer, "update");
+
+    // Moteur et bac resolus d'abord : une configuration incomplete doit se
+    // voir avant d'avoir paye un audio qu'on n'aurait nulle part ou ecrire.
+    const speech = getSpeechGenerator();
+    const storage = getObjectStorage();
+
+    const audio = await speech.speak({ text: input.text, voice: input.voice });
+
+    const url = await storage.put({
+      key: buildNarrationKey({
+        projectId: input.projectId,
+        sceneIndex: input.sceneIndex,
+      }),
+      body: audio,
+      contentType: "audio/mpeg",
+    });
+
+    return NextResponse.json({ url });
+  } catch (error) {
+    if (
+      error instanceof StorageNotConfiguredError ||
+      error instanceof SpeechGeneratorNotConfiguredError
+    ) {
       return NextResponse.json(
-        { error: 'Missing required fields: text, voiceId, annotationId' },
-        { status: 400 }
+        { error: error.message, missing: error.missing },
+        { status: 503 },
       );
     }
-
-    // TODO: Replace with real TTS API (ElevenLabs, Google Cloud, etc.)
-    // For now, use existing test audio from public folder
-    const audioUrl = '/audio/test-audio-8s.mp3';
-
-    // Use actual audio duration (8 seconds for test-audio-8s.mp3)
-    const durationMs = 8000;
-    const durationSeconds = 8;
-
-    // Generate fake waveform peaks (will be replaced by real audio analysis in production)
-    const waveformPeaks = generateFakeWaveform(durationSeconds, 0, 100);
-
-    return NextResponse.json({
-      audioUrl,
-      waveformPeaks,
-      durationMs,
-      transcript: text, // In production, this would be from STT
-    });
-  } catch (error) {
-    console.error('Error generating narration:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate narration' },
-      { status: 500 }
-    );
+    if (error instanceof SpeechGenerationFailedError) {
+      console.error("Speech generation failed:", error.status, error.message);
+      return NextResponse.json(
+        { error: "Speech generation failed" },
+        { status: 502 },
+      );
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Validation failed", details: error.issues },
+        { status: 400 },
+      );
+    }
+    return toErrorResponse(error);
   }
 }

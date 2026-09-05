@@ -27,7 +27,7 @@ const slice: ProjectSlice = {
   scriptTitle: "La torrefaction",
   scriptText: "Tout commence par un grain vert.\n\nPuis vient la chaleur.",
   storyboardPanels: [],
-  selectedVoice: "fr-fr-male-1",
+  selectedVoice: "onyx",
   whiteboardConfig: DEFAULT_WHITEBOARD_CONFIG,
 };
 
@@ -53,7 +53,7 @@ describe("toProjectPatch", () => {
     const { params } = toProjectPatch(slice);
 
     expect(params.promptContent).toBe("Une video sur le cafe");
-    expect(params.selectedVoice).toBe("fr-fr-male-1");
+    expect(params.selectedVoice).toBe("onyx");
     expect(params.style).toBe("cinematic");
   });
 });
@@ -111,7 +111,7 @@ describe("toProjectPatch face au schema du serveur", () => {
     const parsed = updateVideoProjectSchema.parse(toProjectPatch(slice));
 
     expect(parsed.params?.promptContent).toBe("Une video sur le cafe");
-    expect(parsed.params?.selectedVoice).toBe("fr-fr-male-1");
+    expect(parsed.params?.selectedVoice).toBe("onyx");
   });
 
   it("survit a un aller-retour complet a travers le schema", () => {
@@ -176,9 +176,24 @@ describe("fromLoadedProject", () => {
     });
 
     expect(back.promptContent).toBe("");
-    expect(back.selectedVoice).toBe("default");
+    expect(back.selectedVoice).toBe("nova");
     expect(back.whiteboardConfig.annotations).toEqual([]);
     expect(back.whiteboardConfig.transcript).toEqual([]);
+  });
+
+  it("remplace une voix heritee par une voix qui existe", () => {
+    // Les projets d'avant portaient des identifiants inventes : les rendre
+    // tels quels ferait echouer la synthese sur chaque scene.
+    const back = fromLoadedProject({
+      title: "x",
+      step: "voiceChoice",
+      params: { selectedVoice: "fr-fr-male-1" },
+      script: { title: "", text: "" },
+      panels: [],
+      whiteboardConfig: {},
+    });
+
+    expect(back.selectedVoice).toBe("nova");
   });
 
   it("ramene une etape retiree du parcours vers une etape qui existe", () => {

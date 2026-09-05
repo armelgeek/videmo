@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
+import { VOICES, normalizeVoice } from "@/lib/speech/speech-generator";
 import { useToastContext } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/lib/app-shell";
@@ -62,160 +63,28 @@ const STEPS = [
   { key: "whiteboard", label: "Whiteboard", icon: Settings },
 ] as const;
 
-const VOICES_BY_LANGUAGE: Record<
-  string,
-  {
-    id: string;
-    name: string;
-    description: string;
-    tags: string[];
-    color: string;
-  }[]
-> = {
-  en: [
-    {
-      id: "en-us-male-1",
-      name: "Ron",
-      description: "A low, intense voice fit for narrating crime documentaries",
-      tags: ["bass", "husky", "authoritative"],
-      color: "from-orange-300 to-orange-400",
-    },
-    {
-      id: "en-us-female-1",
-      name: "Maisie",
-      description:
-        "British accent with a steady, distinctive tone perfect for podcasts",
-      tags: ["british", "steady", "distinct"],
-      color: "from-pink-300 to-orange-200",
-    },
-    {
-      id: "en-gb-male-1",
-      name: "Robert",
-      description:
-        "Senior educational voice ideal for documentary and e-learning",
-      tags: ["senior", "educational", "calm"],
-      color: "from-amber-300 to-orange-300",
-    },
-    {
-      id: "en-gb-female-1",
-      name: "Dan",
-      description: "Natural, sensible voice for expert commentary and analysis",
-      tags: ["expert", "sensible", "natural"],
-      color: "from-yellow-200 to-orange-300",
-    },
-  ],
-  fr: [
-    {
-      id: "fr-male-1",
-      name: "Pierre",
-      description: "Voix masculine professionnelle",
-      tags: ["french", "professional", "male"],
-      color: "from-blue-300 to-blue-400",
-    },
-    {
-      id: "fr-female-1",
-      name: "Marie",
-      description: "Voix féminine professionnelle",
-      tags: ["french", "professional", "female"],
-      color: "from-rose-300 to-pink-400",
-    },
-  ],
-  es: [
-    {
-      id: "es-male-1",
-      name: "Carlos",
-      description: "Voz masculina profesional",
-      tags: ["spanish", "professional", "male"],
-      color: "from-red-300 to-orange-400",
-    },
-    {
-      id: "es-female-1",
-      name: "Rosa",
-      description: "Voz femenina profesional",
-      tags: ["spanish", "professional", "female"],
-      color: "from-pink-300 to-red-400",
-    },
-  ],
-  de: [
-    {
-      id: "de-male-1",
-      name: "Klaus",
-      description: "Professionelle Männerstimme",
-      tags: ["german", "professional", "male"],
-      color: "from-indigo-300 to-blue-400",
-    },
-    {
-      id: "de-female-1",
-      name: "Anna",
-      description: "Professionelle Frauenstimme",
-      tags: ["german", "professional", "female"],
-      color: "from-purple-300 to-pink-400",
-    },
-  ],
-  it: [
-    {
-      id: "it-male-1",
-      name: "Marco",
-      description: "Voce maschile professionale",
-      tags: ["italian", "professional", "male"],
-      color: "from-green-300 to-emerald-400",
-    },
-    {
-      id: "it-female-1",
-      name: "Giulia",
-      description: "Voce femminile professionale",
-      tags: ["italian", "professional", "female"],
-      color: "from-teal-300 to-green-400",
-    },
-  ],
-  pt: [
-    {
-      id: "pt-male-1",
-      name: "João",
-      description: "Voz masculina profissional",
-      tags: ["portuguese", "professional", "male"],
-      color: "from-yellow-300 to-amber-400",
-    },
-    {
-      id: "pt-female-1",
-      name: "Marta",
-      description: "Voz feminina profissional",
-      tags: ["portuguese", "professional", "female"],
-      color: "from-orange-300 to-yellow-400",
-    },
-  ],
-  zh: [
-    {
-      id: "zh-male-1",
-      name: "Wei",
-      description: "Professional Male Voice",
-      tags: ["chinese", "professional", "male"],
-      color: "from-red-300 to-red-400",
-    },
-    {
-      id: "zh-female-1",
-      name: "Yan",
-      description: "Professional Female Voice",
-      tags: ["chinese", "professional", "female"],
-      color: "from-red-300 to-pink-400",
-    },
-  ],
-  ja: [
-    {
-      id: "ja-male-1",
-      name: "Takeshi",
-      description: "Professional Male Voice",
-      tags: ["japanese", "professional", "male"],
-      color: "from-fuchsia-300 to-pink-400",
-    },
-    {
-      id: "ja-female-1",
-      name: "Yuki",
-      description: "Professional Female Voice",
-      tags: ["japanese", "professional", "female"],
-      color: "from-pink-300 to-fuchsia-400",
-    },
-  ],
+/**
+ * Les voix reellement disponibles, dans l'ordre du catalogue.
+ *
+ * L'ecran presentait auparavant 18 personas inventes ranges par langue (Ron,
+ * Pierre, Takeshi...) : le choix se faisait sur une fiction, et deux personas
+ * pouvaient rendre le meme son. Ces voix-ci sont multilingues — la meme lit le
+ * francais et l'anglais — donc aucun classement par langue n'a de sens, et
+ * aucune description de timbre n'est donnee : l'apercu audio en est la seule
+ * source honnete.
+ */
+const VOICE_INITIALS: Record<string, string> = {
+  alloy: "A",
+  ash: "As",
+  ballad: "B",
+  coral: "C",
+  echo: "E",
+  fable: "F",
+  nova: "N",
+  onyx: "O",
+  sage: "S",
+  shimmer: "Sh",
+  verse: "V",
 };
 
 export default function StoryboardPage() {
@@ -594,45 +463,47 @@ export default function StoryboardPage() {
     }
   };
 
-  const playVoicePreview = (voiceId: string) => {
-    const sampleText =
-      "Welcome to our video presentation. This is a sample of our professional narration voice.";
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  /**
+   * Fait entendre la voix qui sera reellement utilisee.
+   *
+   * L'apercu passait par speechSynthesis du navigateur : on ecoutait une voix
+   * systeme sans aucun rapport avec celle que le moteur allait produire.
+   */
+  const playVoicePreview = async (voice: string) => {
+    if (!projectSync.projectId || previewingVoice) return;
+
+    previewAudioRef.current?.pause();
+    setPreviewingVoice(voice);
     try {
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
+      const response = await fetch("/api/generate-narration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: projectSync.projectId,
+          sceneIndex: 0,
+          voice,
+          text:
+            scriptText.trim().slice(0, 200) ||
+            "Voici un apercu de cette voix de narration.",
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
 
-        const utterance = new SpeechSynthesisUtterance(sampleText);
-        utterance.rate = 1;
-        utterance.pitch = 1.1;
-        utterance.volume = 1;
-
-        // Set language based on voice ID
-        if (voiceId.includes("en")) utterance.lang = "en-US";
-        if (voiceId.includes("fr")) utterance.lang = "fr-FR";
-        if (voiceId.includes("es")) utterance.lang = "es-ES";
-        if (voiceId.includes("de")) utterance.lang = "de-DE";
-        if (voiceId.includes("it")) utterance.lang = "it-IT";
-        if (voiceId.includes("pt")) utterance.lang = "pt-BR";
-        if (voiceId.includes("zh")) utterance.lang = "zh-CN";
-        if (voiceId.includes("ja")) utterance.lang = "ja-JP";
-
-        // Reset preview state when speech ends
-        utterance.onend = () => {
-          setPreviewingVoice(null);
-        };
-
-        utterance.onerror = () => {
-          setPreviewingVoice(null);
-        };
-
-        window.speechSynthesis.speak(utterance);
-      }
+      const audio = new Audio(body.url);
+      previewAudioRef.current = audio;
+      audio.onended = () => setPreviewingVoice(null);
+      await audio.play();
     } catch (error) {
-      console.error("Voice preview error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Preview failed",
+      );
       setPreviewingVoice(null);
     }
   };
+
 
   const handlePromptSubmit = (content: string) => {
     setPromptContent(content);
@@ -717,32 +588,74 @@ export default function StoryboardPage() {
     setStep("voiceChoice");
   };
 
-  const handleVoiceSelected = (voiceId: string) => {
-    setSelectedVoice(voiceId);
+  /**
+   * Synthetise la narration, scene par scene.
+   *
+   * La progression suit le lot reel : elle etait auparavant une animation de
+   * trois secondes qui n'attendait rien, et l'etape suivante s'ouvrait sur des
+   * clips sans audio.
+   */
+  const handleVoiceSelected = async (voiceId: string) => {
+    const clips = editableClips.filter((c) => !c.isSection);
+    if (clips.length === 0 || !projectSync.projectId) return;
+
+    const voice = normalizeVoice(voiceId);
+    setSelectedVoice(voice);
     setIsGeneratingNarration(true);
     setNarrationProgress(0);
 
-    // Simulate narration generation with progress
-    const progressInterval = setInterval(() => {
-      setNarrationProgress((prev) => {
-        if (prev >= 95) {
-          clearInterval(progressInterval);
-          return 95;
-        }
-        return prev + Math.random() * 30;
-      });
-    }, 500);
+    // Une copie de travail : les narrations obtenues sont conservees meme si un
+    // appel echoue au milieu, plutot que de perdre le lot entier.
+    const withAudio = [...editableClips];
+    let failed = 0;
 
-    // Complete after ~3 seconds
-    setTimeout(() => {
-      clearInterval(progressInterval);
-      setNarrationProgress(100);
-      setTimeout(() => {
-        setIsGeneratingNarration(false);
-        setStep("whiteboard");
-      }, 500);
-    }, 3000);
+    for (let i = 0; i < clips.length; i++) {
+      const clip = clips[i];
+      const text = (clip.summary || clip.title || "").trim();
+      if (!text) continue;
+
+      try {
+        const response = await fetch("/api/generate-narration", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: projectSync.projectId,
+            sceneIndex: i,
+            text,
+            voice,
+          }),
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+
+        const target = withAudio.indexOf(clip);
+        if (target >= 0) withAudio[target] = { ...clip, audioUrl: body.url };
+      } catch (error) {
+        failed += 1;
+        console.error(`Narration ${i + 1} failed:`, error);
+        if (failed === 1) {
+          toast.error(
+            error instanceof Error ? error.message : "Narration failed",
+          );
+        }
+      }
+      setNarrationProgress(Math.round(((i + 1) / clips.length) * 100));
+    }
+
+    setEditableClips(withAudio);
+    syncClipsToStore(withAudio, generatedImages);
+    setIsGeneratingNarration(false);
+
+    const done = clips.length - failed;
+    if (done > 0) {
+      toast.success(`Narrated ${done} scene${done > 1 ? "s" : ""}`);
+      setStep("whiteboard");
+    }
+    if (failed > 0) {
+      toast.error(`${failed} scene${failed > 1 ? "s" : ""} failed`);
+    }
   };
+
 
   const handleSaveProgress = async () => {
     await projectSync.saveNow();
@@ -1682,7 +1595,7 @@ export default function StoryboardPage() {
                       ← Back
                     </Button>
                     <Button
-                      onClick={() => handleVoiceSelected(selectedVoice)}
+                      onClick={() => void handleVoiceSelected(selectedVoice)}
                       className="bg-primary hover:bg-primary/90"
                       size="sm"
                     >
@@ -1700,9 +1613,7 @@ export default function StoryboardPage() {
                       onClick={() => setSelectedVoice("")}
                       className={cn(
                         "px-4 py-2 text-sm font-medium transition-colors",
-                        !selectedVoice ||
-                          selectedVoice.startsWith("en-us") ||
-                          selectedVoice.startsWith("fr-fr")
+                        selectedVoice !== "custom"
                           ? "text-foreground border-b-2 border-foreground"
                           : "text-muted-foreground hover:text-foreground",
                       )}
@@ -1725,97 +1636,60 @@ export default function StoryboardPage() {
                   {/* Preset Voices Grid */}
                   {selectedVoice !== "custom" && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {(
-                        VOICES_BY_LANGUAGE[projectParams.language] ||
-                        VOICES_BY_LANGUAGE["en"]
-                      ).map((voice) => (
+                      {VOICES.map((voice) => (
                         <div
-                          key={voice.id}
-                          onClick={() => setSelectedVoice(voice.id)}
+                          key={voice}
+                          onClick={() => setSelectedVoice(voice)}
                           className={cn(
                             "group cursor-pointer transition-all duration-300 rounded-xl border overflow-hidden flex flex-col",
                             "bg-gradient-to-br from-card to-card/60",
-                            selectedVoice === voice.id
+                            selectedVoice === voice
                               ? "border-foreground/30 shadow-lg"
                               : "border-border/50 hover:border-border/80 hover:shadow-md",
                           )}
                         >
-                          {/* Mini Avatar Header */}
-                          <div
-                            className={cn(
-                              "h-40 bg-muted/40 transition-all duration-300 relative overflow-hidden border-b border-border/50",
-                              "flex items-center justify-center",
-                            )}
-                          >
-                            <div className="w-20 h-20 rounded-full bg-muted/70 border border-border/50 flex items-center justify-center">
-                              <span className="text-4xl font-bold text-foreground/40">
-                                {voice.name[0]}
+                          <div className="h-28 bg-muted/40 border-b border-border/50 flex items-center justify-center">
+                            <div className="w-16 h-16 rounded-full bg-muted/70 border border-border/50 flex items-center justify-center">
+                              <span className="text-2xl font-bold text-foreground/40">
+                                {VOICE_INITIALS[voice] ?? voice[0].toUpperCase()}
                               </span>
                             </div>
                           </div>
 
-                          {/* Compact Content */}
                           <div className="p-4 flex flex-col flex-1">
-                            {/* Name & Selection Badge */}
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <h3 className="text-base font-bold text-foreground">
-                                {voice.name}
+                            <div className="flex items-start justify-between gap-2 mb-3">
+                              <h3 className="text-base font-bold text-foreground capitalize">
+                                {voice}
                               </h3>
-                              {selectedVoice === voice.id && (
+                              {selectedVoice === voice && (
                                 <div className="flex-shrink-0 w-5 h-5 rounded-full bg-foreground/20 flex items-center justify-center">
                                   <Check className="w-3 h-3 text-foreground" />
                                 </div>
                               )}
                             </div>
 
-                            {/* Mini Tags */}
-                            <div className="flex flex-wrap gap-1 mb-3">
-                              {(voice as any).tags
-                                ?.slice(0, 2)
-                                .map((tag: string) => (
-                                  <span
-                                    key={tag}
-                                    className="text-xs px-2 py-0.5 rounded-full bg-muted/50 text-foreground/60 font-medium"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                            </div>
-
-                            {/* Short Description */}
-                            <p className="text-xs text-muted-foreground line-clamp-1 mb-3">
-                              {voice.description}
-                            </p>
-
-                            {/* Spacer */}
                             <div className="flex-1" />
 
-                            {/* Play Button */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (previewingVoice === voice.id) {
-                                  window.speechSynthesis.cancel();
-                                  setPreviewingVoice(null);
-                                } else {
-                                  setPreviewingVoice(voice.id);
-                                  playVoicePreview(voice.id);
-                                }
+                                void playVoicePreview(voice);
                               }}
+                              disabled={previewingVoice !== null}
                               className={cn(
                                 "w-full py-2 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1.5",
                                 "bg-muted/50 hover:bg-muted/70 text-foreground/70 hover:text-foreground",
-                                previewingVoice === voice.id && "bg-muted/60",
+                                previewingVoice === voice && "bg-muted/60",
                               )}
                             >
-                              {previewingVoice === voice.id ? (
+                              {previewingVoice === voice ? (
                                 <>
                                   <Loader2 className="w-3 h-3 animate-spin" />
-                                  Playing
+                                  Loading
                                 </>
                               ) : (
                                 <>
-                                  <Film className="w-3 h-3" />
+                                  <Volume2 className="w-3 h-3" />
                                   Listen
                                 </>
                               )}
