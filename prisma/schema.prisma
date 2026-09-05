@@ -36,7 +36,9 @@ model User {
   twoFactor     TwoFactor?
   twoFactorEnabled Boolean @default(false)
   emailChangeRequests EmailChangeRequest[]
-  
+  videoProjectsCreated VideoProject[] @relation("VideoProjectsCreated")
+  videoProjectsLocked  VideoProject[] @relation("VideoProjectsLocked")
+
   @@index([roleId])
   @@index([isAdmin])
 }
@@ -248,6 +250,7 @@ model Organization {
   metadata    String?
   members     OrganizationMember[]
   invitations OrganizationInvitation[]
+  videoProjects VideoProject[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }
@@ -316,7 +319,9 @@ model EmailChangeRequest {
 }
 
 model TimelineClip {
-  id        String   @id @default(cuid())
+  id             String       @id @default(cuid())
+  videoProjectId String
+  videoProject   VideoProject @relation(fields: [videoProjectId], references: [id], onDelete: Cascade)
   mediaId   String
   trackId   String
   start     Float
@@ -332,6 +337,39 @@ model TimelineClip {
   updatedAt DateTime @updatedAt
 
   @@index([trackId])
+  @@index([videoProjectId])
+}
+
+model VideoProject {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById    String?
+  createdBy      User?        @relation("VideoProjectsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+
+  title       String @db.VarChar(255)
+  status      String @default("draft")
+  step        String @default("prompt")
+  aspectRatio String @default("16:9")
+
+  params           Json
+  script           Json
+  panels           Json
+  whiteboardConfig Json
+  schemaVersion    Int  @default(1)
+
+  lockedById    String?
+  lockedBy      User?     @relation("VideoProjectsLocked", fields: [lockedById], references: [id], onDelete: SetNull)
+  lockExpiresAt DateTime?
+
+  clips TimelineClip[]
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([organizationId, deletedAt, updatedAt])
+  @@index([lockExpiresAt])
 }
 
 model Annotation {
