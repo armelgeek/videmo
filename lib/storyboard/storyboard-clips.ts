@@ -1,5 +1,4 @@
 import type { StoryboardPanel } from "./schema";
-import type { ScriptScene } from "./script-generation";
 
 /**
  * La forme editable d'un clip a l'etape Storyboard.
@@ -49,39 +48,4 @@ export function panelsToStepState(
   };
 }
 
-/**
- * Amorce l'etape depuis le script approuve, quand aucun panneau n'existe
- * encore. Les visuels restent vides : ils ne sont produits que sur demande.
- */
-export function scenesToStepState(
-  scenes: ScriptScene[],
-): StoryboardStepState {
-  return {
-    clips: scenes.map((scene, index) => ({
-      id: `clip-${scene.index}`,
-      index,
-      clipType: scene.clipType,
-      title: scene.title,
-      summary: scene.narration,
-      visualPrompt: scene.imagePrompt,
-      duration: scene.duration,
-      isSection: false,
-    })),
-    images: scenes.map(() => ""),
-  };
-}
 
-/**
- * L'etat d'ouverture de l'etape Storyboard.
- *
- * Les panneaux priment sur le script : ils portent les visuels produits et les
- * retouches faites ici, que le script ne connait pas.
- */
-export function resolveStepState(input: {
-  panels: StoryboardPanel[];
-  scenes: ScriptScene[];
-}): StoryboardStepState {
-  if (input.panels.length > 0) return panelsToStepState(input.panels);
-  if (input.scenes.length > 0) return scenesToStepState(input.scenes);
-  return { clips: [], images: [] };
-}

@@ -48,8 +48,7 @@ import {
   useStoryboardStore,
   normalizeWorkflowStep,
 } from "@/lib/storyboard/store";
-import { SceneCard } from "@/lib/storyboard/components/scene-card";
-import { resolveStepState } from "@/lib/storyboard/storyboard-clips";
+import { panelsToStepState } from "@/lib/storyboard/storyboard-clips";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
@@ -235,10 +234,8 @@ export default function StoryboardPage() {
     setProjectParams,
     scriptTitle,
     setScriptTitle,
-    scriptScenes,
-    setScriptScenes,
-    updateScene,
-    removeScene,
+    scriptText,
+    setScriptText,
     storyboardPanels,
     setStoryboardPanels,
     updatePanel,
@@ -299,10 +296,9 @@ export default function StoryboardPage() {
   // bail d'edition et ecrit chaque changement du store.
   const projectSync = useProjectSync();
 
-  const totalScriptDuration = scriptScenes.reduce(
-    (total, scene) => total + scene.duration,
-    0,
-  );
+  const scriptWordCount = scriptText.trim()
+    ? scriptText.trim().split(/\s+/).length
+    : 0;
 
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [scriptError, setScriptError] = useState<string | null>(null);
@@ -312,7 +308,7 @@ export default function StoryboardPage() {
   // appel modele — en revenant sur l'etape depuis le storyboard.
   useEffect(() => {
     if (step !== "scriptValidation" || isGeneratingScript) return;
-    if (scriptScenes.length > 0) return;
+    if (scriptText.trim()) return;
     if (!promptContent.trim()) return;
 
     let cancelled = false;
@@ -334,7 +330,7 @@ export default function StoryboardPage() {
           return;
         }
         setScriptTitle(body.title ?? "");
-        setScriptScenes(body.scenes ?? []);
+        setScriptText(body.text ?? "");
       } catch (error) {
         if (!cancelled) {
           setScriptError(
@@ -349,7 +345,7 @@ export default function StoryboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [step, promptContent]);
+  }, [step, promptContent, scriptText]);
 
   const syncClipsToStore = (clipsToSync: any[], imagesToSync: string[]) => {
     const panels = clipsToSync
@@ -387,15 +383,12 @@ export default function StoryboardPage() {
     if (step !== "storyboard") return;
     if (editableClips.length > 0) return;
 
-    const { clips, images } = resolveStepState({
-      panels: storyboardPanels,
-      scenes: scriptScenes,
-    });
+    const { clips, images } = panelsToStepState(storyboardPanels);
     if (clips.length === 0) return;
 
     setEditableClips(clips);
     setGeneratedImages(images);
-  }, [step, storyboardPanels, scriptScenes, editableClips.length]);
+  }, [step, storyboardPanels, editableClips.length]);
 
   const updateClipField = (index: number, updates: Record<string, any>) => {
     const newClips = [...editableClips];
@@ -646,31 +639,70 @@ export default function StoryboardPage() {
     setStep("scriptValidation");
   };
 
+  const [isBreakingDown, setIsBreakingDown] = useState(false);
+
   /**
-   * Les scenes approuvees deviennent le storyboard.
+   * Second temps : le texte valide est decoupe en scenes.
    *
-   * L'ancien parcours rappelait /api/generate-storyboard, qui reinventait des
-   * `clipOutlines` a partir du seul prompt : le travail de l'agent — et les
-   * corrections faites juste au-dessus — etaient jetes entre les deux etapes.
+   * L'appel est distinct de l'ecriture parce que l'utilisateur a pu reecrire le
+   * script entre les deux — decouper des la premiere generation figeait des
+   * scenes que ses corrections n'atteignaient plus.
    */
   const handleScriptValidated = async () => {
-    setStoryboardData({
-      storyboard: {
-        title: scriptTitle,
-        clipOutlines: scriptScenes.map((scene) => ({
-          index: scene.index,
-          clipType: scene.clipType,
-          title: scene.title,
-          summary: scene.narration,
-          visualPrompt: scene.imagePrompt,
-          duration: scene.duration,
-        })),
-      },
-      content: promptContent,
-      params: projectParams,
-    });
+    if (!scriptText.trim() || isBreakingDown) return;
 
-    setStep("storyboard");
+    setIsBreakingDown(true);
+    setScriptError(null);
+    try {
+      const response = await fetch("/api/generate-storyboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          script: scriptText,
+          content: promptContent,
+          ...projectParams,
+        }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        setScriptError(body.error ?? `HTTP ${response.status}`);
+        return;
+      }
+
+      const scenes = (body.scenes ?? []) as {
+        index: number;
+        clipType: string;
+        title: string;
+        narration: string;
+        imagePrompt: string;
+        duration: number;
+      }[];
+
+      // Les scenes deviennent les clips de l'etape suivante, et sont
+      // enregistrees : au rechargement, c'est d'elles que l'etape repart.
+      const clips = scenes.map((scene) => ({
+        id: `clip-${scene.index}`,
+        index: scene.index,
+        clipType: scene.clipType,
+        title: scene.title,
+        summary: scene.narration,
+        visualPrompt: scene.imagePrompt,
+        duration: scene.duration,
+        isSection: false,
+      }));
+      const images = clips.map(() => "");
+
+      setEditableClips(clips);
+      setGeneratedImages(images);
+      syncClipsToStore(clips, images);
+      setStep("storyboard");
+    } catch (error) {
+      setScriptError(
+        error instanceof Error ? error.message : "Network error",
+      );
+    } finally {
+      setIsBreakingDown(false);
+    }
   };
 
   const handleStoryboardGenerated = (
@@ -744,7 +776,7 @@ export default function StoryboardPage() {
   const canNavigateToStep = (index: number) => {
     if (index === 0) return true;
     if (index === 1) return !!promptContent;
-    if (index === 2) return scriptScenes.length > 0;
+    if (index === 2) return !!scriptText.trim();
     if (index === 3) return generatedImages.length > 0;
     if (index === 4) return !!selectedVoice;
     return false;
@@ -1145,31 +1177,21 @@ export default function StoryboardPage() {
                         </span>
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        {scriptScenes.length > 0
-                          ? `${scriptScenes.length} scenes · ${totalScriptDuration}s`
-                          : "0 scenes"}
+                        {scriptWordCount > 0
+                          ? `${scriptWordCount} words`
+                          : "0 words"}
                       </span>
                     </div>
 
                     {/* Content */}
                     <div className="p-4 bg-background min-h-screen max-h-screen overflow-y-auto">
-                      {scriptScenes.length > 0 ? (
-                        <div className="space-y-3">
-                          {scriptScenes.map((scene) => (
-                            <SceneCard
-                              key={scene.index}
-                              scene={scene}
-                              onChange={(updates) =>
-                                updateScene(scene.index, updates)
-                              }
-                              onRemove={
-                                scriptScenes.length > 1
-                                  ? () => removeScene(scene.index)
-                                  : undefined
-                              }
-                            />
-                          ))}
-                        </div>
+                      {scriptText ? (
+                        <Textarea
+                          value={scriptText}
+                          onChange={(event) => setScriptText(event.target.value)}
+                          aria-label="Narration script"
+                          className="w-full h-full min-h-[60vh] resize-none border-0 bg-transparent p-0 text-sm leading-relaxed focus-visible:ring-0"
+                        />
                       ) : isGeneratingScript ? (
                         <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
                           <Loader2 className="w-6 h-6 animate-spin" />
@@ -1219,10 +1241,12 @@ export default function StoryboardPage() {
                           {scriptError
                             ? "Generation failed"
                             : isGeneratingScript
-                              ? "Generating..."
-                              : scriptScenes.length > 0
-                                ? "Ready to validate"
-                                : "Pending generation"}
+                              ? "Writing..."
+                              : isBreakingDown
+                                ? "Building storyboard..."
+                                : scriptText.trim()
+                                  ? "Ready to validate"
+                                  : "Pending generation"}
                         </span>
                       </div>
                     </div>
@@ -1232,11 +1256,20 @@ export default function StoryboardPage() {
                       <div className="space-y-2">
                         <Button
                           onClick={() => void handleScriptValidated()}
-                          disabled={scriptScenes.length === 0}
+                          disabled={!scriptText.trim() || isBreakingDown}
                           className="w-full"
                         >
-                          <Check className="w-4 h-4 mr-2" />
-                          Approve Script
+                          {isBreakingDown ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Building storyboard...
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-4 h-4 mr-2" />
+                              Approve Script
+                            </>
+                          )}
                         </Button>
                         <Button
                           variant="outline"

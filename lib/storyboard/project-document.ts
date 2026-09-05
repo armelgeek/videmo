@@ -7,7 +7,6 @@ import {
   serializeAudioTrack,
 } from "./store";
 import { projectParamsSchema } from "./schema";
-import { type ScriptScene, reindexScenes } from "./script-generation";
 
 /**
  * La part du store qui appartient au projet enregistre. Le reste de l'etat
@@ -20,7 +19,7 @@ export type ProjectSlice = Pick<
   | "promptContent"
   | "projectParams"
   | "scriptTitle"
-  | "scriptScenes"
+  | "scriptText"
   | "storyboardPanels"
   | "selectedVoice"
   | "whiteboardConfig"
@@ -37,7 +36,7 @@ export interface ProjectPatch {
   step: string;
   aspectRatio: string;
   params: Record<string, unknown>;
-  script: { title: string; scenes: ScriptScene[] };
+  script: { title: string; text: string };
   panels: unknown[];
   whiteboardConfig: Record<string, unknown>;
 }
@@ -101,7 +100,7 @@ export function toProjectPatch(slice: ProjectSlice): ProjectPatch {
       promptContent: slice.promptContent,
       selectedVoice: slice.selectedVoice,
     },
-    script: { title: slice.scriptTitle, scenes: slice.scriptScenes },
+    script: { title: slice.scriptTitle, text: slice.scriptText },
     panels: stripEphemeralUrls(slice.storyboardPanels),
     whiteboardConfig: {
       ...slice.whiteboardConfig,
@@ -114,7 +113,7 @@ export interface LoadedProject {
   title: string;
   step: string;
   params: Record<string, unknown>;
-  script: { title?: string; scenes?: ScriptScene[] };
+  script: { title?: string; text?: string };
   panels: unknown[];
   whiteboardConfig: Record<string, unknown>;
 }
@@ -134,7 +133,7 @@ export function fromLoadedProject(project: LoadedProject): ProjectSlice {
     promptContent: typeof promptContent === "string" ? promptContent : "",
     projectParams: projectParamsSchema.parse(params ?? {}),
     scriptTitle: project.script?.title ?? "",
-    scriptScenes: reindexScenes(project.script?.scenes ?? []),
+    scriptText: project.script?.text ?? "",
     storyboardPanels: (project.panels ?? []) as ProjectSlice["storyboardPanels"],
     selectedVoice: typeof selectedVoice === "string" ? selectedVoice : "default",
     whiteboardConfig: {

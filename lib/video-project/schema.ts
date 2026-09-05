@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { scriptSceneSchema } from "@/lib/storyboard/script-generation";
 import {
   projectParamsSchema,
   storyboardPanelSchema,
@@ -11,16 +10,15 @@ export const projectStatusSchema = z.enum(["draft", "ready", "archived"]);
 export const aspectRatioSchema = z.enum(["16:9", "9:16", "1:1"]);
 
 /**
- * Le script tel que l'agent le rend : une scene par entree, avec son prompt
- * d'image, sa duree et son type.
+ * Le script enregistre : un texte narratif, pas un decoupage.
  *
- * `text` reste lu pour les projets ecrits avant ce format, ou le script etait
- * une seule chaine — les aplatir perdait imagePrompt, duration et clipType, que
- * l'etape suivante devait alors reinventer.
+ * Les scenes qui en derivent vivent dans `panels` : elles appartiennent au
+ * storyboard, et les fondre ici melangeait ce que l'utilisateur ecrit avec ce
+ * que la mise en images produit.
  */
 export const projectScriptSchema = z.object({
   title: z.string().default(""),
-  scenes: z.array(scriptSceneSchema).default([]),
+  text: z.string().default(""),
 });
 
 /**
@@ -118,7 +116,7 @@ export const listVideoProjectsSchema = z.object({
 
 export const DEFAULT_DOCUMENTS: VideoProjectDocument = {
   params: persistedProjectParamsSchema.parse({}),
-  script: { title: "", scenes: [] },
+  script: { title: "", text: "" },
   panels: [],
   whiteboardConfig: whiteboardConfigSchema.parse({
     animStyle: "chunkjump",

@@ -5,7 +5,6 @@ import { storyboardAgent } from "@/lib/mastra/agents/storyboard-agent";
 import {
   buildScriptPrompt,
   generatedScriptSchema,
-  reindexScenes,
 } from "@/lib/storyboard/script-generation";
 
 // La generation depasse largement le budget par defaut d'une fonction edge.
@@ -39,19 +38,14 @@ export async function POST(request: NextRequest) {
     const parsed = generatedScriptSchema.safeParse(result.object);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "The model returned an unusable storyboard" },
+        { error: "The model returned an unusable script" },
         { status: 502 },
       );
     }
 
-    // Les scenes partent telles que l'agent les a ecrites : les aplatir en
-    // texte perdait imagePrompt, duration et clipType, dont l'etape Storyboard
-    // a besoin juste apres.
-    return NextResponse.json({
-      title: parsed.data.title,
-      narrativeFlow: parsed.data.narrativeFlow,
-      scenes: reindexScenes(parsed.data.clips),
-    });
+    // Un texte, rien d'autre : le decoupage en scenes attend que l'utilisateur
+    // ait valide, et corrige, ce qui sera dit.
+    return NextResponse.json(parsed.data);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

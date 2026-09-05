@@ -43,7 +43,7 @@ const PROJECT_FIELDS = [
   "promptContent",
   "projectParams",
   "scriptTitle",
-  "scriptScenes",
+  "scriptText",
   "storyboardPanels",
   "selectedVoice",
   "whiteboardConfig",

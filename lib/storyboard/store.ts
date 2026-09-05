@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { type ScriptScene, reindexScenes } from "./script-generation";
 import { DEMO_FINAL_SEQUENCE } from "@/lib/demo-data";
 import {
   ProjectParams,
@@ -68,7 +67,7 @@ export interface StoryboardStoreState {
   promptContent: string;
   projectParams: ProjectParams;
   scriptTitle: string;
-  scriptScenes: ScriptScene[];
+  scriptText: string;
   storyboardPanels: StoryboardPanel[];
   activeClipIndex: number;
   selectedVoice: string;
@@ -81,9 +80,7 @@ export interface StoryboardStoreState {
   setPromptContent: (content: string) => void;
   setProjectParams: (params: Partial<ProjectParams>) => void;
   setScriptTitle: (title: string) => void;
-  setScriptScenes: (scenes: ScriptScene[]) => void;
-  updateScene: (index: number, updates: Partial<ScriptScene>) => void;
-  removeScene: (index: number) => void;
+  setScriptText: (text: string) => void;
   setStoryboardPanels: (panels: StoryboardPanel[]) => void;
   setActiveClipIndex: (index: number) => void;
   updatePanel: (id: string, updates: Partial<StoryboardPanel>) => void;
@@ -223,7 +220,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
       promptContent: "",
       projectParams: DEFAULT_PROJECT_PARAMS,
       scriptTitle: "",
-      scriptScenes: [],
+      scriptText: "",
       storyboardPanels: [],
       activeClipIndex: 0,
       selectedVoice: "default",
@@ -238,20 +235,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           projectParams: { ...state.projectParams, ...params },
         })),
       setScriptTitle: (scriptTitle: string) => set({ scriptTitle }),
-      setScriptScenes: (scenes: ScriptScene[]) =>
-        set({ scriptScenes: reindexScenes(scenes) }),
-      updateScene: (index: number, updates: Partial<ScriptScene>) =>
-        set((state) => ({
-          scriptScenes: state.scriptScenes.map((scene) =>
-            scene.index === index ? { ...scene, ...updates } : scene,
-          ),
-        })),
-      removeScene: (index: number) =>
-        set((state) => ({
-          scriptScenes: reindexScenes(
-            state.scriptScenes.filter((scene) => scene.index !== index),
-          ),
-        })),
+      setScriptText: (scriptText: string) => set({ scriptText }),
       setStoryboardPanels: (storyboardPanels: StoryboardPanel[]) =>
         set({ storyboardPanels }),
       setActiveClipIndex: (activeClipIndex: number) => set({ activeClipIndex }),
@@ -354,7 +338,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           projectTitle: "A Live-Action Flashback Scene",
           promptContent: DEMO_FINAL_SEQUENCE.masterDescription,
           scriptTitle: "A Live-Action Flashback Scene",
-          scriptScenes: [],
+          scriptText: DEMO_FINAL_SEQUENCE.masterDescription,
           storyboardPanels: panels,
           selectedVoice: "en-us-male-1",
           step: "whiteboard",
@@ -368,7 +352,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
           promptContent: "",
           projectParams: DEFAULT_PROJECT_PARAMS,
           scriptTitle: "",
-          scriptScenes: [],
+          scriptText: "",
           storyboardPanels: [],
           selectedVoice: "default",
           isGenerating: false,

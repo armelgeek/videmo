@@ -25,18 +25,7 @@ const slice: ProjectSlice = {
     tone: "professional",
   },
   scriptTitle: "La torrefaction",
-  scriptScenes: [
-    {
-      index: 0,
-      clipType: "intro" as const,
-      title: "Le grain vert",
-      narration: "Tout commence par un grain vert.",
-      imagePrompt: "A green coffee bean, macro shot",
-      duration: 12,
-      visualDescription: "Gros plan",
-      keyElements: ["grain"],
-    },
-  ],
+  scriptText: "Tout commence par un grain vert.\n\nPuis vient la chaleur.",
   storyboardPanels: [],
   selectedVoice: "fr-fr-male-1",
   whiteboardConfig: DEFAULT_WHITEBOARD_CONFIG,
@@ -51,15 +40,13 @@ describe("toProjectPatch", () => {
     expect(patch.aspectRatio).toBe("9:16");
   });
 
-  it("porte les scenes dans la forme meme de l'agent", () => {
+  it("porte le script comme un texte, sans decoupage", () => {
     const { script } = toProjectPatch(slice);
 
     expect(script.title).toBe("La torrefaction");
-    expect(script.scenes).toHaveLength(1);
-    // Ce que l'ancien format texte detruisait.
-    expect(script.scenes[0].imagePrompt).toBe("A green coffee bean, macro shot");
-    expect(script.scenes[0].duration).toBe(12);
-    expect(script.scenes[0].clipType).toBe("intro");
+    expect(script.text).toContain("Tout commence par un grain vert.");
+    // Les scenes appartiennent au storyboard, pas au script.
+    expect(script).not.toHaveProperty("scenes");
   });
 
   it("fait voyager dans params ce qui n'a pas de colonne", () => {
@@ -159,31 +146,12 @@ describe("fromLoadedProject", () => {
     expect(back.promptContent).toBe(slice.promptContent);
     expect(back.selectedVoice).toBe(slice.selectedVoice);
     expect(back.scriptTitle).toBe(slice.scriptTitle);
-    expect(back.scriptScenes).toEqual(slice.scriptScenes);
+    expect(back.scriptText).toBe(slice.scriptText);
     expect(back.projectParams).toEqual(slice.projectParams);
     expect(back.step).toBe(slice.step);
   });
 
-  it("renumerote les scenes relues", () => {
-    const back = fromLoadedProject({
-      title: "x",
-      step: "scriptValidation",
-      params: {},
-      script: {
-        title: "t",
-        scenes: [
-          { index: 4, clipType: "intro", title: "A", narration: "a", imagePrompt: "p", duration: 10, visualDescription: "", keyElements: [] },
-          { index: 9, clipType: "outro", title: "B", narration: "b", imagePrompt: "p", duration: 10, visualDescription: "", keyElements: [] },
-        ],
-      },
-      panels: [],
-      whiteboardConfig: {},
-    });
-
-    expect(back.scriptScenes.map((s) => s.index)).toEqual([0, 1]);
-  });
-
-  it("ouvre sans scene un projet ecrit avant ce format", () => {
+  it("ouvre un projet dont la ligne n'a pas de script", () => {
     const back = fromLoadedProject({
       title: "Ancien",
       step: "prompt",
@@ -193,7 +161,7 @@ describe("fromLoadedProject", () => {
       whiteboardConfig: {},
     });
 
-    expect(back.scriptScenes).toEqual([]);
+    expect(back.scriptText).toBe("");
     expect(back.scriptTitle).toBe("");
   });
 
@@ -202,7 +170,7 @@ describe("fromLoadedProject", () => {
       title: "Ancien",
       step: "prompt",
       params: {},
-      script: { title: "", scenes: [] },
+      script: { title: "", text: "" },
       panels: [],
       whiteboardConfig: { animStyle: "chunkjump" },
     });
@@ -218,7 +186,7 @@ describe("fromLoadedProject", () => {
       title: "x",
       step: "editor",
       params: {},
-      script: { title: "", scenes: [] },
+      script: { title: "", text: "" },
       panels: [],
       whiteboardConfig: {},
     });

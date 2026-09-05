@@ -1,11 +1,24 @@
 import { z } from "zod";
 
 /**
- * Une scene, dans la forme meme que l'agent produit.
+ * Le script : un texte narratif continu, rien d'autre.
  *
- * Rien n'est aplati en texte : `imagePrompt`, `duration` et `clipType` servent a
- * l'etape Storyboard, et une conversion en chaine les perdait — l'etape suivante
- * devait alors les reinventer.
+ * C'est ce que le narrateur dit, dans la forme ou un humain le relit et le
+ * reecrit. Y melanger des prompts d'image en faisait un document technique
+ * qu'on ne pouvait plus lire comme un texte — et le decoupage en scenes, fige
+ * des la premiere generation, ignorait ensuite les corrections.
+ */
+export const generatedScriptSchema = z.object({
+  title: z.string(),
+  text: z.string().min(1),
+});
+export type GeneratedScript = z.infer<typeof generatedScriptSchema>;
+
+/**
+ * Une scene, telle que le decoupage la produit.
+ *
+ * `imagePrompt` n'apparait qu'ici, apres validation du texte : c'est de la
+ * matiere a storyboard, pas du script.
  */
 export const scriptSceneSchema = z.object({
   index: z.number().int().nonnegative(),
@@ -19,16 +32,10 @@ export const scriptSceneSchema = z.object({
 });
 export type ScriptScene = z.infer<typeof scriptSceneSchema>;
 
-/**
- * Le schema sert deux fois : il contraint la generation (structuredOutput) et
- * valide la reponse avant qu'elle n'entre dans le store.
- */
-export const generatedScriptSchema = z.object({
-  title: z.string(),
-  narrativeFlow: z.string().default(""),
-  clips: z.array(scriptSceneSchema).min(1),
+export const storyboardBreakdownSchema = z.object({
+  scenes: z.array(scriptSceneSchema).min(1),
 });
-export type GeneratedScript = z.infer<typeof generatedScriptSchema>;
+export type StoryboardBreakdown = z.infer<typeof storyboardBreakdownSchema>;
 
 /**
  * Renumerote les scenes sur leur position.
@@ -41,11 +48,7 @@ export function reindexScenes(scenes: ScriptScene[]): ScriptScene[] {
   return scenes.map((scene, index) => ({ ...scene, index }));
 }
 
-/**
- * Le prompt de generation. Les parametres choisis a l'etape Prompt doivent
- * peser sur la sortie : sans eux, changer la langue ou le ton ne changeait rien.
- */
-export function buildScriptPrompt(input: {
+export interface ScriptParams {
   content: string;
   style: string;
   format: string;
@@ -53,21 +56,66 @@ export function buildScriptPrompt(input: {
   duration: string;
   targetAudience: string;
   tone: string;
-}): string {
-  const sceneCount = input.format === "brief" ? 6 : 10;
+}
 
+/** Le nombre de scenes vise, dont depend la longueur demandee au script. */
+export function sceneCountForFormat(format: string): number {
+  return format === "brief" ? 6 : 10;
+}
+
+/**
+ * Premier appel : ecrire le texte.
+ *
+ * Aucune consigne de mise en forme — ni titres de scene, ni marqueurs. Le
+ * decoupage vient apres, sur le texte que l'utilisateur aura valide.
+ */
+export function buildScriptPrompt(input: ScriptParams): string {
   return [
-    `Create a video storyboard about: ${input.content}`,
+    `Write the narration script for a video about: ${input.content}`,
     "",
-    `Visual style: ${input.style}`,
     `Format: ${input.format}`,
     `Target duration: ${input.duration}`,
     `Audience: ${input.targetAudience}`,
     `Tone: ${input.tone}`,
-    `Write ALL narration in this language (ISO code): ${input.language}`,
+    `Write the narration in this language (ISO code): ${input.language}`,
     "",
-    `Produce exactly ${sceneCount} clips, indexed from 0.`,
+    "Return continuous prose the narrator will read aloud, split into short",
+    `paragraphs — aim for about ${sceneCountForFormat(input.format)} of them.`,
+    "No scene headings, no labels, no stage directions, no markdown:",
+    "only the spoken words.",
+  ].join("\n");
+}
+
+/**
+ * Second appel : decouper le texte valide.
+ *
+ * La narration de chaque scene doit etre reprise du texte, non reecrite —
+ * sinon les corrections faites a l'etape Script seraient perdues au passage.
+ */
+export function buildBreakdownPrompt(input: {
+  script: string;
+  params: ScriptParams;
+}): string {
+  return [
+    "Break this narration script into video clips.",
+    "",
+    "SCRIPT:",
+    input.script.trim(),
+    "",
+    `Visual style for the image prompts: ${input.params.style}`,
+    `Aspect ratio: the video is ${input.params.format} format`,
+    "",
+    `Produce about ${sceneCountForFormat(input.params.format)} clips, indexed from 0.`,
     "The first clip is the intro, the last is the outro, the rest are content.",
-    "Each title must describe that clip's content — never a generic label.",
+    "Each clip's narration MUST be taken verbatim from the script above:",
+    "split it, never rewrite it, and cover the whole script in order.",
+    "Give every clip a title describing its content, and an imagePrompt",
+    "describing what to draw for it.",
+    "",
+    // Le titre est montre a l'utilisateur : le laisser en anglais sous une
+    // narration francaise donnait un storyboard bilingue.
+    `Write the titles in the same language as the script (${input.params.language}).`,
+    "Write the imagePrompt in English, whatever the script language:",
+    "image models follow it more closely.",
   ].join("\n");
 }
