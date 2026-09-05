@@ -124,9 +124,22 @@ désosser dès que le chantier 1 livrera le stockage objet.
 
 Décision : la piste audio est persistée **sans son contenu**
 (`{ name, durationMs, url: null }`), et l'API **rejette en `400`** tout document
-contenant une `data:` URL, à n'importe quelle profondeur. Le chantier 1 ou 3
-remplacera `url` par une URL d'asset. Conséquence assumée : dans ce chantier,
-un audio téléversé n'est pas encore conservé en base.
+contenant une URL éphémère (`data:` ou `blob:`, quelle que soit la casse) à
+n'importe quelle profondeur. Le chantier 1 ou 3 remplacera `url` par une URL
+d'asset. Conséquence assumée : dans ce chantier, un audio téléversé n'est pas
+encore conservé en base.
+
+**Exception, sur le seul champ `whiteboardConfig.audio.url`** : la valeur y est
+*normalisée à `null`* au lieu d'être rejetée. Les deux règles ci-dessus se
+contredisaient — l'URL d'exécution d'une piste est toujours une `blob:`
+(`lib/storyboard/store.ts`), donc un rejet strict rendait toute sauvegarde
+impossible après un téléversement, et la forme persistée décrite ici
+inatteignable. Partout ailleurs, `data:` et `blob:` restent un `400` : l'image
+d'un panneau en base64 est refusée, pas silencieusement effacée.
+
+Conséquence à connaître : après un téléversement audio, l'enregistrement réussit
+sans avertissement et la piste est perdue au rechargement. Le chantier 1 supprime
+ce cas en donnant à l'audio une URL durable.
 
 ### Modules purs
 
