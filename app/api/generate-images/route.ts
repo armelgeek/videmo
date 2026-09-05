@@ -16,6 +16,41 @@ import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 export const maxDuration = 180;
 
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
+const OPENAI_EDITS_URL = "https://api.openai.com/v1/images/edits";
+
+/**
+ * Recupere la case de reference.
+ *
+ * Un echec n'interrompt rien : perdre la coherence de style coute moins cher
+ * que de perdre le visuel, donc l'appel repart sans reference.
+ */
+async function fetchReference(url: string): Promise<Uint8Array | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    return new Uint8Array(await response.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
+function buildEditsForm(input: {
+  prompt: string;
+  size: string;
+  reference: Uint8Array;
+}): FormData {
+  const form = new FormData();
+  form.append("model", "gpt-image-1");
+  form.append("prompt", input.prompt);
+  form.append("size", input.size);
+  form.append("n", "1");
+  form.append(
+    "image",
+    new Blob([input.reference as unknown as BlobPart], { type: "image/png" }),
+    "reference.png",
+  );
+  return form;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,22 +73,40 @@ export async function POST(request: NextRequest) {
     // facturee, puis jetee faute d'endroit ou l'ecrire.
     const storage = getObjectStorage();
 
-    const response = await fetch(OPENAI_IMAGES_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-image-1",
-        prompt: buildImagePrompt({
-          scenePrompt: input.prompt,
-          style: input.style,
-        }),
-        n: 1,
-        size: imageSizeForAspectRatio(input.aspectRatio),
-      }),
+    const size = imageSizeForAspectRatio(input.aspectRatio);
+    const reference = input.referenceUrl
+      ? await fetchReference(input.referenceUrl)
+      : null;
+
+    const prompt = buildImagePrompt({
+      scenePrompt: input.prompt,
+      aspectRatio: input.aspectRatio,
+      language: input.language,
+      hasReference: reference !== null,
     });
+
+    // Avec une reference, l'appel passe par `edits` : c'est le seul endpoint
+    // qui accepte une image d'entree, et la coherence de trait entre cases ne
+    // s'obtient pas par la consigne seule.
+    const response = reference
+      ? await fetch(OPENAI_EDITS_URL, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}` },
+          body: buildEditsForm({ prompt, size, reference }),
+        })
+      : await fetch(OPENAI_IMAGES_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-image-1",
+            prompt,
+            n: 1,
+            size,
+          }),
+        });
 
     if (!response.ok) {
       const detail = await response.text();

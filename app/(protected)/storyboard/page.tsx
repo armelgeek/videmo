@@ -507,7 +507,11 @@ export default function StoryboardPage() {
    * AVANT d'appeler le modele, et l'image part au bac d'objets — une `data:`
    * URL serait refusee a l'enregistrement.
    */
-  const requestVisual = async (clip: any, sceneIndex: number) => {
+  const requestVisual = async (
+    clip: any,
+    sceneIndex: number,
+    referenceUrl?: string,
+  ) => {
     const response = await fetch("/api/generate-images", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -516,7 +520,8 @@ export default function StoryboardPage() {
         sceneIndex,
         prompt: clip.visualPrompt || clip.summary || clip.title || "",
         aspectRatio: projectParams.aspectRatio,
-        style: projectParams.style,
+        language: projectParams.language,
+        referenceUrl,
       }),
     });
 
@@ -540,10 +545,14 @@ export default function StoryboardPage() {
     // appel echoue au milieu, plutot que de perdre le lot entier.
     const newImages = [...generatedImages];
     let failed = 0;
+    // La premiere case produite sert de reference aux suivantes : c'est le seul
+    // moyen de tenir l'epaisseur de trait et la gamme de couleurs sur la serie.
+    let reference: string | undefined;
 
     for (let i = 0; i < clips.length; i++) {
       try {
-        newImages[i] = await requestVisual(clips[i], i);
+        newImages[i] = await requestVisual(clips[i], i, reference);
+        if (!reference) reference = newImages[i];
         setGeneratedImages([...newImages]);
       } catch (error) {
         failed += 1;
@@ -574,7 +583,12 @@ export default function StoryboardPage() {
 
     try {
       const newImages = [...generatedImages];
-      newImages[clipIndex] = await requestVisual(clip, clipIndex);
+      // Regenerer une seule case : la premiere de la serie reste la reference,
+      // sinon la case refaite jurerait avec les autres.
+      const reference = generatedImages.find(
+        (url, i) => i !== clipIndex && !!url,
+      );
+      newImages[clipIndex] = await requestVisual(clip, clipIndex, reference);
       setGeneratedImages(newImages);
       syncClipsToStore(editableClips, newImages);
       toast.success(`Regenerated visual for clip ${clipIndex + 1}`);
