@@ -47,6 +47,32 @@ describe("renameWithLock", () => {
     expect(deps.releaseLock).toHaveBeenCalledWith("p1");
   });
 
+  it("remonte l'erreur de patchTitle meme si releaseLock rejette aussi", async () => {
+    const deps = {
+      takeLock: vi.fn(async () => ({ ok: true })),
+      patchTitle: vi.fn(async () => ({ ok: false, error: "Titre invalide" })),
+      releaseLock: vi.fn(async () => {
+        throw new Error("Réseau coupé sur le relâchement");
+      }),
+    };
+
+    await expect(renameWithLock("p1", "", deps)).rejects.toThrow("Titre invalide");
+    expect(deps.releaseLock).toHaveBeenCalledWith("p1");
+  });
+
+  it("ne leve pas quand seul releaseLock rejette apres un PATCH reussi", async () => {
+    const deps = {
+      takeLock: vi.fn(async () => ({ ok: true })),
+      patchTitle: vi.fn(async () => ({ ok: true })),
+      releaseLock: vi.fn(async () => {
+        throw new Error("Réseau coupé sur le relâchement");
+      }),
+    };
+
+    await expect(renameWithLock("p1", "Titre", deps)).resolves.toBeUndefined();
+    expect(deps.releaseLock).toHaveBeenCalledWith("p1");
+  });
+
   it("n'appelle ni patchTitle ni releaseLock quand takeLock échoue", async () => {
     const deps = {
       takeLock: vi.fn(async () => ({ ok: false })),

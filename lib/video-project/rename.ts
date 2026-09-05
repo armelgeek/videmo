@@ -16,6 +16,10 @@ export async function renameWithLock(
     const res = await deps.patchTitle(projectId, title);
     if (!res.ok) throw new Error(res.error);
   } finally {
-    await deps.releaseLock(projectId);
+    // Un relâchement raté ne doit pas masquer la raison de l'échec : le bail
+    // expire de lui-même, l'erreur du PATCH est la seule utile à l'appelant.
+    try {
+      await deps.releaseLock(projectId);
+    } catch {}
   }
 }
