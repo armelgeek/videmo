@@ -388,7 +388,12 @@ export default function StoryboardPage() {
     });
 
     const body = await response.json();
-    if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+    if (!response.ok) {
+      const error = new Error(body.error ?? `HTTP ${response.status}`);
+      // 503 = moteur ou bac mal configure. Rien ne changera au clip suivant.
+      (error as Error & { fatal?: boolean }).fatal = response.status === 503;
+      throw error;
+    }
     return body.url as string;
   };
 
@@ -423,6 +428,11 @@ export default function StoryboardPage() {
           toast.error(
             error instanceof Error ? error.message : "Visual generation failed",
           );
+        }
+        // Inutile d'insister neuf fois sur une configuration absente.
+        if ((error as Error & { fatal?: boolean }).fatal) {
+          setGeneratingProgress({ current: clips.length, total: clips.length });
+          break;
         }
       }
       setGeneratingProgress({ current: i + 1, total: clips.length });
@@ -626,7 +636,11 @@ export default function StoryboardPage() {
           }),
         });
         const body = await response.json();
-        if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+        if (!response.ok) {
+          const error = new Error(body.error ?? `HTTP ${response.status}`);
+          (error as Error & { fatal?: boolean }).fatal = response.status === 503;
+          throw error;
+        }
 
         const target = withAudio.indexOf(clip);
         if (target >= 0) withAudio[target] = { ...clip, audioUrl: body.url };
@@ -638,6 +652,7 @@ export default function StoryboardPage() {
             error instanceof Error ? error.message : "Narration failed",
           );
         }
+        if ((error as Error & { fatal?: boolean }).fatal) break;
       }
       setNarrationProgress(Math.round(((i + 1) / clips.length) * 100));
     }
