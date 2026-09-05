@@ -1,15 +1,34 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP, organization, twoFactor } from "better-auth/plugins";
+import { createAccessControl } from "better-auth/plugins/access";
+import {
+  defaultStatements,
+  adminAc,
+  memberAc,
+  ownerAc,
+} from "better-auth/plugins/organization/access";
 import { prisma } from "./prisma";
 import { chooseActiveOrganization } from "./auth-organization";
 import { EmailService } from "./email-service";
 import { appConfig } from "./config";
+import { PROJECT_STATEMENTS } from "./video-project/access";
 
 const isTwoFactorEnabled = process.env.NEXT_PUBLIC_ENABLE_TWO_FACTOR !== "false";
 const isEmailVerificationEnabled = process.env.NEXT_PUBLIC_ENABLE_EMAIL_VERIFICATION !== "false";
 
 const pendingWelcomeEmails = new Set<string>();
+
+const statement = { ...defaultStatements, ...PROJECT_STATEMENTS } as const;
+const ac = createAccessControl(statement);
+
+// La table de référence reste canAct (testée) ; ces rôles l'exposent au client
+// pour que l'interface masque ce qui est interdit sans dupliquer la règle.
+const organizationRoles = {
+  owner: ac.newRole({ ...ownerAc.statements, project: ["create", "read", "update", "delete"] }),
+  admin: ac.newRole({ ...adminAc.statements, project: ["create", "read", "update", "delete"] }),
+  member: ac.newRole({ ...memberAc.statements, project: ["create", "read", "update"] }),
+};
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -130,6 +149,8 @@ export const auth = betterAuth({
   ],
   plugins: [
     organization({
+      ac,
+      roles: organizationRoles,
       schema: {
         // The plugin expects 'member' and 'invitation' tables; ours are already
         // named, and renaming a table in production costs more than this
