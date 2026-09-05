@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { renameWithLock } from "@/lib/video-project/rename";
 
 interface Props {
   open: boolean;
@@ -37,16 +38,15 @@ export function VideoProjectDialog({
     setIsLoading(true);
     try {
       if (projectId) {
-        const taken = await api.post(`/api/video-projects/${projectId}/lock`, {});
-        if (!taken.ok) throw new Error("Projet en cours d'édition par un autre membre");
+        await renameWithLock(projectId, title, {
+          takeLock: (id) => api.post(`/api/video-projects/${id}/lock`, {}),
+          patchTitle: (id, value) => api.patch(`/api/video-projects/${id}`, { title: value }),
+          releaseLock: (id) => api.delete(`/api/video-projects/${id}/lock`),
+        });
+      } else {
+        const res = await api.post("/api/video-projects", { title });
+        if (!res.ok) throw new Error(res.error);
       }
-
-      const res = projectId
-        ? await api.patch(`/api/video-projects/${projectId}`, { title })
-        : await api.post("/api/video-projects", { title });
-      if (!res.ok) throw new Error(res.error);
-
-      if (projectId) await api.delete(`/api/video-projects/${projectId}/lock`);
 
       toast.success(projectId ? "Projet renommé" : "Projet créé");
       onOpenChange(false);
