@@ -26,26 +26,25 @@ n'a pas été observé en conditions réelles.
 
 ## Dette connue, par ordre d'urgence
 
-1. **`requireRole` et `requireProjectAccess` portent la même doctrine 404/403 dans deux
-   implémentations distinctes** (`app/api/video-projects/route.ts` et
-   `lib/video-project/repository.ts`). Elles s'accordent aujourd'hui, rien ne le teste,
-   et elles divergeront à la première condition ajoutée d'un seul côté. À traiter
-   **avant** que le chantier 3 n'ajoute des routes qui choisiraient l'une ou l'autre.
-   Forme propre : un `requireOrganizationRole(viewer, action)` que `requireProjectAccess`
-   appelle après avoir chargé le projet.
+1. ~~**`requireRole` et `requireProjectAccess` portent la même doctrine 404/403 dans deux
+   implémentations distinctes.**~~ **FAIT** (`31c4b21`) : `requireOrganizationRole` porte
+   seule la doctrine partagée dans `lib/video-project/repository.ts`, les deux appelants
+   s'appuient dessus, et un test compare leurs verdicts sur les entrées communes — c'est
+   lui qui les empêche de diverger à nouveau. Les 8 tests d'origine passent inchangés.
 2. **Un audio téléversé est perdu sans avertissement.** `whiteboardConfig.audio.url` est
    normalisée à `null` au lieu d'être rejetée (voir la spec, « Le piège de l'audio ») :
    l'enregistrement réussit et la piste disparaît au rechargement. Le chantier 1
    (stockage objet) supprime ce cas. En attendant, un avertissement dans l'interface
    serait honnête. Aucun test au niveau route ne couvre ce comportement.
-3. **`count === 0` sur `POST .../lock` et sur le `PATCH`** relit le porteur sans filtrer
-   `deletedAt` : un projet supprimé dans la fenêtre de course rend `409` au lieu de `404`.
+3. ~~**`count === 0` sur `POST .../lock` et sur le `PATCH`** relit le porteur sans filtrer
+   `deletedAt`.~~ **FAIT** (`34e6a23`) : `deletedAt` entre dans le `select` des deux
+   relectures, un projet supprimé dans la course rend désormais `404`.
 4. **Pagination de `/projects`** : le pied de pagination disparaît à chaque changement de
    page (le skeleton remplace toute la vue), l'état vide clignote sur une page devenue
    vide, et un projet renommé remonte en tête de tri donc disparaît de la page où on
    le lisait.
-5. **`catch {}` autour de `releaseLock`** (`lib/video-project/rename.ts`) : aucune trace.
-   Un `console.warn` rendrait un bail fantôme diagnosticable.
+5. ~~**`catch {}` autour de `releaseLock`** : aucune trace.~~ **FAIT** (`34e6a23`) :
+   `console.warn` avec le projet et l'erreur, toujours sans remonter l'exception.
 6. **`persistedAudioTrackSchema` déclare optionnels** `id`, `source`, `volume`, `muted`,
    `offsetMs`, requis dans `AudioTrack`. Nécessaire pour les lignes déjà écrites, mais un
    consommateur qui typerait la piste relue en `AudioTrack` mentirait. À reprendre au
