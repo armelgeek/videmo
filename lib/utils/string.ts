@@ -4,6 +4,10 @@ export function capitalize(str: string): string {
 
 export function slugify(str: string): string {
   return str
+    .normalize('NFD')
+    // Strip the combining marks NFD split off, so "é" becomes "e" rather than
+    // being dropped along with the rest of the non-ASCII characters below.
+    .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, '')

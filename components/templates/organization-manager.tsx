@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Building2, Plus, Users, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { authClient, useSession } from "@/lib/auth-client"
+import { slugify } from "@/lib/utils/string"
 
 type OrgMember = {
   id: string
@@ -22,12 +23,6 @@ type Organization = {
   name: string
   slug: string
   description: string | null
-}
-
-// The plugin does not derive a slug from the name: without this, any name with
-// a space or an uppercase letter would fail to create.
-function slugify(str: string) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 }
 
 export function OrganizationManager() {
@@ -76,6 +71,7 @@ export function OrganizationManager() {
     if (!newOrgName.trim()) return
     setIsCreating(true)
     try {
+      // The plugin does not derive a slug from the name.
       const { error } = await authClient.organization.create({
         name: newOrgName,
         slug: slugify(newOrgName),
