@@ -79,7 +79,7 @@ npm run stripe:listen         # Listen to Stripe webhooks locally
 
 # Quality
 npm run lint                  # ESLint check
-npm run format                # Format code with Biome
+npx biome check .             # Biome (pas de script npm dedie)
 npm test                      # Run tests
 ```
 
@@ -183,6 +183,7 @@ npm run test:watch           # Watch mode
 # Pre-deploy checklist
 npm run build                # Must complete without errors
 npm run lint                 # No linting errors
+npx biome check .            # Biome clean
 npx prisma migrate deploy   # Migrations applied
 
 # Environment variables required in production

@@ -381,9 +381,9 @@ npx prisma migrate deploy # Apply migrations in production
 ## 🧪 Testing
 
 ```bash
-npm test              # Run tests
-npm run lint          # Lint code
-npm run format        # Format with Biome
+npm test              # Run tests (Vitest)
+npm run lint          # Lint code (ESLint)
+npx biome check .     # Format and lint with Biome (pas de script npm dedie)
 ```
 
 ## 🔗 Integration Patterns
