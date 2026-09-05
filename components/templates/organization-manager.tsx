@@ -24,8 +24,8 @@ type Organization = {
   description: string | null
 }
 
-// Le plugin ne derive pas de slug depuis le nom : sans ca, tout nom contenant
-// un espace ou une majuscule ferait echouer la creation.
+// The plugin does not derive a slug from the name: without this, any name with
+// a space or an uppercase letter would fail to create.
 function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 }
@@ -109,9 +109,9 @@ export function OrganizationManager() {
     }
   }
 
-  // organization.list() ne renvoie pas le role : il se lit dans les membres de
-  // l'organisation ouverte, seule pour laquelle on les charge.
-  const roleDansOrgOuverte = members.find((m) => m.user.id === session?.user.id)?.role
+  // organization.list() does not return the role: it is read from the members
+  // of the selected organization, the only one we load them for.
+  const roleInSelectedOrg = members.find((m) => m.user.id === session?.user.id)?.role
 
   if (isLoading) {
     return (
@@ -224,7 +224,7 @@ export function OrganizationManager() {
                         <Badge variant={m.role === "owner" ? "default" : "secondary"} className="text-xs">
                           {m.role}
                         </Badge>
-                        {roleDansOrgOuverte === "owner" && m.role !== "owner" && (
+                        {roleInSelectedOrg === "owner" && m.role !== "owner" && (
                           <Button
                             size="icon"
                             variant="ghost"

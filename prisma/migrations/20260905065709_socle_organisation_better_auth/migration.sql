@@ -1,11 +1,10 @@
--- 1. L'organisation active, nullable : aucune session existante n'est invalidee.
+-- 1. The active organization, nullable: no existing session is invalidated.
 ALTER TABLE "Session" ADD COLUMN "activeOrganizationId" TEXT;
 
 ALTER TABLE "Organization" DROP CONSTRAINT "Organization_ownerId_fkey";
 
--- 2. Remplissage AVANT suppression. Toute organisation dont le proprietaire
---    n'a pas de ligne de membre en recoit une, construite depuis ownerId.
---    Sans effet si les donnees sont deja coherentes.
+-- 2. Backfill BEFORE dropping. Any organization whose owner has no member row
+--    gets one, built from ownerId. A no-op if the data is already consistent.
 INSERT INTO "OrganizationMember" ("id", "organizationId", "userId", "role", "joinedAt")
 SELECT gen_random_uuid()::text, o."id", o."ownerId", 'owner', o."createdAt"
 FROM "Organization" o
@@ -14,10 +13,10 @@ WHERE NOT EXISTS (
   WHERE m."organizationId" = o."id" AND m."role" = 'owner'
 );
 
--- 3. L'information vit desormais dans OrganizationMember.
+-- 3. The information now lives in OrganizationMember.
 ALTER TABLE "Organization" DROP COLUMN "ownerId";
 
--- 4. Table jamais ecrite par aucun code : on la remplace par la forme du plugin.
+-- 4. A table no code ever wrote to: replaced with the plugin's shape.
 DROP TABLE "OrganizationInvitation";
 
 CREATE TABLE "OrganizationInvitation" (
@@ -40,7 +39,7 @@ ALTER TABLE "OrganizationInvitation" ADD CONSTRAINT "OrganizationInvitation_orga
 ALTER TABLE "OrganizationInvitation" ADD CONSTRAINT "OrganizationInvitation_inviterId_fkey"
   FOREIGN KEY ("inviterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 5. Derive anterieure : modeles presents dans le schema mais jamais migres.
+-- 5. Earlier drift: models present in the schema but never migrated.
 ALTER TABLE "Account" ADD COLUMN "issuer" TEXT;
 
 CREATE TABLE "TimelineClip" (

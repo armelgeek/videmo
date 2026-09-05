@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP, organization, twoFactor } from "better-auth/plugins";
 import { prisma } from "./prisma";
-import { choisirOrganisationActive } from "./auth-organisation";
+import { chooseActiveOrganization } from "./auth-organization";
 import { EmailService } from "./email-service";
 import { appConfig } from "./config";
 
@@ -54,7 +54,7 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session) => {
-          const appartenances = await prisma.organizationMember.findMany({
+          const memberships = await prisma.organizationMember.findMany({
             where: { userId: session.userId },
             select: { organizationId: true, joinedAt: true },
           });
@@ -62,7 +62,7 @@ export const auth = betterAuth({
           return {
             data: {
               ...session,
-              activeOrganizationId: choisirOrganisationActive(appartenances),
+              activeOrganizationId: chooseActiveOrganization(memberships),
             },
           };
         },
@@ -131,9 +131,9 @@ export const auth = betterAuth({
   plugins: [
     organization({
       schema: {
-        // Le plugin attend des tables 'member' et 'invitation' ; les notres
-        // portent deja un nom, et renommer une table en production coute plus
-        // cher que cette surcharge.
+        // The plugin expects 'member' and 'invitation' tables; ours are already
+        // named, and renaming a table in production costs more than this
+        // override.
         member: {
           modelName: "organizationMember",
           fields: { createdAt: "joinedAt" },

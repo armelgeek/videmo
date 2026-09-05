@@ -21,6 +21,7 @@ const AnimationFactory = require('../lib/index');
 const { CUSTOM_HANDS } = require('../lib/hands');
 const { handDrawRect } = require('../lib/handLayout');
 const { resoudreTransition } = require('../lib/transitions');
+const { blanchirFond } = require('../lib/fond-blanc');
 
 const SCENE_IMAGE = '/scene-premium-bag.png';
 
@@ -554,9 +555,11 @@ export function useWhiteboardRenderer({
     offscreen.width = canvas.width;
     offscreen.height = canvas.height;
     const rect = rectArtwork(canvas);
-    offscreen
-      .getContext('2d')
-      ?.drawImage(imageRef.current!, rect.x, rect.y, rect.w, rect.h);
+    const octx = offscreen.getContext('2d');
+    octx?.drawImage(imageRef.current!, rect.x, rect.y, rect.w, rect.h);
+    // Meme normalisation qu'au rendu serveur : sans elle l'apercu montre des
+    // rectangles gris la ou les regions ont ete revelees.
+    if (octx) blanchirFond(octx, offscreen.width, offscreen.height);
     return offscreen;
   };
 
@@ -796,7 +799,9 @@ export function useWhiteboardRenderer({
     ctx.drawImage(buffer, 0, 0);
 
     hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
-    hctx.drawImage(handBuffer, 0, 0);
+    if (!drawingDoneRef.current && !(drawingSpanRef.current > 0 && localTarget >= drawingSpanRef.current)) {
+      hctx.drawImage(handBuffer, 0, 0);
+    }
 
     // Au scrub, pas besoin d'instantane : le rejeu vient de composer le clip
     // sortant jusqu'a la fin de son trace dans `buffer`, ce qui EST l'image
@@ -957,6 +962,7 @@ export function useWhiteboardRenderer({
         const next = s.timeline.currentTime + delta;
         engineTimeRef.current = next;
         s.setCurrentTime(next);
+        hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
       } else {
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
       }

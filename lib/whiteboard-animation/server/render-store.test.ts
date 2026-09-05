@@ -100,6 +100,28 @@ describe("render-store", () => {
     expect(getRenderJob(job.id, "u1")?.status).toBe("cancelled");
   });
 
+  it("n'annule pas un rendu deja abouti", () => {
+    // Un clic sur « Annuler » dans la derniere seconde faisait passer le job a
+    // 'cancelled' alors que la video etait ecrite : la route de telechargement
+    // exige 'done' et repondait 404. Rendu abouti, perdu.
+    const job = createRenderJob("u1");
+    const kill = vi.fn();
+    attachChild(job.id, { kill });
+    finalizeRenderJob(job.id, { status: "done", progress: 100, outputPath: "/x.mp4" });
+
+    expect(cancelRenderJob(job.id, "u1")).toBe(false);
+    expect(kill).not.toHaveBeenCalled();
+    expect(getRenderJob(job.id, "u1")).toMatchObject({ status: "done", outputPath: "/x.mp4" });
+  });
+
+  it("refuse un id qui n'est pas un UUID, donc tout echappement de dossier", () => {
+    // L'id vient d'un segment d'URL et devient un chemin de fichier.
+    writeFileSync(join(dir, "..", "vole.json"), JSON.stringify({ id: "x", userId: "u1" }));
+    expect(getRenderJob("../vole", "u1")).toBeUndefined();
+    expect(getRenderJob("..%2Fvole", "u1")).toBeUndefined();
+    rmSync(join(dir, "..", "vole.json"), { force: true });
+  });
+
   it("n'ecrase pas un job deja conclu, meme apres rechargement", () => {
     const job = createRenderJob("u1");
     finalizeRenderJob(job.id, { status: "done", progress: 100 });

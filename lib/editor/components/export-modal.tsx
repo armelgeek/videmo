@@ -139,7 +139,7 @@ export const ExportModal = memo(function ExportModal({
   hasRenderedPreview = false,
   ffmpegError,
 }: ExportModalProps) {
-  const [resolution, setResolution] = useState<"720p" | "1080p">("1080p")
+  const [resolution, setResolution] = useState<"720p" | "1080p">("720p")
   const [isInitializing, setIsInitializing] = useState(false)
 
   useEffect(() => {

@@ -34,6 +34,16 @@ const jobs = new Map<string, Entree>();
 const dossier = () =>
   process.env.RENDER_OUTPUT_DIR || join(process.cwd(), ".renders");
 
+/**
+ * Un id de job est un UUID, et rien d'autre.
+ *
+ * L'id arrive d'un segment d'URL et devient un CHEMIN de fichier. Sans ce
+ * filtre, `../../quelque-chose` faisait lire un JSON hors du dossier des
+ * rendus. Le seul producteur d'id etant randomUUID, restreindre a cette forme
+ * ne coute rien.
+ */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const cheminEtat = (id: string) => join(dossier(), `${id}.json`);
 
 function ecrire(job: RenderJob): void {
@@ -82,6 +92,7 @@ export function createRenderJob(userId: string): RenderJob {
 
 /** Le job, depuis le cache ou depuis le disque. Sans controle de proprietaire. */
 function charger(id: string): Entree | undefined {
+  if (!UUID.test(id)) return undefined;
   const e = jobs.get(id);
   if (e) return e;
   const job = lire(id);
@@ -130,6 +141,12 @@ export function finalizeRenderJob(id: string, patch: Partial<RenderJob>): void {
 export function cancelRenderJob(id: string, userId: string): boolean {
   const e = charger(id);
   if (!e || e.job.userId !== userId) return false;
+  // Un rendu deja conclu ne s'annule plus. Sans cette garde, un clic sur
+  // « Annuler » pendant la derniere seconde faisait passer un job 'done' a
+  // 'cancelled' : la video etait bien sur le disque, mais la route de
+  // telechargement, qui exige 'done', repondait 404. L'utilisateur perdait un
+  // rendu abouti.
+  if (TERMINAUX.has(e.job.status)) return false;
   // Le process n'est connu que du module qui l'a lance : apres une
   // recompilation il est hors de portee, mais l'etat reste juste.
   e.child?.kill();

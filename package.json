@@ -12,7 +12,7 @@
     "seed:plans": "tsx scripts/seed-plans.ts",
     "setup:stripe-plans": "tsx scripts/setup-stripe-plans.ts",
     "check:subscriptions": "tsx scripts/check-subscriptions.ts",
-    "check:organizations": "tsx scripts/verifier-organisations.ts",
+    "check:organizations": "tsx scripts/check-organizations.ts",
     "sync:subscriptions": "tsx scripts/sync-subscriptions.ts",
     "sync:auto": "tsx scripts/auto-sync-subscriptions.ts",
     "setup:blog-permissions": "tsx scripts/create-blog-permissions.ts",
