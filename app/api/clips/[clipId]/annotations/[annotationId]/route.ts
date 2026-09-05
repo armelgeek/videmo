@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { UpdateAnnotationSchema } from '@/lib/editor/types'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireProjectAccess } from "@/lib/video-project/repository";
+import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 
 export async function PATCH(
   request: NextRequest,
@@ -10,6 +12,16 @@ export async function PATCH(
   try {
     const { clipId, annotationId } = await params
     const body = await request.json()
+
+    const viewer = await requireViewer();
+    const clip = await prisma.timelineClip.findUnique({
+      where: { id: clipId },
+      select: { videoProjectId: true },
+    });
+    if (!clip) {
+      return NextResponse.json({ error: 'Clip not found' }, { status: 404 })
+    }
+    await requireProjectAccess(clip.videoProjectId, viewer, "update");
 
     // Verify annotation belongs to clip
     const annotation = await prisma.annotation.findUnique({
@@ -36,10 +48,7 @@ export async function PATCH(
         { status: 400 }
       )
     }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to update' },
-      { status: 500 }
-    )
+    return toErrorResponse(error)
   }
 }
 
@@ -49,6 +58,16 @@ export async function DELETE(
 ) {
   try {
     const { clipId, annotationId } = await params
+
+    const viewer = await requireViewer();
+    const clip = await prisma.timelineClip.findUnique({
+      where: { id: clipId },
+      select: { videoProjectId: true },
+    });
+    if (!clip) {
+      return NextResponse.json({ error: 'Clip not found' }, { status: 404 })
+    }
+    await requireProjectAccess(clip.videoProjectId, viewer, "update");
 
     // Verify annotation belongs to clip
     const annotation = await prisma.annotation.findUnique({
@@ -65,9 +84,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to delete' },
-      { status: 500 }
-    )
+    return toErrorResponse(error)
   }
 }

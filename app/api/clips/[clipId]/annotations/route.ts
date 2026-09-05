@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma'
 import { CreateAnnotationSchema } from '@/lib/editor/types'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireProjectAccess } from "@/lib/video-project/repository";
+import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 
 export async function GET(
   request: NextRequest,
@@ -10,13 +12,15 @@ export async function GET(
   try {
     const { clipId } = await params
 
-    // Verify clip exists
+    const viewer = await requireViewer();
     const clip = await prisma.timelineClip.findUnique({
       where: { id: clipId },
-    })
+      select: { videoProjectId: true },
+    });
     if (!clip) {
       return NextResponse.json({ error: 'Clip not found' }, { status: 404 })
     }
+    await requireProjectAccess(clip.videoProjectId, viewer, "read");
 
     // Fetch annotations ordered by sequence
     const annotations = await prisma.annotation.findMany({
@@ -26,10 +30,7 @@ export async function GET(
 
     return NextResponse.json(annotations)
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to fetch' },
-      { status: 500 }
-    )
+    return toErrorResponse(error)
   }
 }
 
@@ -41,13 +42,15 @@ export async function POST(
     const { clipId } = await params
     const body = await request.json()
 
-    // Verify clip exists
+    const viewer = await requireViewer();
     const clip = await prisma.timelineClip.findUnique({
       where: { id: clipId },
-    })
+      select: { videoProjectId: true },
+    });
     if (!clip) {
       return NextResponse.json({ error: 'Clip not found' }, { status: 404 })
     }
+    await requireProjectAccess(clip.videoProjectId, viewer, "update");
 
     // Validate input
     const validated = CreateAnnotationSchema.parse(body)
@@ -68,9 +71,6 @@ export async function POST(
         { status: 400 }
       )
     }
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to create' },
-      { status: 500 }
-    )
+    return toErrorResponse(error)
   }
 }
