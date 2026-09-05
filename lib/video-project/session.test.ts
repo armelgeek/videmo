@@ -3,7 +3,7 @@ import {
   ProjectForbiddenError,
   ProjectLockedError,
   ProjectNotFoundError,
-  DataUrlRejectedError,
+  EphemeralUrlRejectedError,
 } from "./errors";
 import { ProjectUnauthorizedError, toErrorResponse } from "./session";
 
@@ -25,8 +25,8 @@ describe("toErrorResponse", () => {
     expect(toErrorResponse(error).status).toBe(409);
   });
 
-  it("maps a rejected data url to 400", () => {
-    expect(toErrorResponse(new DataUrlRejectedError("panels.0.imageUrl")).status).toBe(
+  it("maps a rejected data: or blob: url to 400", () => {
+    expect(toErrorResponse(new EphemeralUrlRejectedError("panels.0.imageUrl")).status).toBe(
       400,
     );
   });

@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth";
 import { resolveActiveOrganization } from "@/lib/auth-organization";
 import { prismaOrganizationRepository } from "@/lib/auth-organization-prisma";
 import {
-  DataUrlRejectedError,
+  EphemeralUrlRejectedError,
   ProjectForbiddenError,
   ProjectLockedError,
   ProjectNotFoundError,
@@ -59,7 +59,7 @@ export function toErrorResponse(error: unknown): NextResponse {
       { status: 409 },
     );
   }
-  if (error instanceof DataUrlRejectedError) {
+  if (error instanceof EphemeralUrlRejectedError) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
   if (error instanceof z.ZodError) {

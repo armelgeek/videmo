@@ -5,7 +5,7 @@ import { ProjectLockedError, ProjectNotFoundError } from "@/lib/video-project/er
 import { acquireLock, lockState } from "@/lib/video-project/lock";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import {
-  assertNoDataUrl,
+  assertNoEphemeralUrl,
   updateVideoProjectSchema,
 } from "@/lib/video-project/schema";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
@@ -69,7 +69,7 @@ export async function PATCH(
     await requireProjectAccess(id, viewer, "update");
 
     const patch = updateVideoProjectSchema.parse(await request.json());
-    assertNoDataUrl(patch);
+    assertNoEphemeralUrl(patch);
 
     const current = await prisma.videoProject.findUnique({
       where: { id },

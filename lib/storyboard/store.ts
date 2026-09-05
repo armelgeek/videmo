@@ -115,7 +115,7 @@ const DEFAULT_PROJECT_PARAMS: ProjectParams = {
   tone: "professional",
 };
 
-const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
+export const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
   animStyle: "chunkjump",
   handStyle: "custom1",
   canvasBg: "white",

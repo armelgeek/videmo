@@ -22,9 +22,10 @@ export class ProjectLockedError extends Error {
   }
 }
 
-export class DataUrlRejectedError extends Error {
+/** Une `data:` ou une `blob:` URL : contenu inline, ou lien mort hors onglet. */
+export class EphemeralUrlRejectedError extends Error {
   constructor(readonly path: string) {
-    super(`A data: URL is not accepted (at ${path})`);
-    this.name = "DataUrlRejectedError";
+    super(`A data: or blob: URL is not accepted (at ${path})`);
+    this.name = "EphemeralUrlRejectedError";
   }
 }

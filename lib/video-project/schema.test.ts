@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { DataUrlRejectedError } from "./errors";
+import { DEFAULT_WHITEBOARD_CONFIG } from "@/lib/storyboard/store";
+import { EphemeralUrlRejectedError } from "./errors";
 import {
-  assertNoDataUrl,
+  assertNoEphemeralUrl,
+  whiteboardConfigSchema,
   createVideoProjectSchema,
   updateVideoProjectSchema,
 } from "./schema";
@@ -51,10 +53,52 @@ describe("updateVideoProjectSchema", () => {
   });
 });
 
-describe("assertNoDataUrl", () => {
+describe("whiteboardConfigSchema", () => {
+  it("keeps every field of a real DEFAULT_WHITEBOARD_CONFIG", () => {
+    const parsed = whiteboardConfigSchema.parse(DEFAULT_WHITEBOARD_CONFIG);
+    expect(parsed).toEqual(DEFAULT_WHITEBOARD_CONFIG);
+  });
+
+  it("keeps the legacy fields of a saved project", () => {
+    const legacy = {
+      ...DEFAULT_WHITEBOARD_CONFIG,
+      revealSpeed: 2,
+      handSpeed: 1.5,
+      chunks: 8,
+      useAnnotation: true,
+    };
+    expect(whiteboardConfigSchema.parse(legacy)).toEqual(legacy);
+  });
+
+  it("keeps every metadata field of an audio track", () => {
+    const audio = {
+      id: "a1",
+      name: "voix.mp3",
+      source: "tts" as const,
+      durationMs: 4200,
+      volume: 0.8,
+      muted: false,
+      offsetMs: 250,
+      url: "https://example.test/voix.mp3",
+    };
+    expect(
+      whiteboardConfigSchema.parse({ ...DEFAULT_WHITEBOARD_CONFIG, audio }).audio,
+    ).toEqual(audio);
+  });
+
+  it("drops a blob: audio url instead of storing a dead link", () => {
+    const parsed = whiteboardConfigSchema.parse({
+      ...DEFAULT_WHITEBOARD_CONFIG,
+      audio: { name: "voix.mp3", durationMs: 1000, url: "blob:http://x/abc" },
+    });
+    expect(parsed.audio?.url).toBeNull();
+  });
+});
+
+describe("assertNoEphemeralUrl", () => {
   it("passes on a document with only http urls", () => {
     expect(() =>
-      assertNoDataUrl({ panels: [{ imageUrl: "https://example.test/a.png" }] }),
+      assertNoEphemeralUrl({ panels: [{ imageUrl: "https://example.test/a.png" }] }),
     ).not.toThrow();
   });
 
@@ -64,19 +108,37 @@ describe("assertNoDataUrl", () => {
         audio: { name: "voix.mp3", url: "data:audio/mpeg;base64,AAAA" },
       },
     };
-    expect(() => assertNoDataUrl(document)).toThrow(DataUrlRejectedError);
+    expect(() => assertNoEphemeralUrl(document)).toThrow(EphemeralUrlRejectedError);
   });
 
   it("names the path of the offending value", () => {
     try {
-      assertNoDataUrl({ panels: [{ imageUrl: "data:image/png;base64,AAAA" }] });
+      assertNoEphemeralUrl({ panels: [{ imageUrl: "data:image/png;base64,AAAA" }] });
       throw new Error("should have thrown");
     } catch (error) {
-      expect((error as DataUrlRejectedError).path).toBe("panels.0.imageUrl");
+      expect((error as EphemeralUrlRejectedError).path).toBe("panels.0.imageUrl");
     }
   });
 
   it("ignores a string that merely mentions data: in the middle", () => {
-    expect(() => assertNoDataUrl({ note: "voir data:image plus bas" })).not.toThrow();
+    expect(() => assertNoEphemeralUrl({ note: "voir data:image plus bas" })).not.toThrow();
+  });
+
+  it("rejects an uppercase DATA: url (RFC 2397 is case-insensitive)", () => {
+    expect(() =>
+      assertNoEphemeralUrl({ url: "DATA:image/png;base64,AAAA" }),
+    ).toThrow(EphemeralUrlRejectedError);
+  });
+
+  it("rejects a data: url hidden behind a leading space", () => {
+    expect(() =>
+      assertNoEphemeralUrl({ url: " data:image/png;base64,AAAA" }),
+    ).toThrow(EphemeralUrlRejectedError);
+  });
+
+  it("rejects a blob: url, dead outside its tab", () => {
+    expect(() =>
+      assertNoEphemeralUrl({ url: "blob:http://localhost/9f2" }),
+    ).toThrow(EphemeralUrlRejectedError);
   });
 });
