@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildImagePrompt,
-  decodeBase64Image,
   generateImageRequestSchema,
   imageSizeForAspectRatio,
-  openAiImageResponseSchema,
 } from "./image-generation";
 
 describe("imageSizeForAspectRatio", () => {
@@ -140,30 +138,5 @@ describe("generateImageRequestSchema", () => {
         prompt: "",
       }),
     ).toThrow();
-  });
-});
-
-describe("openAiImageResponseSchema", () => {
-  it("accepte une reponse encodee", () => {
-    expect(() =>
-      openAiImageResponseSchema.parse({ data: [{ b64_json: "AAAA" }] }),
-    ).not.toThrow();
-  });
-
-  it("refuse une reponse vide plutot que d'ecrire un fichier de zero octet", () => {
-    expect(() => openAiImageResponseSchema.parse({ data: [] })).toThrow();
-    expect(() =>
-      openAiImageResponseSchema.parse({ data: [{ b64_json: "" }] }),
-    ).toThrow();
-  });
-});
-
-describe("decodeBase64Image", () => {
-  it("rend les octets d'origine", () => {
-    const bytes = decodeBase64Image(
-      Buffer.from([137, 80, 78, 71]).toString("base64"),
-    );
-
-    expect(Array.from(bytes)).toEqual([137, 80, 78, 71]);
   });
 });

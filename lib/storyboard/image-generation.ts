@@ -137,14 +137,3 @@ export const generateImageRequestSchema = z.object({
   referenceUrl: z.string().url().optional(),
 });
 export type GenerateImageRequest = z.infer<typeof generateImageRequestSchema>;
-
-/** Ce que l'API images renvoie : une image encodee, jamais une URL. */
-export const openAiImageResponseSchema = z.object({
-  data: z
-    .array(z.object({ b64_json: z.string().min(1) }))
-    .min(1),
-});
-
-export function decodeBase64Image(b64: string): Uint8Array {
-  return Uint8Array.from(Buffer.from(b64, "base64"));
-}

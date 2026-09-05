@@ -1,0 +1,109 @@
+import { z } from "zod";
+import {
+  type GenerateImageInput,
+  ImageGenerationFailedError,
+  type ImageGenerator,
+  ImageGeneratorNotConfiguredError,
+} from "./image-generator";
+
+const GENERATIONS_URL = "https://api.openai.com/v1/images/generations";
+const EDITS_URL = "https://api.openai.com/v1/images/edits";
+
+/** L'API rend l'image encodee, jamais une URL a telecharger. */
+const responseSchema = z.object({
+  data: z.array(z.object({ b64_json: z.string().min(1) })).min(1),
+});
+
+export interface OpenAiImageConfig {
+  apiKey: string;
+  model: string;
+}
+
+export function readOpenAiImageConfig(
+  env: Record<string, string | undefined> = process.env,
+): OpenAiImageConfig {
+  if (!env.OPENAI_API_KEY?.trim()) {
+    throw new ImageGeneratorNotConfiguredError(["OPENAI_API_KEY"]);
+  }
+  return {
+    apiKey: env.OPENAI_API_KEY,
+    model: env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1",
+  };
+}
+
+export class OpenAiImageGenerator implements ImageGenerator {
+  constructor(
+    private readonly config: OpenAiImageConfig,
+    private readonly fetchImpl: typeof fetch = fetch,
+  ) {}
+
+  async generate(input: GenerateImageInput): Promise<Uint8Array> {
+    const response = input.reference
+      ? await this.callEdits(input, input.reference)
+      : await this.callGenerations(input);
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      throw new ImageGenerationFailedError(
+        `Image generation failed: ${detail.slice(0, 300)}`,
+        response.status,
+      );
+    }
+
+    const parsed = responseSchema.safeParse(await response.json());
+    if (!parsed.success) {
+      throw new ImageGenerationFailedError("The model returned no usable image");
+    }
+
+    return Uint8Array.from(Buffer.from(parsed.data.data[0].b64_json, "base64"));
+  }
+
+  private callGenerations(input: GenerateImageInput) {
+    return this.fetchImpl(GENERATIONS_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: this.config.model,
+        prompt: input.prompt,
+        n: 1,
+        size: input.size,
+      }),
+    });
+  }
+
+  /**
+   * `edits` est le seul endpoint qui accepte une image d'entree : la coherence
+   * de trait entre les cases d'une serie ne s'obtient pas par la consigne
+   * seule. Il exige du multipart, d'ou l'absence de Content-Type ici — le
+   * navigateur, ou undici, pose lui-meme la frontiere.
+   */
+  private callEdits(input: GenerateImageInput, reference: Uint8Array) {
+    const form = new FormData();
+    form.append("model", this.config.model);
+    form.append("prompt", input.prompt);
+    form.append("size", input.size);
+    form.append("n", "1");
+    form.append(
+      "image",
+      new Blob([reference as unknown as BlobPart], { type: "image/png" }),
+      "reference.png",
+    );
+
+    return this.fetchImpl(EDITS_URL, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.config.apiKey}` },
+      body: form,
+    });
+  }
+}
+
+let cached: ImageGenerator | null = null;
+
+/** Le client est garde entre les requetes, comme celui du bac d'objets. */
+export function getImageGenerator(): ImageGenerator {
+  if (!cached) cached = new OpenAiImageGenerator(readOpenAiImageConfig());
+  return cached;
+}
