@@ -60,7 +60,6 @@ export async function POST(request: NextRequest) {
       name,
       slug,
       description: description || null,
-      ownerId: session.user.id,
       members: { create: { userId: session.user.id, role: "owner" } },
     },
     include: { _count: { select: { members: true } } },

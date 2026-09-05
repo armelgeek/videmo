@@ -31,7 +31,7 @@ model User {
   subscriptions Subscription[]
   blogs         Blog[]
   apiKeys       ApiKey[]
-  ownedOrganizations      Organization[]         @relation("OwnedOrganizations")
+  organizationInvitationsSent OrganizationInvitation[] @relation("OrganizationInvitationsSent")
   organizationMemberships OrganizationMember[]   @relation("OrganizationMemberships")
   twoFactor     TwoFactor?
   twoFactorEnabled Boolean @default(false)
@@ -47,6 +47,7 @@ model Session {
   token     String   @unique
   ipAddress String?
   userAgent String?
+  activeOrganizationId String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -244,8 +245,6 @@ model Organization {
   slug        String               @unique
   description String?
   logo        String?
-  ownerId     String
-  owner       User                 @relation("OwnedOrganizations", fields: [ownerId], references: [id], onDelete: Cascade)
   members     OrganizationMember[]
   invitations OrganizationInvitation[]
   createdAt   DateTime             @default(now())
@@ -270,13 +269,14 @@ model OrganizationInvitation {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   email          String
   role           String       @default("member")
-  token          String       @unique @default(cuid())
+  status         String       @default("pending")
   expiresAt      DateTime
-  acceptedAt     DateTime?
+  inviterId      String
+  inviter        User         @relation("OrganizationInvitationsSent", fields: [inviterId], references: [id], onDelete: Cascade)
   createdAt      DateTime     @default(now())
 
-  @@index([token])
   @@index([email])
+  @@index([organizationId])
 }
 // Stores contact form submissions for admin review and audit trail
 model ContactSubmission {
