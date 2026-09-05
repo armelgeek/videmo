@@ -72,5 +72,5 @@ Return a JSON object with:
     }
   ]
 }`,
-  model: "gpt-4o",
+  model: "openai/gpt-4o",
 });

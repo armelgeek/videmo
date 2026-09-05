@@ -47,5 +47,5 @@ Add subtle emotional direction tags to make the narration more engaging and natu
 ## OUTPUT FORMAT
 Return ONLY the enhanced narration text with tags in square brackets.
 No explanations or commentary.`,
-  model: "gpt-4o",
+  model: "openai/gpt-4o",
 });

@@ -40,5 +40,5 @@ Preserve style consistency:
 - Use bullet points for scannability
 - Prioritize information needed for the NEXT clip
 - If a character appeared, their description MUST be in the summary`,
-  model: "gpt-4o",
+  model: "openai/gpt-4o",
 });
