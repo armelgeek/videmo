@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { ProjectLockedError, ProjectNotFoundError } from "@/lib/video-project/errors";
-import { acquireLock, lockState } from "@/lib/video-project/lock";
+import { LOCK_TTL_MS, lockState } from "@/lib/video-project/lock";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import {
   assertNoEphemeralUrl,
@@ -71,24 +71,25 @@ export async function PATCH(
     const patch = updateVideoProjectSchema.parse(await request.json());
     assertNoEphemeralUrl(patch);
 
-    const current = await prisma.videoProject.findUnique({
-      where: { id },
-      select: { lockedById: true, lockExpiresAt: true },
-    });
-    if (!current) throw new ProjectNotFoundError();
-
     const now = new Date();
-    if (lockState(current, viewer.userId, now) !== "held-by-me") {
-      throw new ProjectLockedError(current.lockedById, current.lockExpiresAt);
-    }
-
     // Une frappe continue renouvelle le bail d'elle-même : le chantier 3 n'a
     // pas besoin d'un battement séparé tant que l'utilisateur écrit.
-    const renewed = acquireLock(current, viewer.userId, now);
+    const renewed = {
+      lockedById: viewer.userId,
+      lockExpiresAt: new Date(now.getTime() + LOCK_TTL_MS),
+    };
 
     const { params: docParams, script, panels, whiteboardConfig, ...rest } = patch;
-    await prisma.videoProject.update({
-      where: { id },
+    // La detention du bail est une condition du WHERE, comme dans lock/route.ts :
+    // relue puis ecrite, elle pourrait expirer entre les deux et cette ecriture
+    // volerait le bail que quelqu'un d'autre vient de prendre.
+    const { count } = await prisma.videoProject.updateMany({
+      where: {
+        id,
+        deletedAt: null,
+        lockedById: viewer.userId,
+        lockExpiresAt: { gt: now },
+      },
       data: {
         ...rest,
         ...(docParams !== undefined
@@ -106,6 +107,15 @@ export async function PATCH(
         ...renewed,
       },
     });
+
+    if (count === 0) {
+      const holder = await prisma.videoProject.findUnique({
+        where: { id },
+        select: { lockedById: true, lockExpiresAt: true },
+      });
+      if (!holder) throw new ProjectNotFoundError();
+      throw new ProjectLockedError(holder.lockedById, holder.lockExpiresAt);
+    }
 
     return NextResponse.json(await loadFull(id, viewer.userId));
   } catch (error) {
