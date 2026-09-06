@@ -10,6 +10,7 @@ import {
   SpeechGeneratorNotConfiguredError,
 } from "@/lib/speech/speech-generator";
 import { getSpeechGenerator } from "@/lib/speech/openai-speech-generator";
+import { measureAudioDurationMs } from "@/lib/speech/audio-duration";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 
@@ -39,6 +40,17 @@ export async function POST(request: NextRequest) {
 
     const audio = await speech.speak({ text: input.text, voice: input.voice });
 
+    // Mesuree sur le fichier, jamais estimee : les annotations se calent
+    // dessus, et un ecart s'accumulerait d'un temps de narration au suivant.
+    let durationMs: number | null = null;
+    try {
+      durationMs = await measureAudioDurationMs(audio);
+    } catch (cause) {
+      // Une mesure ratee ne doit pas priver la scene de sa voix : le calage
+      // retombera sur l'estimation du decoupage.
+      console.error("Could not measure narration duration:", cause);
+    }
+
     const url = await storage.put({
       key: buildNarrationKey({
         projectId: input.projectId,
@@ -48,7 +60,7 @@ export async function POST(request: NextRequest) {
       contentType: "audio/mpeg",
     });
 
-    return NextResponse.json({ url });
+    return NextResponse.json({ url, durationMs });
   } catch (error) {
     if (
       error instanceof StorageNotConfiguredError ||
