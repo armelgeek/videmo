@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -51,4 +51,70 @@ describe("renderProjectToVideo (lent : lance ffmpeg)", () => {
     expect(Number(h)).toBe(96);
     expect(Number(packets)).toBe(res.frames);
   }, 120_000);
+
+  /**
+   * La voix est produite par temps : chacun reste une entree, retardee de son
+   * debut absolu. Ce test verifie que le son SORT, et qu'il commence bien la
+   * ou le second morceau est place — pas au debut de la video.
+   */
+  it("muxe plusieurs temps de narration, chacun a sa place", async () => {
+    const un = join(dir, "un.mp3");
+    const deux = join(dir, "deux.mp3");
+    for (const [file, freq] of [[un, 440], [deux, 880]] as [string, number][]) {
+      execFileSync("ffmpeg", [
+        "-v", "error", "-f", "lavfi",
+        "-i", `sine=frequency=${freq}:sample_rate=24000`,
+        "-t", "0.5", "-c:a", "libmp3lame", "-y", file,
+      ]);
+    }
+
+    const out = join(dir, "voix.mp4");
+    await renderProjectToVideo(
+      {
+        ...project,
+        // Le second temps commence a deux secondes : entre les deux, le
+        // silence doit rester du silence.
+        // La scene doit durer plus que le second temps : `-shortest` couperait
+        // sinon la video avant qu'il ne se fasse entendre.
+        scenes: [
+          {
+            id: "s1",
+            canvasImage: join(process.cwd(), "public", "images", "hand1-720p.png"),
+            annotations: [
+              { region: { x: 0, y: 0, width: 60, height: 40 }, reveal: { from: 0, to: 3000 } },
+            ],
+          },
+        ],
+        narration: {
+          parts: [
+            { url: un, startMs: 0, durationMs: 500 },
+            { url: deux, startMs: 2000, durationMs: 500 },
+          ],
+        },
+      },
+      out,
+      { width: 128, height: 96, fps: 10 },
+    );
+
+    const flux = execFileSync("ffprobe", [
+      "-v", "error", "-select_streams", "a:0",
+      "-show_entries", "stream=codec_name", "-of", "csv=p=0", out,
+    ]).toString().trim();
+    expect(flux).toBe("aac");
+
+    // Le niveau sur la seconde qui precede le second temps, puis sur celle qui
+    // le contient : le premier doit etre silencieux, le second non.
+    // volumedetect ecrit son rapport sur la sortie d'ERREUR, pas sur stdout.
+    const niveau = (debut: string) => {
+      const { stderr } = spawnSync("ffmpeg", [
+        "-v", "info", "-ss", debut, "-t", "0.4", "-i", out,
+        "-af", "volumedetect", "-f", "null", "-",
+      ]);
+      const trouve = stderr.toString().match(/max_volume:\s*(-?\d+(?:\.\d+)?)/);
+      return trouve ? Number(trouve[1]) : Number.NaN;
+    };
+
+    expect(niveau("1.2")).toBeLessThan(-60);
+    expect(niveau("2.05")).toBeGreaterThan(-30);
+  }, 180_000);
 });

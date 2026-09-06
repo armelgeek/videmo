@@ -3,6 +3,7 @@ import { deriveTimeline } from "@/lib/whiteboard-animation/timeline/derive-timel
 import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import type { StoryboardPanel } from "@/lib/storyboard/schema";
+import type { NarrationPart } from "@/lib/whiteboard-animation/audio/narration-schedule";
 
 export interface RenderScene {
   id: string;
@@ -19,7 +20,12 @@ export interface RenderProject {
   handSpeed: number;
   tileSlider: number;
   speed: number;
-  narration: { audioUrl: string } | null;
+  /**
+   * La voix. `parts` porte un morceau par temps de narration, place a son
+   * debut absolu ; `audioUrl` reste la forme a une piste — un televersement,
+   * ou un projet d'avant le decoupage.
+   */
+  narration: { audioUrl?: string; parts?: NarrationPart[] } | null;
   scenes: RenderScene[];
 }
 
@@ -42,6 +48,9 @@ export function toRenderProject({
   // l'onglet qui l'a creee. Envoyee au rendu, ffmpeg ne peut pas la lire et la
   // video sortirait muette.
   const audioUrl = config.audio?.persistUrl ?? config.audio?.url ?? null;
+  // La voix par temps prime : elle dit ou chaque morceau commence, la ou une
+  // piste unique oblige a la reconcatener des qu'un temps change.
+  const parts = config.narration?.length ? config.narration : null;
 
   return {
     // Les regions sont enregistrees en pixels du canvas d'apercu, dont la
@@ -53,7 +62,7 @@ export function toRenderProject({
     handSpeed: config.handSpeed ?? 5,
     tileSlider: config.chunks ?? 30,
     speed: FIDELE_1X,
-    narration: audioUrl ? { audioUrl } : null,
+    narration: parts ? { parts } : audioUrl ? { audioUrl } : null,
     scenes: scenesAvecBornes(panels, config),
   };
 }

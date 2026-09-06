@@ -121,3 +121,57 @@ describe("toRenderProject", () => {
     expect(toRenderProject({ panels: [], config }).scenes).toEqual([]);
   });
 });
+
+describe("narration", () => {
+  // Le fixture partage porte deja une piste televersee : ici on part d'un
+  // projet muet, pour que chaque cas nomme sa propre voix.
+  const muet: any = { ...config, audio: null, narration: [] };
+  const panels = [
+    { id: "p", imageUrl: "/i.png", prompt: "p", duration: 5, isGenerating: false },
+  ] as never;
+
+  it("transmet la voix par temps, chacune a son debut absolu", () => {
+    const parts = [
+      { url: "/0.mp3", startMs: 0, durationMs: 1200 },
+      { url: "/1.mp3", startMs: 1200, durationMs: 900 },
+    ];
+
+    const projet = toRenderProject({
+      panels,
+      config: { ...muet, narration: parts },
+    });
+
+    expect(projet.narration).toEqual({ parts });
+  });
+
+  it("garde la piste unique d'un projet qui n'a pas de voix par temps", () => {
+    const projet = toRenderProject({
+      panels,
+      config: {
+        ...muet,
+        audio: { name: "a", url: "/piste.mp3", durationMs: 1000 } as never,
+      },
+    });
+
+    expect(projet.narration).toEqual({ audioUrl: "/piste.mp3" });
+  });
+
+  it("prefere la voix par temps quand les deux existent", () => {
+    const projet = toRenderProject({
+      panels,
+      config: {
+        ...muet,
+        audio: { name: "a", url: "/piste.mp3", durationMs: 1000 } as never,
+        narration: [{ url: "/0.mp3", startMs: 0, durationMs: 500 }],
+      },
+    });
+
+    expect(projet.narration).toEqual({
+      parts: [{ url: "/0.mp3", startMs: 0, durationMs: 500 }],
+    });
+  });
+
+  it("ne transmet rien quand il n'y a aucune voix", () => {
+    expect(toRenderProject({ panels, config: muet }).narration).toBeNull();
+  });
+});

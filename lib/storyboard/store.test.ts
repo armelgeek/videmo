@@ -16,6 +16,7 @@ function resetStore() {
       annotations: [],
       annotationConfig: { enabled: true, speed: 1, defaultStyle: { strokeColor: "#000000", strokeWidth: 2 } },
       audio: null,
+      narration: [],
       transcript: [],
     },
   });
@@ -41,6 +42,16 @@ describe("whiteboardConfig.audio", () => {
     };
     useStoryboardStore.getState().setAudioTrack(track);
     expect(useStoryboardStore.getState().whiteboardConfig.audio).toEqual(track);
+  });
+
+  it("setNarrationParts garde la voix par temps, sans toucher a la piste unique", () => {
+    const parts = [{ url: "/0.mp3", startMs: 0, durationMs: 1200 }];
+    useStoryboardStore.getState().setNarrationParts(parts);
+
+    const config = useStoryboardStore.getState().whiteboardConfig;
+    expect(config.narration).toEqual(parts);
+    // `audio` reste le televersement a la main : les deux coexistent.
+    expect(config.audio).toBeNull();
   });
 
   it("setAudioTrack(null) clears the track", () => {

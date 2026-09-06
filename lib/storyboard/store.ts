@@ -15,6 +15,7 @@ import type {
   AudioTrack,
   TranscriptCue,
 } from "@/lib/whiteboard-animation/audio/types";
+import type { NarrationPart } from "@/lib/whiteboard-animation/audio/narration-schedule";
 import { dataUrlToBlobUrl } from "@/lib/whiteboard-animation/audio/audio-serialization";
 import { panelAudioSegments } from "./audio-segments";
 
@@ -70,6 +71,12 @@ export interface WhiteboardConfig {
   annotations: Annotation[];
   annotationConfig: AnnotationConfig;
   audio: AudioTrack | null;
+  /**
+   * La voix telle que la chaine la produit : un morceau par temps de
+   * narration, place a son debut absolu. Elle prime sur `audio`, qui reste la
+   * piste d'un televersement a la main et celle des projets anterieurs.
+   */
+  narration: NarrationPart[];
   transcript: TranscriptCue[];
 }
 
@@ -107,6 +114,7 @@ export interface StoryboardStoreState {
   setAnnotations: (annotations: Annotation[]) => void;
   setAnnotationConfig: (config: Partial<AnnotationConfig>) => void;
   setAudioTrack: (track: AudioTrack | null) => void;
+  setNarrationParts: (parts: NarrationPart[]) => void;
   setTranscript: (cues: TranscriptCue[]) => void;
   linkTranscriptCue: (cueId: string, annotationId: string) => void;
 
@@ -135,6 +143,7 @@ export const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
   annotations: [],
   annotationConfig: DEFAULT_ANNOTATION_CONFIG,
   audio: null,
+  narration: [],
   transcript: [],
 };
 
@@ -314,6 +323,11 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
       setAudioTrack: (track: AudioTrack | null) =>
         set((state) => ({
           whiteboardConfig: { ...state.whiteboardConfig, audio: track },
+        })),
+
+      setNarrationParts: (narration: NarrationPart[]) =>
+        set((state) => ({
+          whiteboardConfig: { ...state.whiteboardConfig, narration },
         })),
 
       setTranscript: (cues: TranscriptCue[]) =>

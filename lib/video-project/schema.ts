@@ -79,6 +79,20 @@ export const whiteboardConfigSchema = z.object({
   annotations: z.array(z.unknown()).default([]),
   annotationConfig: z.record(z.string(), z.unknown()).default({}),
   audio: persistedAudioTrackSchema.nullable().default(null),
+  /**
+   * La voix par temps de narration. Les URL sont celles du bac, deja durables :
+   * contrairement a `audio`, rien a filtrer — une piste televersee, elle, peut
+   * porter une blob: qui meurt avec l'onglet.
+   */
+  narration: z
+    .array(
+      z.object({
+        url: z.string(),
+        startMs: z.number().nonnegative(),
+        durationMs: z.number().nonnegative(),
+      }),
+    )
+    .default([]),
   transcript: z.array(z.unknown()).default([]),
 });
 
