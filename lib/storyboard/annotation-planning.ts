@@ -58,6 +58,13 @@ export function clampRegion(
   };
 }
 
+/**
+ * Le rapport de surface au-dela duquel un sujet mesure est tenu pour deux
+ * choses soudees. En dessous, le modele et la mesure parlent du meme objet et
+ * la mesure gagne : elle seule connait les bords exacts.
+ */
+const FUSION_SUSPECTE = 2.5;
+
 export interface SubjectCandidate {
   x: number;
   y: number;
@@ -121,6 +128,26 @@ export function snapToSubject(
   }
 
   const cible = meilleur as SubjectCandidate;
+
+  // Un sujet bien plus grand que ce que le modele visait n'en est pas un : des
+  // traits voisins ont fusionne. Verifie sur une illustration ou le grain de
+  // cafe touche les lignes de la table — la mesure rendait les trois comme un
+  // seul objet, large et plat. On garde alors la part que le modele designait,
+  // bornee par le sujet mesure : ses bords a lui, son cadrage a elle.
+  const surfaceCible = cible.width * cible.height;
+  const surfaceVisee = region.width * region.height;
+  if (surfaceVisee > 0 && surfaceCible > surfaceVisee * FUSION_SUSPECTE) {
+    const x = Math.max(region.x, cible.x);
+    const y = Math.max(region.y, cible.y);
+    const width =
+      Math.min(region.x + region.width, cible.x + cible.width) - x;
+    const height =
+      Math.min(region.y + region.height, cible.y + cible.height) - y;
+    if (width > 0 && height > 0) {
+      return { beatIndex: region.beatIndex, x, y, width, height };
+    }
+  }
+
   return {
     beatIndex: region.beatIndex,
     x: cible.x,

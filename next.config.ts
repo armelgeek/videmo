@@ -1,5 +1,27 @@
 import type { NextConfig } from "next";
 
+/**
+ * L'origine du bac d'objets, telle que le navigateur la voit.
+ *
+ * Elle doit etre nommee : les visuels et la voix sont servis depuis la, et la
+ * regle par defaut n'autorise que `https:`. Un bac local en http — MinIO en
+ * developpement — faisait donc echouer `next/image` (« Invalid src prop »),
+ * mais aussi la lecture de l'image par le canvas, dont la mesure des sujets
+ * dessines depend. On ouvre cette origine-la, pas `http:` en general.
+ */
+function bucketOrigin(): URL | null {
+  const raw = process.env.S3_PUBLIC_URL?.trim();
+  if (!raw) return null;
+  try {
+    return new URL(raw);
+  } catch {
+    return null;
+  }
+}
+
+const bucket = bucketOrigin();
+const bucketSource = bucket ? ` ${bucket.origin}` : "";
+
 const nextConfig: NextConfig = {
   output: "standalone",
   // canvas est un binaire natif et fluent-ffmpeg pilote un binaire externe :
@@ -52,10 +74,10 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://us-assets.i.posthog.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' blob: data: https:",
-              "media-src 'self' blob: data: https:",
+              `img-src 'self' blob: data: https:${bucketSource}`,
+              `media-src 'self' blob: data: https:${bucketSource}`,
               "font-src 'self' data:",
-              "connect-src 'self' blob: data: https:",
+              `connect-src 'self' blob: data: https:${bucketSource}`,
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
@@ -73,6 +95,15 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "**",
       },
+      ...(bucket && bucket.protocol === "http:"
+        ? [
+            {
+              protocol: "http" as const,
+              hostname: bucket.hostname,
+              port: bucket.port,
+            },
+          ]
+        : []),
     ],
   },
 };

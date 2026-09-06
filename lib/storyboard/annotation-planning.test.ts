@@ -199,6 +199,30 @@ describe("snapToSubject", () => {
     expect(snapToSubject(devine, [grain, flamme])).toMatchObject({ x: flamme.x });
   });
 
+  it("retaille un sujet ou deux choses ont fusionne", () => {
+    // Le grain de cafe touche les lignes de la table : la mesure rendait les
+    // trois comme un seul objet, large et plat.
+    const grainEtTable = { x: 118, y: 393, width: 1165, height: 378 };
+    const devine = { beatIndex: 0, x: 480, y: 380, width: 420, height: 340 };
+
+    expect(snapToSubject(devine, [grainEtTable])).toEqual({
+      beatIndex: 0,
+      x: 480,
+      y: 393,
+      width: 420,
+      height: 327,
+    });
+  });
+
+  it("garde le sujet mesure quand il parle bien du meme objet", () => {
+    // La tasse : mesuree 669x760, devinee 640x475. Meme objet, donc la mesure
+    // gagne — elle seule connait les bords exacts.
+    const tasse = { x: 449, y: 100, width: 669, height: 760 };
+    const devine = { beatIndex: 0, x: 460, y: 275, width: 640, height: 475 };
+
+    expect(snapToSubject(devine, [tasse])).toEqual({ beatIndex: 0, ...tasse });
+  });
+
   it("laisse passer le rectangle devine quand l'image n'a rendu aucun sujet", () => {
     const devine = { beatIndex: 0, x: 10, y: 20, width: 30, height: 40 };
 
