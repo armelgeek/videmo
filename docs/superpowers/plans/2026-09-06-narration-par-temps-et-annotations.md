@@ -206,10 +206,30 @@ le sujet qu'il recouvre le plus.
 La flamme — le cas qui restait faux, décalé de deux cents pixels — tombe
 maintenant juste. Vérifié à l'œil : chaque sujet est encadré au trait près.
 
-**Ce qui reste.** La méthode suppose un dessin sombre sur fond clair : c'est ce
-que produit ce moteur de whiteboard, mais une illustration en aplats de couleur
-rendrait un seul sujet couvrant tout. Le repli tient (une zone trop large plutôt
-que rien), et l'utilisateur ajuste dans l'éditeur.
+### 6. Ne plus supposer un whiteboard
+
+La mesure ne regardait que les pixels **sombres** : elle ne valait que pour de
+l'encre noire sur papier blanc. Une silhouette claire sur fond sombre, ou un
+aplat coloré de même clarté que son fond, restaient invisibles.
+
+Ce qui compte n'est pas la couleur mais l'**écart au fond** :
+
+- [x] `contrastToBackground` lit le fond sur le **bord** de l'image — la seule
+      zone dont on sait d'avance qu'elle n'est pas le sujet — par la médiane,
+      pour qu'un sujet touchant le bord ne déplace pas la référence.
+- [x] L'écart est pris canal par canal, au plus grand des trois : un rouge sur
+      vert a la même luminance que son fond et disparaissait en niveaux de gris.
+- [x] `subjectRegions` (ex-`inkRegions`) groupe ce qui dépasse le seuil d'écart,
+      quelle que soit la teinte.
+
+**Vérifié :** les deux illustrations whiteboard rendent les mêmes rectangles
+qu'avant (fond mesuré à rgb(246,245,245) et rgb(236,236,236)), et une
+illustration en aplats sur fond bleu sombre — rgb(26,57,92) — rend ses deux
+formes au pixel exact.
+
+**Ce qui reste.** Une image sans fond uni, une peinture pleine page, rend un
+seul sujet couvrant tout. C'est le repli voulu, et il est testé : une zone trop
+large plutôt qu'aucune annotation, que l'utilisateur ajuste dans l'éditeur.
 
 ---
 

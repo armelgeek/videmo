@@ -4,7 +4,7 @@ import {
   buildVisionPrompt,
   clampRegion,
   planAnnotations,
-  snapToInk,
+  snapToSubject,
   wholeImageRegion,
 } from "./annotation-planning";
 import type { ScriptScene } from "./script-generation";
@@ -166,7 +166,7 @@ describe("wholeImageRegion", () => {
   });
 });
 
-describe("snapToInk", () => {
+describe("snapToSubject", () => {
   // Les deux sujets d'une vraie illustration : le grain, et la flamme.
   const grain = { x: 309, y: 201, width: 426, height: 574 };
   const flamme = { x: 1011, y: 361, width: 210, height: 330 };
@@ -175,7 +175,7 @@ describe("snapToInk", () => {
     // Ce que gpt-4o a rendu pour le temps de la flamme : decale de 200 px.
     const devine = { beatIndex: 1, x: 800, y: 300, width: 300, height: 500 };
 
-    expect(snapToInk(devine, [grain, flamme])).toEqual({
+    expect(snapToSubject(devine, [grain, flamme])).toEqual({
       beatIndex: 1,
       ...flamme,
     });
@@ -184,25 +184,25 @@ describe("snapToInk", () => {
   it("choisit le sujet le plus recouvert quand deux sont touches", () => {
     const devine = { beatIndex: 0, x: 320, y: 210, width: 900, height: 400 };
 
-    expect(snapToInk(devine, [grain, flamme])).toMatchObject({ x: grain.x });
+    expect(snapToSubject(devine, [grain, flamme])).toMatchObject({ x: grain.x });
   });
 
   it("garde le numero du temps, qui porte l'appariement", () => {
     const devine = { beatIndex: 3, x: 1020, y: 370, width: 10, height: 10 };
 
-    expect(snapToInk(devine, [grain, flamme]).beatIndex).toBe(3);
+    expect(snapToSubject(devine, [grain, flamme]).beatIndex).toBe(3);
   });
 
   it("prend le sujet le plus proche quand le modele a vise le papier vide", () => {
     const devine = { beatIndex: 0, x: 1300, y: 400, width: 40, height: 40 };
 
-    expect(snapToInk(devine, [grain, flamme])).toMatchObject({ x: flamme.x });
+    expect(snapToSubject(devine, [grain, flamme])).toMatchObject({ x: flamme.x });
   });
 
   it("laisse passer le rectangle devine quand l'image n'a rendu aucun sujet", () => {
     const devine = { beatIndex: 0, x: 10, y: 20, width: 30, height: 40 };
 
-    expect(snapToInk(devine, [])).toEqual(devine);
+    expect(snapToSubject(devine, [])).toEqual(devine);
   });
 });
 

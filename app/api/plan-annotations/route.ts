@@ -6,7 +6,7 @@ import { RegionReadFailedError } from "@/lib/image/region-reader";
 import {
   buildVisionPrompt,
   planAnnotations,
-  snapToInk,
+  snapToSubject,
 } from "@/lib/storyboard/annotation-planning";
 import { scriptSceneSchema } from "@/lib/storyboard/script-generation";
 import { requireProjectAccess } from "@/lib/video-project/repository";
@@ -89,9 +89,9 @@ export async function POST(request: NextRequest) {
       console.error("Region reading failed, falling back:", error);
     }
 
-    // Le rectangle devine est ramene sur le sujet qu'il designe : c'est
-    // l'encre, et non le modele, qui donne les bornes.
-    regions = regions.map((region) => snapToInk(region, input.candidates));
+    // Le rectangle devine est ramene sur le sujet qu'il designe : ce sont
+    // les bornes mesurees, et non le modele, qui cadrent.
+    regions = regions.map((region) => snapToSubject(region, input.candidates));
 
     // Les durees mesurees voyagent DANS la scene, portees par ses temps de
     // narration depuis la synthese. Un temps dont la mesure a echoue rend 0,

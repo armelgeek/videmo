@@ -58,7 +58,7 @@ export function clampRegion(
   };
 }
 
-export interface InkCandidate {
+export interface SubjectCandidate {
   x: number;
   y: number;
   width: number;
@@ -70,9 +70,9 @@ export interface InkCandidate {
  *
  * La vision situe bien mais chiffre mal : verifie sur de vraies illustrations,
  * elle rendait la flamme decalee de deux cents pixels, ou un carre de 50x50 au
- * milieu d'une tasse. Les bornes exactes, elles, sont dans l'image — l'encre
- * les porte. On ne demande donc plus au modele que de DESIGNER un sujet, et le
- * rectangle vient de la mesure.
+ * milieu d'une tasse. Les bornes exactes, elles, sont dans l'image — ce qui se
+ * detache du fond les porte. On ne demande donc plus au modele que de DESIGNER
+ * un sujet, et le rectangle vient de la mesure.
  *
  * L'appariement se fait sur la surface commune. Sans recouvrement — le modele
  * a vise le papier vide — on prend le sujet dont le centre est le plus proche :
@@ -81,13 +81,13 @@ export interface InkCandidate {
  * Sans candidat (image illisible, page blanche), le rectangle devine passe tel
  * quel : mieux vaut une zone approximative que pas d'annotation.
  */
-export function snapToInk(
+export function snapToSubject(
   region: PlannedRegion,
-  candidates: InkCandidate[],
+  candidates: SubjectCandidate[],
 ): PlannedRegion {
   if (candidates.length === 0) return region;
 
-  let meilleur: InkCandidate | null = null;
+  let meilleur: SubjectCandidate | null = null;
   let meilleureSurface = 0;
 
   for (const candidate of candidates) {
@@ -120,7 +120,7 @@ export function snapToInk(
     }
   }
 
-  const cible = meilleur as InkCandidate;
+  const cible = meilleur as SubjectCandidate;
   return {
     beatIndex: region.beatIndex,
     x: cible.x,

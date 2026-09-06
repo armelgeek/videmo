@@ -1,9 +1,12 @@
-import { inkRegions } from "@/lib/image/ink-regions";
-import type { InkCandidate } from "./annotation-planning";
+import {
+  contrastToBackground,
+  subjectRegions,
+} from "@/lib/image/subject-regions";
+import type { SubjectCandidate } from "./annotation-planning";
 
 /**
  * Au-dela, la liste soumise au modele devient une enumeration ou plus rien ne
- * se distingue. Les sujets sont tries par quantite d'encre : les premiers sont
+ * se distingue. Les sujets sont tries par surface dessinee : les premiers sont
  * ceux dont un temps de narration parle.
  */
 const MAX_SUJETS = 8;
@@ -18,10 +21,10 @@ const MAX_SUJETS = 8;
  * Une image illisible rend une liste vide, et la planification retombe alors
  * sur le rectangle devine par la vision.
  */
-export async function measureInkCandidates(
+export async function measureSubjectCandidates(
   url: string,
   size: { width: number; height: number },
-): Promise<InkCandidate[]> {
+): Promise<SubjectCandidate[]> {
   if (typeof document === "undefined" || !url) return [];
 
   try {
@@ -35,15 +38,13 @@ export async function measureInkCandidates(
     context.drawImage(image, 0, 0, size.width, size.height);
 
     const { data } = context.getImageData(0, 0, size.width, size.height);
-    const luminance = new Uint8Array(size.width * size.height);
-    for (let i = 0; i < luminance.length; i++) {
-      const p = i * 4;
-      // Ponderation habituelle de la luminance : l'encre d'un whiteboard est
-      // noire, mais le papier rendu porte un grain legerement colore.
-      luminance[i] = (data[p] * 299 + data[p + 1] * 587 + data[p + 2] * 114) / 1000;
-    }
+    const { contrast } = contrastToBackground({
+      rgba: data,
+      width: size.width,
+      height: size.height,
+    });
 
-    return inkRegions({ luminance, width: size.width, height: size.height })
+    return subjectRegions({ contrast, width: size.width, height: size.height })
       .slice(0, MAX_SUJETS)
       .map(({ x, y, width, height }) => ({ x, y, width, height }));
   } catch (error) {
