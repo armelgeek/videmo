@@ -173,10 +173,43 @@ Les deux sont donc adoptées : la consigne exige d'englober le sujet entier avec
 une marge et donne une taille plancher, et `gpt-4o` devient le modèle par
 défaut. Vérifié à l'œil : le grain et la tasse sont désormais entourés.
 
-**Ce qui reste imparfait.** Le second sujet d'une image est encore mal placé —
-la flamme n'est attrapée que par son bord. C'était déjà hors périmètre (« l'
-utilisateur ajuste dans l'éditeur »), et le repli sur l'image entière protège le
-cas où la vision ne rend rien.
+### 5. Cadrer par l'encre, non par le modèle
+
+Le rectangle restait imprécis même avec `gpt-4o` : la flamme n'était attrapée
+que par son bord. La cause est en amont — on demandait à un modèle de langage de
+**produire des coordonnées**, ce qu'il fait mal par nature.
+
+Or sur un dessin à l'encre noire, les bornes exactes sont dans l'image. On les
+mesure : `inkRegions` (`lib/image/ink-regions.ts`) regroupe l'encre en sujets
+par une grille grossière et rend le rectangle de chacun, au pixel. Le modèle ne
+sert plus qu'à **désigner** lequel — `snapToInk` ramène son rectangle deviné sur
+le sujet qu'il recouvre le plus.
+
+- [x] `inkRegions` : regroupement de l'encre, tests sur pages synthétiques.
+- [x] `snapToInk` : appariement par surface commune, repli sur le sujet le plus
+      proche quand le modèle a visé le papier vide, et passe-plat quand aucun
+      sujet n'a été mesuré.
+- [x] `measureInkCandidates` mesure dans le navigateur, par canvas : le serveur
+      n'a aucun décodeur d'image, et la contrainte « aucune nouvelle dépendance »
+      tient.
+- [x] La route accepte ces candidats, facultatifs : sans eux, le comportement
+      d'avant.
+
+**Vérifié sur les mêmes illustrations :**
+
+| Temps | Deviné par gpt-4o | Aimanté sur l'encre |
+|---|---|---|
+| le grain | 350,200 550×650 | **309,201 426×574** |
+| la flamme | 900,350 300×450 | **1011,361 210×330** |
+| la tasse | 460,275 640×475 | **449,100 669×760** |
+
+La flamme — le cas qui restait faux, décalé de deux cents pixels — tombe
+maintenant juste. Vérifié à l'œil : chaque sujet est encadré au trait près.
+
+**Ce qui reste.** La méthode suppose un dessin sombre sur fond clair : c'est ce
+que produit ce moteur de whiteboard, mais une illustration en aplats de couleur
+rendrait un seul sujet couvrant tout. Le repli tient (une zone trop large plutôt
+que rien), et l'utilisateur ajuste dans l'éditeur.
 
 ---
 

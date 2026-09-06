@@ -58,6 +58,78 @@ export function clampRegion(
   };
 }
 
+export interface InkCandidate {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Aimante un rectangle devine sur le sujet reellement dessine.
+ *
+ * La vision situe bien mais chiffre mal : verifie sur de vraies illustrations,
+ * elle rendait la flamme decalee de deux cents pixels, ou un carre de 50x50 au
+ * milieu d'une tasse. Les bornes exactes, elles, sont dans l'image — l'encre
+ * les porte. On ne demande donc plus au modele que de DESIGNER un sujet, et le
+ * rectangle vient de la mesure.
+ *
+ * L'appariement se fait sur la surface commune. Sans recouvrement — le modele
+ * a vise le papier vide — on prend le sujet dont le centre est le plus proche :
+ * il s'est trompe de cadre, rarement de direction.
+ *
+ * Sans candidat (image illisible, page blanche), le rectangle devine passe tel
+ * quel : mieux vaut une zone approximative que pas d'annotation.
+ */
+export function snapToInk(
+  region: PlannedRegion,
+  candidates: InkCandidate[],
+): PlannedRegion {
+  if (candidates.length === 0) return region;
+
+  let meilleur: InkCandidate | null = null;
+  let meilleureSurface = 0;
+
+  for (const candidate of candidates) {
+    const largeur =
+      Math.min(region.x + region.width, candidate.x + candidate.width) -
+      Math.max(region.x, candidate.x);
+    const hauteur =
+      Math.min(region.y + region.height, candidate.y + candidate.height) -
+      Math.max(region.y, candidate.y);
+    const surface = Math.max(0, largeur) * Math.max(0, hauteur);
+
+    if (surface > meilleureSurface) {
+      meilleureSurface = surface;
+      meilleur = candidate;
+    }
+  }
+
+  if (!meilleur) {
+    let plusProche = Number.POSITIVE_INFINITY;
+    for (const candidate of candidates) {
+      const dx =
+        region.x + region.width / 2 - (candidate.x + candidate.width / 2);
+      const dy =
+        region.y + region.height / 2 - (candidate.y + candidate.height / 2);
+      const distance = dx * dx + dy * dy;
+      if (distance < plusProche) {
+        plusProche = distance;
+        meilleur = candidate;
+      }
+    }
+  }
+
+  const cible = meilleur as InkCandidate;
+  return {
+    beatIndex: region.beatIndex,
+    x: cible.x,
+    y: cible.y,
+    width: cible.width,
+    height: cible.height,
+  };
+}
+
 /** L'image entiere : le repli quand la vision n'a rien rendu d'exploitable. */
 export function wholeImageRegion(
   beatIndex: number,

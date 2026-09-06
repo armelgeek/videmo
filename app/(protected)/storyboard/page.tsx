@@ -61,6 +61,7 @@ import {
   transcriptFromPanels,
 } from "@/lib/storyboard/annotation-adoption";
 import { measureImageSize } from "@/lib/storyboard/image-size";
+import { measureInkCandidates } from "@/lib/storyboard/image-ink";
 import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
@@ -649,6 +650,9 @@ export default function StoryboardPage() {
 
       try {
         const imageSize = await measureImageSize(imageUrl);
+        // Les sujets sont mesures ici, sur l'image : la vision situe bien mais
+        // chiffre mal, son rectangle ne sert plus qu'a designer lequel.
+        const candidates = await measureInkCandidates(imageUrl, imageSize);
         const response = await fetch("/api/plan-annotations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -669,6 +673,7 @@ export default function StoryboardPage() {
             },
             width: imageSize.width,
             height: imageSize.height,
+            candidates,
           }),
         });
         const body = await response.json();

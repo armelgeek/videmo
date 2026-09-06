@@ -6,6 +6,7 @@ import { RegionReadFailedError } from "@/lib/image/region-reader";
 import {
   buildVisionPrompt,
   planAnnotations,
+  snapToInk,
 } from "@/lib/storyboard/annotation-planning";
 import { scriptSceneSchema } from "@/lib/storyboard/script-generation";
 import { requireProjectAccess } from "@/lib/video-project/repository";
@@ -39,6 +40,21 @@ const requestSchema = z.object({
   scene: scriptSceneSchema,
   width: z.number().int().positive().default(1536),
   height: z.number().int().positive().default(1024),
+  /**
+   * Les sujets reellement dessines, mesures sur l'image par l'appelant. La
+   * vision situe bien mais chiffre mal : quand ces rectangles existent, le
+   * sien ne sert plus qu'a designer lequel.
+   */
+  candidates: z
+    .array(
+      z.object({
+        x: z.number(),
+        y: z.number(),
+        width: z.number().positive(),
+        height: z.number().positive(),
+      }),
+    )
+    .default([]),
 });
 
 /**
@@ -72,6 +88,10 @@ export async function POST(request: NextRequest) {
       // planAnnotations retombe sur l'image entiere, que l'utilisateur ajuste.
       console.error("Region reading failed, falling back:", error);
     }
+
+    // Le rectangle devine est ramene sur le sujet qu'il designe : c'est
+    // l'encre, et non le modele, qui donne les bornes.
+    regions = regions.map((region) => snapToInk(region, input.candidates));
 
     // Les durees mesurees voyagent DANS la scene, portees par ses temps de
     // narration depuis la synthese. Un temps dont la mesure a echoue rend 0,
