@@ -19,6 +19,7 @@ import { TimelinePlayhead } from "./timeline-playhead";
 import { ClipTransitionMarkers } from "./clip-transition-markers";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import { useStoryboardStore } from "@/lib/storyboard/store";
+import { narrationEndMs } from '../audio/narration-schedule';
 import { DEMO_STORYBOARD } from "@/lib/demo-data";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
 import { ClipSelectorBar } from "./clip-selector-bar";
@@ -221,9 +222,14 @@ export function WhiteboardEditorStep({
       DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
       "/scene-premium-bag.png",
     audioUrl: config.audio?.url ?? null,
+    // La voix par temps prime sur la piste unique : c'est elle que la chaine
+    // produit, et elle n'a pas a etre reconcatenee quand un temps change.
+    narrationParts: config.narration ?? [],
     audioVolume: config.audio?.volume ?? 1,
     audioMuted: config.audio?.muted ?? false,
-    audioDurationMs: config.audio?.durationMs ?? null,
+    audioDurationMs: config.narration?.length
+      ? narrationEndMs(config.narration)
+      : config.audio?.durationMs ?? null,
     savedAnnotations: activePanel?.annotations
       ? toEngineAnnotations(activePanel.annotations)
       : config.annotations

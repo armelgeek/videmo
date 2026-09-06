@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   narrationEndMs,
+  nextNarrationAction,
   partAt,
   scheduleParts,
 } from "./narration-schedule";
@@ -77,5 +78,55 @@ describe("scheduleParts", () => {
         { url: "/b.mp3", durationMs: 1000 },
       ]),
     ).toEqual([{ url: "/b.mp3", startMs: 2000, durationMs: 1000 }]);
+  });
+});
+
+describe("nextNarrationAction", () => {
+  it("charge le morceau du moment quand aucun n'est en place", () => {
+    expect(nextNarrationAction({ index: null, offsetMs: 0 }, parts, 1500)).toEqual({
+      type: "charger",
+      index: 1,
+      part: parts[1],
+      offsetMs: 500,
+    });
+  });
+
+  it("ne fait rien tant que le bon morceau suit sa position", () => {
+    expect(
+      nextNarrationAction({ index: 1, offsetMs: 480 }, parts, 1500),
+    ).toEqual({ type: "rien" });
+  });
+
+  it("recale sans recharger quand la position a derive", () => {
+    expect(
+      nextNarrationAction({ index: 1, offsetMs: 100 }, parts, 1500),
+    ).toEqual({ type: "recaler", index: 1, offsetMs: 500 });
+  });
+
+  it("change de morceau a la frontiere", () => {
+    const action = nextNarrationAction({ index: 0, offsetMs: 990 }, parts, 1010);
+
+    expect(action).toMatchObject({ type: "charger", index: 1, offsetMs: 10 });
+  });
+
+  it("se tait dans un trou, sans decharger inutilement ensuite", () => {
+    const avecTrou = [
+      { url: "/0.mp3", startMs: 0, durationMs: 1000 },
+      { url: "/2.mp3", startMs: 3000, durationMs: 1000 },
+    ];
+
+    expect(nextNarrationAction({ index: 0, offsetMs: 999 }, avecTrou, 2000)).toEqual({
+      type: "taire",
+    });
+    // Une fois tu, on ne redemande pas de se taire a chaque frame.
+    expect(nextNarrationAction({ index: null, offsetMs: 0 }, avecTrou, 2000)).toEqual({
+      type: "rien",
+    });
+  });
+
+  it("tolere une derive plus large si on le demande", () => {
+    expect(
+      nextNarrationAction({ index: 1, offsetMs: 100 }, parts, 1500, 1000),
+    ).toEqual({ type: "rien" });
   });
 });

@@ -15,7 +15,14 @@ import { normalizeGaps } from '../timeline/normalize-gaps';
 import { planSeek } from '../timeline/plan-seek';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
 import { DRIFT_MAX_MS } from './audio-delta';
-import { useAudioClock } from '../audio/use-audio-clock';
+import { useNarrationClock } from '../audio/use-narration-clock';
+import type { NarrationPart } from '../audio/narration-schedule';
+
+/**
+ * Un defaut STABLE : `[]` ecrit dans la signature serait un tableau neuf a
+ * chaque rendu, et l'horloge se reconstruirait sans fin.
+ */
+const EMPTY_PARTS: NarrationPart[] = [];
 
 const AnimationFactory = require('../lib/index');
 const { CUSTOM_HANDS } = require('../lib/hands');
@@ -103,6 +110,11 @@ export interface UseWhiteboardRendererProps {
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
+  /**
+   * La voix produite temps par temps. Elle prime sur `audioUrl`, qui reste le
+   * chemin d'une piste televersee et celui des projets anterieurs.
+   */
+  narrationParts?: NarrationPart[];
   /** 0..1. Muted still plays silently: it must keep driving the clock. */
   audioVolume?: number;
   audioMuted?: boolean;
@@ -146,6 +158,7 @@ export function useWhiteboardRenderer({
   annotationCanvasRef,
   imageUrl = null,
   audioUrl = null,
+  narrationParts = EMPTY_PARTS,
   audioVolume = 1,
   audioMuted = false,
   audioDurationMs = null,
@@ -164,7 +177,7 @@ export function useWhiteboardRenderer({
     chunks,
   } = useUnifiedEngine();
 
-  const audioClock = useAudioClock(audioUrl);
+  const audioClock = useNarrationClock(narrationParts, audioUrl);
 
   // Narration length, preferring the decoded value and falling back to what
   // the config recorded — a stalled element never reports one.
@@ -995,6 +1008,11 @@ export function useWhiteboardRenderer({
       // The narration FOLLOWS the drawing. A track that cannot report a
       // position is left alone rather than allowed to hold up the picture.
       if (manager?.isUsableClock()) {
+        // La voix est produite temps par temps : ce suivi bascule sur le
+        // morceau du moment. Sans lui, la bascule attendrait que la derive
+        // atteigne le seuil de recalage, et le silence s'entendrait. Une
+        // piste unique n'a rien a suivre et l'ignore.
+        if (audioStarted) manager.follow(engineTimeRef.current);
         if (!audioStarted) {
           // First moment it can actually play. Align it on the drawing, which
           // has been running meanwhile, so a track that took a while to load

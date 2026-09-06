@@ -63,6 +63,7 @@ import {
 import { measureImageSize } from "@/lib/storyboard/image-size";
 import { measureSubjectCandidates } from "@/lib/storyboard/image-subjects";
 import { narrationParts } from "@/lib/speech/narration-track";
+import { scheduleParts } from "@/lib/whiteboard-animation/audio/narration-schedule";
 import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
@@ -135,6 +136,7 @@ export default function StoryboardPage() {
     setWhiteboardConfig,
     setTranscript,
     setAudioTrack,
+    setNarrationParts,
     loadDemoData,
     resetWorkflow,
   } = useStoryboardStore();
@@ -719,6 +721,10 @@ export default function StoryboardPage() {
 
     const parts = narrationParts(panels);
     if (parts.length === 0) return;
+
+    // La voix par temps, posee AVANT la piste unique : c'est elle que
+    // l'apercu et le rendu preferent, et elle ne depend d'aucun assemblage.
+    setNarrationParts(scheduleParts(parts));
 
     try {
       const response = await fetch("/api/narration-track", {

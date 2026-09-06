@@ -66,3 +66,30 @@ recharge. À la frontière entre deux temps, un retard de quelques dizaines de
 millisecondes est possible. Le dessin, lui, ne l'attend pas — l'horloge murale
 est maîtresse. À mesurer plutôt qu'à supposer : si le trou s'entend, il faudra
 deux éléments qu'on alterne, l'un préchargeant pendant que l'autre joue.
+
+---
+
+## Ce qui a été fait, et ce qui a été mesuré
+
+**Le rendu.** `narration-mix.js` construit le filtre, `canvas-renderer.js`
+ajoute une entrée par temps. Test de fumée : une vidéo à deux voix décalées de
+deux secondes, avec mesure du niveau — silence avant le second temps
+(< −60 dB), son pendant (> −30 dB).
+
+**L'aperçu.** `NarrationPlayer` présente à la boucle de rendu l'interface d'une
+piste continue et traduit la position du projet en « quel morceau, où ». La
+décision vit à part, dans `nextNarrationAction` : jsdom n'implémente ni `play`
+ni `load`, donc un lecteur testé directement ne prouverait rien.
+
+`AudioManager` reçoit un `follow()` qui ne fait rien — une piste unique n'a rien
+à suivre. Les deux deviennent ainsi interchangeables pour la boucle.
+
+**Vérifié dans l'application.** Trois morceaux persistés à leurs débuts absolus
+(0, 5112, 7032 ms). Export relancé : l'audio de la vidéo dure **12144 ms**,
+exactement la somme des temps — et non 12192 ms, la durée de la piste
+concaténée. C'est la preuve que le chemin multi-sources a bien servi.
+
+**Ce qui n'a pas été mesuré.** Le risque annoncé plus haut — le trou audible à
+la frontière entre deux temps, quand l'élément recharge sa source — ne concerne
+que l'aperçu, le rendu passant par ffmpeg. Il n'a pas été écouté. Si le trou
+s'entend, la parade est notée : deux éléments qu'on alterne.

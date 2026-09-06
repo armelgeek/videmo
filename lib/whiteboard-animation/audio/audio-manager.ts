@@ -49,6 +49,13 @@ export class AudioManager {
     this.el.pause();
   }
 
+  /**
+   * Suivre l'horloge du projet. Une piste unique n'a rien a suivre : sa
+   * position EST celle du projet. La methode existe pour que le lecteur par
+   * temps, lui, puisse changer de morceau au meme appel.
+   */
+  follow(_positionMs: number): void {}
+
   seekMs(ms: number): void {
     this.el.currentTime = ms / 1000;
   }

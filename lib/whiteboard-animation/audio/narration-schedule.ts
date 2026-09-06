@@ -73,3 +73,57 @@ export function scheduleParts(
 
   return parts;
 }
+
+/**
+ * Ce qu'un lecteur doit faire pour se trouver a `positionMs`.
+ *
+ * Sortie de la decision hors du lecteur : jsdom n'implemente ni `play` ni
+ * `load`, donc un lecteur teste directement ne prouverait rien. Ici la regle se
+ * verifie seule, et le lecteur ne fait plus qu'executer.
+ */
+export type NarrationAction =
+  /** Rien a faire : le bon morceau joue deja a la bonne position. */
+  | { type: "rien" }
+  /** Charger ce morceau et s'y placer : on a change de temps. */
+  | { type: "charger"; index: number; part: NarrationPart; offsetMs: number }
+  /** Meme morceau, mais la position a derive : recaler sans recharger. */
+  | { type: "recaler"; index: number; offsetMs: number }
+  /** Un trou, ou la fin : se taire. */
+  | { type: "taire" };
+
+export interface NarrationState {
+  /** Le morceau charge, ou `null` si aucun. */
+  index: number | null;
+  /** Ou en est ce morceau, selon le lecteur. */
+  offsetMs: number;
+}
+
+/**
+ * La derive toleree avant de recaler. Un recalage s'ENTEND — le son saute —
+ * donc corriger a chaque frame serait pire que le defaut qu'on corrige.
+ */
+export const NARRATION_DRIFT_MS = 200;
+
+export function nextNarrationAction(
+  state: NarrationState,
+  parts: NarrationPart[],
+  positionMs: number,
+  driftMs: number = NARRATION_DRIFT_MS,
+): NarrationAction {
+  const cible = partAt(parts, positionMs);
+
+  if (!cible) return state.index === null ? { type: "rien" } : { type: "taire" };
+
+  if (state.index !== cible.index) {
+    return {
+      type: "charger",
+      index: cible.index,
+      part: cible.part,
+      offsetMs: cible.offsetMs,
+    };
+  }
+
+  return Math.abs(state.offsetMs - cible.offsetMs) > driftMs
+    ? { type: "recaler", index: cible.index, offsetMs: cible.offsetMs }
+    : { type: "rien" };
+}
