@@ -40,6 +40,11 @@ import {
 import Image from "next/image";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
 import { VOICES, normalizeVoice } from "@/lib/speech/speech-generator";
+import {
+  type ScriptScene,
+  sceneDuration,
+  sceneNarration,
+} from "@/lib/storyboard/script-generation";
 import { useToastContext } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/lib/app-shell";
@@ -550,25 +555,19 @@ export default function StoryboardPage() {
         return;
       }
 
-      const scenes = (body.scenes ?? []) as {
-        index: number;
-        clipType: string;
-        title: string;
-        narration: string;
-        imagePrompt: string;
-        duration: number;
-      }[];
+      const scenes = (body.scenes ?? []) as ScriptScene[];
 
-      // Les scenes deviennent les clips de l'etape suivante, et sont
-      // enregistrees : au rechargement, c'est d'elles que l'etape repart.
+      // Une image, ses temps de narration. La duree suit ce qu'elle porte :
+      // une idee developpee garde son dessin a l'ecran plus longtemps.
       const clips = scenes.map((scene) => ({
         id: `clip-${scene.index}`,
         index: scene.index,
         clipType: scene.clipType,
         title: scene.title,
-        summary: scene.narration,
+        summary: sceneNarration(scene),
         visualPrompt: scene.imagePrompt,
-        duration: scene.duration,
+        duration: sceneDuration(scene),
+        beats: scene.beats,
         isSection: false,
       }));
       const images = clips.map(() => "");
