@@ -62,6 +62,7 @@ import {
 } from "@/lib/storyboard/annotation-adoption";
 import { measureImageSize } from "@/lib/storyboard/image-size";
 import { measureSubjectCandidates } from "@/lib/storyboard/image-subjects";
+import { narrationParts } from "@/lib/speech/narration-track";
 import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
@@ -133,6 +134,7 @@ export default function StoryboardPage() {
     whiteboardConfig,
     setWhiteboardConfig,
     setTranscript,
+    setAudioTrack,
     loadDemoData,
     resetWorkflow,
   } = useStoryboardStore();
@@ -702,6 +704,53 @@ export default function StoryboardPage() {
   };
 
   /**
+   * Reunit les temps en une seule piste, celle que l'etape whiteboard joue.
+   *
+   * Cette piste n'etait remplie que par un televersement a la main : la voix
+   * produite par la chaine ne l'atteignait jamais, et un export sortait muet.
+   * Les coller dans l'ordre suffit a les caler — le trace se derive des memes
+   * durees, donc chaque morceau tombe sur son annotation.
+   *
+   * Un echec laisse le projet tel quel : les annotations sont posees, la voix
+   * existe par temps, et l'utilisateur peut toujours charger une piste.
+   */
+  const buildNarrationTrack = async (panels: any[]) => {
+    if (!projectSync.projectId) return;
+
+    const parts = narrationParts(panels);
+    if (parts.length === 0) return;
+
+    try {
+      const response = await fetch("/api/narration-track", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId: projectSync.projectId, parts }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+
+      setAudioTrack({
+        id: `narration-${Date.now()}`,
+        url: body.url,
+        // Une URL du bac, deja durable : persistUrl la reprend telle quelle,
+        // la ou un televersement doit passer par une data: URL.
+        persistUrl: body.url,
+        source: "tts",
+        name: "Narration",
+        volume: 1,
+        muted: false,
+        offsetMs: 0,
+        durationMs: body.durationMs ?? 0,
+      });
+    } catch (error) {
+      console.error("Narration track failed:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Narration track failed",
+      );
+    }
+  };
+
+  /**
    * Synthetise la narration, temps par temps.
    *
    * Par image, la voix se jouait mais ne se decoupait pas : les annotations se
@@ -790,6 +839,7 @@ export default function StoryboardPage() {
     // est dit se remplissait a la main dans l'editeur : la planification le
     // connait par construction.
     setTranscript(transcriptFromPanels(panels));
+    await buildNarrationTrack(panels);
     setIsGeneratingNarration(false);
 
     const done = jobs.length - failed;

@@ -263,3 +263,32 @@ même script relancé sans rien changer passe. À relancer plutôt qu'à débogu
 - Placement automatique fin des régions (l'utilisateur ajuste dans l'éditeur).
 - Sous-titres à l'export.
 - Musique de fond.
+
+
+### 7. Donner sa voix a l'etape whiteboard
+
+Le passage complet dans l'application a montre ce qui manquait :
+`AUDIO 1 — No narration loaded`. L'etape whiteboard ne joue qu'**une** piste,
+`whiteboardConfig.audio`, et cette piste n'etait remplie qu'a un seul endroit —
+un televersement a la main dans `audio-panel.tsx`. Verifie dans l'historique
+(`git log -S setAudioTrack`) : aucune version n'a jamais branche la narration
+produite dessus. La voix allait dans `panel.audioUrl`, que seul *l'autre*
+editeur consomme. Un export sortait donc muet, avant ce chantier comme apres.
+
+- [x] `narrationParts` : les temps dans l'ordre du film. Un temps sans voix
+      devient un **silence de sa duree**, jamais une absence — son annotation
+      occupe sa place, et l'omettre avancerait tout ce qui suit.
+- [x] `concatNarration` : ffmpeg colle les morceaux. Reencodage et non copie,
+      le demuxer `concat` refusant de copier des flux qui different d'un
+      silence fabrique. Test de fumee qui lance vraiment ffmpeg et remesure.
+- [x] `/api/narration-track` telecharge, assemble, mesure, depose dans le bac.
+- [x] La page pose la piste apres la planification ; un echec laisse le projet
+      utilisable, la voix existant toujours par temps.
+
+Coller suffit a caler : `deriveTimeline` place chaque annotation a la somme des
+durees qui la precedent, exactement celles de ces fichiers.
+
+**Verifie a l'ecran, dans l'application :** la piste apparait (« AUDIO 1 —
+Narration »), et les trois blocs d'annotation s'alignent sur la forme d'onde.
+Piste mesuree a 12072 ms pour 12024 ms de temps cumules — 48 ms de trames
+ajoutees par l'encodage, en fin de piste, sans effet sur le trace.
