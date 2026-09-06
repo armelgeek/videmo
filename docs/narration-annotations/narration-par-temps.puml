@@ -1,0 +1,54 @@
+@startuml docs/narration-annotations/narration-par-temps.puml
+title "Narration par temps, annotations calees sur la voix"
+
+actor User
+participant "Storyboard page"
+participant "/api/generate-narration" as TTS
+participant "/api/plan-annotations" as Plan
+participant "Moteur TTS" as Speech
+participant "Moteur vision" as Vision
+database "Bac S3"
+
+== Cas nominal ==
+User ->> "Storyboard page": Choisit une voix
+note right of "Storyboard page": Boucle sur les TEMPS,\npas sur les images
+
+loop pour chaque temps de narration
+  "Storyboard page" ->> TTS: POST {texte du temps, voix}
+  TTS ->> Speech: synthese
+  Speech -->> TTS: mp3
+  note right of TTS: ffprobe mesure la duree REELLE\n(estimation 5700ms -> reel 6552ms)
+  TTS ->> "Bac S3": depose le mp3
+  TTS -->> "Storyboard page": 200 {url, durationMs}
+end
+
+note right of "Storyboard page": La voix DOIT preceder :\nles annotations se calent\nsur les durees mesurees
+
+loop pour chaque image
+  "Storyboard page" ->> Plan: POST {image, scene, beatDurationsMs}
+  Plan ->> "Bac S3": lit l'image
+  Plan ->> Vision: ou se trouve le sujet de chaque temps ?
+  Vision -->> Plan: rectangles
+  note right of Plan: Rabotes dans l'image ;\nfractions converties en pixels
+  Plan -->> "Storyboard page": 200 {annotations avec startMs}
+end
+
+"Storyboard page" -->> User: Le trace suit la voix
+
+== Cas limite : mesure impossible (503 ffprobe absent) ==
+TTS -->> "Storyboard page": 200 {url, durationMs: null}
+note right of "Storyboard page": Repli sur l'estimation du decoupage :\nla scene garde sa voix
+
+== Cas limite : lecture de l'image echouee ==
+Vision -->> Plan: erreur
+note right of Plan: Repli sur l'image entiere :\nmieux qu'une scene ou rien ne se dessine
+Plan -->> "Storyboard page": 200 {annotations pleine image}
+
+== Cas limite : configuration absente (503) ==
+TTS -->> "Storyboard page": 503 {missing: [S3_BUCKET]}
+note right of "Storyboard page": Le lot s'arrete au premier :\nrien ne changera au temps suivant
+
+== Cas limite : non autorise (404) ==
+TTS -->> "Storyboard page": 404 Project not found
+note right of TTS: requireProjectAccess AVANT\nd'appeler le moteur : jamais de depense\npour un projet qu'on ne peut pas ecrire
+@enduml
