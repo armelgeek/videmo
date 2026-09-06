@@ -26,9 +26,12 @@ export function readOpenAiVisionConfig(
   }
   return {
     apiKey: env.OPENAI_API_KEY,
-    // Lire une image coute une fraction de ce que coute en produire une :
-    // le modele de lecture n'a pas a etre le plus cher.
-    model: env.OPENAI_VISION_MODEL?.trim() || "gpt-4o-mini",
+    // gpt-4o-mini situe les sujets dans le bon ordre mais ne les CADRE pas :
+    // verifie sur de vraies images, il posait des rectangles de 2 a 5 % de
+    // l'image au milieu du sujet, la ou gpt-4o rend 21 a 35 % autour de lui.
+    // Lire une image reste une fraction du prix d'en produire une, et une
+    // annotation mal cadree se repaie en reglages a la main.
+    model: env.OPENAI_VISION_MODEL?.trim() || "gpt-4o",
   };
 }
 

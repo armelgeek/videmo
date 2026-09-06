@@ -135,18 +135,57 @@ précèdent.
 
 ### 4. Vérifier
 
-- [ ] Test de bout en bout sur un script court (2 images, 3 temps).
-- [ ] Comparer la somme des durées mesurées à la durée réelle de la vidéo.
-- [ ] Vérifier à l'écran qu'une annotation entre bien quand son texte est dit.
+- [x] Test de bout en bout sur un script court (2 images, 3 temps), contre les
+      vrais services : gpt-image-1, TTS, ffprobe, MinIO, vision.
+- [x] Comparer la somme des durées mesurées au calage produit. **Écart : 0 ms.**
+      Le transcript sort à 0–5160, 5160–6912, 6912–11928 ms, et la somme des
+      trois audios mesurés vaut exactement 11928 ms : chaque annotation entre
+      quand son temps commence.
+- [x] Vérifier à l'écran. Fait sur les régions rendues, dessinées sur les
+      illustrations elles-mêmes (le rendu vidéo complet reste à faire dans
+      l'éditeur).
+
+**La dérive mesurée, sur ce script :**
+
+| | Estimé | Mesuré | Écart |
+|---|---|---|---|
+| Image 0, temps 0 | 3300 ms | 5160 ms | +1860 |
+| Image 0, temps 1 | 1300 ms | 1752 ms | +452 |
+| Image 1, temps 0 | 4300 ms | 5016 ms | +716 |
+| **Total** | **8900 ms** | **11928 ms** | **+3028** |
+
+Trois secondes de décalage sur onze secondes de film — la dérive est réelle, et
+c'est bien elle que le découpage par temps supprime.
+
+**Le piège de la vision, mesuré puis corrigé.** `gpt-4o-mini` ne cadrait pas :
+il rendait un carré de 50×50 au milieu d'une tasse qui occupe 900 pixels, soit
+2 % de l'image, et plaçait le temps « la chaleur le réveille » sur le bord du
+grain plutôt que sur la flamme. Les deux pistes notées ici ont été essayées sur
+les mêmes images :
+
+| | Rectangle du sujet principal |
+|---|---|
+| consigne d'origine, `gpt-4o-mini` | 2 % à 5 % de l'image |
+| consigne resserrée, `gpt-4o-mini` | 5 % à 7 % |
+| consigne resserrée, `gpt-4o` | **19 % à 36 %, autour du sujet** |
+
+Les deux sont donc adoptées : la consigne exige d'englober le sujet entier avec
+une marge et donne une taille plancher, et `gpt-4o` devient le modèle par
+défaut. Vérifié à l'œil : le grain et la tasse sont désormais entourés.
+
+**Ce qui reste imparfait.** Le second sujet d'une image est encore mal placé —
+la flamme n'est attrapée que par son bord. C'était déjà hors périmètre (« l'
+utilisateur ajuste dans l'éditeur »), et le repli sur l'image entière protège le
+cas où la vision ne rend rien.
 
 ---
 
 ## Pièges connus
 
-**Vision cadre mal.** `gpt-4o-mini` situe les sujets correctement — bon ordre,
-bonnes zones — mais ses rectangles coupent les objets (vérifié en dessinant les
-régions sur l'image). Essayer `OPENAI_VISION_MODEL=gpt-4o`, ou demander
-explicitement d'englober le sujet entier avec une marge.
+**Vision cadre mal.** ~~Essayer `OPENAI_VISION_MODEL=gpt-4o`, ou demander
+explicitement d'englober le sujet entier avec une marge.~~ **Fait, tâche 4 :**
+les deux à la fois. `gpt-4o` est le défaut, la consigne porte une taille
+plancher. Le second sujet d'une image reste approximatif.
 
 **Budget.** Chaque image coûte un appel au moteur, et la génération d'images est
 de loin le poste le plus cher. Tester avec un script court : deux images
@@ -157,7 +196,12 @@ au moteur de vision : la route `plan-annotations` télécharge donc l'image et
 l'envoie encodée. Garder ce détour, il vaut aussi pour un bac privé en production.
 
 **Le disque.** MinIO refuse d'écrire quand la partition est pleine
-(`XMinioStorageFull`). C'est arrivé pendant ce chantier.
+(`XMinioStorageFull`). C'est arrivé pendant ce chantier. La partition était à
+97 % lors de la vérification, sans incident — mais la marge est mince.
+
+**Le réseau, depuis un script.** Un `fetch` Node vers `api.openai.com` a échoué
+en `ETIMEDOUT` sur deux lancements, là où `curl` passait dans la seconde. Le
+même script relancé sans rien changer passe. À relancer plutôt qu'à déboguer.
 
 ---
 

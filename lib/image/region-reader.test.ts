@@ -49,15 +49,16 @@ describe("readOpenAiVisionConfig", () => {
     );
   });
 
-  it("lit une image avec un modele modeste par defaut", () => {
-    // Relire une image coute une fraction de ce que coute en produire une.
-    expect(readOpenAiVisionConfig({ OPENAI_API_KEY: "k" }).model).toBe(
-      "gpt-4o-mini",
-    );
+  it("cadre les regions avec gpt-4o par defaut", () => {
+    // gpt-4o-mini situe juste mais cadre mal : verifie sur de vraies images,
+    // ses rectangles couvraient 2 a 5 % de l'image au milieu du sujet.
+    expect(readOpenAiVisionConfig({ OPENAI_API_KEY: "k" }).model).toBe("gpt-4o");
     expect(
-      readOpenAiVisionConfig({ OPENAI_API_KEY: "k", OPENAI_VISION_MODEL: "gpt-4o" })
-        .model,
-    ).toBe("gpt-4o");
+      readOpenAiVisionConfig({
+        OPENAI_API_KEY: "k",
+        OPENAI_VISION_MODEL: "gpt-4o-mini",
+      }).model,
+    ).toBe("gpt-4o-mini");
   });
 });
 

@@ -125,6 +125,13 @@ export function planAnnotations(input: {
  *
  * Les temps sont numerotes pour qu'il rende un rectangle par temps, et les
  * dimensions rappelees pour qu'il reponde en pixels de CETTE image.
+ *
+ * Les trois dernieres regles viennent d'une verification sur de vraies images :
+ * la consigne « couvre le sujet » rendait des points poses dessus — un carre de
+ * 50x50 au milieu d'une tasse qui en occupe 900, soit 2 % de l'image. Le stylo
+ * ne dessinait alors presque rien. Dire d'englober le sujet ENTIER, avec une
+ * marge, et donner une taille plancher a fait passer ces memes rectangles a
+ * 21 % et 35 % de l'image, cette fois autour du sujet.
  */
 export function buildVisionPrompt(input: {
   scene: ScriptScene;
@@ -139,13 +146,18 @@ export function buildVisionPrompt(input: {
 Narration beats, in order:
 ${beats}
 
-For EACH beat, give the rectangle of the drawing that illustrates it, so the
-pen can draw that area while the beat is spoken.
+For EACH beat, give the rectangle a pen would need to sweep to draw the part
+of the illustration that illustrates it.
 
 Rules:
 - Coordinates in pixels of this image, which is ${input.size.width} wide and ${input.size.height} tall
 - x and y are the top-left corner of the rectangle
 - Return exactly one region per beat, with beatIndex matching the numbers above
-- Cover the drawn subject for that beat, not the empty paper around it
-- Regions may overlap slightly, but each should centre on a different subject`;
+- ENCLOSE THE WHOLE SUBJECT: the rectangle must contain every stroke of that
+  subject from edge to edge, plus about 5% margin. A box that cuts through the
+  drawing is wrong.
+- A region is never a point on the subject: each one is normally 15% to 60% of
+  the image. Anything under 5% is almost certainly a mistake.
+- If a beat describes the whole drawing, return the bounding box of all the ink.
+- Regions may overlap, but each should centre on a different subject`;
 }

@@ -181,6 +181,13 @@ describe("buildVisionPrompt", () => {
   it("demande une region par temps", () => {
     expect(prompt).toContain("exactly one region per beat");
   });
+
+  it("exige d'englober le sujet entier, pas un point pose dessus", () => {
+    // Sans ces deux regles, la vision rendait des carres de 2 a 5 % de
+    // l'image au milieu du sujet : le stylo ne dessinait presque rien.
+    expect(prompt).toContain("ENCLOSE THE WHOLE SUBJECT");
+    expect(prompt).toContain("never a point on the subject");
+  });
 });
 
 describe("annotationPlanSchema", () => {
