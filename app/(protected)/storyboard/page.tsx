@@ -55,6 +55,7 @@ import {
   normalizeWorkflowStep,
 } from "@/lib/storyboard/store";
 import { panelsToStepState } from "@/lib/storyboard/storyboard-clips";
+import { narrationJobs } from "@/lib/storyboard/narration-jobs";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
@@ -239,6 +240,10 @@ export default function StoryboardPage() {
           visualPrompt: clip.visualPrompt || clip.summary || prompt,
           duration: typeof clip.duration === "number" ? clip.duration : 5,
           isGenerating: false,
+          // La voix, par image et par temps : sans ces deux champs elle etait
+          // produite puis perdue au premier enregistrement.
+          audioUrl: clip.audioUrl,
+          beats: clip.beats,
         };
       });
     setStoryboardPanels(panels);
@@ -598,15 +603,22 @@ export default function StoryboardPage() {
   };
 
   /**
-   * Synthetise la narration, scene par scene.
+   * Synthetise la narration, temps par temps.
+   *
+   * Par image, la voix se jouait mais ne se decoupait pas : les annotations se
+   * calent sur la duree de CHAQUE temps, et l'estimation du decoupage derive de
+   * 15 %. Le TTS etant facture au caractere, un appel par temps coute le meme
+   * prix que le meme texte en un seul appel.
    *
    * La progression suit le lot reel : elle etait auparavant une animation de
    * trois secondes qui n'attendait rien, et l'etape suivante s'ouvrait sur des
    * clips sans audio.
    */
   const handleVoiceSelected = async (voiceId: string) => {
-    const clips = editableClips.filter((c) => !c.isSection);
-    if (clips.length === 0 || !projectSync.projectId) return;
+    if (!projectSync.projectId) return;
+
+    const jobs = narrationJobs(editableClips);
+    if (jobs.length === 0) return;
 
     const voice = normalizeVoice(voiceId);
     setSelectedVoice(voice);
@@ -618,10 +630,8 @@ export default function StoryboardPage() {
     const withAudio = [...editableClips];
     let failed = 0;
 
-    for (let i = 0; i < clips.length; i++) {
-      const clip = clips[i];
-      const text = (clip.summary || clip.title || "").trim();
-      if (!text) continue;
+    for (let i = 0; i < jobs.length; i++) {
+      const job = jobs[i];
 
       try {
         const response = await fetch("/api/generate-narration", {
@@ -629,8 +639,9 @@ export default function StoryboardPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             projectId: projectSync.projectId,
-            sceneIndex: i,
-            text,
+            sceneIndex: job.clipIndex,
+            beatIndex: job.beatIndex,
+            text: job.text,
             voice,
           }),
         });
@@ -641,8 +652,20 @@ export default function StoryboardPage() {
           throw error;
         }
 
-        const target = withAudio.indexOf(clip);
-        if (target >= 0) withAudio[target] = { ...clip, audioUrl: body.url };
+        const clip = withAudio[job.clipIndex];
+        if (job.beatIndex === undefined) {
+          withAudio[job.clipIndex] = { ...clip, audioUrl: body.url };
+        } else {
+          // La duree mesuree voyage avec l'URL : c'est elle qui placera
+          // l'annotation, et la reperdre ici reviendrait a l'estimation.
+          const beats = [...(clip.beats ?? [])];
+          beats[job.beatIndex] = {
+            ...beats[job.beatIndex],
+            audioUrl: body.url,
+            audioDurationMs: body.durationMs ?? undefined,
+          };
+          withAudio[job.clipIndex] = { ...clip, beats };
+        }
       } catch (error) {
         failed += 1;
         console.error(`Narration ${i + 1} failed:`, error);
@@ -653,20 +676,20 @@ export default function StoryboardPage() {
         }
         if ((error as Error & { fatal?: boolean }).fatal) break;
       }
-      setNarrationProgress(Math.round(((i + 1) / clips.length) * 100));
+      setNarrationProgress(Math.round(((i + 1) / jobs.length) * 100));
     }
 
     setEditableClips(withAudio);
     syncClipsToStore(withAudio, generatedImages);
     setIsGeneratingNarration(false);
 
-    const done = clips.length - failed;
+    const done = jobs.length - failed;
     if (done > 0) {
-      toast.success(`Narrated ${done} scene${done > 1 ? "s" : ""}`);
+      toast.success(`Narrated ${done} beat${done > 1 ? "s" : ""}`);
       setStep("whiteboard");
     }
     if (failed > 0) {
-      toast.error(`${failed} scene${failed > 1 ? "s" : ""} failed`);
+      toast.error(`${failed} beat${failed > 1 ? "s" : ""} failed`);
     }
   };
 

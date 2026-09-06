@@ -20,6 +20,7 @@ export const maxDuration = 120;
 const requestSchema = z.object({
   projectId: z.string().min(1),
   sceneIndex: z.number().int().nonnegative(),
+  beatIndex: z.number().int().nonnegative().optional(),
   text: z.string().min(1).max(4000),
   voice: z.string().default("nova"),
 });
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
       key: buildNarrationKey({
         projectId: input.projectId,
         sceneIndex: input.sceneIndex,
+        beatIndex: input.beatIndex,
       }),
       body: audio,
       contentType: "audio/mpeg",

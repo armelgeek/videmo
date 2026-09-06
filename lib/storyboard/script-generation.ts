@@ -25,6 +25,17 @@ export type GeneratedScript = z.infer<typeof generatedScriptSchema>;
 export const scriptBeatSchema = z.object({
   narration: z.string(),
   durationSec: z.number().positive().default(5),
+  /**
+   * La voix de CE temps, et sa duree mesuree sur le fichier produit.
+   *
+   * Synthetiser par image suffisait a jouer la narration, mais pas a la
+   * decouper : les annotations se placent sur la duree de chaque temps, et
+   * l'estimation du decoupage derive de 15 % — pres de sept secondes sur un
+   * script de neuf temps. Absents tant que la synthese n'a pas eu lieu : le
+   * decoupage precede toujours la voix.
+   */
+  audioUrl: z.string().optional(),
+  audioDurationMs: z.number().nonnegative().optional(),
 });
 export type ScriptBeat = z.infer<typeof scriptBeatSchema>;
 

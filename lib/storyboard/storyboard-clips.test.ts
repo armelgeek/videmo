@@ -46,4 +46,28 @@ describe("panelsToStepState", () => {
     expect(clip.title).toBe("Clip 1");
     expect(clip.duration).toBe(5);
   });
+
+  it("rend les temps de narration et la voix deja produite", () => {
+    const [clip] = panelsToStepState([
+      panel({
+        audioUrl: "/scene.mp3",
+        beats: [
+          {
+            narration: "n",
+            durationSec: 5,
+            audioUrl: "/0-0.mp3",
+            audioDurationMs: 6552,
+          },
+        ],
+      }),
+    ]).clips;
+
+    expect(clip.audioUrl).toBe("/scene.mp3");
+    expect(clip.beats).toHaveLength(1);
+    expect(clip.beats?.[0].audioDurationMs).toBe(6552);
+  });
+
+  it("laisse un panneau sans temps sans en inventer", () => {
+    expect(panelsToStepState([panel()]).clips[0].beats).toBeUndefined();
+  });
 });

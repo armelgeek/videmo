@@ -1,3 +1,4 @@
+import type { ScriptBeat } from "./script-generation";
 import type { StoryboardPanel } from "./schema";
 
 /**
@@ -16,6 +17,10 @@ export interface EditableClip {
   visualPrompt: string;
   duration: number;
   isSection: boolean;
+  /** La voix de l'image entiere, quand elle a ete produite d'un bloc. */
+  audioUrl?: string;
+  /** Ses temps de narration, chacun portant la sienne. */
+  beats?: ScriptBeat[];
 }
 
 export interface StoryboardStepState {
@@ -43,6 +48,8 @@ export function panelsToStepState(
       visualPrompt: panel.visualPrompt || panel.prompt || "",
       duration: typeof panel.duration === "number" ? panel.duration : 5,
       isSection: false,
+      audioUrl: panel.audioUrl,
+      beats: panel.beats,
     })),
     images: panels.map((panel) => panel.imageUrl || ""),
   };

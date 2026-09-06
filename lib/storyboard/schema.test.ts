@@ -30,6 +30,31 @@ describe("storyboardPanelSchema", () => {
     ).toThrow();
   });
 
+  /**
+   * z.object retire ce qu'il ne declare pas : sans ce champ, la voix produite
+   * par temps disparaissait au premier enregistrement, sans erreur.
+   */
+  it("conserve les temps de narration et leur voix", () => {
+    const parsed = storyboardPanelSchema.parse({
+      ...panneau,
+      beats: [
+        {
+          narration: "n",
+          durationSec: 5,
+          audioUrl: "https://bac/0-0.mp3",
+          audioDurationMs: 6552,
+        },
+      ],
+    });
+
+    expect(parsed.beats?.[0].audioUrl).toBe("https://bac/0-0.mp3");
+    expect(parsed.beats?.[0].audioDurationMs).toBe(6552);
+  });
+
+  it("accepte un panneau sans temps — les projets anterieurs restent valides", () => {
+    expect(storyboardPanelSchema.parse(panneau).beats).toBeUndefined();
+  });
+
   it("refuse une duree negative", () => {
     expect(() =>
       storyboardPanelSchema.parse({

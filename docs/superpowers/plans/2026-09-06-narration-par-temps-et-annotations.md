@@ -72,23 +72,35 @@ caractère : neuf appels sur le même texte valent cinq appels sur le même text
 
 ### 1. Porter l'audio sur le temps de narration
 
-- [ ] Étendre `scriptBeatSchema` (`lib/storyboard/script-generation.ts`) avec
+- [x] Étendre `scriptBeatSchema` (`lib/storyboard/script-generation.ts`) avec
       `audioUrl?: string` et `audioDurationMs?: number`.
-- [ ] Tests : un temps sans audio reste valide ; un temps avec audio conserve
+- [x] Tests : un temps sans audio reste valide ; un temps avec audio conserve
       ses deux champs à l'aller-retour.
-- [ ] Vérifier que `storyboardPanelSchema` accepte les beats enrichis, sinon
+- [x] Vérifier que `storyboardPanelSchema` accepte les beats enrichis, sinon
       l'enregistrement les perdrait en silence (`z.object` retire ce qu'il ne
       déclare pas — c'est déjà arrivé sur `promptContent`).
+      **Le piège était réel** : `beats` n'était pas déclaré, et `syncClipsToStore`
+      ne recopiait ni `beats` ni `audioUrl`. Les deux corrigés, plus
+      `panelsToStepState` qui les rend à la réouverture.
 
 ### 2. Générer la voix par temps
 
-- [ ] Dans `handleVoiceSelected`, boucler sur `clip.beats` au lieu du clip.
-- [ ] Appeler `/api/generate-narration` par temps ; la route rend déjà
-      `{ url, durationMs }`.
-- [ ] Écrire l'URL et la durée dans le temps correspondant.
-- [ ] La progression compte les temps, pas les images.
-- [ ] Un échec ponctuel conserve les temps déjà produits ; un `503` arrête le
+- [x] Dans `handleVoiceSelected`, boucler sur `clip.beats` au lieu du clip.
+      Le découpage lui-même est un module pur testé,
+      `lib/storyboard/narration-jobs.ts` : une image sans temps retombe sur sa
+      narration entière, un temps vide ne coûte pas d'appel.
+- [x] Appeler `/api/generate-narration` par temps ; la route rend déjà
+      `{ url, durationMs }`. Elle accepte maintenant un `beatIndex`, sans quoi
+      les fichiers d'une même image étaient indistinguables dans le bac.
+- [x] Écrire l'URL et la durée dans le temps correspondant.
+- [x] La progression compte les temps, pas les images.
+- [x] Un échec ponctuel conserve les temps déjà produits ; un `503` arrête le
       lot (la règle existe déjà, la conserver).
+- [x] **Hors plan, mais requis** : la timeline lisait `panel.audioUrl`, un seul
+      fichier par image. Sans cela la vidéo perdait sa voix. `panelAudioSegments`
+      (`lib/storyboard/audio-segments.ts`) pose un morceau par temps, décalé de
+      la somme des durées mesurées qui le précèdent — c'est là que le calage se
+      gagne. Un projet enregistré avant le découpage garde son fichier unique.
 
 ### 3. Brancher la planification des annotations
 

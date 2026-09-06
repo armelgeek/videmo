@@ -99,14 +99,24 @@ export function buildImageKey(input: {
 export function buildNarrationKey(input: {
   projectId: string;
   sceneIndex: number;
+  /**
+   * Le temps de narration dans la scene, quand la voix est produite temps par
+   * temps. L'horodatage suffirait a eviter la collision, mais une scene rend
+   * alors plusieurs fichiers qu'on ne pourrait plus distinguer dans le bac.
+   */
+  beatIndex?: number;
   now?: number;
   random?: string;
 }): string {
   const stamp = input.now ?? Date.now();
   const random = input.random ?? Math.random().toString(36).slice(2, 8);
   const safeProject = input.projectId.replace(/[^A-Za-z0-9_-]/g, "");
+  const scene =
+    input.beatIndex === undefined
+      ? `${input.sceneIndex}`
+      : `${input.sceneIndex}-${input.beatIndex}`;
 
-  return `projects/${safeProject}/narration/${input.sceneIndex}-${stamp}-${random}.mp3`;
+  return `projects/${safeProject}/narration/${scene}-${stamp}-${random}.mp3`;
 }
 
 /** Adaptateur de test : garde les objets en memoire et rend une URL stable. */

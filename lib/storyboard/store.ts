@@ -16,6 +16,18 @@ import type {
   TranscriptCue,
 } from "@/lib/whiteboard-animation/audio/types";
 import { dataUrlToBlobUrl } from "@/lib/whiteboard-animation/audio/audio-serialization";
+import { panelAudioSegments } from "./audio-segments";
+
+/**
+ * L'identifiant du media audio. Une image rend plusieurs fichiers depuis le
+ * decoupage par temps : sans le numero du temps, ils partageaient une meme cle
+ * et la timeline n'en jouait qu'un.
+ */
+function audioMediaId(panelKey: string, beatIndex?: number): string {
+  return beatIndex === undefined
+    ? `media-audio-${panelKey}`
+    : `media-audio-${panelKey}-${beatIndex}`;
+}
 import type { TransitionType } from "@/lib/editor/types";
 
 export interface MediaItem {
@@ -377,12 +389,14 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
               resolution: { width: 1280, height: 720 },
             });
           }
-          if (p.audioUrl) {
+          // Une image porte desormais une voix par temps de narration, non
+          // plus un seul fichier : la piste recoit un media par morceau.
+          for (const segment of panelAudioSegments(p)) {
             mediaList.push({
-              id: `media-audio-${p.id || i}`,
-              url: p.audioUrl,
+              id: audioMediaId(p.id || `${i}`, segment.beatIndex),
+              url: segment.url,
               prompt: `Audio: ${p.prompt || p.narration || ""}`,
-              duration: p.duration || 5,
+              duration: segment.durationSec,
               aspectRatio,
               status: "ready",
               type: "audio",
@@ -412,14 +426,17 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
               offset: 0,
             });
           }
-          if (p.audioUrl) {
+          for (const segment of panelAudioSegments(p)) {
+            const key = audioMediaId(p.id || `${i}`, segment.beatIndex);
             clips.push({
               speed: 1,
-              id: `audio-clip-${p.id || i}`,
-              mediaId: `media-audio-${p.id || i}`,
+              id: `audio-clip-${key}`,
+              mediaId: key,
               trackId: "a1",
-              start: startTime,
-              duration: p.duration || 5,
+              // Le morceau demarre a son temps de narration dans l'image, pas
+              // au debut de celle-ci : c'est ce decalage qui cale la voix.
+              start: startTime + segment.offsetSec,
+              duration: segment.durationSec,
               offset: 0,
             });
           }

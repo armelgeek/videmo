@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AnnotationSchema } from "@/lib/whiteboard-animation/schema";
+import { scriptBeatSchema } from "./script-generation";
 import type { TransitionName } from "@/lib/whiteboard-animation/timeline/clip-transitions";
 
 export const videoModelSchema = z.enum([
@@ -53,6 +54,14 @@ export const storyboardPanelSchema = z.object({
   duration: z.number().default(5),
   videoUrl: z.string().optional(),
   audioUrl: z.string().optional(),
+  /**
+   * Les temps de narration de l'image, avec la voix produite pour chacun.
+   *
+   * Declares ici parce que z.object retire ce qu'il ne connait pas : sans ce
+   * champ le PATCH repondait 200 et les temps disparaissaient a la relecture,
+   * comme c'etait deja arrive a `promptContent`.
+   */
+  beats: z.array(scriptBeatSchema).optional(),
   isGenerating: z.boolean().default(false),
   error: z.string().optional(),
   model: videoModelSchema.optional(),

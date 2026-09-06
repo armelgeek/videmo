@@ -10,6 +10,7 @@ import {
   sceneNarration,
   type ScriptParams,
   type ScriptScene,
+  scriptBeatSchema,
   storyboardBreakdownSchema,
 } from "./script-generation";
 
@@ -210,10 +211,55 @@ describe("storyboardBreakdownSchema", () => {
     expect(sceneDuration(parsed.scenes[0])).toBe(12);
   });
 
+  it("conserve la voix d'un temps a l'aller-retour", () => {
+    const parsed = storyboardBreakdownSchema.parse({
+      scenes: [
+        {
+          index: 0,
+          clipType: "intro",
+          title: "t",
+          imagePrompt: "p",
+          beats: [
+            {
+              narration: "n",
+              durationSec: 5,
+              audioUrl: "https://bac/narration/0-0.mp3",
+              audioDurationMs: 6552,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(parsed.scenes[0].beats[0].audioUrl).toBe(
+      "https://bac/narration/0-0.mp3",
+    );
+    expect(parsed.scenes[0].beats[0].audioDurationMs).toBe(6552);
+  });
+
   it("refuse une image sans aucun temps de narration", () => {
     expect(() =>
       storyboardBreakdownSchema.parse({
         scenes: [{ index: 0, clipType: "intro", title: "t", imagePrompt: "p", beats: [] }],
+      }),
+    ).toThrow();
+  });
+});
+
+describe("scriptBeatSchema", () => {
+  it("accepte un temps sans voix — le decoupage precede la synthese", () => {
+    const parsed = scriptBeatSchema.parse({ narration: "n", durationSec: 4 });
+
+    expect(parsed.audioUrl).toBeUndefined();
+    expect(parsed.audioDurationMs).toBeUndefined();
+  });
+
+  it("refuse une duree d'audio negative", () => {
+    expect(() =>
+      scriptBeatSchema.parse({
+        narration: "n",
+        durationSec: 4,
+        audioDurationMs: -1,
       }),
     ).toThrow();
   });
