@@ -56,6 +56,12 @@ import {
 } from "@/lib/storyboard/store";
 import { panelsToStepState } from "@/lib/storyboard/storyboard-clips";
 import { narrationJobs } from "@/lib/storyboard/narration-jobs";
+import {
+  adoptPlannedAnnotations,
+  transcriptFromPanels,
+} from "@/lib/storyboard/annotation-adoption";
+import { measureImageSize } from "@/lib/storyboard/image-size";
+import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
@@ -93,6 +99,13 @@ const VOICE_INITIALS: Record<string, string> = {
   verse: "V",
 };
 
+/**
+ * La part de la barre de progression qui revient a la synthese. Le reste va au
+ * placement des annotations, qui suit dans le meme temps d'attente : deux
+ * barres qui repartent de zero donnaient l'impression d'une etape bloquee.
+ */
+const NARRATION_SHARE = 70;
+
 export default function StoryboardPage() {
   const { toast } = useToastContext();
   const router = useRouter();
@@ -118,6 +131,7 @@ export default function StoryboardPage() {
     setSelectedVoice,
     whiteboardConfig,
     setWhiteboardConfig,
+    setTranscript,
     loadDemoData,
     resetWorkflow,
   } = useStoryboardStore();
@@ -244,9 +258,14 @@ export default function StoryboardPage() {
           // produite puis perdue au premier enregistrement.
           audioUrl: clip.audioUrl,
           beats: clip.beats,
+          // Les annotations vivent par image : c'est ce que l'editeur et le
+          // rendu lisent, whiteboardConfig.annotations n'etant qu'un repli
+          // commun a toutes.
+          annotations: clip.annotations,
         };
       });
     setStoryboardPanels(panels);
+    return panels;
   };
 
   // Initialize editable clips when storyboardData changes or step is storyboard
@@ -603,6 +622,81 @@ export default function StoryboardPage() {
   };
 
   /**
+   * Situe les annotations de chaque image, et les cale sur la voix produite.
+   *
+   * Elles s'ecrivent dans `panel.annotations`, non dans
+   * `whiteboardConfig.annotations` : c'est ce que l'editeur et le rendu lisent
+   * en premier (to-render-project.ts, whiteboard-editor-step.tsx), le second
+   * n'etant qu'un repli commun a toutes les images — donc le meme dessin
+   * partout.
+   *
+   * Une image qui echoue laisse les autres passer : mieux vaut une scene sans
+   * annotation, ajustable a la main, qu'un lot entier perdu.
+   */
+  const planClipAnnotations = async (
+    clips: any[],
+    images: string[],
+  ): Promise<any[]> => {
+    if (!projectSync.projectId) return clips;
+
+    const canvas = tailleCanvas(projectParams.aspectRatio);
+    const planned = [...clips];
+
+    for (let i = 0; i < clips.length; i++) {
+      const clip = clips[i];
+      const imageUrl = images[i] || "";
+      if (clip.isSection || !imageUrl || !clip.beats?.length) continue;
+
+      try {
+        const imageSize = await measureImageSize(imageUrl);
+        const response = await fetch("/api/plan-annotations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: projectSync.projectId,
+            imageUrl,
+            scene: {
+              index: i,
+              // Le schema de la route n'accepte que ces trois valeurs : un
+              // projet ancien porte parfois autre chose, qui ferait echouer
+              // toute la planification en 400.
+              clipType: ["intro", "content", "outro"].includes(clip.clipType)
+                ? clip.clipType
+                : "content",
+              title: clip.title || "",
+              imagePrompt: clip.visualPrompt || "",
+              beats: clip.beats,
+            },
+            width: imageSize.width,
+            height: imageSize.height,
+          }),
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+
+        planned[i] = {
+          ...clip,
+          annotations: adoptPlannedAnnotations({
+            panelId: clip.id,
+            planned: body.annotations,
+            imageSize,
+            canvas,
+            existing: clip.annotations,
+          }),
+        };
+      } catch (error) {
+        console.error(`Annotation planning ${i + 1} failed:`, error);
+      }
+
+      setNarrationProgress(
+        NARRATION_SHARE + Math.round(((i + 1) / clips.length) * (100 - NARRATION_SHARE)),
+      );
+    }
+
+    return planned;
+  };
+
+  /**
    * Synthetise la narration, temps par temps.
    *
    * Par image, la voix se jouait mais ne se decoupait pas : les annotations se
@@ -676,11 +770,21 @@ export default function StoryboardPage() {
         }
         if ((error as Error & { fatal?: boolean }).fatal) break;
       }
-      setNarrationProgress(Math.round(((i + 1) / jobs.length) * 100));
+      setNarrationProgress(
+        Math.round(((i + 1) / jobs.length) * NARRATION_SHARE),
+      );
     }
 
-    setEditableClips(withAudio);
-    syncClipsToStore(withAudio, generatedImages);
+    // La planification vient APRES : elle a besoin des durees mesurees pour
+    // faire entrer chaque annotation quand son texte est dit.
+    const planned = await planClipAnnotations(withAudio, generatedImages);
+
+    setEditableClips(planned);
+    const panels = syncClipsToStore(planned, generatedImages);
+    // Le lien entre un temps de narration et ce qui se dessine pendant qu'il
+    // est dit se remplissait a la main dans l'editeur : la planification le
+    // connait par construction.
+    setTranscript(transcriptFromPanels(panels));
     setIsGeneratingNarration(false);
 
     const done = jobs.length - failed;
@@ -1872,7 +1976,7 @@ export default function StoryboardPage() {
                         {[
                           { label: "Preparing audio", min: 0, max: 30 },
                           { label: "Processing voice", min: 30, max: 70 },
-                          { label: "Finalizing", min: 70, max: 100 },
+                          { label: "Placing annotations", min: 70, max: 100 },
                         ].map((step, idx) => (
                           <div key={idx} className="flex items-center gap-3">
                             <div

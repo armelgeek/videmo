@@ -104,15 +104,34 @@ caractère : neuf appels sur le même texte valent cinq appels sur le même text
 
 ### 3. Brancher la planification des annotations
 
-- [ ] Après la voix, appeler `/api/plan-annotations` par image, avec
-      `beatDurationsMs` tirées des durées mesurées.
-- [ ] Écrire le résultat dans `whiteboardConfig.annotations`, en conservant
-      celles que l'utilisateur a déjà posées à la main.
-- [ ] Relier chaque annotation à son temps (`TranscriptCue.annotationId` existe
-      déjà pour ça, aujourd'hui rempli manuellement).
-- [ ] Décider où vivent les annotations : `whiteboardConfig.annotations` est
-      global, alors que `panel.annotations` est par image. Le rendu lit le
-      premier — vérifier avant d'écrire dans le second.
+- [x] Après la voix, appeler `/api/plan-annotations` par image. Les durées
+      mesurées n'ont pas eu besoin d'un champ de requête : elles voyagent dans
+      la scène, portées par ses temps depuis la synthèse. Une image qui échoue
+      laisse les autres passer.
+- [x] Écrire le résultat, en conservant celles que l'utilisateur a posées à la
+      main. `adoptPlannedAnnotations` (`lib/storyboard/annotation-adoption.ts`)
+      les reconnaît à `metadata.source`, et donne aux siennes un identifiant
+      stable pour qu'une seconde passe remplace au lieu de dupliquer.
+- [x] Relier chaque annotation à son temps : `transcriptFromPanels` produit les
+      cues avec leur `annotationId` déjà rempli.
+- [x] **Décider où vivent les annotations.** Le plan supposait le contraire de
+      ce que fait le code : `to-render-project.ts:79` et
+      `whiteboard-editor-step.tsx:227` lisent **`panel.annotations` en premier**,
+      `whiteboardConfig.annotations` n'étant qu'un repli — donc le même dessin
+      pour toutes les images. C'est donc par image que la planification écrit.
+
+**Un piège de repère, trouvé en chemin.** La vision répond en pixels de
+l'image ; les annotations enregistrées sont en pixels du canvas d'aperçu, où le
+dessin tient centré sans déformation (`rectContenu`). Écrire les unes pour les
+autres plaçait le stylo à côté du sujet dès que le ratio du projet ne suivait
+pas celui de l'image. `adoptPlannedAnnotations` fait la reprojection, et
+`measureImageSize` mesure l'image plutôt que de supposer un format.
+
+**Ce que l'ordre du tableau décide.** `deriveTimeline` recalcule `startMs`
+depuis l'ordre et les durées : `reveal.startMs` en entrée est ignoré. Une
+annotation dessinée à la main est donc conservée *après* les temps de
+narration — elle rallonge la scène au lieu de décaler la voix de ceux qui la
+précèdent.
 
 ### 4. Vérifier
 

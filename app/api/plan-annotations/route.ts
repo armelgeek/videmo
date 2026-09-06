@@ -73,8 +73,21 @@ export async function POST(request: NextRequest) {
       console.error("Region reading failed, falling back:", error);
     }
 
+    // Les durees mesurees voyagent DANS la scene, portees par ses temps de
+    // narration depuis la synthese. Un temps dont la mesure a echoue rend 0,
+    // que planAnnotations traite comme une absence et remplace par
+    // l'estimation du decoupage.
+    const beatDurationsMs = input.scene.beats.map(
+      (beat) => beat.audioDurationMs ?? 0,
+    );
+
     return NextResponse.json({
-      annotations: planAnnotations({ scene: input.scene, regions, size }),
+      annotations: planAnnotations({
+        scene: input.scene,
+        regions,
+        size,
+        beatDurationsMs,
+      }),
     });
   } catch (error) {
     if (error instanceof ImageGeneratorNotConfiguredError) {
