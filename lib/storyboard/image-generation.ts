@@ -96,8 +96,8 @@ ${reference}
 Style requirements (all mandatory):
 - Extremely simple hand-drawn line art, pure pencil-sketch aesthetic, restrained
   doodle style similar to Notion illustrations
-- Background: flat uniform warm cream paper color #F5EBD7, completely clean,
-  no texture, no gradient, no pattern
+- Background: flat uniform pure white #FFFFFF, completely clean,
+  no texture, no gradient, no pattern, no off-white or cream tint
 - Lines: dark gray, clear, continuous, confident outlines with consistent weight
 - Color: mostly uncolored. Only small flat accents of red, orange, and blue.
   No other colors, no shading, no gradients, no shadows
@@ -107,17 +107,20 @@ Style requirements (all mandatory):
   and few lines, not accurate proportions or detail
 - Explainer vocabulary: hand-drawn arrows connecting the steps, simple circles,
   boxes and underlines, drawn as clean continuous strokes
-- Labels: a few SHORT hand-lettered keywords${language}, three words at most each,
-  placed in the empty space beside the subject they name — never over a drawing
+- Labels: EVERY drawn subject MUST have a SHORT hand-lettered keyword label${language},
+  three words at most, placed in the empty space beside the subject — never over a drawing.
+  No subject may appear without its label.
 
 Strictly forbidden:
 - Sentences, paragraphs, or any block of running text
 - Photorealism, photographic detail, 3D rendering, painterly texture
 - Busy backgrounds, dense decoration, high saturation, drop shadows
+- Any background tint, cream, beige, or off-white — the background must be #FFFFFF pure white
+- Any drawn subject left unlabelled
 
 Before returning the image, verify every point:
-- Every written word correctly spelled, legible, and placed outside the drawings?
-- Background perfectly uniform cream, with no texture and no gradient?
+- Every drawn subject has its own keyword label, correctly spelled, placed outside the drawing?
+- Background is pure white #FFFFFF with no texture, no tint, and no gradient?
 - Subjects far enough apart that each one fits inside its own rectangle?
 - Lines clean and unbroken?
 - No shadow and no gradient?

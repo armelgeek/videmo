@@ -33,9 +33,12 @@ describe("buildImagePrompt", () => {
     // texture lu comme de l'encre, sujets colles dont les rectangles se
     // chevauchent.
     expect(prompt).toContain("continuous");
-    expect(prompt).toContain("#F5EBD7");
+    expect(prompt).toContain("#FFFFFF");
     expect(prompt).toContain("no texture");
     expect(prompt).toContain("SEPARATED");
+    // Le fond creme se lisait comme de l'encre : le blanc pur ne suffit pas a
+    // l'ecrit, la teinte doit etre nommee interdite.
+    expect(prompt).toContain("no off-white or cream tint");
   });
 
   it("interdit ce qui produit du bruit", () => {
@@ -53,9 +56,13 @@ describe("buildImagePrompt", () => {
   it("accepte des mots-cles mais jamais des phrases", () => {
     // Mesure sur la meme scene : 23 composantes sans texte, 118 avec, contre
     // 336 encore lisibles. Un paragraphe, lui, ferait exploser le compte.
-    expect(prompt).toContain("SHORT hand-lettered keywords");
+    expect(prompt).toContain("SHORT hand-lettered keyword label");
     expect(prompt).toContain("three words at most");
     expect(prompt).toContain("Sentences, paragraphs, or any block of running text");
+    // « quelques mots-cles » laissait des sujets anonymes : chacun doit
+    // desormais porter le sien.
+    expect(prompt).toContain("EVERY drawn subject MUST have");
+    expect(prompt).toContain("Any drawn subject left unlabelled");
   });
 
   it("ecrit les etiquettes dans la langue du projet", () => {
@@ -91,8 +98,8 @@ describe("buildImagePrompt", () => {
 
   it("porte la liste de verification demandee avant rendu", () => {
     expect(prompt).toContain("Before returning the image, verify every point:");
-    expect(prompt).toContain("correctly spelled, legible");
-    expect(prompt).toContain("perfectly uniform cream");
+    expect(prompt).toContain("has its own keyword label, correctly spelled");
+    expect(prompt).toContain("Background is pure white #FFFFFF");
     expect(prompt).toContain("fits inside its own rectangle");
     expect(prompt).toContain("clean and unbroken");
     expect(prompt).toContain("No shadow and no gradient");
