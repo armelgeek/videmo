@@ -178,6 +178,7 @@ export default function StoryboardPage() {
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
+  const [isPlanningAnnotations, setIsPlanningAnnotations] = useState(false);
   const [narrationProgress, setNarrationProgress] = useState(0);
   const [storyboardPage, setStoryboardPage] = useState(0);
 
@@ -941,6 +942,40 @@ export default function StoryboardPage() {
     }
   };
 
+
+  /**
+   * Replace les annotations sans retoucher a la voix.
+   *
+   * La planification ne consomme que les temps DEJA mesures et les images :
+   * elle etait pourtant soudee a la synthese, donc la refaire imposait de
+   * repayer tout le script. Une scene revenue muette — planification en echec,
+   * image absente — se rattrape maintenant seule.
+   */
+  const replanAnnotations = async () => {
+    if (!projectSync.projectId || isPlanningAnnotations) return;
+
+    const avecTemps = editableClips.filter(
+      (c) => !c.isSection && c.beats?.length,
+    );
+    if (avecTemps.length === 0) {
+      toast.info("Nothing to plan: the clips carry no narration beats yet");
+      return;
+    }
+
+    setIsPlanningAnnotations(true);
+    try {
+      const planned = await planClipAnnotations(editableClips, generatedImages);
+      setEditableClips(planned);
+      const panels = syncClipsToStore(planned, generatedImages);
+
+      const servies = panels.filter((p) => p.annotations?.length).length;
+      toast.success(
+        `${servies} of ${panels.length} scenes carry annotations`,
+      );
+    } finally {
+      setIsPlanningAnnotations(false);
+    }
+  };
 
   const handleSaveProgress = async () => {
     await projectSync.saveNow();
@@ -1894,6 +1929,22 @@ export default function StoryboardPage() {
                       size="sm"
                     >
                       ← Back
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => void replanAnnotations()}
+                      disabled={isPlanningAnnotations}
+                      size="sm"
+                      title="Re-place the annotations from the narration already recorded, without synthesising it again"
+                    >
+                      {isPlanningAnnotations ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Planning...
+                        </>
+                      ) : (
+                        "Re-plan annotations"
+                      )}
                     </Button>
                     <Button
                       onClick={() => void handleVoiceSelected(selectedVoice)}
