@@ -3,21 +3,18 @@ import {
   useStoryboardStore,
   mergeStoryboardStorePersistedState,
   serializeAudioTrack,
+  DEFAULT_WHITEBOARD_CONFIG,
 } from "./store";
 import type { AudioTrack, TranscriptCue } from "@/lib/whiteboard-animation/audio/types";
 import type { StoryboardStoreState } from "./store";
 
 function resetStore() {
+  // Part du vrai defaut : la copie a la main oubliait chaque champ ajoute
+  // depuis, et le test du defaut portait alors sur `undefined`.
   useStoryboardStore.setState({
     whiteboardConfig: {
-      animStyle: "chunkjump",
-      handStyle: "custom1",
-      canvasBg: "white",
-      annotations: [],
+      ...DEFAULT_WHITEBOARD_CONFIG,
       annotationConfig: { enabled: true, speed: 1, defaultStyle: { strokeColor: "#000000", strokeWidth: 2 } },
-      audio: null,
-      narration: [],
-      transcript: [],
     },
   });
 }
@@ -91,6 +88,29 @@ describe("whiteboardConfig.transcript", () => {
   });
 });
 
+describe("whiteboardConfig.transcription", () => {
+  beforeEach(resetStore);
+
+  it("defaults to an empty array", () => {
+    expect(
+      useStoryboardStore.getState().whiteboardConfig.transcription,
+    ).toEqual([]);
+  });
+
+  it("setNarrationTranscription stores one entry per recording", () => {
+    const takes = [
+      {
+        url: "https://bucket/take-1.mp3",
+        words: [{ word: "Bonjour", startMs: 0, endMs: 400 }],
+      },
+    ];
+    useStoryboardStore.getState().setNarrationTranscription(takes);
+    expect(
+      useStoryboardStore.getState().whiteboardConfig.transcription,
+    ).toEqual(takes);
+  });
+});
+
 describe("mergeStoryboardStorePersistedState", () => {
   beforeEach(resetStore);
 
@@ -116,6 +136,9 @@ describe("mergeStoryboardStorePersistedState", () => {
 
     expect(merged.whiteboardConfig.audio).toBeNull();
     expect(merged.whiteboardConfig.transcript).toEqual([]);
+    // Le merge de zustand remplace l'objet en bloc : sans la fusion d'un cran
+    // plus profond, un champ ajoute apres coup revient `undefined`, pas `[]`.
+    expect(merged.whiteboardConfig.transcription).toEqual([]);
   });
 
   it("keeps persisted audio and transcript when present", () => {

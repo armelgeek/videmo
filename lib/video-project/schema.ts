@@ -94,6 +94,27 @@ export const whiteboardConfigSchema = z.object({
     )
     .default([]),
   transcript: z.array(z.unknown()).default([]),
+  /**
+   * La transcription des enregistrements, mot par mot. Declaree en clair et non
+   * en z.unknown() : c'est la seule facon qu'un champ mal forme se voie au
+   * PATCH plutot qu'a la relecture, un jour ou une autre route l'ecrira.
+   */
+  transcription: z
+    .array(
+      z.object({
+        url: z.string(),
+        words: z
+          .array(
+            z.object({
+              word: z.string(),
+              startMs: z.number().nonnegative(),
+              endMs: z.number().nonnegative(),
+            }),
+          )
+          .default([]),
+      }),
+    )
+    .default([]),
 });
 
 export const videoProjectDocumentSchema = z.object({
