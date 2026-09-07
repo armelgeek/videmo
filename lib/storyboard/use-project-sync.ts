@@ -131,8 +131,10 @@ export function useProjectSync(): ProjectSyncState {
     if (bootstrapped.current) return;
     bootstrapped.current = true;
 
-    let cancelled = false;
-
+    // Pas de drapeau d'annulation ici : le garde ci-dessus suffit a empecher le
+    // second bootstrap du double-montage StrictMode. Un `cancelled` pose au
+    // demontage simule abandonnait la SEULE course en vol — le store n'etait
+    // jamais rempli et le statut restait "loading" indefiniment.
     const bootstrap = async () => {
       try {
         const url = new URL(window.location.href);
@@ -150,7 +152,7 @@ export function useProjectSync(): ProjectSyncState {
             return;
           }
           const project = await response.json();
-          if (cancelled) return;
+          projectIdRef.current = id;
           useStoryboardStore.setState(fromLoadedProject(project));
         } else {
           const response = await fetch("/api/video-projects", {
@@ -167,21 +169,19 @@ export function useProjectSync(): ProjectSyncState {
             return;
           }
           const created = await response.json();
-          if (cancelled) return;
           id = created.id;
           // Remplace l'entree d'historique : un retour arriere ne doit pas
           // ramener sur une URL sans projet, qui en creerait un autre.
           url.searchParams.set("project", id as string);
           window.history.replaceState(null, "", url);
+          projectIdRef.current = id;
         }
 
-        projectIdRef.current = id;
         setProjectId(id);
 
         const lock = await fetch(`/api/video-projects/${id}/lock`, {
           method: "POST",
         });
-        if (cancelled) return;
 
         if (lock.status === 409) {
           const body = await lock.json().catch(() => ({}));
@@ -193,16 +193,12 @@ export function useProjectSync(): ProjectSyncState {
         writable.current = lock.ok;
         setStatus(lock.ok ? "saved" : "read-only");
       } catch (cause) {
-        if (cancelled) return;
         setError(cause instanceof Error ? cause.message : "Network error");
         setStatus("error");
       }
     };
 
     void bootstrap();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   // Renouvellement du bail pendant toute la duree de l'edition.
