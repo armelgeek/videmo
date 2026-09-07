@@ -22,6 +22,15 @@ export class NarrationPlayer {
   private manager = new AudioManager();
   private index: number | null = null;
   private voulu = false;
+  /**
+   * L'endroit ou l'on vient de se placer, tant que la source charge encore.
+   *
+   * Sans lui, la position de l'element reste a zero pendant le chargement,
+   * l'ecart parait enorme, et chaque frame redemande un recalage : trois
+   * assignations de source en 44 ms ont ete mesurees a une bascule. On repond
+   * alors sur l'intention, pas sur ce que l'element affiche encore.
+   */
+  private attendu: number | null = null;
 
   constructor(private parts: NarrationPart[]) {}
 
@@ -52,8 +61,14 @@ export class NarrationPlayer {
    * recaler sinon, se taire dans un trou.
    */
   seekMs(positionMs: number): void {
+    const charge = this.manager.getElement().readyState > 0;
     const offsetMs =
-      this.index === null ? 0 : this.manager.getCurrentMs();
+      this.index === null
+        ? 0
+        : !charge && this.attendu !== null
+          ? this.attendu
+          : this.manager.getCurrentMs();
+    if (charge) this.attendu = null;
 
     const action = nextNarrationAction(
       { index: this.index, offsetMs },
@@ -66,11 +81,13 @@ export class NarrationPlayer {
     if (action.type === "taire") {
       this.manager.pause();
       this.index = null;
+      this.attendu = null;
       return;
     }
 
     if (action.type === "charger") {
       this.index = action.index;
+      this.attendu = action.offsetMs;
       void this.manager.load(action.part.url);
       this.manager.seekMs(action.offsetMs);
       if (this.voulu) {
@@ -81,6 +98,7 @@ export class NarrationPlayer {
       return;
     }
 
+    this.attendu = action.offsetMs;
     this.manager.seekMs(action.offsetMs);
   }
 
