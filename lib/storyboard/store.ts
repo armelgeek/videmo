@@ -19,15 +19,9 @@ import type { NarrationPart } from "@/lib/whiteboard-animation/audio/narration-s
 import { dataUrlToBlobUrl } from "@/lib/whiteboard-animation/audio/audio-serialization";
 import { panelAudioSegments } from "./audio-segments";
 
-/**
- * L'identifiant du media audio. Une image rend plusieurs fichiers depuis le
- * decoupage par temps : sans le numero du temps, ils partageaient une meme cle
- * et la timeline n'en jouait qu'un.
- */
-function audioMediaId(panelKey: string, beatIndex?: number): string {
-  return beatIndex === undefined
-    ? `media-audio-${panelKey}`
-    : `media-audio-${panelKey}-${beatIndex}`;
+/** L'identifiant du media audio d'une image. */
+function audioMediaId(panelKey: string): string {
+  return `media-audio-${panelKey}`;
 }
 import type { TransitionType } from "@/lib/editor/types";
 
@@ -403,11 +397,9 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
               resolution: { width: 1280, height: 720 },
             });
           }
-          // Une image porte desormais une voix par temps de narration, non
-          // plus un seul fichier : la piste recoit un media par morceau.
           for (const segment of panelAudioSegments(p)) {
             mediaList.push({
-              id: audioMediaId(p.id || `${i}`, segment.beatIndex),
+              id: audioMediaId(p.id || `${i}`),
               url: segment.url,
               prompt: `Audio: ${p.prompt || p.narration || ""}`,
               duration: segment.durationSec,
@@ -441,7 +433,7 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
             });
           }
           for (const segment of panelAudioSegments(p)) {
-            const key = audioMediaId(p.id || `${i}`, segment.beatIndex);
+            const key = audioMediaId(p.id || `${i}`);
             clips.push({
               speed: 1,
               id: `audio-clip-${key}`,

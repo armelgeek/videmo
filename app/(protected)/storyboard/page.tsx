@@ -41,6 +41,7 @@ import Image from "next/image";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
 import { VOICES, normalizeVoice } from "@/lib/speech/speech-generator";
 import {
+  type ScriptBeat,
   type ScriptScene,
   sceneDuration,
   sceneNarration,
@@ -262,6 +263,7 @@ export default function StoryboardPage() {
           // La voix, par image et par temps : sans ces deux champs elle etait
           // produite puis perdue au premier enregistrement.
           audioUrl: clip.audioUrl,
+          audioDurationMs: clip.audioDurationMs,
           beats: clip.beats,
           // Les annotations vivent par image : c'est ce que l'editeur et le
           // rendu lisent, whiteboardConfig.annotations n'etant qu'un repli
@@ -706,57 +708,6 @@ export default function StoryboardPage() {
   };
 
   /**
-   * Reunit les temps en une seule piste, celle que l'etape whiteboard joue.
-   *
-   * Cette piste n'etait remplie que par un televersement a la main : la voix
-   * produite par la chaine ne l'atteignait jamais, et un export sortait muet.
-   * Les coller dans l'ordre suffit a les caler — le trace se derive des memes
-   * durees, donc chaque morceau tombe sur son annotation.
-   *
-   * Un echec laisse le projet tel quel : les annotations sont posees, la voix
-   * existe par temps, et l'utilisateur peut toujours charger une piste.
-   */
-  const buildNarrationTrack = async (panels: any[]) => {
-    if (!projectSync.projectId) return;
-
-    const parts = narrationParts(panels);
-    if (parts.length === 0) return;
-
-    // La voix par temps, posee AVANT la piste unique : c'est elle que
-    // l'apercu et le rendu preferent, et elle ne depend d'aucun assemblage.
-    setNarrationParts(scheduleParts(parts));
-
-    try {
-      const response = await fetch("/api/narration-track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId: projectSync.projectId, parts }),
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
-
-      setAudioTrack({
-        id: `narration-${Date.now()}`,
-        url: body.url,
-        // Une URL du bac, deja durable : persistUrl la reprend telle quelle,
-        // la ou un televersement doit passer par une data: URL.
-        persistUrl: body.url,
-        source: "tts",
-        name: "Narration",
-        volume: 1,
-        muted: false,
-        offsetMs: 0,
-        durationMs: body.durationMs ?? 0,
-      });
-    } catch (error) {
-      console.error("Narration track failed:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Narration track failed",
-      );
-    }
-  };
-
-  /**
    * Synthetise la narration, temps par temps.
    *
    * Par image, la voix se jouait mais ne se decoupait pas : les annotations se
@@ -794,8 +745,9 @@ export default function StoryboardPage() {
           body: JSON.stringify({
             projectId: projectSync.projectId,
             sceneIndex: job.clipIndex,
-            beatIndex: job.beatIndex,
             text: job.text,
+            beats: job.beats,
+            language: projectParams.language,
             voice,
           }),
         });
@@ -807,19 +759,26 @@ export default function StoryboardPage() {
         }
 
         const clip = withAudio[job.clipIndex];
-        if (job.beatIndex === undefined) {
-          withAudio[job.clipIndex] = { ...clip, audioUrl: body.url };
-        } else {
-          // La duree mesuree voyage avec l'URL : c'est elle qui placera
-          // l'annotation, et la reperdre ici reviendrait a l'estimation.
-          const beats = [...(clip.beats ?? [])];
-          beats[job.beatIndex] = {
-            ...beats[job.beatIndex],
+        // L'image porte UNE voix. Ses temps ne la decoupent pas : ils la
+        // reperent, chacun recevant l'instant ou il est dit et la place qu'il
+        // occupe — silence de fin compris, sinon le dessin devancerait la
+        // respiration.
+        const cales: { startMs: number; durationMs: number }[] | null =
+          Array.isArray(body.beats) ? body.beats : null;
+
+        withAudio[job.clipIndex] = {
+          ...clip,
+          audioUrl: body.url,
+          audioDurationMs: body.durationMs ?? undefined,
+          beats: (clip.beats ?? []).map((beat: ScriptBeat, index: number) => ({
+            ...beat,
+            // Une seule voix : l'URL est celle de l'image, et l'instant dit ou
+            // ce temps commence dedans.
             audioUrl: body.url,
-            audioDurationMs: body.durationMs ?? undefined,
-          };
-          withAudio[job.clipIndex] = { ...clip, beats };
-        }
+            startMs: cales?.[index]?.startMs,
+            audioDurationMs: cales?.[index]?.durationMs,
+          })),
+        };
       } catch (error) {
         failed += 1;
         console.error(`Narration ${i + 1} failed:`, error);
@@ -845,7 +804,9 @@ export default function StoryboardPage() {
     // est dit se remplissait a la main dans l'editeur : la planification le
     // connait par construction.
     setTranscript(transcriptFromPanels(panels));
-    await buildNarrationTrack(panels);
+    // La piste : un enregistrement par image, pose a sa place. Plus rien a
+    // coller — chaque image est dite d'une traite.
+    setNarrationParts(scheduleParts(narrationParts(panels)));
     setIsGeneratingNarration(false);
 
     const done = jobs.length - failed;

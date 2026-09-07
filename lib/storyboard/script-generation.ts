@@ -36,6 +36,14 @@ export const scriptBeatSchema = z.object({
    */
   audioUrl: z.string().optional(),
   audioDurationMs: z.number().nonnegative().optional(),
+  /**
+   * Ou ce temps commence DANS l'enregistrement de son image.
+   *
+   * L'image est dite d'une traite, et ses temps y sont retrouves par la
+   * transcription : `audioUrl` designe donc la meme voix pour tous, et c'est
+   * cet instant qui les distingue.
+   */
+  startMs: z.number().nonnegative().optional(),
 });
 export type ScriptBeat = z.infer<typeof scriptBeatSchema>;
 

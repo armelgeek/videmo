@@ -11,6 +11,9 @@ import {
 } from "@/lib/speech/speech-generator";
 import { getSpeechGenerator } from "@/lib/speech/openai-speech-generator";
 import { measureAudioDurationMs } from "@/lib/speech/audio-duration";
+import { getTranscriber } from "@/lib/speech/openai-transcriber";
+import { TranscriptionFailedError } from "@/lib/speech/transcriber";
+import { alignBeats } from "@/lib/speech/beat-alignment";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 
@@ -23,6 +26,16 @@ const requestSchema = z.object({
   beatIndex: z.number().int().nonnegative().optional(),
   text: z.string().min(1).max(4000),
   voice: z.string().default("nova"),
+  /**
+   * Les temps de narration que ce texte contient, dans l'ordre.
+   *
+   * Quand ils sont fournis, l'enregistrement est transcrit et chaque temps est
+   * RETROUVE dedans. C'est ce qui remplace la synthese temps par temps : on
+   * enregistre d'une traite — donc avec les liaisons et l'elan d'une vraie
+   * lecture — et on mesure ensuite, au lieu de decouper pour pouvoir mesurer.
+   */
+  beats: z.array(z.object({ narration: z.string() })).optional(),
+  language: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -52,6 +65,26 @@ export async function POST(request: NextRequest) {
       console.error("Could not measure narration duration:", cause);
     }
 
+    // Les temps sont retrouves dans l'enregistrement, jamais decoupes avant.
+    // Un echec ne prive pas la scene de sa voix : le calage retombe sur
+    // l'estimation du decoupage.
+    let beats: Awaited<ReturnType<typeof alignBeats>> | null = null;
+    if (input.beats?.length && durationMs) {
+      try {
+        const words = await getTranscriber().transcribe({
+          audio,
+          language: input.language,
+        });
+        beats = alignBeats({
+          beats: input.beats,
+          words,
+          audioDurationMs: durationMs,
+        });
+      } catch (cause) {
+        console.error("Could not align the narration beats:", cause);
+      }
+    }
+
     const url = await storage.put({
       key: buildNarrationKey({
         projectId: input.projectId,
@@ -62,7 +95,7 @@ export async function POST(request: NextRequest) {
       contentType: "audio/mpeg",
     });
 
-    return NextResponse.json({ url, durationMs });
+    return NextResponse.json({ url, durationMs, beats });
   } catch (error) {
     if (
       error instanceof StorageNotConfiguredError ||
@@ -72,6 +105,10 @@ export async function POST(request: NextRequest) {
         { error: error.message, missing: error.missing },
         { status: 503 },
       );
+    }
+    if (error instanceof TranscriptionFailedError) {
+      console.error("Transcription failed:", error.status, error.message);
+      return NextResponse.json({ error: "Transcription failed" }, { status: 502 });
     }
     if (error instanceof SpeechGenerationFailedError) {
       console.error("Speech generation failed:", error.status, error.message);

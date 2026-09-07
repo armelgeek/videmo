@@ -15,7 +15,7 @@ const clip = (over: Partial<EditableClip> = {}): EditableClip => ({
 });
 
 describe("narrationJobs", () => {
-  it("produit un appel par temps de narration", () => {
+  it("dit l'image d'une traite, et nomme ses temps pour qu'on les y retrouve", () => {
     const jobs = narrationJobs([
       clip({
         beats: [
@@ -26,12 +26,15 @@ describe("narrationJobs", () => {
     ]);
 
     expect(jobs).toEqual([
-      { clipIndex: 0, beatIndex: 0, text: "Premier temps." },
-      { clipIndex: 0, beatIndex: 1, text: "Second temps." },
+      {
+        clipIndex: 0,
+        text: "Premier temps. Second temps.",
+        beats: [{ narration: "Premier temps." }, { narration: "Second temps." }],
+      },
     ]);
   });
 
-  it("retombe sur l'image entiere quand elle n'a aucun temps", () => {
+  it("retombe sur le resume quand l'image n'a aucun temps", () => {
     expect(narrationJobs([clip()])).toEqual([
       { clipIndex: 0, text: "La narration entiere de l'image." },
     ]);
@@ -43,10 +46,12 @@ describe("narrationJobs", () => {
       clip({ id: "a", beats: [{ narration: "Un.", durationSec: 1 }] }),
     ]);
 
-    expect(jobs).toEqual([{ clipIndex: 1, beatIndex: 0, text: "Un." }]);
+    expect(jobs).toEqual([
+      { clipIndex: 1, text: "Un.", beats: [{ narration: "Un." }] },
+    ]);
   });
 
-  it("saute un temps vide plutot que de payer un appel pour du silence", () => {
+  it("ecarte un temps vide : il n'a rien a faire dire ni a retrouver", () => {
     const jobs = narrationJobs([
       clip({
         beats: [
@@ -56,7 +61,9 @@ describe("narrationJobs", () => {
       }),
     ]);
 
-    expect(jobs).toEqual([{ clipIndex: 0, beatIndex: 1, text: "Vrai." }]);
+    expect(jobs).toEqual([
+      { clipIndex: 0, text: "Vrai.", beats: [{ narration: "Vrai." }] },
+    ]);
   });
 
   it("saute une image sans texte du tout", () => {

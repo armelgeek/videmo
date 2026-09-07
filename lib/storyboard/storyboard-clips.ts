@@ -17,8 +17,9 @@ export interface EditableClip {
   visualPrompt: string;
   duration: number;
   isSection: boolean;
-  /** La voix de l'image entiere, quand elle a ete produite d'un bloc. */
+  /** La voix de l'image entiere : elle est dite d'une traite. */
   audioUrl?: string;
+  audioDurationMs?: number;
   /** Ses temps de narration, chacun portant la sienne. */
   beats?: ScriptBeat[];
 }
@@ -49,6 +50,7 @@ export function panelsToStepState(
       duration: typeof panel.duration === "number" ? panel.duration : 5,
       isSection: false,
       audioUrl: panel.audioUrl,
+      audioDurationMs: panel.audioDurationMs,
       beats: panel.beats,
     })),
     images: panels.map((panel) => panel.imageUrl || ""),

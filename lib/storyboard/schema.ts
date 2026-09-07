@@ -55,6 +55,13 @@ export const storyboardPanelSchema = z.object({
   videoUrl: z.string().optional(),
   audioUrl: z.string().optional(),
   /**
+   * La duree mesuree de cet enregistrement.
+   *
+   * L'image est dite d'une traite : cette duree est celle de sa voix entiere,
+   * et les temps s'y reperent par leur `startMs`.
+   */
+  audioDurationMs: z.number().nonnegative().optional(),
+  /**
    * Les temps de narration de l'image, avec la voix produite pour chacun.
    *
    * Declares ici parce que z.object retire ce qu'il ne connait pas : sans ce
