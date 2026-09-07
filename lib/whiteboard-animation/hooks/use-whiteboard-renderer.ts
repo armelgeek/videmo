@@ -16,13 +16,8 @@ import { planSeek } from '../timeline/plan-seek';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
 import { DRIFT_MAX_MS } from './audio-delta';
 import { useNarrationClock } from '../audio/use-narration-clock';
+import { AUCUNE_PART } from '../audio/narration-schedule';
 import type { NarrationPart } from '../audio/narration-schedule';
-
-/**
- * Un defaut STABLE : `[]` ecrit dans la signature serait un tableau neuf a
- * chaque rendu, et l'horloge se reconstruirait sans fin.
- */
-const EMPTY_PARTS: NarrationPart[] = [];
 
 const AnimationFactory = require('../lib/index');
 const { CUSTOM_HANDS } = require('../lib/hands');
@@ -158,7 +153,7 @@ export function useWhiteboardRenderer({
   annotationCanvasRef,
   imageUrl = null,
   audioUrl = null,
-  narrationParts = EMPTY_PARTS,
+  narrationParts = AUCUNE_PART as NarrationPart[],
   audioVolume = 1,
   audioMuted = false,
   audioDurationMs = null,
@@ -284,6 +279,12 @@ export function useWhiteboardRenderer({
     let cancelled = false;
     const img = new Image();
     const targetSrc = imageUrl || SCENE_IMAGE;
+    // Le moteur revele le dessin en LISANT les pixels du canvas
+    // (`getImageData`). Sans cet attribut, une image servie par le bac — donc
+    // par une autre origine — teinte le canvas, et la lecture leve une
+    // SecurityError qui empeche l'animation de demarrer. Le bac repond en
+    // CORS ; il suffit de le demander.
+    img.crossOrigin = 'anonymous';
     img.src = targetSrc;
 
     const applyImage = (loadedImg: HTMLImageElement) => {

@@ -10,6 +10,14 @@ export interface NarrationPart {
   durationMs: number;
 }
 
+/**
+ * Un tableau vide STABLE, a utiliser comme defaut.
+ *
+ * Un `[]` ecrit dans une signature est un tableau neuf a chaque rendu : la
+ * dependance change sans cesse et l'horloge se reconstruirait sans fin.
+ */
+export const AUCUNE_PART: readonly NarrationPart[] = Object.freeze([]);
+
 export interface PartAtPosition {
   /** Le rang du morceau dans la liste : il identifie la source a charger. */
   index: number;
