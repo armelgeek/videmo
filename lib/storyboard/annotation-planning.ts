@@ -38,9 +38,13 @@ export function clampRegion(
   region: PlannedRegion,
   size: ImageSize,
 ): PlannedRegion {
-  // Des valeurs toutes inferieures a 1 sont des fractions, pas des pixels.
-  const fractional =
-    region.x <= 1 && region.y <= 1 && region.width <= 1 && region.height <= 1;
+  // Des dimensions strictement positives et inferieures ou egales a 1 sont des
+  // fractions, pas des pixels. x et y ne sont PAS testes : ils valent
+  // legitimement 0 dans les deux systemes (coin haut-gauche), ce qui causait
+  // une fausse detection et multipliait des coordonnees pixels par la taille
+  // image. Les valeurs negatives ne sont pas des fractions : elles seront
+  // corrigees par le clamp qui suit.
+  const fractional = region.width > 0 && region.width <= 1 && region.height > 0 && region.height <= 1;
   const scaleX = fractional ? size.width : 1;
   const scaleY = fractional ? size.height : 1;
 
