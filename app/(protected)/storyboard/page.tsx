@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from "react";
 import { ExportModal } from "@/lib/editor/components/export-modal";
 import { toRenderProject } from "@/lib/whiteboard-animation/server/to-render-project";
 import { ShortcutsModal } from "@/lib/editor/components/shortcuts-modal";
-import { MasterGenerator } from "@/lib/automator/master-generator";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -69,7 +68,6 @@ import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
 import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
-import { TranscriptPanel } from "@/lib/whiteboard-animation/components/transcript-panel";
 
 const STEPS = [
   { key: "prompt", label: "Prompt", icon: Wand2 },
@@ -101,6 +99,23 @@ const VOICE_INITIALS: Record<string, string> = {
   sage: "S",
   shimmer: "Sh",
   verse: "V",
+};
+
+/** La langue dans laquelle la voix lira le script, telle qu'on la nomme. */
+const LANGUAGE_LABELS: Record<string, string> = {
+  en: "English",
+  fr: "French",
+};
+
+/**
+ * Ce que dit l'apercu quand le script est encore vide.
+ *
+ * Il etait en francais en dur : sur un projet anglais, on jugeait une voix sur
+ * une phrase qui n'etait pas dans la langue qu'elle lira.
+ */
+const PREVIEW_FALLBACK: Record<string, string> = {
+  en: "Here is a preview of this narration voice.",
+  fr: "Voici un apercu de cette voix de narration.",
 };
 
 /**
@@ -138,15 +153,11 @@ export default function StoryboardPage() {
     setTranscript,
     setAudioTrack,
     setNarrationParts,
+    setNarrationTranscription,
     loadDemoData,
     resetWorkflow,
   } = useStoryboardStore();
 
-  const [storyboardData, setStoryboardData] = useState<{
-    storyboard: any;
-    content: string;
-    params: any;
-  } | null>(null);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -159,13 +170,6 @@ export default function StoryboardPage() {
   const renderJobIdRef = useRef<string | null>(null);
   const [editableClips, setEditableClips] = useState<any[]>([]);
 
-  const [hasLoadedSession, setHasLoadedSession] = useState(false);
-  const [storageMode, setStorageMode] = useState<"persistent" | "temporal">(
-    "temporal",
-  );
-  const [dismissedBanners, setDismissedBanners] = useState<Set<string>>(
-    new Set(),
-  );
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [generatingProgress, setGeneratingProgress] = useState({
     current: 0,
@@ -176,16 +180,6 @@ export default function StoryboardPage() {
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [narrationProgress, setNarrationProgress] = useState(0);
   const [storyboardPage, setStoryboardPage] = useState(0);
-
-  useEffect(() => {
-    const savedMode = localStorage.getItem("storyboard-storage-mode") as
-      | "persistent"
-      | "temporal"
-      | null;
-    if (savedMode) {
-      setStorageMode(savedMode);
-    }
-  }, []);
 
   // Le projet vit en base : useProjectSync le charge (ou le cree), tient le
   // bail d'edition et ecrit chaque changement du store.
@@ -275,17 +269,22 @@ export default function StoryboardPage() {
     return panels;
   };
 
-  // Initialize editable clips when storyboardData changes or step is storyboard
   /**
-   * Rouvre l'etape a partir de ce qui est enregistre.
+   * Rend les clips et leurs images a partir de ce qui est enregistre.
    *
-   * L'ancien code retombait sur DEMO_FINAL_SEQUENCE des que `storyboardData` —
-   * un etat local, donc perdu au rechargement — etait absent, puis ecrivait ces
-   * panneaux de demonstration dans le store : la premiere frappe suivante les
-   * enregistrait par-dessus le vrai projet.
+   * Sans garde d'etape : ce ne sont que les panneaux du projet relus autrement,
+   * et l'etape courante n'a pas a decider si on les connait. La garde
+   * `step !== "storyboard"` d'avant laissait `generatedImages` vide partout
+   * ailleurs — or l'etape voix ne se rend que s'il est rempli, donc un
+   * rechargement sur la voix donnait une page BLANCHE, et le retour en arriere
+   * etait ferme lui aussi (canNavigateToStep en depend).
+   *
+   * Un etat local ne doit rien decider ici : l'ancien code retombait sur
+   * DEMO_FINAL_SEQUENCE des qu'une variable de session manquait, puis ecrivait
+   * ces panneaux de demonstration dans le store — la premiere frappe suivante
+   * les enregistrait par-dessus le vrai projet.
    */
   useEffect(() => {
-    if (step !== "storyboard") return;
     if (editableClips.length > 0) return;
 
     const { clips, images } = panelsToStepState(storyboardPanels);
@@ -293,7 +292,7 @@ export default function StoryboardPage() {
 
     setEditableClips(clips);
     setGeneratedImages(images);
-  }, [step, storyboardPanels, editableClips.length]);
+  }, [storyboardPanels, editableClips.length]);
 
   const updateClipField = (index: number, updates: Record<string, any>) => {
     const newClips = [...editableClips];
@@ -433,7 +432,15 @@ export default function StoryboardPage() {
     return body.url as string;
   };
 
-  const generateImagesProgressively = async () => {
+  /**
+   * Produit les visuels manquants.
+   *
+   * `force` refait la serie entiere : c'est le sens du bouton « Regenerate All
+   * Visuals », et lui seul. Par defaut une image deja produite est gardee —
+   * rouvrir un projet termine et repasser par cette etape relancait un appel
+   * modele par image, pour remplacer des visuels que rien ne rendait caducs.
+   */
+  const generateImagesProgressively = async ({ force = false } = {}) => {
     const clips = editableClips.filter((c) => !c.isSection);
     if (clips.length === 0) return;
     if (!projectSync.projectId) {
@@ -441,25 +448,41 @@ export default function StoryboardPage() {
       return;
     }
 
-    setIsGeneratingImages(true);
-    setGeneratingProgress({ current: 0, total: clips.length });
-
     // Une copie de travail : les visuels deja obtenus sont conserves meme si un
     // appel echoue au milieu, plutot que de perdre le lot entier.
     const newImages = [...generatedImages];
+    // L'index d'origine voyage avec le clip : c'est le `sceneIndex` sous lequel
+    // la route range l'image, et sauter des clips le desaligne du rang de boucle.
+    const todo = clips
+      .map((clip, index) => ({ clip, index }))
+      .filter(({ index }) => force || !newImages[index]);
+
+    if (todo.length === 0) {
+      toast.info("Visuals already generated");
+      return;
+    }
+
+    setIsGeneratingImages(true);
+    setGeneratingProgress({ current: 0, total: todo.length });
+
     let failed = 0;
     // La premiere case produite sert de reference aux suivantes : c'est le seul
     // moyen de tenir l'epaisseur de trait et la gamme de couleurs sur la serie.
-    let reference: string | undefined;
+    // Un visuel deja en place fait cette reference quand on complete une serie,
+    // sinon les images ajoutees apres coup partiraient dans un autre style.
+    let reference: string | undefined = force
+      ? undefined
+      : newImages.find((url) => !!url);
 
-    for (let i = 0; i < clips.length; i++) {
+    for (let rang = 0; rang < todo.length; rang++) {
+      const { clip, index } = todo[rang];
       try {
-        newImages[i] = await requestVisual(clips[i], i, reference);
-        if (!reference) reference = newImages[i];
+        newImages[index] = await requestVisual(clip, index, reference);
+        if (!reference) reference = newImages[index];
         setGeneratedImages([...newImages]);
       } catch (error) {
         failed += 1;
-        console.error(`Visual ${i + 1} failed:`, error);
+        console.error(`Visual ${index + 1} failed:`, error);
         if (failed === 1) {
           toast.error(
             error instanceof Error ? error.message : "Visual generation failed",
@@ -467,17 +490,17 @@ export default function StoryboardPage() {
         }
         // Inutile d'insister neuf fois sur une configuration absente.
         if ((error as Error & { fatal?: boolean }).fatal) {
-          setGeneratingProgress({ current: clips.length, total: clips.length });
+          setGeneratingProgress({ current: todo.length, total: todo.length });
           break;
         }
       }
-      setGeneratingProgress({ current: i + 1, total: clips.length });
+      setGeneratingProgress({ current: rang + 1, total: todo.length });
     }
 
     setIsGeneratingImages(false);
     syncClipsToStore(editableClips, newImages);
 
-    const done = clips.length - failed;
+    const done = todo.length - failed;
     if (done > 0) toast.success(`Generated ${done} visual${done > 1 ? "s" : ""}`);
     if (failed > 0) toast.error(`${failed} visual${failed > 1 ? "s" : ""} failed`);
   };
@@ -532,7 +555,8 @@ export default function StoryboardPage() {
           voice,
           text:
             scriptText.trim().slice(0, 200) ||
-            "Voici un apercu de cette voix de narration.",
+            PREVIEW_FALLBACK[projectParams.language] ||
+            PREVIEW_FALLBACK.en,
         }),
       });
       const body = await response.json();
@@ -559,6 +583,25 @@ export default function StoryboardPage() {
   const [isBreakingDown, setIsBreakingDown] = useState(false);
 
   /**
+   * Le script qui a produit le decoupage actuellement en place.
+   *
+   * Il distingue les deux clics sur « Approve Script » : celui qui suit une
+   * reecriture, qui doit redecouper, et celui qui ne fait que traverser une
+   * etape deja faite, qui ne doit rien refaire.
+   */
+  const brokenDownScript = useRef<string | null>(null);
+
+  // Un projet rouvert porte deja son decoupage : il a ete enregistre avec le
+  // script qui l'a produit. Sans cette amorce, le premier passage par l'etape
+  // script le prenait pour un decoupage absent et relancait tout.
+  useEffect(() => {
+    if (projectSync.status === "loading") return;
+    if (brokenDownScript.current !== null) return;
+    if (storyboardPanels.length === 0) return;
+    brokenDownScript.current = scriptText;
+  }, [projectSync.status, storyboardPanels.length, scriptText]);
+
+  /**
    * Second temps : le texte valide est decoupe en scenes.
    *
    * L'appel est distinct de l'ecriture parce que l'utilisateur a pu reecrire le
@@ -567,6 +610,18 @@ export default function StoryboardPage() {
    */
   const handleScriptValidated = async () => {
     if (!scriptText.trim() || isBreakingDown) return;
+
+    // L'etape est deja faite et le script n'a pas bouge : on la traverse.
+    // La redecouper rappelait le modele, puis reecrivait des clips aux images
+    // vides (`clips.map(() => "")`) par-dessus le projet — visuels, voix et
+    // annotations deja produits partaient avec.
+    if (
+      brokenDownScript.current === scriptText &&
+      (editableClips.length > 0 || storyboardPanels.length > 0)
+    ) {
+      setStep("storyboard");
+      return;
+    }
 
     setIsBreakingDown(true);
     setScriptError(null);
@@ -606,6 +661,7 @@ export default function StoryboardPage() {
       setEditableClips(clips);
       setGeneratedImages(images);
       syncClipsToStore(clips, images);
+      brokenDownScript.current = scriptText;
       setStep("storyboard");
     } catch (error) {
       setScriptError(
@@ -614,18 +670,6 @@ export default function StoryboardPage() {
     } finally {
       setIsBreakingDown(false);
     }
-  };
-
-  const handleStoryboardGenerated = (
-    storyboard: any,
-    content: string,
-    params: any,
-    images: string[],
-  ) => {
-    const data = { storyboard, content, params };
-    setStoryboardData(data);
-    setGeneratedImages(images);
-    setStep("voiceChoice");
   };
 
   /**
@@ -648,11 +692,24 @@ export default function StoryboardPage() {
 
     const canvas = tailleCanvas(projectParams.aspectRatio);
     const planned = [...clips];
+    let failed = 0;
+
+    // `images` est indexe par les clips SANS section — c'est ainsi que
+    // generateImagesProgressively le remplit et que syncClipsToStore le relit.
+    // Cette boucle, elle, courait sur TOUS les clips : des qu'une section
+    // precedait une scene, celle-ci lisait l'image d'une autre, ou rien du
+    // tout, et repartait sans annotation. D'ou des scenes muettes dans
+    // l'editeur alors que la planification disait avoir tourne.
+    let rang = 0;
 
     for (let i = 0; i < clips.length; i++) {
       const clip = clips[i];
-      const imageUrl = images[i] || "";
-      if (clip.isSection || !imageUrl || !clip.beats?.length) continue;
+      if (clip.isSection) continue;
+
+      const sceneIndex = rang;
+      const imageUrl = images[sceneIndex] || "";
+      rang += 1;
+      if (!imageUrl || !clip.beats?.length) continue;
 
       try {
         const imageSize = await measureImageSize(imageUrl);
@@ -666,7 +723,7 @@ export default function StoryboardPage() {
             projectId: projectSync.projectId,
             imageUrl,
             scene: {
-              index: i,
+              index: sceneIndex,
               // Le schema de la route n'accepte que ces trois valeurs : un
               // projet ancien porte parfois autre chose, qui ferait echouer
               // toute la planification en 400.
@@ -696,11 +753,25 @@ export default function StoryboardPage() {
           }),
         };
       } catch (error) {
-        console.error(`Annotation planning ${i + 1} failed:`, error);
+        // Un echec avale ne laissait qu'une ligne de console : la scene
+        // revenait sans annotation et rien ne le disait.
+        failed += 1;
+        console.error(`Annotation planning ${sceneIndex + 1} failed:`, error);
+        if (failed === 1) {
+          toast.error(
+            error instanceof Error ? error.message : "Annotation planning failed",
+          );
+        }
       }
 
       setNarrationProgress(
         NARRATION_SHARE + Math.round(((i + 1) / clips.length) * (100 - NARRATION_SHARE)),
+      );
+    }
+
+    if (failed > 0) {
+      toast.error(
+        `${failed} scene${failed > 1 ? "s" : ""} left without annotations`,
       );
     }
 
@@ -726,6 +797,26 @@ export default function StoryboardPage() {
     if (jobs.length === 0) return;
 
     const voice = normalizeVoice(voiceId);
+
+    // L'etape est deja faite, et sur cette meme voix : on la traverse. Le
+    // script part d'une traite, donc relancer refaisait la bande ENTIERE et
+    // remplacait des calages deja mesures. Choisir une AUTRE voix reste un
+    // ordre de refaire — c'est le seul moyen d'en changer.
+    const parlantes = editableClips.filter(
+      (c) =>
+        !c.isSection &&
+        (c.beats?.some((b: { narration?: string }) => b.narration?.trim()) ||
+          (c.summary || c.title || "").trim()),
+    );
+    if (
+      voice === selectedVoice &&
+      parlantes.length > 0 &&
+      parlantes.every((c) => c.audioUrl)
+    ) {
+      setStep("whiteboard");
+      return;
+    }
+
     setSelectedVoice(voice);
     setIsGeneratingNarration(true);
     setNarrationProgress(0);
@@ -739,6 +830,9 @@ export default function StoryboardPage() {
     // duree les additionne — mais en repartant de zero, sinon elle s'ajouterait
     // a celle d'un lot precedent.
     const commencees = new Set<number>();
+    // Ce que chaque enregistrement dit, mot par mot : produit pour recaler les
+    // temps, il se garde au lieu d'etre jete.
+    const transcription: { url: string; words: { word: string; startMs: number; endMs: number }[] }[] = [];
 
     for (let i = 0; i < jobs.length; i++) {
       const job = jobs[i];
@@ -768,6 +862,10 @@ export default function StoryboardPage() {
         // de fin compris, sinon le dessin devancerait la respiration.
         const cales: { startMs: number; durationMs: number }[] | null =
           Array.isArray(body.beats) ? body.beats : null;
+
+        if (Array.isArray(body.words) && body.words.length > 0) {
+          transcription.push({ url: body.url, words: body.words });
+        }
 
         job.places.forEach((place, rang) => {
           const clip = withAudio[place.clipIndex];
@@ -830,6 +928,7 @@ export default function StoryboardPage() {
     // La piste : un enregistrement par image, pose a sa place. Plus rien a
     // coller — chaque image est dite d'une traite.
     setNarrationParts(scheduleParts(narrationParts(panels)));
+    setNarrationTranscription(transcription);
     setIsGeneratingNarration(false);
 
     const done = jobs.length - failed;
@@ -851,22 +950,11 @@ export default function StoryboardPage() {
   const handleClearSession = () => {
     if (confirm("Clear all saved progress? This cannot be undone.")) {
       resetWorkflow();
-      setStoryboardData(null);
       setGeneratedImages([]);
       // resetWorkflow repart de l'etape prompt : l'abonnement du hook ecrit
       // cet etat vide dans le projet, donc rien a effacer a la main.
       toast.info("Session cleared");
     }
-  };
-
-  const handleStorageModeChange = (mode: string) => {
-    const storageValue = mode as "persistent" | "temporal";
-    setStorageMode(storageValue);
-    localStorage.setItem("storyboard-storage-mode", storageValue);
-  };
-
-  const dismissBanner = (id: string) => {
-    setDismissedBanners((prev) => new Set([...prev, id]));
   };
 
   const getStepIndex = (s: string) => STEPS.findIndex((step) => step.key === s);
@@ -881,9 +969,37 @@ export default function StoryboardPage() {
     return false;
   };
 
+  // Ne pas afficher l'interface tant que le projet n'est pas chargé
+  if (projectSync.status === "loading") {
+    return (
+      <AppShell contentClassName="h-screen overflow-hidden">
+        <div className="h-full bg-background text-foreground flex flex-col items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+          <p className="text-sm text-muted-foreground">Chargement du projet...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (projectSync.status === "error") {
+    return (
+      <AppShell contentClassName="h-screen overflow-hidden">
+        <div className="h-full bg-background text-foreground flex flex-col items-center justify-center gap-4">
+          <AlertTriangle className="h-8 w-8 text-destructive" />
+          <div className="text-center">
+            <p className="text-sm font-medium">{projectSync.error}</p>
+            <Button onClick={() => router.back()} variant="outline" className="mt-4">
+              Retour
+            </Button>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell contentClassName="h-screen overflow-hidden">
-      <div className="flex-1 bg-background text-foreground flex flex-col overflow-hidden">
+      <div className="h-full bg-background text-foreground flex flex-col overflow-hidden">
         <DevPanel currentStep={step} />
 
         <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-sm">
@@ -1010,7 +1126,7 @@ export default function StoryboardPage() {
           </div>
         </header>
 
-        <main className="px-2 py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-4">
           {/* Step Content */}
           {step === "prompt" && (
             <div className="flex flex-col items-center px-4 py-8">
@@ -1395,7 +1511,7 @@ export default function StoryboardPage() {
           )}
 
           {step === "storyboard" && (
-            <div className="max-w-5xl mx-auto space-y-6 pt-4 h-full overflow-y-auto pb-12">
+            <div className="max-w-5xl mx-auto space-y-6 pt-4 pb-12">
               {/* Progress Bar */}
               {isGeneratingImages && (
                 <div className="bg-card border border-border rounded-lg p-4 space-y-2">
@@ -1433,7 +1549,7 @@ export default function StoryboardPage() {
                   <div>
                     <h2 className="text-3xl font-bold">Storyboard & Timeline Clips</h2>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Customize titles, durations, script narration, and visual prompts for each clip.
+                      Customize durations, script narration, and visual prompts for each clip.
                     </p>
                   </div>
                   {/* Action Buttons */}
@@ -1447,11 +1563,11 @@ export default function StoryboardPage() {
                       ← Script
                     </Button>
                     <Button
-                      onClick={generateImagesProgressively}
+                      onClick={() => void generateImagesProgressively()}
                       disabled={isGeneratingImages}
                       size="sm"
                       variant="outline"
-                      title="Generate or update visuals for all clips"
+                      title="Generate visuals for clips that don't have one yet"
                     >
                       {isGeneratingImages ? (
                         <>
@@ -1526,31 +1642,22 @@ export default function StoryboardPage() {
                             {i + 1}
                           </div>
                           <div className="flex-1 min-w-0 flex items-center gap-2">
-                            {/* Editable Title */}
-                            <input
-                              type="text"
-                              value={item.title || ""}
-                              onChange={(e) => updateClipField(i, { title: e.target.value })}
-                              className="text-base font-semibold bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary focus:outline-none px-1 py-0.5 w-full max-w-sm transition-colors text-foreground"
-                              placeholder={`Clip ${i + 1} title...`}
-                            />
-                            {/* Clip Type Badge / Selector */}
-                            <Select
-                              value={item.clipType || "content"}
-                              onValueChange={(val) =>
-                                updateClipField(i, { clipType: val, isSection: val === "section" })
-                              }
-                            >
-                              <SelectTrigger className="w-28 h-7 text-xs bg-primary/10 border-0 text-primary font-medium rounded-full px-2.5">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="intro">Intro</SelectItem>
-                                <SelectItem value="content">Content</SelectItem>
-                                <SelectItem value="outro">Outro</SelectItem>
-                                <SelectItem value="section">Section</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            {/* Le titre d'une section EST la section : elle n'a que lui, et
+                                « + Section Header » la cree sans nom. Celui d'un
+                                clip vient du script, il se lit. */}
+                            {item.isSection ? (
+                              <input
+                                type="text"
+                                value={item.title || ""}
+                                onChange={(e) => updateClipField(i, { title: e.target.value })}
+                                className="text-base font-semibold bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary focus:outline-none px-1 py-0.5 w-full max-w-sm transition-colors text-foreground"
+                                placeholder="Section title..."
+                              />
+                            ) : (
+                              <h3 className="text-base font-semibold px-1 py-0.5 truncate text-foreground">
+                                {item.title || `Clip ${i + 1}`}
+                              </h3>
+                            )}
                           </div>
                         </div>
 
@@ -1725,9 +1832,10 @@ export default function StoryboardPage() {
               <div className="flex gap-4 pt-4 border-t border-border/50">
                 <Button
                   variant="outline"
-                  onClick={generateImagesProgressively}
+                  onClick={() => void generateImagesProgressively({ force: true })}
                   disabled={isGeneratingImages}
                   className="flex-1"
+                  title="Redraw every visual, replacing the ones already generated"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Regenerate All Visuals
@@ -1763,12 +1871,19 @@ export default function StoryboardPage() {
           {step === "voiceChoice" &&
             generatedImages.length > 0 &&
             !isGeneratingNarration && (
-              <div className="max-w-7xl mx-auto space-y-6 pt-6">
+              <div className="max-w-6xl mx-auto space-y-8 pt-6">
                 <div className="flex items-start justify-between gap-6">
-                  <div className="space-y-3 flex-1">
-                    <h2 className="text-3xl font-bold">Pick a Voice</h2>
-                    <p className="text-muted-foreground">
-                      Choose a professional voice for your video narration
+                  <div className="space-y-2 flex-1">
+                    <h2 className="text-3xl font-bold">Pick a voice</h2>
+                    <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
+                      Every voice reads your script in{" "}
+                      <span className="font-medium text-foreground">
+                        {LANGUAGE_LABELS[projectParams.language] ??
+                          projectParams.language}
+                      </span>
+                      . They are multilingual and carry no description on
+                      purpose — listening is the only honest way to tell them
+                      apart.
                     </p>
                   </div>
 
@@ -1792,177 +1907,120 @@ export default function StoryboardPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                  <div className="lg:col-span-2 space-y-8">
-                  {/* Tabs */}
-                  <div className="flex gap-2 border-b border-border/50">
-                    <button
-                      onClick={() => setSelectedVoice("")}
-                      className={cn(
-                        "px-4 py-2 text-sm font-medium transition-colors",
-                        selectedVoice !== "custom"
-                          ? "text-foreground border-b-2 border-foreground"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      Preset Voices
-                    </button>
-                    <button
-                      onClick={() => setSelectedVoice("custom")}
-                      className={cn(
-                        "px-4 py-2 text-sm font-medium transition-colors",
-                        selectedVoice === "custom"
-                          ? "text-foreground border-b-2 border-foreground"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      Your Voice
-                    </button>
-                  </div>
-
-                  {/* Preset Voices Grid */}
-                  {selectedVoice !== "custom" && (
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {VOICES.map((voice) => (
+                  {/* Une voix par rangee, l'ecoute au premier plan. Les grandes
+                      vignettes d'avant promettaient une difference visuelle qui
+                      n'existe pas : rien ne separe ces voix a l'oeil. */}
+                  <div
+                    role="radiogroup"
+                    aria-label="Narration voice"
+                    className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2"
+                  >
+                    {VOICES.map((voice) => {
+                      const isSelected = selectedVoice === voice;
+                      const isPlaying = previewingVoice === voice;
+                      return (
                         <div
                           key={voice}
-                          onClick={() => setSelectedVoice(voice)}
                           className={cn(
-                            "group cursor-pointer transition-all duration-300 rounded-xl border overflow-hidden flex flex-col",
-                            "bg-gradient-to-br from-card to-card/60",
-                            selectedVoice === voice
-                              ? "border-foreground/30 shadow-lg"
-                              : "border-border/50 hover:border-border/80 hover:shadow-md",
+                            "relative flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors",
+                            isSelected
+                              ? "border-primary/60 bg-primary/5"
+                              : "border-border/60 bg-card hover:border-border",
                           )}
                         >
-                          <div className="h-28 bg-muted/40 border-b border-border/50 flex items-center justify-center">
-                            <div className="w-16 h-16 rounded-full bg-muted/70 border border-border/50 flex items-center justify-center">
-                              <span className="text-2xl font-bold text-foreground/40">
-                                {VOICE_INITIALS[voice] ?? voice[0].toUpperCase()}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="p-4 flex flex-col flex-1">
-                            <div className="flex items-start justify-between gap-2 mb-3">
-                              <h3 className="text-base font-bold text-foreground capitalize">
-                                {voice}
-                              </h3>
-                              {selectedVoice === voice && (
-                                <div className="flex-shrink-0 w-5 h-5 rounded-full bg-foreground/20 flex items-center justify-center">
-                                  <Check className="w-3 h-3 text-foreground" />
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex-1" />
-
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void playVoicePreview(voice);
-                              }}
-                              disabled={previewingVoice !== null}
-                              className={cn(
-                                "w-full py-2 rounded-lg font-semibold text-xs transition-all flex items-center justify-center gap-1.5",
-                                "bg-muted/50 hover:bg-muted/70 text-foreground/70 hover:text-foreground",
-                                previewingVoice === voice && "bg-muted/60",
-                              )}
-                            >
-                              {previewingVoice === voice ? (
-                                <>
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                  Loading
-                                </>
-                              ) : (
-                                <>
-                                  <Volume2 className="w-3 h-3" />
-                                  Listen
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Your Voice Upload Section */}
-                  {selectedVoice === "custom" && (
-                    <div className="flex flex-col items-center justify-center py-12 px-6 border-2 border-dashed border-border/50 rounded-xl bg-muted/30">
-                      <div className="flex flex-col items-center gap-4 max-w-sm">
-                        <div className="w-16 h-16 rounded-full bg-muted/70 border-2 border-border/50 flex items-center justify-center">
-                          <svg
-                            className="w-8 h-8 text-foreground/40"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                          {/* Etendue sur toute la rangee : on choisit d'un clic
+                              n'importe ou, sans imbriquer un bouton dans un
+                              autre — ce que le HTML interdit. */}
+                          <button
+                            type="button"
+                            role="radio"
+                            aria-checked={isSelected}
+                            onClick={() => setSelectedVoice(voice)}
+                            className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.5}
-                              d="M19 14v5a2 2 0 01-2 2H7a2 2 0 01-2-2v-5m11-4l-4-4m0 0L9 6m4 0v6"
-                            />
-                          </svg>
-                        </div>
-                        <div className="text-center">
-                          <h3 className="text-lg font-semibold text-foreground mb-2">
-                            Upload Your Voice
-                          </h3>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Clone your unique voice for personalized narration
-                          </p>
-                        </div>
-                        <button
-                          onClick={() =>
-                            document.getElementById("voice-upload")?.click()
-                          }
-                          className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm rounded-lg transition-colors flex items-center gap-2"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                            <span className="sr-only">Use {voice}</span>
+                          </button>
+
+                          <span
+                            className={cn(
+                              "pointer-events-none flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                              isSelected
+                                ? "bg-primary/15 text-primary"
+                                : "bg-muted text-muted-foreground",
+                            )}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 4v16m8-8H4"
-                            />
-                          </svg>
-                          Choose Audio File
-                        </button>
-                        <p className="text-xs text-muted-foreground text-center">
-                          Supports MP3, WAV, OGG (max 10MB)
-                        </p>
-                      </div>
-                      <input
-                        id="voice-upload"
-                        type="file"
-                        accept="audio/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files?.[0]) {
-                            toast.success(
-                              `Voice "${e.target.files[0].name}" uploaded successfully!`,
-                            );
-                          }
-                        }}
-                      />
-                    </div>
-                  )}
+                            {VOICE_INITIALS[voice] ?? voice[0].toUpperCase()}
+                          </span>
+
+                          <span className="pointer-events-none flex-1 truncate text-sm font-medium capitalize text-foreground">
+                            {voice}
+                          </span>
+
+                          {isSelected && (
+                            <Check className="pointer-events-none h-4 w-4 shrink-0 text-primary" />
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => void playVoicePreview(voice)}
+                            disabled={previewingVoice !== null}
+                            className={cn(
+                              "relative z-10 flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                              "text-muted-foreground hover:bg-muted hover:text-foreground",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                              "disabled:opacity-50",
+                            )}
+                          >
+                            {isPlaying ? (
+                              <>
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Playing
+                              </>
+                            ) : (
+                              <>
+                                <Volume2 className="h-3 w-3" />
+                                Listen
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  {/* La narration se cale sur la voix qu'on vient de choisir :
-                      ces deux panneaux vivent donc ici, et non plus dans
-                      l'etape whiteboard, qui vient desormais apres. */}
-                  <aside className="space-y-4">
+                  <aside className="space-y-2">
                     <AudioPanel />
-                    <TranscriptPanel />
+                    {/* Le store fait primer la narration produite sur cette
+                        piste : le taire laissait croire qu'un televersement
+                        remplace la voix generee. */}
+                    <p className="px-1 text-xs text-muted-foreground">
+                      Generating narration takes precedence over an uploaded
+                      track.
+                    </p>
                   </aside>
                 </div>
+              </div>
+            )}
+
+          {/* Sans clips, le bloc ci-dessus ne rend RIEN : l'ecran restait
+              vide et sans issue. Mieux vaut dire ce qui manque et rouvrir le
+              chemin qui le produit. */}
+          {step === "voiceChoice" &&
+            !isGeneratingNarration &&
+            generatedImages.length === 0 && (
+              <div className="mx-auto max-w-md pt-20 text-center">
+                <h2 className="text-lg font-semibold">No clips to narrate yet</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Build the storyboard and generate its visuals first — the
+                  narration is timed against them.
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-6"
+                  onClick={() => setStep("storyboard")}
+                >
+                  Back to storyboard
+                </Button>
               </div>
             )}
 
@@ -2083,7 +2141,7 @@ export default function StoryboardPage() {
             </div>
           )}
 
-        </main>
+        </div>
 
         {/* Export Modal - Using existing component */}
         <ExportModal
