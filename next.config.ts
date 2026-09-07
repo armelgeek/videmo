@@ -90,6 +90,17 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    // Next 16 refuse toute image dont l'hote resout vers une IP privee
+    // (protection SSRF, image-optimizer.js) — et rend EXACTEMENT la meme
+    // erreur qu'un domaine non autorise, « "url" parameter is not allowed »,
+    // ce qui fait chercher du cote des remotePatterns alors qu'ils
+    // correspondent. Le bac de developpement etant sur localhost, aucun visuel
+    // ne s'affichait a l'etape Storyboard.
+    //
+    // La levee ne vaut que pour un bac en http — MinIO en local. Un bac https,
+    // donc la production, garde la protection : elle est globale, elle ne se
+    // restreint pas a une origine.
+    dangerouslyAllowLocalIP: bucket?.protocol === "http:",
     remotePatterns: [
       {
         protocol: "https",
