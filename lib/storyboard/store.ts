@@ -48,6 +48,18 @@ export interface TimelineClip {
   transition?: { type: TransitionType; duration: number };
 }
 
+/**
+ * Ce qu'un enregistrement dit, mot par mot, avec l'instant de chacun.
+ *
+ * Une entree par enregistrement et non par image : le script part d'une traite,
+ * donc un meme fichier porte plusieurs images.
+ */
+export interface NarrationTranscript {
+  /** L'enregistrement transcrit, tel que le bac le sert. */
+  url: string;
+  words: { word: string; startMs: number; endMs: number }[];
+}
+
 export interface WhiteboardConfig {
   animStyle: string;
   handStyle: string;
@@ -72,6 +84,14 @@ export interface WhiteboardConfig {
    */
   narration: NarrationPart[];
   transcript: TranscriptCue[];
+  /**
+   * La transcription des enregistrements.
+   *
+   * Elle etait produite pour recaler les temps de narration, puis jetee : la
+   * moindre reprise — des sous-titres, une recherche dans la voix — obligeait a
+   * repayer une transcription du meme audio.
+   */
+  transcription: NarrationTranscript[];
 }
 
 export interface StoryboardStoreState {
@@ -110,6 +130,7 @@ export interface StoryboardStoreState {
   setAudioTrack: (track: AudioTrack | null) => void;
   setNarrationParts: (parts: NarrationPart[]) => void;
   setTranscript: (cues: TranscriptCue[]) => void;
+  setNarrationTranscription: (takes: NarrationTranscript[]) => void;
   linkTranscriptCue: (cueId: string, annotationId: string) => void;
 
   loadDemoData: () => void;
@@ -139,6 +160,7 @@ export const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
   audio: null,
   narration: [],
   transcript: [],
+  transcription: [],
 };
 
 /**
@@ -327,6 +349,11 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
       setTranscript: (cues: TranscriptCue[]) =>
         set((state) => ({
           whiteboardConfig: { ...state.whiteboardConfig, transcript: cues },
+        })),
+
+      setNarrationTranscription: (transcription: NarrationTranscript[]) =>
+        set((state) => ({
+          whiteboardConfig: { ...state.whiteboardConfig, transcription },
         })),
 
       linkTranscriptCue: (cueId: string, annotationId: string) =>

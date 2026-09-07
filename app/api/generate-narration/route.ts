@@ -13,7 +13,7 @@ import { getSpeechGenerator } from "@/lib/speech/openai-speech-generator";
 import { measureAudioDurationMs } from "@/lib/speech/audio-duration";
 import { getTranscriber } from "@/lib/speech/openai-transcriber";
 import { TranscriptionFailedError } from "@/lib/speech/transcriber";
-import { alignBeats } from "@/lib/speech/beat-alignment";
+import { alignBeats, type TranscriptWord } from "@/lib/speech/beat-alignment";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 
@@ -71,9 +71,14 @@ export async function POST(request: NextRequest) {
     // Un echec ne prive pas la scene de sa voix : le calage retombe sur
     // l'estimation du decoupage.
     let beats: Awaited<ReturnType<typeof alignBeats>> | null = null;
+    // La transcription sert a recaler, mais elle porte l'instant de CHAQUE mot.
+    // La jeter obligeait a repayer une transcription du meme enregistrement des
+    // qu'on en veut autre chose — des sous-titres, par exemple. Elle sort donc
+    // avec le reste.
+    let words: TranscriptWord[] = [];
     if (input.beats?.length && durationMs) {
       try {
-        const words = await getTranscriber().transcribe({
+        words = await getTranscriber().transcribe({
           audio,
           language: input.language,
         });
@@ -97,7 +102,7 @@ export async function POST(request: NextRequest) {
       contentType: "audio/mpeg",
     });
 
-    return NextResponse.json({ url, durationMs, beats });
+    return NextResponse.json({ url, durationMs, beats, words });
   } catch (error) {
     if (
       error instanceof StorageNotConfiguredError ||
