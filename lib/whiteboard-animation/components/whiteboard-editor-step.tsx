@@ -13,6 +13,7 @@ import { toEngineAnnotations, toStoredAnnotations } from "../timeline/annotation
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { deriveTimeline } from "../timeline/derive-timeline";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
+import { panelWindows, type DrawnSpan } from "../timeline/panel-windows";
 import { AnnotationListPanel } from "./annotation-list-panel";
 import { AudioTrackRow } from "./audio-track-row";
 import { TimelinePlayhead } from "./timeline-playhead";
@@ -145,10 +146,12 @@ export function WhiteboardEditorStep({
   // Where each clip sits on the global timeline.
   // Panel i > 0 starts where Panel i-1 ends, so that the gap before Panel i
   // is included in Panel i's boundary (clipOffsetMs).
+  //
+  // Toutes les images en recoivent une, y compris celles qui ne dessinent
+  // rien : leur absence faisait retomber `clipOffsetMs` sur son `?? 0`, et la
+  // narration repartait du debut en basculant sur elles. Voir panel-windows.ts.
   const panelBoundaries = useMemo(() => {
-    if (allAnnotations.length === 0) return [];
-    
-    const drawingSpans: { panelIdx: number; drawStartMs: number; drawEndMs: number }[] = [];
+    const drawingSpans: DrawnSpan[] = [];
     deriveTimeline(allAnnotations).annotations.forEach((ann) => {
       const panelIdx = Number(ann.id.match(/^p(\d+)-/)?.[1]);
       if (Number.isNaN(panelIdx)) return;
@@ -164,23 +167,8 @@ export function WhiteboardEditorStep({
       }
     });
 
-    const result: { panelIdx: number; startMs: number; endMs: number; drawStartMs: number; drawEndMs: number }[] = [];
-    let prevEndMs = 0;
-    for (const span of drawingSpans) {
-      const startMs = prevEndMs;
-      const endMs = Math.max(startMs, span.drawEndMs);
-      result.push({
-        panelIdx: span.panelIdx,
-        startMs,
-        endMs,
-        drawStartMs: span.drawStartMs,
-        drawEndMs: span.drawEndMs,
-      });
-      prevEndMs = endMs;
-    }
-
-    return result;
-  }, [allAnnotations]);
+    return panelWindows(storyboardPanels, drawingSpans);
+  }, [allAnnotations, storyboardPanels]);
 
   // Les frontieres de clips pour le moteur de transition et les marqueurs.
   // sortant.endMs est la fin du dessin du panneau sortant,
