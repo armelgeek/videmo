@@ -749,7 +749,7 @@ export default function StoryboardPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             projectId: projectSync.projectId,
-            sceneIndex: job.clipIndex,
+            sceneIndex: i,
             text: job.text,
             beats: job.beats,
             language: projectParams.language,
@@ -763,37 +763,45 @@ export default function StoryboardPage() {
           throw error;
         }
 
-        const clip = withAudio[job.clipIndex];
         // L'enregistrement ne se decoupe pas : ses temps s'y REPERENT, chacun
         // recevant l'instant ou il est dit et la place qu'il occupe — silence
         // de fin compris, sinon le dessin devancerait la respiration.
         const cales: { startMs: number; durationMs: number }[] | null =
           Array.isArray(body.beats) ? body.beats : null;
-        const rangs = job.beatIndexes ?? [];
 
-        const premiere = !commencees.has(job.clipIndex);
-        commencees.add(job.clipIndex);
+        job.places.forEach((place, rang) => {
+          const clip = withAudio[place.clipIndex];
+          if (!clip) return;
 
-        withAudio[job.clipIndex] = {
-          ...clip,
-          // La premiere voix de l'image la represente : une image assez longue
-          // pour etre dite en plusieurs fois en porte d'autres, que ses temps
-          // designent chacun.
-          audioUrl: premiere ? body.url : clip.audioUrl,
-          audioDurationMs:
-            (premiere ? 0 : (clip.audioDurationMs ?? 0)) +
-              (body.durationMs ?? 0) || undefined,
-          beats: (clip.beats ?? []).map((beat: ScriptBeat, index: number) => {
-            const place = rangs.indexOf(index);
-            if (place < 0) return beat;
-            return {
-              ...beat,
-              audioUrl: body.url,
-              startMs: cales?.[place]?.startMs,
-              audioDurationMs: cales?.[place]?.durationMs,
-            };
-          }),
-        };
+          const cale = cales?.[rang];
+          // Un meme enregistrement porte plusieurs images : chacune le
+          // designe, et ses temps disent ou ils sont dedans.
+          const commencee = commencees.has(place.clipIndex);
+          commencees.add(place.clipIndex);
+
+          const beats = (clip.beats ?? []).map(
+            (beat: ScriptBeat, index: number) =>
+              index === place.beatIndex
+                ? {
+                    ...beat,
+                    audioUrl: body.url,
+                    startMs: cale?.startMs,
+                    audioDurationMs: cale?.durationMs,
+                  }
+                : beat,
+          );
+
+          withAudio[place.clipIndex] = {
+            ...clip,
+            audioUrl: commencee ? clip.audioUrl : body.url,
+            // Ce que CETTE image occupe dans la voix, et non la duree du
+            // fichier : plusieurs images le partagent.
+            audioDurationMs:
+              (commencee ? (clip.audioDurationMs ?? 0) : 0) +
+                (cale?.durationMs ?? 0) || undefined,
+            beats,
+          };
+        });
       } catch (error) {
         failed += 1;
         console.error(`Narration ${i + 1} failed:`, error);

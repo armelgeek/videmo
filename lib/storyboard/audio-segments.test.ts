@@ -12,7 +12,26 @@ const panel = (over: Partial<StoryboardPanel> = {}): StoryboardPanel =>
     ...over,
   }) as StoryboardPanel;
 
+const temps = (over: Record<string, unknown>) =>
+  ({ narration: "n", durationSec: 1, ...over }) as never;
+
 describe("panelAudioSegments", () => {
+  it("entre dans le fichier la ou l'image commence", () => {
+    // Le script est dit d'une traite : sans decalage, chaque image rejouerait
+    // la narration depuis le debut.
+    expect(
+      panelAudioSegments(
+        panel({
+          audioUrl: "/tout.mp3",
+          beats: [
+            temps({ audioUrl: "/tout.mp3", startMs: 4000, audioDurationMs: 2000 }),
+            temps({ audioUrl: "/tout.mp3", startMs: 6000, audioDurationMs: 1500 }),
+          ],
+        }),
+      ),
+    ).toEqual([{ url: "/tout.mp3", offsetSec: 4, durationSec: 3.5 }]);
+  });
+
   it("pose la voix de l'image sur toute sa duree mesuree", () => {
     expect(
       panelAudioSegments(panel({ audioUrl: "/scene.mp3", audioDurationMs: 6552 })),

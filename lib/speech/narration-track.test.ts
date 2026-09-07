@@ -9,17 +9,23 @@ const temps = (over: Record<string, unknown>) =>
   ({ narration: "n", durationSec: 1, ...over }) as never;
 
 describe("narrationParts", () => {
-  it("rend un enregistrement par image, dans l'ordre du film", () => {
+  it("rend UN enregistrement quand plusieurs images le partagent", () => {
+    // Le script est dit d'une traite : deux images, une seule voix.
     const parts = narrationParts([
-      panel({ id: "a", audioUrl: "/a.mp3", audioDurationMs: 5112 }),
-      panel({ id: "b", audioUrl: "/b.mp3", audioDurationMs: 7032 }),
+      panel({
+        id: "a",
+        audioUrl: "/tout.mp3",
+        beats: [temps({ audioUrl: "/tout.mp3", startMs: 0, audioDurationMs: 4000 })],
+      }),
+      panel({
+        id: "b",
+        audioUrl: "/tout.mp3",
+        beats: [temps({ audioUrl: "/tout.mp3", startMs: 4000, audioDurationMs: 3000 })],
+      }),
     ]);
 
-    expect(parts).toEqual([
-      { url: "/a.mp3", durationMs: 5112 },
-      { url: "/b.mp3", durationMs: 7032 },
-    ]);
-    expect(narrationDurationMs(parts)).toBe(12144);
+    expect(parts).toEqual([{ url: "/tout.mp3", durationMs: 7000 }]);
+    expect(narrationDurationMs(parts)).toBe(7000);
   });
 
   it("retombe sur la duree du decoupage quand la mesure a echoue", () => {
@@ -33,7 +39,7 @@ describe("narrationParts", () => {
       .toEqual([{ url: "/b.mp3", durationMs: 900 }]);
   });
 
-  it("separe les enregistrements d'une image dite en plusieurs fois", () => {
+  it("separe deux enregistrements quand le budget a force la coupure", () => {
     // Les temps designent des voix differentes : c'est ce changement qui
     // marque la frontiere, et chaque enregistrement dure jusqu'a la fin du
     // dernier temps qu'il porte.

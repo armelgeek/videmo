@@ -1,105 +1,93 @@
 import type { EditableClip } from "./storyboard-clips";
 
 /**
- * Un appel de synthese : quel texte dire, et ou ranger le resultat.
- */
-/**
  * Le plafond de caracteres d'un appel au moteur de synthese.
  *
  * L'API en accepte 4096 ; on garde une marge, la jointure entre temps ajoutant
- * quelques caracteres. Une image depasse rarement ce budget — le decoupage vise
- * peu d'images, mais rien ne l'interdit — et depasser rendait un 400 qui
- * privait toute l'image de sa voix.
+ * quelques caracteres.
  */
 export const BUDGET_CARACTERES = 3800;
 
-export interface NarrationJob {
+/** Ou ranger le resultat d'un temps : son image, et son rang dedans. */
+export interface NarrationPlace {
   clipIndex: number;
-  /** Tout ce que l'image dit, d'une traite. */
+  beatIndex: number;
+}
+
+export interface NarrationJob {
+  /** Tout ce que cet enregistrement dit, d'une traite. */
   text: string;
-  /**
-   * Ses temps, dans l'ordre, pour que la route les retrouve dans
-   * l'enregistrement. Absents pour une image qui n'en porte aucun.
-   */
-  beats?: { narration: string }[];
-  /**
-   * Le rang de chaque temps DANS l'image, dans l'ordre de `beats`.
-   *
-   * Un rang par temps, et non un simple decalage : un temps vide est ecarte de
-   * la synthese mais garde sa place dans l'image, si bien que les rangs ne se
-   * suivent pas forcement.
-   */
-  beatIndexes?: number[];
+  /** Ses temps, dans l'ordre, pour que la route les y retrouve. */
+  beats: { narration: string }[];
+  /** Ou ranger chacun d'eux, dans le meme ordre. */
+  places: NarrationPlace[];
 }
 
 /**
- * Ce qu'il y a a synthetiser : UNE voix par image, jamais par temps.
+ * Ce qu'il y a a enregistrer : le script ENTIER, d'une seule traite.
  *
- * Les annotations ont besoin de la duree de chaque temps. On a d'abord cru
- * qu'il fallait donc produire chaque temps separement — c'etait resoudre un
- * probleme de mesure par un decoupage de production, et il en decoulait une
- * concatenation, un melange, la fin de chaque temps rognee a la bascule, et
- * une prosodie hachee : un TTS relance a chaque phrase repart a zero, sans
- * liaison ni elan.
+ * On a d'abord synthetise chaque temps de narration separement, puis chaque
+ * image. Les deux fois, la couture s'entend : un TTS relance repart a zero,
+ * sans liaison ni elan, et l'oreille reconnait le raccord. Ce qui avait motive
+ * le decoupage — connaitre la duree de chaque temps — ne le demandait pas :
+ * les temps se RETROUVENT dans l'enregistrement par la transcription.
  *
- * L'image est enregistree d'une traite, et ses temps sont RETROUVES dedans par
- * la transcription. `beats` accompagne donc la demande : la route s'en sert
- * pour rendre a chacun son instant.
+ * Le seul decoupage restant est celui que le moteur impose : au-dela de son
+ * plafond de caracteres, on coupe ENTRE deux temps, jamais au milieu de l'un —
+ * un temps coupe ne se retrouverait plus dans sa propre transcription. Un
+ * script ordinaire tient en un seul appel, donc en une seule voix.
  */
 export function narrationJobs(clips: EditableClip[]): NarrationJob[] {
-  const jobs: NarrationJob[] = [];
+  const dits: { narration: string; place: NarrationPlace }[] = [];
 
   clips.forEach((clip, clipIndex) => {
     if (clip.isSection) return;
 
-    const dits = (clip.beats ?? [])
-      .map((beat, index) => ({ narration: beat.narration, index }))
-      .filter((entree) => entree.narration.trim());
-
-    if (dits.length > 0) {
-      // Une image trop longue pour un seul appel se dit en plusieurs
-      // enregistrements, coupes ENTRE deux temps et jamais au milieu de l'un :
-      // un temps coupe ne se retrouverait plus dans sa transcription.
-      for (const groupe of grouperSousLeBudget(dits)) {
-        jobs.push({
-          clipIndex,
-          text: groupe.map((entree) => entree.narration.trim()).join(" "),
-          beats: groupe.map((entree) => ({ narration: entree.narration })),
-          beatIndexes: groupe.map((entree) => entree.index),
-        });
-      }
+    const beats = clip.beats ?? [];
+    if (beats.length === 0) {
+      const texte = (clip.summary || clip.title || "").trim();
+      // Une image sans temps n'a rien ou ranger un instant : elle se dit
+      // quand meme, comme un temps unique couvrant l'image.
+      if (texte) dits.push({ narration: texte, place: { clipIndex, beatIndex: -1 } });
       return;
     }
 
-    const text = (clip.summary || clip.title || "").trim();
-    if (text) jobs.push({ clipIndex, text });
+    beats.forEach((beat, beatIndex) => {
+      if (beat.narration.trim()) {
+        dits.push({ narration: beat.narration, place: { clipIndex, beatIndex } });
+      }
+    });
   });
 
-  return jobs;
+  return grouperSousLeBudget(dits).map((groupe) => ({
+    text: groupe.map((entree) => entree.narration.trim()).join(" "),
+    beats: groupe.map((entree) => ({ narration: entree.narration })),
+    places: groupe.map((entree) => entree.place),
+  }));
 }
 
 /**
  * Repartit les temps en groupes qui tiennent dans un appel.
  *
  * Un temps plus long que le budget a lui seul part quand meme, seul : le
- * refuser priverait l'image de sa voix, alors que le moteur, lui, tronquera au
- * pire.
+ * refuser priverait le film de cette voix, alors que le moteur, lui, tronquera
+ * au pire.
  */
 function grouperSousLeBudget<T extends { narration: string }>(
-  beats: T[],
+  dits: T[],
 ): T[][] {
   const groupes: T[][] = [];
   let courant: T[] = [];
   let taille = 0;
 
-  for (const beat of beats) {
-    const longueur = beat.narration.trim().length + 1;
+  for (const dit of dits) {
+    const longueur = dit.narration.trim().length + 1;
     if (courant.length > 0 && taille + longueur > BUDGET_CARACTERES) {
       groupes.push(courant);
       courant = [];
       taille = 0;
     }
-    courant.push(beat);
+    courant.push(dit);
     taille += longueur;
   }
 

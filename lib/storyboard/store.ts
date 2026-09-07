@@ -439,11 +439,11 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
               id: `audio-clip-${key}`,
               mediaId: key,
               trackId: "a1",
-              // Le morceau demarre a son temps de narration dans l'image, pas
-              // au debut de celle-ci : c'est ce decalage qui cale la voix.
-              start: startTime + segment.offsetSec,
+                start: startTime,
               duration: segment.durationSec,
-              offset: 0,
+              // Ou entrer dans le fichier : plusieurs images le partagent, et
+              // sans ce decalage chacune rejouerait le debut de la narration.
+              offset: segment.offsetSec,
             });
           }
           startTime += p.duration || 5;

@@ -50,6 +50,7 @@ export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
   }, [scrollEl, viewport?.contentWidth, zoomLevel]);
 
   const audio = useStoryboardStore((s) => s.whiteboardConfig.audio);
+  const narration = useStoryboardStore((s) => s.whiteboardConfig.narration);
   const setAudioTrack = useStoryboardStore((s) => s.setAudioTrack);
   const annotations = useStoryboardStore((s) => s.whiteboardConfig.annotations);
   const updateAnnotation = useStoryboardStore((s) => s.updateAnnotation);
@@ -68,13 +69,44 @@ export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
     setAudioTrack({ ...audio, volume: Number(e.target.value) });
   };
 
+  /**
+   * Ce qu'il y a a dessiner sur la piste.
+   *
+   * La voix produite par la chaine vit dans `narration` : un enregistrement,
+   * ou quelques-uns si le script a du etre coupe. `audio` reste la piste d'un
+   * televersement a la main. Ne lire que la seconde laissait la piste vide —
+   * sans forme d'onde — alors que la lecture, elle, fonctionnait.
+   */
+  const morceaux = narration?.length
+    ? narration.map((part, i) => ({
+        key: `narration-${i}`,
+        url: part.url,
+        startMs: part.startMs,
+        durationMs: part.durationMs,
+        nom: narration.length > 1 ? `Narration ${i + 1}` : 'Narration',
+      }))
+    : audio
+      ? [{
+          key: 'audio',
+          url: audio.url,
+          startMs: audio.offsetMs,
+          durationMs: audio.durationMs,
+          nom: audio.name,
+        }]
+      : [];
+
+  const dureeTotaleMs = morceaux.reduce(
+    (fin, m) => Math.max(fin, m.startMs + m.durationMs),
+    0,
+  );
+
   // Calculate annotation positions relative to audio timeline
   const getAnnotationPositions = () => {
-    if (!audio) return [];
+    if (dureeTotaleMs <= 0) return [];
 
     return annotations.map((ann) => {
-      const startPercent = (ann.reveal.from || 0) / audio.durationMs * 100;
-      const endPercent = ((ann.reveal.from || 0) + (ann.reveal.durationMs || 0)) / audio.durationMs * 100;
+      const startPercent = (ann.reveal.from || 0) / dureeTotaleMs * 100;
+      const endPercent = ((ann.reveal.from || 0) + (ann.reveal.durationMs || 0)) / dureeTotaleMs * 100;
       return {
         ...ann,
         startPercent: Math.max(0, startPercent),
@@ -144,80 +176,85 @@ export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
           filling the width: the clip has to sit under the same pixels as the
           ruler above, or the playhead drifts away from it on zoom/scroll. */}
       <div className="flex-1 min-w-0 relative bg-zinc-950/60 py-1 overflow-hidden">
-        {audio ? (
+        {morceaux.length > 0 ? (
           <div
             ref={laneRef}
             className="relative h-full"
             style={viewport ? { width: viewport.contentWidth } : { width: '100%' }}
           >
+          {morceaux.map((morceau) => (
           <div
+            key={morceau.key}
             className={`absolute top-0 bottom-0 rounded border overflow-hidden ${
-              audio.muted
+              audio?.muted
                 ? 'bg-emerald-900/15 border-emerald-900/40 opacity-50'
                 : 'bg-emerald-900/40 border-emerald-400'
             }`}
             style={
               viewport
                 ? {
-                    left: (audio.offsetMs / 1000) * viewport.zoomLevel,
-                    width: (audio.durationMs / 1000) * viewport.zoomLevel,
+                    left: (morceau.startMs / 1000) * viewport.zoomLevel,
+                    width: (morceau.durationMs / 1000) * viewport.zoomLevel,
                   }
-                : { left: 0, right: 0 }
+                : {
+                    left: `${(morceau.startMs / dureeTotaleMs) * 100}%`,
+                    width: `${(morceau.durationMs / dureeTotaleMs) * 100}%`,
+                  }
             }
           >
             <span className="absolute top-0.5 left-1.5 z-10 text-[10px] font-medium text-emerald-100 truncate max-w-[calc(100%-0.75rem)] drop-shadow-md">
-              {audio.name}
+              {morceau.nom}
             </span>
             <div className="absolute inset-x-1 bottom-0.5 top-4">
               <ClipWaveform
-                mediaUrl={audio.url}
-                duration={audio.durationMs / 1000}
+                mediaUrl={morceau.url}
+                duration={morceau.durationMs / 1000}
                 offset={0}
                 isAudio
                 isSelected={false}
                 zoomLevel={1}
               />
             </div>
-
-            {/* Annotation Segments Overlay */}
-            {annotationPositions.length > 0 && (
-              <div className="absolute bottom-0 inset-x-0 pointer-events-none flex h-3">
-                {annotationPositions.map((ann, idx) => (
-                  <div
-                    key={ann.id}
-                    className={`relative transition-all cursor-pointer ${idx > 0 ? 'border-l border-white/20' : ''}`}
-                    style={{
-                      left: `${ann.startPercent}%`,
-                      width: `${ann.endPercent - ann.startPercent}%`,
-                      backgroundColor: ann.narration?.audioUrl
-                        ? 'rgba(34, 197, 94, 0.5)' // green tint for generated
-                        : 'rgba(255, 255, 255, 0.1)',
-                    }}
-                    onMouseEnter={() => setHoveredAnnotationId(ann.id)}
-                    onMouseLeave={() => setHoveredAnnotationId(null)}
-                  >
-                    {/* Hover Label */}
-                    {hoveredAnnotationId === ann.id && (
-                      <div className="absolute -top-6 left-0 bg-black/80 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-20 pointer-events-auto">
-                        {ann.text || `Annotation ${idx + 1}`}
-                      </div>
-                    )}
-
-                    {/* Generate Button */}
-                    {hoveredAnnotationId === ann.id && (
-                      <button
-                        onClick={() => setSelectedAnnotationForNarration(ann)}
-                        className="absolute inset-0 flex items-center justify-center pointer-events-auto bg-black/60 hover:bg-black/80 transition-colors"
-                        title={ann.narration?.audioUrl ? 'Regenerate narration' : 'Generate narration'}
-                      >
-                        <Mic2 className="w-2.5 h-2.5 text-white" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
+          ))}
+
+          {/* Les annotations, posees sur l'horloge du projet et non sur un
+              enregistrement : plusieurs images en partagent un seul. */}
+          {annotationPositions.length > 0 && (
+            <div className="absolute bottom-0 inset-x-0 pointer-events-none flex h-3">
+              {annotationPositions.map((ann, idx) => (
+                <div
+                  key={ann.id}
+                  className={`relative transition-all cursor-pointer ${idx > 0 ? 'border-l border-white/20' : ''}`}
+                  style={{
+                    left: `${ann.startPercent}%`,
+                    width: `${ann.endPercent - ann.startPercent}%`,
+                    backgroundColor: ann.narration?.audioUrl
+                      ? 'rgba(34, 197, 94, 0.5)'
+                      : 'rgba(255, 255, 255, 0.1)',
+                  }}
+                  onMouseEnter={() => setHoveredAnnotationId(ann.id)}
+                  onMouseLeave={() => setHoveredAnnotationId(null)}
+                >
+                  {hoveredAnnotationId === ann.id && (
+                    <div className="absolute -top-6 left-0 bg-black/80 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap z-20 pointer-events-auto">
+                      {ann.text || `Annotation ${idx + 1}`}
+                    </div>
+                  )}
+
+                  {hoveredAnnotationId === ann.id && (
+                    <button
+                      onClick={() => setSelectedAnnotationForNarration(ann)}
+                      className="absolute inset-0 flex items-center justify-center pointer-events-auto bg-black/60 hover:bg-black/80 transition-colors"
+                      title={ann.narration?.audioUrl ? 'Regenerate narration' : 'Generate narration'}
+                    >
+                      <Mic2 className="w-2.5 h-2.5 text-white" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           </div>
         ) : (
           <div className="w-full h-full rounded border border-dashed border-white/10 flex items-center justify-center text-[10px] text-zinc-500">
