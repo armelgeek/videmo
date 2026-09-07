@@ -1,3 +1,5 @@
+import { DRIFT_MAX_MS } from "../hooks/audio-delta";
+
 /**
  * Un temps de narration place sur l'horloge du projet.
  *
@@ -107,10 +109,17 @@ export interface NarrationState {
 }
 
 /**
- * La derive toleree avant de recaler. Un recalage s'ENTEND — le son saute —
- * donc corriger a chaque frame serait pire que le defaut qu'on corrige.
+ * La derive toleree avant de recaler.
+ *
+ * La meme que pour une piste unique, et pour la meme raison : au-dela d'environ
+ * 125 ms un decalage son/image se percoit. Un second seuil, plus large, avait
+ * ete pose ici sans justification — mesure sur un vrai apercu, il laissait
+ * l'element trainer de 160 ms derriere l'horloge, et la fin de chaque
+ * enregistrement se trouvait rognee a la bascule.
+ *
+ * Un recalage s'entend aussi : c'est pourquoi le seuil n'est pas nul.
  */
-export const NARRATION_DRIFT_MS = 200;
+export const NARRATION_DRIFT_MS = DRIFT_MAX_MS;
 
 export function nextNarrationAction(
   state: NarrationState,

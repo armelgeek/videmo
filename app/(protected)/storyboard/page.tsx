@@ -759,25 +759,31 @@ export default function StoryboardPage() {
         }
 
         const clip = withAudio[job.clipIndex];
-        // L'image porte UNE voix. Ses temps ne la decoupent pas : ils la
-        // reperent, chacun recevant l'instant ou il est dit et la place qu'il
-        // occupe — silence de fin compris, sinon le dessin devancerait la
-        // respiration.
+        // L'enregistrement ne se decoupe pas : ses temps s'y REPERENT, chacun
+        // recevant l'instant ou il est dit et la place qu'il occupe — silence
+        // de fin compris, sinon le dessin devancerait la respiration.
         const cales: { startMs: number; durationMs: number }[] | null =
           Array.isArray(body.beats) ? body.beats : null;
+        const rangs = job.beatIndexes ?? [];
 
         withAudio[job.clipIndex] = {
           ...clip,
-          audioUrl: body.url,
-          audioDurationMs: body.durationMs ?? undefined,
-          beats: (clip.beats ?? []).map((beat: ScriptBeat, index: number) => ({
-            ...beat,
-            // Une seule voix : l'URL est celle de l'image, et l'instant dit ou
-            // ce temps commence dedans.
-            audioUrl: body.url,
-            startMs: cales?.[index]?.startMs,
-            audioDurationMs: cales?.[index]?.durationMs,
-          })),
+          // La premiere voix de l'image la represente : une image assez longue
+          // pour etre dite en plusieurs fois en porte d'autres, que ses temps
+          // designent chacun.
+          audioUrl: clip.audioUrl ?? body.url,
+          audioDurationMs:
+            (clip.audioDurationMs ?? 0) + (body.durationMs ?? 0) || undefined,
+          beats: (clip.beats ?? []).map((beat: ScriptBeat, index: number) => {
+            const place = rangs.indexOf(index);
+            if (place < 0) return beat;
+            return {
+              ...beat,
+              audioUrl: body.url,
+              startMs: cales?.[place]?.startMs,
+              audioDurationMs: cales?.[place]?.durationMs,
+            };
+          }),
         };
       } catch (error) {
         failed += 1;

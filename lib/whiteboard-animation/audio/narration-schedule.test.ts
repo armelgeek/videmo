@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  NARRATION_DRIFT_MS,
   narrationEndMs,
   nextNarrationAction,
   partAt,
@@ -122,6 +123,18 @@ describe("nextNarrationAction", () => {
     expect(nextNarrationAction({ index: null, offsetMs: 0 }, avecTrou, 2000)).toEqual({
       type: "rien",
     });
+  });
+
+  it("recale des que la derive depasse le seuil du projet", () => {
+    // Le meme seuil que pour une piste unique : au-dela d'environ 125 ms, un
+    // decalage son/image se percoit.
+    expect(NARRATION_DRIFT_MS).toBe(120);
+    expect(
+      nextNarrationAction({ index: 1, offsetMs: 500 - 130 }, parts, 1500),
+    ).toMatchObject({ type: "recaler" });
+    expect(
+      nextNarrationAction({ index: 1, offsetMs: 500 - 110 }, parts, 1500),
+    ).toEqual({ type: "rien" });
   });
 
   it("tolere une derive plus large si on le demande", () => {

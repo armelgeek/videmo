@@ -24,7 +24,9 @@ const requestSchema = z.object({
   projectId: z.string().min(1),
   sceneIndex: z.number().int().nonnegative(),
   beatIndex: z.number().int().nonnegative().optional(),
-  text: z.string().min(1).max(4000),
+  // 4096 est la limite du moteur : la refuser en deca privait de sa voix une
+  // image que l'appelant avait pourtant deja decoupee sous ce budget.
+  text: z.string().min(1).max(4096),
   voice: z.string().default("nova"),
   /**
    * Les temps de narration que ce texte contient, dans l'ordre.

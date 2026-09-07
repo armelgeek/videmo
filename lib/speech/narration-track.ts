@@ -6,27 +6,46 @@ export interface NarrationPart {
 }
 
 /**
- * Les enregistrements du projet, dans l'ordre du film : UN par image.
+ * Les enregistrements du projet, dans l'ordre du film.
  *
- * Il y en avait un par temps de narration, et il fallait les coller pour
- * obtenir une piste. Chaque image etant desormais dite d'une traite — ses temps
- * y sont retrouves par la transcription — il n'y a plus rien a coller : ces
- * morceaux se posent tels quels sur la piste, chacun a sa place.
+ * Un par image en general : chaque image est dite d'une traite, et ses temps y
+ * sont retrouves par la transcription. Une image trop longue pour un seul appel
+ * au moteur en porte plusieurs — ses temps designent alors des voix
+ * differentes, et c'est ce changement d'URL qui separe les enregistrements.
+ *
+ * Il n'y a rien a coller : ces morceaux se posent tels quels sur la piste.
  */
 export function narrationParts(panels: StoryboardPanel[]): NarrationPart[] {
   const parts: NarrationPart[] = [];
 
   for (const panel of panels) {
-    if (!panel.audioUrl) continue;
-    parts.push({
-      url: panel.audioUrl,
-      // La duree mesuree sur le fichier prime ; a defaut celle du decoupage,
-      // qui derive mais vaut mieux que rien.
-      durationMs:
-        panel.audioDurationMs && panel.audioDurationMs > 0
-          ? panel.audioDurationMs
-          : Math.round((panel.duration || 5) * 1000),
-    });
+    const dits = (panel.beats ?? []).filter((beat) => beat.audioUrl);
+
+    if (dits.length === 0) {
+      if (!panel.audioUrl) continue;
+      parts.push({
+        url: panel.audioUrl,
+        durationMs:
+          panel.audioDurationMs && panel.audioDurationMs > 0
+            ? panel.audioDurationMs
+            : Math.round((panel.duration || 5) * 1000),
+      });
+      continue;
+    }
+
+    // Un enregistrement par suite de temps partageant la meme voix. Sa duree
+    // est la fin du dernier temps qu'il porte : eux seuls savent ou ils
+    // s'arretent dedans.
+    let courant: { url: string; durationMs: number } | null = null;
+    for (const beat of dits) {
+      const fin = (beat.startMs ?? 0) + (beat.audioDurationMs ?? 0);
+      if (courant && courant.url === beat.audioUrl) {
+        courant.durationMs = Math.max(courant.durationMs, fin);
+        continue;
+      }
+      courant = { url: beat.audioUrl as string, durationMs: fin };
+      parts.push(courant);
+    }
   }
 
   return parts;
