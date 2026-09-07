@@ -58,6 +58,9 @@ export function useNarrationClock(
 
     if (empreinte) {
       const player = new NarrationPlayer(parts);
+      // Charge des maintenant : au clic, l'element doit etre pret, sinon la
+      // voix demarre en retard sur le dessin et perd son attaque.
+      player.prepare();
       managerRef.current = player;
       setState({
         manager: player,
