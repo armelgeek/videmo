@@ -734,6 +734,11 @@ export default function StoryboardPage() {
     // appel echoue au milieu, plutot que de perdre le lot entier.
     const withAudio = [...editableClips];
     let failed = 0;
+    // Les images dont ce lot a deja pose la premiere voix. Une image peut en
+    // recevoir plusieurs quand elle est trop longue pour un seul appel, et sa
+    // duree les additionne — mais en repartant de zero, sinon elle s'ajouterait
+    // a celle d'un lot precedent.
+    const commencees = new Set<number>();
 
     for (let i = 0; i < jobs.length; i++) {
       const job = jobs[i];
@@ -766,14 +771,18 @@ export default function StoryboardPage() {
           Array.isArray(body.beats) ? body.beats : null;
         const rangs = job.beatIndexes ?? [];
 
+        const premiere = !commencees.has(job.clipIndex);
+        commencees.add(job.clipIndex);
+
         withAudio[job.clipIndex] = {
           ...clip,
           // La premiere voix de l'image la represente : une image assez longue
           // pour etre dite en plusieurs fois en porte d'autres, que ses temps
           // designent chacun.
-          audioUrl: clip.audioUrl ?? body.url,
+          audioUrl: premiere ? body.url : clip.audioUrl,
           audioDurationMs:
-            (clip.audioDurationMs ?? 0) + (body.durationMs ?? 0) || undefined,
+            (premiere ? 0 : (clip.audioDurationMs ?? 0)) +
+              (body.durationMs ?? 0) || undefined,
           beats: (clip.beats ?? []).map((beat: ScriptBeat, index: number) => {
             const place = rangs.indexOf(index);
             if (place < 0) return beat;
