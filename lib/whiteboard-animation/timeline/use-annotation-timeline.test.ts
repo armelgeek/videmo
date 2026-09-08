@@ -92,6 +92,43 @@ describe("useAnnotationTimeline — routage d'ecriture multi-panneaux", () => {
     expect(useUnifiedEngineStore.getState().animation.annotations).toEqual(glob.slice(0, 2));
   });
 
+  it("materialise le clip de repli d'une image sans annotation", () => {
+    const glob = chaineGlobale();
+    // Le panneau 1 perd ses annotations : la timeline n'y montre plus que le
+    // clip pleine image, construit par whiteboard-editor-step.tsx.
+    useStoryboardStore.setState({
+      storyboardPanels: [
+        panneau("panel-0", glob.slice(0, 2)),
+        { ...panneau("panel-1", []), duration: 4 },
+      ],
+    });
+
+    const repli: Annotation = {
+      id: "p1-pleine-image",
+      text: "",
+      region: { x: 0, y: 0, width: 1280, height: 720 },
+      reveal: rev(4000),
+    };
+    const { result } = renderHook(() =>
+      useAnnotationTimeline([...glob.slice(0, 2), repli]),
+    );
+
+    act(() => {
+      result.current.onClipUpdate("p1-pleine-image", { duration: 1.5 });
+    });
+
+    const panel1 = useStoryboardStore.getState().storyboardPanels[1];
+    expect(panel1.annotations).toHaveLength(1);
+    expect(panel1.annotations?.[0].id).toBe("pleine-image");
+    expect(panel1.annotations?.[0].reveal.durationMs).toBe(1500);
+    expect(panel1.annotations?.[0].region).toEqual({
+      x: 0,
+      y: 0,
+      width: 1280,
+      height: 720,
+    });
+  });
+
   it("une edition sur le panneau ACTIF met a jour le store moteur ET le panneau", () => {
     const glob = chaineGlobale();
     const { result } = renderHook(() => useAnnotationTimeline(glob));

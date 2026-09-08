@@ -4,6 +4,7 @@ import {
   buildVisionPrompt,
   clampRegion,
   planAnnotations,
+  snapRegionsToSubjects,
   snapToSubject,
   wholeImageRegion,
 } from "./annotation-planning";
@@ -85,6 +86,35 @@ describe("planAnnotations", () => {
     expect(plan[1].text).toBe("Il donne au pain son gout acidule.");
   });
 
+  it("couvre toute l'image quand la scene n'a aucun temps", () => {
+    const plan = planAnnotations({
+      scene: { ...scene, beats: [] },
+      regions: [],
+      size: SIZE,
+    });
+
+    expect(plan).toHaveLength(1);
+    expect(plan[0].region).toEqual({
+      x: 0,
+      y: 0,
+      width: SIZE.width,
+      height: SIZE.height,
+    });
+    expect(plan[0].reveal.startMs).toBe(0);
+    expect(plan[0].reveal.durationMs).toBeGreaterThan(0);
+  });
+
+  it("cale l'image sans temps sur la voix mesuree", () => {
+    const plan = planAnnotations({
+      scene: { ...scene, beats: [] },
+      regions: [],
+      size: SIZE,
+      beatDurationsMs: [3000, 2500],
+    });
+
+    expect(plan[0].reveal.durationMs).toBe(5500);
+  });
+
   it("place chaque annotation sur sa zone", () => {
     const plan = planAnnotations({ scene, regions, size: SIZE });
 
@@ -149,8 +179,114 @@ describe("planAnnotations", () => {
     expect(plan[1].reveal.durationMs).toBe(4000);
   });
 
-  it("rend autant d'annotations que de temps", () => {
+  it("rend une annotation par temps quand chacun n'a qu'une zone", () => {
     expect(planAnnotations({ scene, regions: [], size: SIZE })).toHaveLength(2);
+  });
+
+  it("rend PLUSIEURS annotations pour un temps qui nomme plusieurs sujets", () => {
+    // Une narration decrit souvent plusieurs choses dessinees. L'ancienne Map
+    // indexee par beatIndex n'en gardait qu'une : la scene n'obtenait jamais
+    // qu'un rectangle par phrase, cadre si large qu'il couvrait le reste.
+    const plan = planAnnotations({
+      scene,
+      regions: [
+        { beatIndex: 0, label: "Grain", x: 0, y: 0, width: 300, height: 300 },
+        { beatIndex: 0, label: "Table", x: 400, y: 0, width: 300, height: 300 },
+        { beatIndex: 1, label: "Tasse", x: 800, y: 0, width: 300, height: 300 },
+      ],
+      size: SIZE,
+    });
+
+    expect(plan).toHaveLength(3);
+    expect(plan.map((a) => a.beatIndex)).toEqual([0, 0, 1]);
+    expect(plan.map((a) => a.text)).toEqual(["Grain", "Table", "Tasse"]);
+  });
+
+  it("partage le temps du beat entre ses zones, sans en perdre une milliseconde", () => {
+    // La somme doit valoir EXACTEMENT la duree mesuree : un arrondi perdu se
+    // repercuterait sur tous les temps suivants.
+    const plan = planAnnotations({
+      scene,
+      regions: [
+        { beatIndex: 0, x: 0, y: 0, width: 300, height: 300 },
+        { beatIndex: 0, x: 300, y: 0, width: 300, height: 300 },
+        { beatIndex: 0, x: 600, y: 0, width: 300, height: 300 },
+      ],
+      size: SIZE,
+      beatDurationsMs: [5000, 4000],
+    });
+
+    const duTemps0 = plan.filter((a) => a.beatIndex === 0);
+    expect(duTemps0.map((a) => a.reveal.durationMs)).toEqual([1666, 1666, 1668]);
+    expect(
+      duTemps0.reduce((total, a) => total + a.reveal.durationMs, 0),
+    ).toBe(5000);
+  });
+
+  it("enchaine les zones d'un meme temps sans trou", () => {
+    const plan = planAnnotations({
+      scene,
+      regions: [
+        { beatIndex: 0, x: 0, y: 0, width: 300, height: 300 },
+        { beatIndex: 0, x: 300, y: 0, width: 300, height: 300 },
+      ],
+      size: SIZE,
+      beatDurationsMs: [5000, 4000],
+    });
+
+    expect(plan.map((a) => a.reveal.startMs)).toEqual([0, 2500, 5000]);
+  });
+
+  it("ne repete pas la phrase sur chaque sujet d'un meme temps", () => {
+    // Sans etiquette, seule la premiere zone la porte : la repeter remplirait
+    // la liste et le transcript de la meme ligne.
+    const plan = planAnnotations({
+      scene,
+      regions: [
+        { beatIndex: 0, x: 0, y: 0, width: 300, height: 300 },
+        { beatIndex: 0, x: 300, y: 0, width: 300, height: 300 },
+      ],
+      size: SIZE,
+    });
+
+    expect(plan[0].text).toBe(scene.beats[0].narration);
+    expect(plan[1].text).toBe("");
+  });
+
+  it("rattache une zone au dernier beat si son index depasse, pour ne rien perdre", () => {
+    const plan = planAnnotations({
+      scene,
+      regions: [
+        { beatIndex: 0, label: "Un", x: 0, y: 0, width: 300, height: 300 },
+        { beatIndex: 99, label: "Hors borne", x: 300, y: 0, width: 300, height: 300 },
+      ],
+      size: SIZE,
+    });
+
+    expect(plan).toHaveLength(2);
+    expect(plan[1].beatIndex).toBe(1);
+    expect(plan[1].text).toBe("Hors borne");
+  });
+
+  it("regroupe les zones en une seule englobante quand la duree totale est trop courte (< 800ms)", () => {
+    // Un beat court de 600ms avec deux zones de 300ms chacune (< 400ms)
+    // est fusionné en une zone englobante unique de 600ms
+    const plan = planAnnotations({
+      scene,
+      regions: [
+        { beatIndex: 0, label: "A", x: 100, y: 100, width: 100, height: 100 },
+        { beatIndex: 0, label: "B", x: 300, y: 100, width: 100, height: 100 },
+      ],
+      size: SIZE,
+      beatDurationsMs: [600, 4000],
+    });
+
+    const beat0 = plan.filter((a) => a.beatIndex === 0);
+    expect(beat0).toHaveLength(1);
+    expect(beat0[0].reveal.durationMs).toBe(600);
+    // Zone englobante couvrant de x=100 à x=400 (largeur 300)
+    expect(beat0[0].region.x).toBe(100);
+    expect(beat0[0].region.width).toBe(300);
   });
 });
 
@@ -230,6 +366,25 @@ describe("snapToSubject", () => {
   });
 });
 
+describe("snapRegionsToSubjects", () => {
+  it("preserve deux regions distinctes de la vision face a un candidat fusionne", () => {
+    // Deux sujets distincts : par exemple un grain a gauche et une flamme a droite.
+    const regions = [
+      { beatIndex: 0, label: "Grain", x: 100, y: 100, width: 150, height: 150 },
+      { beatIndex: 0, label: "Flamme", x: 300, y: 100, width: 150, height: 150 },
+    ];
+    // La mesure a fusionne les deux en un seul grand bloc connecte
+    const candidats = [{ x: 90, y: 90, width: 380, height: 180 }];
+
+    const snapped = snapRegionsToSubjects(regions, candidats);
+
+    // L'anti-collision detecte que le snap les aurait ecrasees et conserve les
+    // deux rectangles separes de la vision
+    expect(snapped[0].x).toBe(100);
+    expect(snapped[1].x).toBe(300);
+  });
+});
+
 describe("buildVisionPrompt", () => {
   const prompt = buildVisionPrompt({ scene, size: SIZE });
 
@@ -243,8 +398,15 @@ describe("buildVisionPrompt", () => {
     expect(prompt).toContain("1024 tall");
   });
 
-  it("demande une region par temps", () => {
-    expect(prompt).toContain("exactly one region per beat");
+  it("demande une zone par SUJET dessine, pas une par temps", () => {
+    // Une phrase qui nomme trois choses n'en faisait dessiner qu'une, cadree
+    // si large qu'elle couvrait le reste.
+    expect(prompt).toContain("ONE REGION PER DRAWN SUBJECT");
+    expect(prompt).toContain("gets several regions");
+  });
+
+  it("demande une etiquette courte pour chaque zone", () => {
+    expect(prompt).toContain("three words at most");
   });
 
   it("exige d'englober le sujet entier, pas un point pose dessus", () => {
@@ -252,6 +414,15 @@ describe("buildVisionPrompt", () => {
     // l'image au milieu du sujet : le stylo ne dessinait presque rien.
     expect(prompt).toContain("ENCLOSE THE WHOLE SUBJECT");
     expect(prompt).toContain("never a point on the subject");
+  });
+
+  it("exige d'englober les etiquettes manuscrites et connecteurs adjacents", () => {
+    expect(prompt).toContain("INCLUDE ADJACENT LABELS AND CONNECTORS");
+    expect(prompt).toContain("Never cut between a subject and its label");
+  });
+
+  it("ordonne les regions selon l'ordre chronologique de narration", () => {
+    expect(prompt).toContain("Order regions in the chronological order");
   });
 });
 

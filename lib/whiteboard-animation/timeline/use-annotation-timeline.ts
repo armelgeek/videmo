@@ -10,6 +10,8 @@ import { toEngineAnnotations, toStoredAnnotations } from "./annotation-interop";
 import { deriveTimeline } from "./derive-timeline";
 import { interpretClipUpdate } from "./interpret-clip-update";
 import { toEditorTimeline } from "./to-editor-timeline";
+import { annotationPleineImage } from "./panel-fallback-annotation";
+import { tailleCanvas } from "../canvas-size";
 
 /**
  * Retrouve le panneau proprietaire d'un id d'annotation de la chaine globale,
@@ -65,6 +67,7 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
 
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
   const storyboardPanels = useStoryboardStore((s) => s.storyboardPanels);
+  const aspectRatio = useStoryboardStore((s) => s.projectParams.aspectRatio);
 
   const edit = useCallback(
     (change: TimelineEdit) => {
@@ -107,7 +110,15 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
         const panel = storyboardPanels[panelIdx];
         if (!panel) return;
 
-        const locales = toEngineAnnotations(panel.annotations ?? []);
+        // Une image sans annotation n'affiche qu'un clip de VUE. La premiere
+        // edition le materialise dans le projet : sans cela applyEditorEdit
+        // travaillait sur une liste vide et le geste restait sans effet, alors
+        // que le clip repondait a la souris.
+        const existantes = toEngineAnnotations(panel.annotations ?? []);
+        const locales =
+          existantes.length > 0
+            ? existantes
+            : [annotationPleineImage(panel, tailleCanvas(aspectRatio))];
 
         // Reconstruit un TimelineEdit purement LOCAL a ce panneau : les ids
         // globaux (pN-xxx) redeviennent les ids locaux que ce panneau connait.
@@ -128,7 +139,7 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
         }
       });
     },
-    [annotations, globalAnnotations, storyboardPanels, activeClipIndex, setAnnotations, narrationMs],
+    [annotations, globalAnnotations, storyboardPanels, activeClipIndex, setAnnotations, narrationMs, aspectRatio],
   );
 
   const onClipUpdate = useCallback(

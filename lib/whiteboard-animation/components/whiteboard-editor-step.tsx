@@ -14,6 +14,7 @@ import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { deriveTimeline } from "../timeline/derive-timeline";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
 import { panelWindows, type DrawnSpan } from "../timeline/panel-windows";
+import { annotationPleineImage } from "../timeline/panel-fallback-annotation";
 import { AnnotationListPanel } from "./annotation-list-panel";
 import { AudioTrackRow } from "./audio-track-row";
 import { TimelinePlayhead } from "./timeline-playhead";
@@ -117,6 +118,49 @@ export function WhiteboardEditorStep({
     setCurrentTime,
   } = useUnifiedEngine();
 
+  /**
+   * Les annotations d'une image, avec son repli plein cadre si elle n'en a
+   * aucune. C'est la SEULE lecture des annotations d'un panneau : la piste, le
+   * canvas et le moteur doivent voir la meme chose, sinon le clip existe sur la
+   * timeline sans cadre a l'ecran.
+   */
+  const annotationsDe = useCallback(
+    (panel: (typeof storyboardPanels)[number] | undefined) => {
+      const stockees = toEngineAnnotations(panel?.annotations || []);
+      if (stockees.length > 0 || !panel) return stockees;
+      return [
+        annotationPleineImage(panel, {
+          width: canvasWidth,
+          height: canvasHeight,
+        }),
+      ];
+    },
+    [canvasWidth, canvasHeight],
+  );
+
+  /**
+   * Le repli devient une vraie annotation du projet, sur TOUTES les images.
+   *
+   * Sans cela il n'existait qu'a l'affichage, et seule l'image ouverte finissait
+   * par l'enregistrer en passant par le store moteur : les autres gardaient zero
+   * annotation en base, donc rien a dessiner au rendu. L'ecriture retombe a plat
+   * des le passage suivant — une image qui en a une n'est plus touchee.
+   */
+  useEffect(() => {
+    const store = useStoryboardStore.getState();
+    store.storyboardPanels.forEach((panel) => {
+      if ((panel.annotations?.length ?? 0) > 0) return;
+      store.updatePanel(panel.id, {
+        annotations: toStoredAnnotations([
+          annotationPleineImage(panel, {
+            width: canvasWidth,
+            height: canvasHeight,
+          }),
+        ]),
+      });
+    });
+  }, [storyboardPanels, canvasWidth, canvasHeight]);
+
   // ── Global timeline sequence ─────────────────────────────────────────────
   // All panels' annotations chained end-to-end for the timeline display.
   // Each id is prefixed with its panel index to stay unique across panels.
@@ -124,8 +168,9 @@ export function WhiteboardEditorStep({
   // de reserver l'espace necessaire a l'affichage de la carte de transition.
   const allAnnotations = useMemo(() => {
     return storyboardPanels.flatMap((panel, panelIdx) => {
-      const anns = toEngineAnnotations(panel.annotations || []);
-      if (anns.length === 0) return [];
+      // Une image sans annotation garde un clip : toute l'image devient une
+      // zone, sur la duree de sa voix. Voir panel-fallback-annotation.ts.
+      const anns = annotationsDe(panel);
       return anns.map((a, aIdx) => {
         let gapBeforeMs = a.reveal.gapBeforeMs ?? 0;
         if (panelIdx > 0 && aIdx === 0 && gapBeforeMs === 0) {
@@ -141,7 +186,7 @@ export function WhiteboardEditorStep({
         };
       });
     });
-  }, [storyboardPanels]);
+  }, [storyboardPanels, annotationsDe]);
 
   // Where each clip sits on the global timeline.
   // Panel i > 0 starts where Panel i-1 ends, so that the gap before Panel i
@@ -218,8 +263,8 @@ export function WhiteboardEditorStep({
     audioDurationMs: config.narration?.length
       ? narrationEndMs(config.narration)
       : config.audio?.durationMs ?? null,
-    savedAnnotations: activePanel?.annotations
-      ? toEngineAnnotations(activePanel.annotations)
+    savedAnnotations: activePanel
+      ? annotationsDe(activePanel)
       : config.annotations
         ? toEngineAnnotations(config.annotations)
         : null,
@@ -237,11 +282,11 @@ export function WhiteboardEditorStep({
 
   // ── Engine store = active panel, 0-based local annotations ──────────────
   const activePanelAnnotations = useMemo(
-    () => toEngineAnnotations(activePanel?.annotations || []),
+    () => annotationsDe(activePanel),
     // panelBoundaries is intentionally excluded: the annotations themselves
     // are local and do not depend on where the clip sits on the global ruler.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeClipIndex, storyboardPanels],
+    [activeClipIndex, storyboardPanels, annotationsDe],
   );
 
   useEffect(() => {
@@ -418,7 +463,7 @@ export function WhiteboardEditorStep({
 
                 const deltaNeeded = newDuration - currentBlanc;
                 if (deltaNeeded !== 0) {
-                  const anns = toEngineAnnotations(entrantPanel.annotations ?? []);
+                  const anns = annotationsDe(entrantPanel);
                   if (anns.length > 0) {
                     const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
                     const newGap = Math.max(50, currentGap + deltaNeeded);
@@ -463,7 +508,7 @@ export function WhiteboardEditorStep({
                     : 0;
 
                 if (currentBlanc === 0) {
-                  const anns = toEngineAnnotations(entrantPanel.annotations ?? []);
+                  const anns = annotationsDe(entrantPanel);
                   if (anns.length > 0) {
                     const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
                     anns[0] = {

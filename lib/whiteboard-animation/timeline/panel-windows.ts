@@ -39,7 +39,7 @@ export interface PanelWindow {
  * Ce qu'une image occupe quand son trace ne dit rien : sa voix mesuree, sinon
  * la duree qu'on lui a reglee.
  */
-function secoursMs(panel: PanelTiming): number {
+export function secoursMs(panel: PanelTiming): number {
   const voix = panel.audioDurationMs ?? 0;
   if (voix > 0) return voix;
   return Math.max(0, Math.round((panel.duration ?? 0) * 1000));
