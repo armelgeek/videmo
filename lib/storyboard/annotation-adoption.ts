@@ -16,9 +16,20 @@ import type { StoryboardPanel } from "./schema";
  */
 export const PLANNED_SOURCE = "plan";
 
-/** L'identifiant d'une annotation planifiee : stable, donc remplacable. */
-export function plannedAnnotationId(panelId: string, beatIndex: number): string {
-  return `${panelId}-beat-${beatIndex}`;
+/**
+ * L'identifiant d'une annotation planifiee : stable, donc remplacable.
+ *
+ * Le rang n'apparait qu'a partir de la seconde zone d'un meme temps : les
+ * identifiants deja enregistres, du temps ou chaque temps n'en avait qu'une,
+ * restent inchanges et se remplacent au lieu de se dupliquer.
+ */
+export function plannedAnnotationId(
+  panelId: string,
+  beatIndex: number,
+  rang = 0,
+): string {
+  const base = `${panelId}-beat-${beatIndex}`;
+  return rang === 0 ? base : `${base}-${rang}`;
 }
 
 function isPlanned(annotation: Annotation): boolean {
@@ -54,18 +65,39 @@ export function adoptPlannedAnnotations(input: {
     input.imageSize.height,
   );
 
-  const planned: Annotation[] = input.planned.map((annotation, beatIndex) => ({
-    id: plannedAnnotationId(input.panelId, beatIndex),
-    text: annotation.text,
-    region: reprojeterRegion(annotation.region, source, target),
-    reveal: {
-      durationMs: Math.max(1, Math.round(annotation.reveal.durationMs)),
-      startMs: annotation.reveal.startMs,
-      gapBeforeMs: 0,
-    },
-    style: { strokeColor: "#000000", strokeWidth: 2, opacity: 1 },
-    metadata: { source: PLANNED_SOURCE, beatIndex },
-  }));
+  // Indexer les annotations existantes pour conserver leurs personnalisations
+  // (couleur de trait, style d'animation) lors d'une replanification.
+  const existingById = new Map<string, Annotation>();
+  for (const a of input.existing ?? []) {
+    existingById.set(a.id, a);
+  }
+
+  // Un temps peut porter plusieurs zones : le rang les distingue. L'index du
+  // tableau ne suffit plus, il ne designait le temps que tant qu'il n'y en
+  // avait qu'une par temps.
+  const rangs = new Map<number, number>();
+  const planned: Annotation[] = input.planned.map((annotation) => {
+    const beatIndex = annotation.beatIndex;
+    const rang = rangs.get(beatIndex) ?? 0;
+    rangs.set(beatIndex, rang + 1);
+
+    const id = plannedAnnotationId(input.panelId, beatIndex, rang);
+    const prev = existingById.get(id);
+
+    return {
+      id,
+      text: annotation.text,
+      region: reprojeterRegion(annotation.region, source, target),
+      reveal: {
+        durationMs: Math.max(1, Math.round(annotation.reveal.durationMs)),
+        startMs: annotation.reveal.startMs,
+        gapBeforeMs: 0,
+      },
+      style: prev?.style ?? { strokeColor: "#000000", strokeWidth: 2, opacity: 1 },
+      ...(prev?.animStyle ? { animStyle: prev.animStyle } : {}),
+      metadata: { source: PLANNED_SOURCE, beatIndex },
+    };
+  });
 
   const handMade = (input.existing ?? []).filter(
     (annotation) => !isPlanned(annotation),

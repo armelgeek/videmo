@@ -6,6 +6,7 @@ import { RegionReadFailedError } from "@/lib/image/region-reader";
 import {
   buildVisionPrompt,
   planAnnotations,
+  snapRegionsToSubjects,
   snapToSubject,
 } from "@/lib/storyboard/annotation-planning";
 import { scriptSceneSchema } from "@/lib/storyboard/script-generation";
@@ -90,8 +91,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Le rectangle devine est ramene sur le sujet qu'il designe : ce sont
-    // les bornes mesurees, et non le modele, qui cadrent.
-    regions = regions.map((region) => snapToSubject(region, input.candidates));
+    // les bornes mesurees, et non le modele, qui cadrent. L'anti-collision
+    // preserve les regions distinctes face a un candidat fusionne.
+    regions = snapRegionsToSubjects(regions, input.candidates);
 
     // Les durees mesurees voyagent DANS la scene, portees par ses temps de
     // narration depuis la synthese. Un temps dont la mesure a echoue rend 0,

@@ -35,7 +35,16 @@ const validPlan = {
     {
       message: {
         content: JSON.stringify({
-          regions: [{ beatIndex: 0, x: 10, y: 20, width: 300, height: 400 }],
+          regions: [
+            {
+              beatIndex: 0,
+              label: "Grain de café",
+              x: 10,
+              y: 20,
+              width: 300,
+              height: 400,
+            },
+          ],
         }),
       },
     },
@@ -63,7 +72,7 @@ describe("readOpenAiVisionConfig", () => {
 });
 
 describe("OpenAiRegionReader", () => {
-  it("rend le plan de regions", async () => {
+  it("rend le plan de regions avec son etiquette", async () => {
     const { impl } = stubFetch({ json: validPlan });
     const plan = await new OpenAiRegionReader(config, impl).read({
       imageUrl: "https://cdn.test/a.png",
@@ -72,6 +81,7 @@ describe("OpenAiRegionReader", () => {
 
     expect(plan.regions[0]).toEqual({
       beatIndex: 0,
+      label: "Grain de café",
       x: 10,
       y: 20,
       width: 300,
@@ -102,6 +112,9 @@ describe("OpenAiRegionReader", () => {
     const body = JSON.parse(calls[0].init.body as string);
     expect(body.response_format.type).toBe("json_schema");
     expect(body.response_format.json_schema.strict).toBe(true);
+    expect(
+      body.response_format.json_schema.schema.properties.regions.items.required,
+    ).toContain("label");
   });
 
   it("leve une erreur typee sur refus du moteur", async () => {

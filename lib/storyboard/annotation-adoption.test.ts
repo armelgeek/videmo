@@ -10,6 +10,7 @@ import type { StoryboardPanel } from "./schema";
 
 const planned = (over: Partial<PlannedAnnotation> = {}): PlannedAnnotation => ({
   text: "Le grain de cafe.",
+  beatIndex: 0,
   region: { x: 0, y: 0, width: 1536, height: 1024 },
   reveal: { startMs: 0, durationMs: 6552 },
   ...over,
@@ -47,7 +48,7 @@ describe("adoptPlannedAnnotations", () => {
   it("donne un identifiant stable, pour remplacer au lieu de dupliquer", () => {
     const args = {
       panelId: "p0",
-      planned: [planned(), planned({ text: "Deux." })],
+      planned: [planned(), planned({ text: "Deux.", beatIndex: 1 })],
       imageSize: image,
       canvas: canvas16x9,
     };
@@ -57,6 +58,58 @@ describe("adoptPlannedAnnotations", () => {
 
     expect(second).toHaveLength(2);
     expect(second.map((a) => a.id)).toEqual(["p0-beat-0", "p0-beat-1"]);
+  });
+
+  it("distingue les zones d'un MEME temps sans casser les identifiants d'avant", () => {
+    // Le rang n'apparait qu'a partir de la seconde : la premiere garde
+    // l'identifiant qu'elle avait quand un temps n'avait qu'une zone, donc
+    // elle se remplace au lieu de se dupliquer.
+    const args = {
+      panelId: "p0",
+      planned: [
+        planned({ text: "Grain", beatIndex: 0 }),
+        planned({ text: "Table", beatIndex: 0 }),
+        planned({ text: "Tasse", beatIndex: 1 }),
+      ],
+      imageSize: image,
+      canvas: canvas16x9,
+    };
+
+    const first = adoptPlannedAnnotations(args);
+    const second = adoptPlannedAnnotations({ ...args, existing: first });
+
+    expect(second.map((a) => a.id)).toEqual([
+      "p0-beat-0",
+      "p0-beat-0-1",
+      "p0-beat-1",
+    ]);
+    expect(second).toHaveLength(3);
+  });
+
+  it("conserve le style d'animation et la couleur personnalises lors d'une replanification", () => {
+    const args = {
+      panelId: "p0",
+      planned: [planned({ text: "Grain", beatIndex: 0 })],
+      imageSize: image,
+      canvas: canvas16x9,
+      existing: [
+        {
+          id: "p0-beat-0",
+          text: "Grain ancien",
+          region: { x: 0, y: 0, width: 100, height: 100 },
+          reveal: { durationMs: 1000, startMs: 0, gapBeforeMs: 0 },
+          style: { strokeColor: "#0066FF", strokeWidth: 4, opacity: 0.8 },
+          animStyle: "scribble",
+          metadata: { source: "plan", beatIndex: 0 },
+        },
+      ],
+    };
+
+    const result = adoptPlannedAnnotations(args);
+
+    expect(result[0].animStyle).toBe("scribble");
+    expect(result[0].style.strokeColor).toBe("#0066FF");
+    expect(result[0].style.strokeWidth).toBe(4);
   });
 
   it("conserve ce que l'utilisateur a dessine a la main", () => {

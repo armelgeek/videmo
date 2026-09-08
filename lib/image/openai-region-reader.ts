@@ -51,9 +51,10 @@ const RESPONSE_FORMAT = {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["beatIndex", "x", "y", "width", "height"],
+            required: ["beatIndex", "label", "x", "y", "width", "height"],
             properties: {
               beatIndex: { type: "integer" },
+              label: { type: "string" },
               x: { type: "number" },
               y: { type: "number" },
               width: { type: "number" },
