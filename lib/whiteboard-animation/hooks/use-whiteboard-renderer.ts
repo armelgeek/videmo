@@ -1372,8 +1372,16 @@ export function useWhiteboardRenderer({
   //
   // applyImage vient de vider animRef et offscreenRef : il n'y a aucun etat
   // d'animation en cours a preserver ici.
+  // La version d'illustration DEJA repeinte. `isPlaying` figure dans les
+  // dependances pour attendre l'arret quand l'illustration arrive en pleine
+  // lecture — mais sans cette marque, chaque PAUSE relancait le repeint. Le
+  // rejeu procede par pas fixes et ne retombe pas sur le point du trace ou la
+  // lecture en direct s'etait arretee : la main sautait ailleurs et le dessin
+  // avancait, a l'instant meme ou l'on demandait a figer l'image.
+  const versionRepeinteRef = useRef(0);
   useEffect(() => {
     if (artworkVersion === 0 || isPlaying) return;
+    if (versionRepeinteRef.current === artworkVersion) return;
     // Le debut de clip est couvert par l'apercu statique, qui suit desormais
     // artworkVersion. Ne reste ici que le cas d'une illustration remplacee
     // ALORS qu'on est deja engage dans le clip : il faut alors rejouer le
@@ -1386,6 +1394,7 @@ export function useWhiteboardRenderer({
     const hctx = handCanvas?.getContext('2d');
     if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
 
+    versionRepeinteRef.current = artworkVersion;
     repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
     // currentTime hors des deps : on repeint quand l'illustration change, pas a
     // chaque tick d'horloge — le scrub ci-dessus s'en charge deja.
