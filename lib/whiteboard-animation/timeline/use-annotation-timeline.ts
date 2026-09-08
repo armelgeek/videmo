@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation } from "@/lib/unified-engine/types";
 import type { TimelineClip } from "@/lib/editor/types";
+import { poserPositionLecture } from "@/lib/editor/playback-clock";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { applyEditorEdit, type TimelineEdit } from "./apply-editor-edit";
@@ -39,8 +40,28 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
   const storeAnnotations = useUnifiedEngineStore((s) => s.animation.annotations);
   /** Source of truth for DISPLAY: global sequence when provided, active panel otherwise. */
   const annotations = globalAnnotations ?? storeAnnotations;
-  const currentTime = useUnifiedEngineStore((s) => s.timeline.currentTime);
   const videoDuration = useUnifiedEngineStore((s) => s.timeline.duration);
+
+  // La barre de transport est PARTAGEE avec l'editeur, et son compteur suit
+  // desormais `playback-clock` plutot qu'une prop. Cet ecran, lui, porte sa
+  // position dans le store du moteur : sans ce pont son timecode resterait a
+  // zero pendant toute la lecture, et le pas image par image partirait de la.
+  //
+  // L'abonnement est IMPERATIF, et c'est tout l'enjeu : lire cette position
+  // avec un selecteur React rendrait ce hook — donc la timeline entiere — a
+  // chaque publication de l'horloge, ce que la refonte a precisement supprime.
+  // Ici la valeur passe du store a l'horloge sans traverser un seul rendu.
+  //
+  // Le pont vit a ce niveau plutot que dans la boucle de rendu : le store
+  // change aussi quand on scrube ou qu'on choisit un clip, et ces
+  // deplacements-la doivent s'afficher comme les autres.
+  useEffect(() => {
+    const publier = (ms: number) => poserPositionLecture(ms / 1000);
+    publier(useUnifiedEngineStore.getState().timeline.currentTime);
+    return useUnifiedEngineStore.subscribe((s) =>
+      publier(s.timeline.currentTime),
+    );
+  }, []);
   // Read from the project rather than inferred from the timeline: it must stay
   // a fixed ceiling for the whole of a drag.
   const narrationMs = useStoryboardStore(
@@ -180,7 +201,6 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
     // schedule keeps a project with no narration unchanged.
     duration:
       videoDuration > 0 ? videoDuration / 1000 : view.durationSeconds,
-    currentTime: currentTime / 1000,
     frameRate: fps,
     isPlaying,
     selectedClipIds: selectedClipId ? [selectedClipId] : [],
