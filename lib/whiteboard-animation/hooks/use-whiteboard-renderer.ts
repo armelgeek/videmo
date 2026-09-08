@@ -1069,6 +1069,17 @@ export function useWhiteboardRenderer({
     const step = (now: number) => {
       if (stoppedRef.current) return;
 
+      // L'arret suit le STORE, pas le nettoyage de l'effet.
+      //
+      // Le clic pose isPlaying a faux, mais React doit d'abord se rendre avant
+      // que le nettoyage n'annule la boucle : une ou deux frames passaient
+      // encore entre les deux. A la cadence du moteur, chacune trace tout un
+      // paquet de traits — la main se figeait, puis avancait encore un peu.
+      if (!useUnifiedEngineStore.getState().timeline.isPlaying) {
+        stoppedRef.current = true;
+        return;
+      }
+
       // The first frame after a start or a resume carries a stale timestamp.
       if (isFirstFrame) {
         last = now;
