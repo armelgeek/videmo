@@ -64,10 +64,23 @@ const RESYNC_COOLDOWN_MS = 1000;
 
 /**
  * Gap between the store's time and the engine's own that means somebody moved
- * the playhead. During playback the engine writes both on every tick, so they
- * sit on top of each other; anything wider came from outside.
+ * the playhead. The engine publishes the store at PUBLISH_INTERVAL_MS, so the
+ * two can legitimately sit up to one interval apart; anything wider than that
+ * came from outside.
  */
 const EXTERNAL_SEEK_MS = 100;
+
+/**
+ * Cadence de PUBLICATION de l'horloge dans le store.
+ *
+ * Le moteur avance a chaque frame, mais chaque ecriture de currentTime rend
+ * tous les abonnes — la timeline entiere, ses regles, ses pistes. A 60 Hz le
+ * rendu React coutait plus cher que le dessin lui-meme. L'horloge REELLE reste
+ * engineTimeRef, mise a jour a chaque tick : seule sa publication est ralentie,
+ * donc rien ne derive. Doit rester nettement sous EXTERNAL_SEEK_MS, sans quoi
+ * le retard de publication passerait pour un deplacement du curseur.
+ */
+const PUBLISH_INTERVAL_MS = 1000 / 30;
 
 /**
  * Paliers d'assets de main, du plus petit au plus grand. CUSTOM_HANDS decrit
@@ -251,6 +264,10 @@ export function useWhiteboardRenderer({
   // Dernier currentTime ECRIT par le moteur. Sert a distinguer un seek de
   // l'utilisateur d'une simple progression de lecture.
   const engineTimeRef = useRef(0);
+  // Instant de la derniere PUBLICATION dans le store, cf. PUBLISH_INTERVAL_MS.
+  const lastPublishRef = useRef(0);
+  // Instant du dernier rejeu de seek, cf. SEEK_COOLDOWN_MS.
+  const lastSeekAtRef = useRef(0);
   // The drawing reached the end of its schedule. The video can still be
   // running: with narration longer than the schedule, the finished image is
   // held on screen while the audio plays out.
@@ -664,6 +681,26 @@ export function useWhiteboardRenderer({
   };
 
   /**
+   * Pose l'horloge du moteur, et la publie dans le store au plus a la cadence
+   * de PUBLISH_INTERVAL_MS.
+   *
+   * engineTimeRef est TOUJOURS ecrit : c'est lui qui fait foi pour le dessin,
+   * la narration et la detection de seek. Le store, lui, n'a besoin d'etre
+   * juste que pour l'affichage — le publier a chaque frame rendait toute la
+   * timeline 60 fois par seconde.
+   *
+   * `force` sert aux instants qui doivent etre exacts a l'ecran tout de suite :
+   * fin du dessin, fin de la video, arrivee d'un seek.
+   */
+  const publishTime = (ms: number, force = false) => {
+    engineTimeRef.current = ms;
+    const now = performance.now();
+    if (!force && now - lastPublishRef.current < PUBLISH_INTERVAL_MS) return;
+    lastPublishRef.current = now;
+    useUnifiedEngineStore.getState().setCurrentTime(ms);
+  };
+
+  /**
    * Build a fresh engine bound to these contexts. Shared by playback and seek:
    * a seek is just a run replayed at a fixed step, so it must be built exactly
    * like the real thing or the frame it lands on would not match.
@@ -729,8 +766,7 @@ export function useWhiteboardRenderer({
           const span = drawingSpanRef.current || s.timeline.duration;
           const localMs = Math.min(1, Math.max(0, p)) * span;
           const globalMs = localMs + clipOffsetMsRef.current;
-          engineTimeRef.current = globalMs;
-          s.setCurrentTime(globalMs);
+          publishTime(globalMs);
         },
         finishAnim: () => {
           if (seekingRef.current) {
@@ -747,11 +783,13 @@ export function useWhiteboardRenderer({
           const s = useUnifiedEngineStore.getState();
           const localSpan = drawingSpanRef.current || s.timeline.duration;
           const globalEnd = localSpan + clipOffsetMsRef.current;
-          engineTimeRef.current = globalEnd;
+          // Force : la fin du trace est un instant qu'on doit voir a l'ecran,
+          // pas au prochain creneau de publication.
+          publishTime(globalEnd, true);
           if (globalEnd >= s.timeline.duration - 1) {
             // No narration left to play out: the video ends with the drawing.
             stoppedRef.current = true;
-            s.setCurrentTime(s.timeline.duration);
+            publishTime(s.timeline.duration, true);
             s.setIsPlaying(false);
           }
         },
@@ -914,7 +952,11 @@ export function useWhiteboardRenderer({
       hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
     }
 
+    // Le store porte deja targetMs — c'est lui qui a demande ce deplacement.
+    // Seul le creneau de publication est reamorce, pour que la premiere frame
+    // de lecture qui suit ne soit pas retenue.
     engineTimeRef.current = targetMs;
+    lastPublishRef.current = 0;
   };
 
   useEffect(() => {
@@ -1061,9 +1103,11 @@ export function useWhiteboardRenderer({
       if (drawingDoneRef.current) {
         // Drawing complete, narration still running: hold the image and run
         // the clock out to the end of the video.
-        const next = s.timeline.currentTime + delta;
-        engineTimeRef.current = next;
-        s.setCurrentTime(next);
+        //
+        // On avance depuis engineTimeRef, pas depuis le store : celui-ci n'est
+        // publie que 30 fois par seconde, et repartir de sa valeur perdrait le
+        // delta des frames non publiees — l'horloge avancerait au ralenti.
+        publishTime(engineTimeRef.current + delta);
         hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
       } else {
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
@@ -1074,10 +1118,10 @@ export function useWhiteboardRenderer({
       // encore la derniere image du clip sortant. On la fige au premier passage,
       // puis on repeint depuis elle a chaque frame : sans instantane, la frame
       // suivante fondrait le resultat du fondu precedent.
-      const enTransition = transitionAt(
-        clipsRef.current,
-        useUnifiedEngineStore.getState().timeline.currentTime
-      );
+      // L'horloge lue ici est celle du MOTEUR, pas le store : le fondu doit
+      // demarrer a la frame ou la frontiere est franchie, pas au prochain
+      // creneau de publication.
+      const enTransition = transitionAt(clipsRef.current, engineTimeRef.current);
       if (enTransition) {
         const snap = canvasTampon(snapshotRef, canvas.width, canvas.height);
         if (!snapshotValideRef.current) {
@@ -1131,13 +1175,16 @@ export function useWhiteboardRenderer({
       // finishAnim, which left the transport running past the end: the button
       // stayed on Pause and the run was never marked stopped. Ending it here
       // makes "finished" observable to the rest of the renderer.
+      //
+      // La fin se juge sur l'horloge du MOTEUR : le store, publie a intervalle,
+      // porte encore la position d'avant ce tick.
       if (
         s.timeline.duration > 0 &&
-        s.timeline.currentTime >= s.timeline.duration - 1
+        engineTimeRef.current >= s.timeline.duration - 1
       ) {
         stoppedRef.current = true;
         animRef.current = null;
-        engineTimeRef.current = s.timeline.duration;
+        publishTime(s.timeline.duration, true);
         hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
         manager?.pause();
         s.setIsPlaying(false);
@@ -1165,6 +1212,13 @@ export function useWhiteboardRenderer({
 
   /** Delai avant que le calque d'annotations ne revienne apres un scrub. */
   const SCRUB_RETOUR_MS = 400;
+
+  /**
+   * Palier minimal entre deux rejeux de seek. Un rejeu reconstruit un moteur
+   * entier, ce qui coute bien plus qu'une frame : en emettre un par frame de
+   * drag saturait le fil principal, et le curseur lui-meme devenait saccade.
+   */
+  const SEEK_COOLDOWN_MS = 120;
 
   /** Rect d'une region, borne a l'artwork — meme calcul que _enterRegion. */
   const regionRect = (
@@ -1204,12 +1258,32 @@ export function useWhiteboardRenderer({
     if (scrubTimer.current) clearTimeout(scrubTimer.current);
     scrubTimer.current = setTimeout(() => setScrubbing(false), SCRUB_RETOUR_MS);
 
-    // Un drag emet un flot de seeks : on n'en rejoue qu'un par frame.
-    const raf = requestAnimationFrame(() => {
-      repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
-    });
+    // Un drag emet un flot de seeks, et CHAQUE rejeu reconstruit un moteur
+    // complet — le setup() d'un style parcourt l'image entiere. Un par frame
+    // depassait donc largement le budget d'une frame et le curseur devenait
+    // pateux. On en garde un par palier de SEEK_COOLDOWN_MS : le premier part
+    // tout de suite (le retour visuel reste immediat), les suivants attendent
+    // la fin du palier. La derniere position est toujours rejouee, l'effet
+    // n'etant plus rappele apres elle.
+    let raf = 0;
+    const lancer = () => {
+      lastSeekAtRef.current = performance.now();
+      raf = requestAnimationFrame(() => {
+        repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
+      });
+    };
 
-    return () => cancelAnimationFrame(raf);
+    const reste = SEEK_COOLDOWN_MS - (performance.now() - lastSeekAtRef.current);
+    if (reste <= 0) {
+      lancer();
+      return () => cancelAnimationFrame(raf);
+    }
+
+    const timer = setTimeout(lancer, reste);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(raf);
+    };
   }, [currentTime, isPlaying, imageLoaded]);
 
   // Apercu statique au DEBUT DU CLIP (rien de revele encore, ou Reset).

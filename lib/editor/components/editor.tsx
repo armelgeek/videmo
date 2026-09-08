@@ -62,7 +62,6 @@ import { DEMO_FINAL_SEQUENCE } from "@/lib/demo-data";
 import { StatusBar } from "./status-bar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { InkplainerSidebar } from "@/lib/whiteboard-animation/components/inkplainer-sidebar";
-import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import { useWhiteboardRenderer } from "@/lib/whiteboard-animation/hooks/use-whiteboard-renderer";
 
 
@@ -1532,7 +1531,9 @@ const EditorInner: React.FC<EditorProps> = ({
 
   const whiteboardCanvasRef = useRef<HTMLCanvasElement>(null);
   const whiteboardHandCanvasRef = useRef<HTMLCanvasElement>(null);
-  const whiteboardEngine = useUnifiedEngine();
+  // Pas de useUnifiedEngine() ici : personne ne lisait le resultat, mais
+  // l'abonnement rendait TOUT l'editeur a chaque ecriture de currentTime,
+  // soit 60 fois par seconde pendant la lecture.
 
   // Pas d'annotationCanvasRef : sur cette surface les regions sont rendues par
   // AnnotationOverlay (Konva), qui les rend deplacables et redimensionnables.
