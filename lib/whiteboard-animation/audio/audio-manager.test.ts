@@ -38,6 +38,11 @@ describe("AudioManager", () => {
     expect(el.currentTime).toBeCloseTo(4.2, 5);
   });
 
+  it("setPlaybackRate/getPlaybackRate round-trip on the element", () => {
+    manager.setPlaybackRate(1.05);
+    expect(manager.getPlaybackRate()).toBeCloseTo(1.05, 5);
+  });
+
   it("setVolume clamps to [0, 1]", () => {
     const el = manager.getElement();
     manager.setVolume(1.5);

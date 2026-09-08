@@ -5,6 +5,18 @@ import {
   narrationEndMs,
 } from "./narration-schedule";
 
+/** Au-dela, la coupure vaut mieux qu'une derive qui durerait des secondes. */
+const SAUT_BRUTAL_MS = 1500;
+
+/** Le temps de lecture vise pour resorber un ecart par le tempo seul. */
+const FENETRE_RATTRAPAGE_MS = 3000;
+
+/** La modification de tempo maximale : au-dela, le rattrapage s'entendrait. */
+const NUDGE_MAX = 0.05;
+
+const clamp = (v: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, v));
+
 /**
  * Joue la narration enregistrement par enregistrement, en presentant a la
  * boucle de rendu l'interface d'UNE piste continue.
@@ -109,10 +121,17 @@ export class NarrationPlayer {
       positionMs,
     );
 
-    if (action.type === "rien") return;
+    if (action.type === "rien") {
+      // Un rattrapage en cours peut avoir resorbe l'ecart entre deux frames :
+      // sans ce retour au tempo normal, le nudge reste actif indefiniment et
+      // finit par creuser l'ecart dans l'autre sens.
+      if (this.manager.getPlaybackRate() !== 1) this.manager.setPlaybackRate(1);
+      return;
+    }
 
     if (action.type === "taire") {
       this.manager.pause();
+      this.manager.setPlaybackRate(1);
       this.index = null;
       this.attendu = null;
       return;
@@ -130,6 +149,7 @@ export class NarrationPlayer {
       this.attendu = action.offsetMs;
       this.manager.setVolume(this.volume);
       this.manager.setMuted(this.muet);
+      this.manager.setPlaybackRate(1);
       this.manager.seekMs(action.offsetMs);
       if (this.voulu) {
         this.manager.play().catch((error) => {
@@ -145,8 +165,23 @@ export class NarrationPlayer {
     // son retard. On attend la frame suivante, ou il aura peut-etre abouti.
     if (this.manager.isSeeking()) return;
 
-    this.attendu = action.offsetMs;
-    this.manager.seekMs(action.offsetMs);
+    const ecartMs = action.offsetMs - offsetMs;
+
+    // Un ecart enorme (retour d'onglet mis en veille, saut manuel) ne se
+    // rattrape pas en douceur dans un delai raisonnable : la coupure y est
+    // moins genante qu'une derive qui durerait plusieurs secondes.
+    if (Math.abs(ecartMs) > SAUT_BRUTAL_MS) {
+      this.attendu = action.offsetMs;
+      this.manager.setPlaybackRate(1);
+      this.manager.seekMs(action.offsetMs);
+      return;
+    }
+
+    // En-dessous, on rattrape par le TEMPO plutot que par un saut : jouer
+    // legerement plus vite ou plus lentement quelques secondes ne s'entend
+    // pas, la ou chaque coupure s'entend. Voir AudioManager.setPlaybackRate.
+    const nudge = clamp(ecartMs / FENETRE_RATTRAPAGE_MS, -NUDGE_MAX, NUDGE_MAX);
+    this.manager.setPlaybackRate(1 + nudge);
   }
 
   /** Suivre l'horloge du projet, a chaque frame. */
@@ -178,6 +213,15 @@ export class NarrationPlayer {
   setMuted(m: boolean): void {
     this.muet = m;
     for (const manager of this.managers) manager.setMuted(m);
+  }
+
+  /**
+   * Requis par NarrationClock ; le rattrapage interne (voir seekMs) pilote
+   * deja le tempo de l'element actif. Un appelant externe n'a aujourd'hui
+   * aucune raison d'en imposer un, mais l'interface doit rester complete.
+   */
+  setPlaybackRate(rate: number): void {
+    this.manager.setPlaybackRate(rate);
   }
 
   /**

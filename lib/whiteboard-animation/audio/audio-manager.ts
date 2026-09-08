@@ -61,6 +61,21 @@ export class AudioManager {
   }
 
   /**
+   * Rattraper un petit ecart en douceur, sans coupure : jouer legerement plus
+   * vite ou plus lentement plutot que sauter. Un saut se coupe et se reprend,
+   * ce qui s'entend ; un tempo a peine modifie ne se remarque pas, et vaut
+   * mieux qu'un decrochage audible pour un ecart que quelques secondes de
+   * lecture suffisent a resorber.
+   */
+  setPlaybackRate(rate: number): void {
+    if (this.el.playbackRate !== rate) this.el.playbackRate = rate;
+  }
+
+  getPlaybackRate(): number {
+    return this.el.playbackRate;
+  }
+
+  /**
    * Un saut est en cours : l'element n'a pas encore fini de se replacer.
    *
    * Utilise par le lecteur multi-pistes pour NE PAS redemander un saut tant

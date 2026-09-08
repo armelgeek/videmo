@@ -12,6 +12,7 @@ import type { NarrationPart } from './narration-schedule';
 export interface NarrationClock {
   isUsableClock(): boolean;
   isSeeking(): boolean;
+  setPlaybackRate(rate: number): void;
   getCurrentMs(): number;
   getDurationMs(): number;
   seekMs(ms: number): void;
