@@ -60,6 +60,10 @@ export function usePlayback({
   const [isPreviewPlayback, setIsPreviewPlayback] = useState(false)
 
   const currentTimeRef = useRef(0)
+  // Position de depart de la lecture, tenue a jour tant qu'on ne joue PAS.
+  // Elle sert a amorcer currentTimeRef au demarrage, sans que la boucle ait a
+  // dependre de `currentTime`.
+  const seekTargetRef = useRef(0)
 
   // Refs for video/audio elements
   const videoRefA = useRef<HTMLVideoElement | null>(null)
@@ -79,6 +83,8 @@ export function usePlayback({
   const lastTimeRef = useRef<number | null>(null)
   const lastStateUpdateRef = useRef<number>(0)
   const STATE_UPDATE_INTERVAL = 1000 / 30 // Update React state at 30fps max
+
+  if (!isPlaying) seekTargetRef.current = currentTime
 
   const setupAudioGraph = useCallback(() => {
     if (typeof window === "undefined") return
@@ -163,10 +169,15 @@ export function usePlayback({
             if (!player.src.includes(mediaItem.url)) {
               player.src = mediaItem.url
             }
-            const timeInClip = time - clip.start + clip.offset
+            // `clip.speed` etait un champ mort : il etait ecrit partout mais ni
+            // la position ni le playbackRate ne le lisaient, si bien que changer
+            // la vitesse d'un clip n'avait aucun effet.
+            const speed = clip.speed && clip.speed > 0 ? clip.speed : 1
+            const timeInClip = (time - clip.start) * speed + clip.offset
             if (isExportingNow || Math.abs(player.currentTime - timeInClip) > 0.1) {
               player.currentTime = timeInClip
             }
+            if (player.playbackRate !== speed) player.playbackRate = speed
             if (isExportingNow) {
               player.pause()
             } else if (isPlaying) {
@@ -259,10 +270,13 @@ export function usePlayback({
               if (!audioEl.src.includes(mediaItem.url)) {
                 audioEl.src = mediaItem.url
               }
-              const timeInClip = time - activeAudioClip.start + activeAudioClip.offset
+              const speed =
+                activeAudioClip.speed && activeAudioClip.speed > 0 ? activeAudioClip.speed : 1
+              const timeInClip = (time - activeAudioClip.start) * speed + activeAudioClip.offset
               if (isExportingNow || Math.abs(audioEl.currentTime - timeInClip) > 0.1) {
                 audioEl.currentTime = timeInClip
               }
+              if (audioEl.playbackRate !== speed) audioEl.playbackRate = speed
               if (isPlaying && !isExportingNow) {
                 audioEl.play().catch(() => {})
               } else {
@@ -311,8 +325,13 @@ export function usePlayback({
         let offsetY = 0
         let displayText = overlay.text
 
-        const fadeInDuration = 0.3
-        const fadeOutStart = 1 - 0.3 / clipDuration
+        // Les deux fondus durent 0,3 SECONDE, exprimees ici en fraction de clip
+        // puisque `progress` en est une. `fadeInDuration` valait 0.3 tel quel et
+        // etait compare a `progress` : le fade-in durait 30 % du clip pendant que
+        // le fade-out durait 0,3 s — sur un clip de 10 s, 3 s contre 0,3 s.
+        const FADE_SECONDS = 0.3
+        const fadeInDuration = clipDuration > 0 ? FADE_SECONDS / clipDuration : 1
+        const fadeOutStart = 1 - fadeInDuration
 
         switch (overlay.animation) {
           case "fade-in":
@@ -417,7 +436,11 @@ export function usePlayback({
           ctx.beginPath()
           const vals =
             clipPathB
-              .match(/inset$$([^)]+)$$/)?.[1]
+              // La regex d'origine s'ecrivait /inset$$([^)]+)$$/ : `$$` est une
+              // double ancre de fin, elle ne matchait JAMAIS. Les transitions
+              // wipe n'etaient donc pas decoupees dans le rendu canvas (export),
+              // alors qu'elles l'etaient dans l'apercu DOM.
+              .match(/inset\(([^)]+)\)/)?.[1]
               .split(" ")
               .map((s) => Number.parseFloat(s)) || []
           const rightPct = vals.length === 4 ? vals[1] : 0
@@ -511,8 +534,12 @@ export function usePlayback({
   }, [])
 
   const handleSeek = useCallback((time: number) => {
+    // On deplace l'horloge de lecture ET la position de reprise : l'effet de
+    // demarrage ne relit plus `currentTime`, c'est donc ici que le scrub en
+    // cours de lecture doit atterrir.
     currentTimeRef.current = time
-    setCurrentTime((prev) => prev === time ? prev : time)
+    seekTargetRef.current = time
+    setCurrentTime((prev) => (prev === time ? prev : time))
   }, [])
 
   const handleDragStart = useCallback(() => {
@@ -584,8 +611,15 @@ export function usePlayback({
   }, [currentTime, syncMediaToTime, isExporting, isRendering, isPlaying])
 
   useEffect(() => {
+    // `currentTime` n'est PLUS une dependance.
+    //
+    // La boucle ecrit currentTime 30 fois par seconde ; l'effet se reexecutait
+    // donc 30 fois par seconde, annulant et recreant le requestAnimationFrame a
+    // chaque passage et reecrivant currentTimeRef avec la valeur throttlee,
+    // c'est-a-dire en retard d'une frame sur l'horloge reelle.
     if (isPlaying && !isExporting && !isRendering) {
-      currentTimeRef.current = currentTime
+      currentTimeRef.current = seekTargetRef.current
+      lastTimeRef.current = null
       lastStateUpdateRef.current = performance.now()
       requestRef.current = requestAnimationFrame(animate)
     } else {
@@ -595,7 +629,7 @@ export function usePlayback({
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
     }
-  }, [isPlaying, animate, isExporting, isRendering, currentTime])
+  }, [isPlaying, animate, isExporting, isRendering])
 
   return {
     currentTime,

@@ -259,6 +259,9 @@ export const Timeline = memo(function Timeline({
     onSplitClip,
     onDragStart,
     onOverwriteClips: onOverwriteClips || (() => {}),
+    // Borne le trim de fin a la duree reelle du media source. Les clips de texte
+    // (mediaId vide) n'ont pas de source : ils restent libres.
+    getClipMaxDuration: (clip) => mediaMap[clip.mediaId]?.duration,
   });
 
   const {

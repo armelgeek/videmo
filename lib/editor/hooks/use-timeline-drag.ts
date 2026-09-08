@@ -32,6 +32,12 @@ interface UseTimelineDragOptions {
   onSplitClip: (clipId: string, splitTime: number) => void
   onDragStart: () => void
   onOverwriteClips: (movedClipIds: string[]) => void
+  /**
+   * Duree exploitable du media d'un clip, en secondes, ou `undefined` si elle
+   * n'est pas connue. Sans elle, `trim-end` etirait un clip au-dela de sa source
+   * (maxStartDelta valant +Infinity) et le lecteur affichait une frame gelee.
+   */
+  getClipMaxDuration?: (clip: TimelineClip) => number | undefined
 }
 
 export function useTimelineDrag({
@@ -47,6 +53,7 @@ export function useTimelineDrag({
   onSplitClip,
   onDragStart,
   onOverwriteClips,
+  getClipMaxDuration,
 }: UseTimelineDragOptions) {
   const [dragState, setDragState] = useState<DragState>({
     mode: "none",
@@ -77,6 +84,8 @@ export function useTimelineDrag({
   snapEnabledRef.current = snapEnabled
   const onOverwriteClipsRef = useRef(onOverwriteClips)
   onOverwriteClipsRef.current = onOverwriteClips
+  const getClipMaxDurationRef = useRef(getClipMaxDuration)
+  getClipMaxDurationRef.current = getClipMaxDuration
 
   const handleMouseDownClip = useCallback(
     (e: React.MouseEvent, clip: TimelineClip, mode: DragMode) => {
@@ -102,7 +111,15 @@ export function useTimelineDrag({
       const isRangeSelect = e.shiftKey
       const isAlreadySelected = selectedClipIds.includes(clip.id)
 
-      // Handle range selection
+      // La selection resultante est calculee UNE fois, puis servie a la fois a
+      // onSelectClips et au drag.
+      //
+      // `activeClipIds` derivait auparavant de la prop `selectedClipIds`, celle
+      // du render PRECEDENT — onSelectClips venait pourtant d'etre appele juste
+      // au-dessus. Deux consequences visibles : un Shift+clic selectionnait la
+      // plage a l'ecran mais ne deplacait que l'ancienne selection, et un
+      // Ctrl+clic de deselection continuait de trainer le clip deselectionne.
+      let nextSelection: string[]
       if (isRangeSelect && lastClickedClipId) {
         const sortedClips = [...clips].sort((a, b) => a.start - b.start)
         const idxA = sortedClips.findIndex((c) => c.id === lastClickedClipId)
@@ -111,45 +128,51 @@ export function useTimelineDrag({
           const start = Math.min(idxA, idxB)
           const end = Math.max(idxA, idxB)
           const rangeIds = sortedClips.slice(start, end + 1).map((c) => c.id)
-          const newSelection = Array.from(new Set([...selectedClipIds, ...rangeIds]))
-          onSelectClips(newSelection)
+          nextSelection = Array.from(new Set([...selectedClipIds, ...rangeIds]))
+        } else {
+          nextSelection = selectedClipIds
         }
       } else if (isMultiSelect) {
-        if (isAlreadySelected) {
-          onSelectClips(selectedClipIds.filter((id) => id !== clip.id))
-        } else {
-          onSelectClips([...selectedClipIds, clip.id])
-        }
+        nextSelection = isAlreadySelected
+          ? selectedClipIds.filter((id) => id !== clip.id)
+          : [...selectedClipIds, clip.id]
       } else if (!isAlreadySelected) {
-        onSelectClips([clip.id])
+        nextSelection = [clip.id]
+      } else {
+        nextSelection = selectedClipIds
       }
+
+      if (nextSelection !== selectedClipIds) onSelectClips(nextSelection)
 
       setLastClickedClipId(clip.id)
 
       if (e.button === 2) return // Right click
 
-      onDragStart()
+      // On ne glisse que ce qui est reellement selectionne apres ce clic. Un
+      // Ctrl+clic qui deselectionne ne doit rien deplacer du tout.
+      const activeClipIds = nextSelection.includes(clip.id) ? nextSelection : []
+      if (activeClipIds.length === 0) return
 
-      const activeClipIds =
-        isAlreadySelected || !isMultiSelect
-          ? selectedClipIds.includes(clip.id)
-            ? selectedClipIds
-            : [clip.id]
-          : [clip.id]
+      onDragStart()
 
       // Only constraint is clips can't go before 0
       const initialStates: Record<string, { start: number; duration: number; offset: number }> = {}
 
-      activeClipIds.forEach((id) => {
+      // Seuls les ids VIVANTS entrent dans le drag. Un id selectionne mais absent
+      // de `clips` (media supprime, clip fusionne) laissait un trou dans
+      // initialStates, et handleDragMove dereferencait `undefined` en plein
+      // mouvement.
+      const liveClipIds = activeClipIds.filter((id) => {
         const c = clips.find((x) => x.id === id)
-        if (c) {
-          initialStates[id] = { start: c.start, duration: c.duration, offset: c.offset }
-        }
+        if (!c) return false
+        initialStates[id] = { start: c.start, duration: c.duration, offset: c.offset }
+        return true
       })
+      if (liveClipIds.length === 0) return
 
       // Calculate min delta so clips don't go before timeline start (0)
       let globalMinStartDelta = Number.NEGATIVE_INFINITY
-      activeClipIds.forEach((id) => {
+      liveClipIds.forEach((id) => {
         const state = initialStates[id]
         if (state) {
           const minDelta = -state.start // Can't go below 0
@@ -161,7 +184,7 @@ export function useTimelineDrag({
 
       setDragState({
         mode,
-        clipIds: activeClipIds,
+        clipIds: liveClipIds,
         startX: e.clientX,
         initialStates,
         minStartDelta: globalMinStartDelta,
@@ -190,6 +213,7 @@ export function useTimelineDrag({
 
       const leadClipId = ds.clipIds[0]
       const leadState = ds.initialStates[leadClipId]
+      if (!leadState) return
       const leadNewStart = leadState.start + proposedDelta
 
       if (snapEnabledRef.current && !ds.snapLocked) {
@@ -236,53 +260,68 @@ export function useTimelineDrag({
 
       ds.clipIds.forEach((id) => {
         const state = ds.initialStates[id]
+        if (!state) return
         onClipUpdateRef.current(id, { start: Math.max(0, state.start + proposedDelta) })
       })
     } else if (ds.mode === "trim-start") {
       const id = ds.clipIds[0]
       const state = ds.initialStates[id]
+      if (!state) return
 
       const maxDelta = state.duration - 0.5
-      let validDelta = Math.min(deltaSeconds, maxDelta)
-      let newStart = state.start + validDelta
-      const minAllowedStart = state.start + ds.minStartDelta
+      // Le clip ne peut pas reculer avant 0, ni avant sa propre tete de source
+      // (offset negatif) : deux bornes basses, on prend la plus contraignante.
+      const minAllowedStart = Math.max(0, state.start + ds.minStartDelta, state.start - state.offset)
+      const minDelta = minAllowedStart - state.start
 
-      if (newStart < minAllowedStart) {
-        newStart = minAllowedStart
-        validDelta = newStart - state.start
-      }
+      let validDelta = Math.min(Math.max(deltaSeconds, minDelta), maxDelta)
 
       if (snapEnabledRef.current) {
-        const snap = getSnapTimeRef.current(newStart, [id])
+        const snap = getSnapTimeRef.current(state.start + validDelta, [id])
         if (snap !== null) {
           const snapDelta = snap - state.start
-          if (snap >= minAllowedStart && state.duration - snapDelta >= 0.5) {
-            newStart = snap
+          if (snapDelta >= minDelta && snapDelta <= maxDelta) {
             validDelta = snapDelta
             snappedTime = snap
           }
         }
       }
-      newStart = Math.max(0, newStart)
-      const newDuration = state.duration - validDelta
-      const newOffset = state.offset + validDelta
-      onClipUpdateRef.current(id, { start: newStart, duration: newDuration, offset: newOffset })
+
+      // start, duration et offset derivent TOUS du meme `validDelta` deja borne.
+      // L'ancien code clampait `newStart` a 0 en dernier, apres avoir calcule
+      // duree et offset sur un delta non borne : le clip se retrouvait a une
+      // position qui ne correspondait plus a son extrait source (image et son
+      // desynchronises).
+      onClipUpdateRef.current(id, {
+        start: state.start + validDelta,
+        duration: state.duration - validDelta,
+        offset: state.offset + validDelta,
+      })
     } else if (ds.mode === "trim-end") {
       const id = ds.clipIds[0]
       const state = ds.initialStates[id]
-      let newDuration = state.duration + deltaSeconds
-      const maxAllowedDuration = state.duration + ds.maxStartDelta
+      if (!state) return
 
-      if (newDuration > maxAllowedDuration) {
-        newDuration = maxAllowedDuration
-      }
+      // Borne haute REELLE : ce qui reste de la source apres l'offset. Sans elle
+      // (maxStartDelta valant +Infinity) on etirait le clip au-dela du media, et
+      // le lecteur affichait une frame gelee jusqu'a la fin.
+      const clip = clipsRef.current.find((c) => c.id === id)
+      const sourceDuration = clip ? getClipMaxDurationRef.current?.(clip) : undefined
+      const maxAllowedDuration = Math.min(
+        state.duration + ds.maxStartDelta,
+        sourceDuration !== undefined && sourceDuration > 0
+          ? Math.max(0.5, sourceDuration - state.offset)
+          : Number.POSITIVE_INFINITY,
+      )
+
+      let newDuration = Math.min(state.duration + deltaSeconds, maxAllowedDuration)
 
       if (snapEnabledRef.current) {
-        const endPos = state.start + newDuration
-        const snap = getSnapTimeRef.current(endPos, [id])
+        const snap = getSnapTimeRef.current(state.start + newDuration, [id])
         if (snap !== null) {
-          if (snap <= state.start + maxAllowedDuration && snap - state.start >= 0.5) {
-            newDuration = snap - state.start
+          const snapped = snap - state.start
+          if (snapped >= 0.5 && snapped <= maxAllowedDuration) {
+            newDuration = snapped
             snappedTime = snap
           }
         }
