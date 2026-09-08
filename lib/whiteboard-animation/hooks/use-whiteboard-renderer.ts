@@ -1076,7 +1076,14 @@ export function useWhiteboardRenderer({
       // encore entre les deux. A la cadence du moteur, chacune trace tout un
       // paquet de traits — la main se figeait, puis avancait encore un peu.
       if (!useUnifiedEngineStore.getState().timeline.isPlaying) {
-        stoppedRef.current = true;
+        // On SUSPEND, on ne tue pas. Poser stoppedRef ici rendait l'arret
+        // definitif : seul un changement de isPlaying relance la boucle, donc
+        // un passage a faux d'une seule frame — une bascule de clip, un rendu
+        // intermediaire — arretait la lecture pour de bon. La frame est
+        // simplement replanifiee sans rien dessiner ; c'est le nettoyage de
+        // l'effet qui annule pour de vrai.
+        last = now;
+        frame = requestAnimationFrame(step);
         return;
       }
 
