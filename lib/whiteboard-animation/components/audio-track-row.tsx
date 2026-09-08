@@ -1,7 +1,7 @@
 'use client';
 
 import { Music, Volume2, VolumeX, Mic2 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { memo, useState, useRef, useEffect } from 'react';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { ClipWaveform } from '@/lib/editor/components/clip-waveform';
 import { NarrationGenerationModal } from './narration-generation-modal';
@@ -30,7 +30,7 @@ export interface AudioTrackRowProps {
   };
 }
 
-export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
+function AudioTrackRowImpl({ viewport }: AudioTrackRowProps = {}) {
   // The lane follows the timeline's scroll imperatively. Auto-scroll during
   // playback fires ~22 times a second; routing that through state re-rendered
   // this whole subtree at the same rate for what is one CSS transform.
@@ -266,3 +266,6 @@ export function AudioTrackRow({ viewport }: AudioTrackRowProps = {}) {
     </>
   );
 }
+
+/** Ne suit pas l'horloge : memo evite un re-rendu au rythme de son parent. */
+export const AudioTrackRow = memo(AudioTrackRowImpl);

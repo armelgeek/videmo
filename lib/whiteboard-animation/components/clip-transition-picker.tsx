@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import type { TransitionName, ClipWindow } from "../timeline/clip-transitions";
 import { toEngineAnnotations, toStoredAnnotations } from "../timeline/annotation-interop";
@@ -30,7 +31,7 @@ export interface ClipTransitionPickerProps {
   clips?: ClipWindow[];
 }
 
-export function ClipTransitionPicker({ clips }: ClipTransitionPickerProps) {
+function ClipTransitionPickerImpl({ clips }: ClipTransitionPickerProps) {
   const panels = useStoryboardStore((s) => s.storyboardPanels);
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
   const updatePanel = useStoryboardStore((s) => s.updatePanel);
@@ -150,5 +151,8 @@ export function ClipTransitionPicker({ clips }: ClipTransitionPickerProps) {
     </div>
   );
 }
+
+/** Ne suit pas l'horloge : memo evite un re-rendu au rythme de son parent. */
+export const ClipTransitionPicker = memo(ClipTransitionPickerImpl);
 
 

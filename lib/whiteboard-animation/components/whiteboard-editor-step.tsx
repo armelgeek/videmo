@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
+import * as selectors from "@/lib/unified-engine/hooks/selectors";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { toEngineAnnotations, toStoredAnnotations } from "../timeline/annotation-interop";
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
@@ -114,9 +115,13 @@ export function WhiteboardEditorStep({
 
   const activePanel = storyboardPanels[activeClipIndex] || storyboardPanels[0];
 
-  // Connect to unified engine
+  // Connect to unified engine — selecteur ETROIT, delibere : `currentTime` et
+  // tout ce qui en derive (`progress`) changent 60 fois par seconde pendant
+  // la lecture. Rien ici n'en a besoin (la boucle de rendu lit l'horloge
+  // directement dans le store, voir use-whiteboard-renderer.ts), et les
+  // inclure re-rendait tout cet arbre — canvas, sidebar, timeline, liste
+  // d'annotations, panneau de config — a 60Hz durant toute lecture.
   const {
-    progress,
     animStyle,
     setAnimStyle,
     handStyle,
@@ -130,7 +135,35 @@ export function WhiteboardEditorStep({
     setCanvasBg,
     annotations,
     setCurrentTime,
-  } = useUnifiedEngine();
+  } = useUnifiedEngine<{
+    animStyle: string;
+    setAnimStyle: (v: string) => void;
+    handStyle: string;
+    setHandStyle: (v: string) => void;
+    revealSpeed: number;
+    setRevealSpeed: (v: number | undefined) => void;
+    handSpeed: number;
+    setHandSpeed: (v: number | undefined) => void;
+    chunks: number;
+    setChunks: (v: number | undefined) => void;
+    setCanvasBg: (v: string) => void;
+    annotations: ReturnType<typeof selectors.selectAnnotations>;
+    setCurrentTime: (v: number) => void;
+  }>((state) => ({
+    animStyle: selectors.selectAnimStyle(state),
+    setAnimStyle: state.setAnimStyle,
+    handStyle: selectors.selectHandStyle(state),
+    setHandStyle: state.setHandStyle,
+    revealSpeed: selectors.selectRevealSpeed(state),
+    setRevealSpeed: state.setRevealSpeed,
+    handSpeed: selectors.selectHandSpeed(state),
+    setHandSpeed: state.setHandSpeed,
+    chunks: selectors.selectChunks(state),
+    setChunks: state.setChunks,
+    setCanvasBg: state.setCanvasBg,
+    annotations: selectors.selectAnnotations(state),
+    setCurrentTime: state.setCurrentTime,
+  }));
 
   /**
    * Les annotations d'une image, avec son repli plein cadre si elle n'en a
@@ -162,17 +195,25 @@ export function WhiteboardEditorStep({
    */
   useEffect(() => {
     const store = useStoryboardStore.getState();
-    store.storyboardPanels.forEach((panel) => {
-      if ((panel.annotations?.length ?? 0) > 0) return;
-      store.updatePanel(panel.id, {
+    // Une seule ecriture groupee, pas un updatePanel par image : chacun
+    // recopiait tout le tableau (immutabilite), donc N images sans annotation
+    // valaient N copies sequentielles du tableau entier — O(n²) — plus N
+    // notifications aux abonnes (autosave inclus) au lieu d'une seule.
+    let touche = false;
+    const panels = store.storyboardPanels.map((panel) => {
+      if ((panel.annotations?.length ?? 0) > 0) return panel;
+      touche = true;
+      return {
+        ...panel,
         annotations: toStoredAnnotations([
           annotationPleineImage(panel, {
             width: canvasWidth,
             height: canvasHeight,
           }),
         ]),
-      });
+      };
     });
+    if (touche) store.setStoryboardPanels(panels);
   }, [storyboardPanels, canvasWidth, canvasHeight]);
 
   // ── Global timeline sequence ─────────────────────────────────────────────

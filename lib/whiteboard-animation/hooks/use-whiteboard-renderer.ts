@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
+import * as selectors from '@/lib/unified-engine/hooks/selectors';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import {
   SCENE_PREMIUM_BAG_ANNOTATIONS,
@@ -50,6 +51,9 @@ const ENGINE_DEFAULT_SPEED = 40;
  * timeline (WHITEBOARD_EDITOR_TODO 3.2).
  */
 const BIG_GAP_MS = 1000;
+
+/** Nombre d'images decodees gardees en cache, au-dela duquel la plus vieille cede sa place. */
+const IMAGE_CACHE_MAX = 12;
 
 /**
  * Minimum spacing between two corrections of the narration. Each one is a
@@ -176,8 +180,12 @@ export function useWhiteboardRenderer({
   // en ferait une nouvelle a chaque rendu, et chaque effet se relancerait.
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  // `progress` n'est lu nulle part dans ce hook : l'inclure abonnait le
+  // composant a une valeur derivee de currentTime, recalculee et comparee
+  // pour rien 60 fois par seconde. `currentTime` reste necessaire — la
+  // detection de scrub plus bas en depend — donc ce hook continue de
+  // re-rendre a chaque tick pendant la lecture ; seul `progress` disparait.
   const {
-    progress,
     isPlaying,
     currentTime,
     canvasBg,
@@ -185,7 +193,23 @@ export function useWhiteboardRenderer({
     handStyle,
     handSpeed,
     chunks,
-  } = useUnifiedEngine();
+  } = useUnifiedEngine<{
+    isPlaying: boolean;
+    currentTime: number;
+    canvasBg: string;
+    animStyle: string;
+    handStyle: string;
+    handSpeed: number | undefined;
+    chunks: number | undefined;
+  }>((state) => ({
+    isPlaying: selectors.selectIsPlaying(state),
+    currentTime: selectors.selectCurrentTime(state),
+    canvasBg: selectors.selectCanvasBg(state),
+    animStyle: selectors.selectAnimStyle(state),
+    handStyle: selectors.selectHandStyle(state),
+    handSpeed: selectors.selectHandSpeed(state),
+    chunks: selectors.selectChunks(state),
+  }));
 
   const audioClock = useNarrationClock(narrationParts, audioUrl, (m) =>
     onErrorRef.current(m),
@@ -205,6 +229,10 @@ export function useWhiteboardRenderer({
   const { annotations } = derivedAnnotations;
 
   const imageRef = useRef<HTMLImageElement | null>(null);
+  // Une image deja decodee, par URL : revenir sur un clip deja vu ne doit ni
+  // la retelecharger ni la redecoder. Borne pour qu'une session tres longue
+  // n'accumule pas indefiniment des HTMLImageElement decodes.
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   // Rectangle ou l'artwork est dessine. Memorise pour pouvoir transporter les
   // regions quand le canvas change de forme.
   const rectRef = useRef<RectContenu | null>(null);
@@ -284,6 +312,21 @@ export function useWhiteboardRenderer({
   }, []);
 
   useEffect(() => {
+    const targetSrc = imageUrl || SCENE_IMAGE;
+
+    // Deja affichee a l'identique : rien a refaire. Sans ce court-circuit,
+    // revenir sur un clip deja vu recreait un Image(), la redecodait, et
+    // invalidait le moteur (offscreen, instance d'animation) pour un artwork
+    // strictement inchange.
+    if (
+      imageRef.current &&
+      imageRef.current.src === targetSrc &&
+      imageRef.current.complete &&
+      imageRef.current.naturalWidth > 0
+    ) {
+      return;
+    }
+
     // Only the FIRST artwork gates the renderer. Later ones arrive because the
     // playing clip changed, and dropping imageLoaded there would tear the run
     // loop down mid-playback — which pauses the narration and leaves the old
@@ -294,15 +337,6 @@ export function useWhiteboardRenderer({
     if (isFirstArtwork) setImageLoaded(false);
 
     let cancelled = false;
-    const img = new Image();
-    const targetSrc = imageUrl || SCENE_IMAGE;
-    // Le moteur revele le dessin en LISANT les pixels du canvas
-    // (`getImageData`). Sans cet attribut, une image servie par le bac — donc
-    // par une autre origine — teinte le canvas, et la lecture leve une
-    // SecurityError qui empeche l'animation de demarrer. Le bac repond en
-    // CORS ; il suffit de le demander.
-    img.crossOrigin = 'anonymous';
-    img.src = targetSrc;
 
     const applyImage = (loadedImg: HTMLImageElement) => {
       if (cancelled) return;
@@ -317,10 +351,42 @@ export function useWhiteboardRenderer({
       setArtworkVersion((v) => v + 1);
     };
 
+    const remember = (loadedImg: HTMLImageElement) => {
+      const cache = imageCacheRef.current;
+      cache.set(targetSrc, loadedImg);
+      if (cache.size > IMAGE_CACHE_MAX) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
+      }
+    };
+
+    // Un clip deja visite plus tot dans la session (A -> B -> A) retrouve son
+    // element deja decode, sans nouvelle requete ni nouveau decodage.
+    const cached = imageCacheRef.current.get(targetSrc);
+    if (cached && cached.complete && cached.naturalWidth > 0) {
+      applyImage(cached);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const img = new Image();
+    // Le moteur revele le dessin en LISANT les pixels du canvas
+    // (`getImageData`). Sans cet attribut, une image servie par le bac — donc
+    // par une autre origine — teinte le canvas, et la lecture leve une
+    // SecurityError qui empeche l'animation de demarrer. Le bac repond en
+    // CORS ; il suffit de le demander.
+    img.crossOrigin = 'anonymous';
+    img.src = targetSrc;
+
     if (img.complete && img.naturalWidth > 0) {
+      remember(img);
       applyImage(img);
     } else {
-      img.onload = () => applyImage(img);
+      img.onload = () => {
+        remember(img);
+        applyImage(img);
+      };
       img.onerror = () => {
         console.error('Failed to load scene image', targetSrc);
         onErrorRef.current('Failed to load the image for this clip.');

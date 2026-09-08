@@ -3,13 +3,22 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useUnifiedEngineStore } from '../context';
 import * as selectors from './selectors';
-import type { UnifiedEngineState } from '../types';
+import type { UnifiedEngineStore } from '../types';
 
-type Selector = (state: UnifiedEngineState) => any;
+// UnifiedEngineStore, pas UnifiedEngineState : ce dernier omet les actions,
+// or un selecteur personnalise en lit couramment (setAnimStyle, etc.) au
+// meme titre que l'etat.
+type Selector = (state: UnifiedEngineStore) => any;
 
 export function useUnifiedEngine<T = any>(selector?: Selector): T {
+  // useShallow s'applique aux DEUX branches : un selecteur personnalise qui
+  // rend un objet litteral (comme ceux plus bas) le reconstruit a chaque
+  // rendu, et sans shallow-compare ca re-rendrait sur CHAQUE changement du
+  // store entier, pas seulement les champs lus. Une comparaison superficielle
+  // sur une primitive ou reste equivalente a l'egalite stricte : rien ne
+  // change pour un selecteur qui rend deja une valeur simple.
   if (selector) {
-    return useUnifiedEngineStore(selector);
+    return useUnifiedEngineStore(useShallow(selector)) as T;
   }
 
   // Flat view of the nested store. useShallow compares field by field, so the

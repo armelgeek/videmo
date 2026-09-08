@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { deriveTimeline } from '../timeline/derive-timeline';
@@ -37,7 +37,7 @@ function formatMs(ms: number) {
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 }
 
-export function AnnotationListPanel({
+function AnnotationListPanelImpl({
   className,
   annotations: annotationsProp,
 }: {
@@ -154,3 +154,12 @@ export function AnnotationListPanel({
     </section>
   );
 }
+
+/**
+ * Ce panneau ne lit ni l'horloge ni la progression : sans memo, il se
+ * re-rendait quand meme a chaque frame en suivant le re-rendu de son parent
+ * (whiteboard-editor-step.tsx), lui-meme abonne a currentTime avant que ce
+ * dernier ne passe a un selecteur etroit. Garde defensive si une autre
+ * source fait re-rendre le parent a l'avenir.
+ */
+export const AnnotationListPanel = memo(AnnotationListPanelImpl);

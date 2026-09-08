@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { markerGeometry, type TransitionMarker } from "../timeline/transition-marker-geometry";
 import type { ClipWindow } from "../timeline/clip-transitions";
 import { TRACK_HEADER_PX } from "../timeline/annotation-timeline";
@@ -34,7 +34,7 @@ export interface ClipTransitionMarkersProps {
   * utilise le suivi imperatif du scroll (comme AudioTrackRow et TimelinePlayhead)
   * pour eviter la latence React pendant le defilement.
   */
-export function ClipTransitionMarkers({ clips, viewport, onResize }: ClipTransitionMarkersProps) {
+function ClipTransitionMarkersImpl({ clips, viewport, onResize }: ClipTransitionMarkersProps) {
   const scrollEl = viewport?.scrollEl ?? null;
   const zoomLevel = viewport?.zoomLevel ?? 0;
 
@@ -115,6 +115,9 @@ export function ClipTransitionMarkers({ clips, viewport, onResize }: ClipTransit
     </div>
   );
 }
+
+/** Ne suit pas l'horloge : memo evite un re-rendu au rythme de son parent. */
+export const ClipTransitionMarkers = memo(ClipTransitionMarkersImpl);
 
 function TransitionCard({
   marqueur,
