@@ -139,6 +139,15 @@ describe("AudioManager", () => {
     });
   });
 
+  it("reports a load failure to onError", async () => {
+    const onError = vi.fn();
+    const m = new AudioManager(onError);
+    await m.load("https://example.com/missing.mp3");
+    m.getElement().dispatchEvent(new Event("error"));
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0]).toContain("missing.mp3");
+  });
+
   it("destroy removes all listeners and pauses playback", () => {
     const cb = vi.fn();
     manager.onTimeUpdate(cb);

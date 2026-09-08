@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { toEngineAnnotations, toStoredAnnotations } from "../timeline/annotation-interop";
@@ -64,6 +65,16 @@ export function WhiteboardEditorStep({
   >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Le meme echec (piste introuvable, moteur qui refuse de demarrer) peut
+  // ressortir a chaque frame tant que la cause persiste : sans ce garde, un
+  // seul probleme inondait l'ecran de toasts identiques.
+  const derniereErreurRef = useRef<string | null>(null);
+  const signalerErreurRendu = useCallback((message: string) => {
+    if (derniereErreurRef.current === message) return;
+    derniereErreurRef.current = message;
+    toast.error(message);
+  }, []);
 
   // Apercu = on regarde le dessin, sans les cadres ni les poignees.
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -281,6 +292,7 @@ export function WhiteboardEditorStep({
     // engine always receives 0-based annotations; the renderer translates.
     clipOffsetMs: panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0,
     clips: clipWindows,
+    onError: signalerErreurRendu,
   });
 
   // Lu dans un effet declenche par le clip actif, pas par le scrub : une valeur

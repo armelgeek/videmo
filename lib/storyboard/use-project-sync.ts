@@ -20,6 +20,16 @@ const LOCK_RENEW_MS = LOCK_TTL_MS / 2;
 /** Le temps de frappe laisse au titre avant d'ecrire. */
 const SAVE_DEBOUNCE_MS = 1200;
 
+/**
+ * Frequence de reprise du bail une fois en lecture seule.
+ *
+ * Sans cette reprise, un projet ouvert pendant que le bail etait pris par
+ * quelqu'un d'autre restait en lecture seule pour toujours, meme apres le
+ * depart de l'autre membre : rien ne redemandait le bail, il fallait
+ * recharger la page a la main pour retenter.
+ */
+const LOCK_RETRY_MS = 15_000;
+
 export type SyncStatus =
   | "loading"
   | "saved"
@@ -33,8 +43,12 @@ export interface ProjectSyncState {
   /** Renseigne quand un autre membre tient le bail, pour l'afficher. */
   lockedBy: string | null;
   error: string | null;
-  /** Force une ecriture immediate, sans attendre le debounce. */
-  saveNow: () => Promise<void>;
+  /**
+   * Force une ecriture immediate, sans attendre le debounce. Rend `true` si
+   * l'ecriture a reellement abouti — un appelant qui affiche "Enregistre"
+   * sans le lire confirmerait une sauvegarde qui n'a pas eu lieu.
+   */
+  saveNow: () => Promise<boolean>;
 }
 
 const PROJECT_FIELDS = [
@@ -76,10 +90,24 @@ export function useProjectSync(): ProjectSyncState {
   const writable = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef(false);
+  /**
+   * Le PATCH en vol, pour pouvoir l'annuler. Sans ca, un `saveNow` declenche
+   * pendant qu'une ecriture debounced est deja partie faisait courir DEUX
+   * requetes a la fois ; si la premiere (plus ancienne) revenait apres la
+   * seconde, son etat ecrasait le plus recent sans que rien ne le remarque.
+   */
+  const inFlight = useRef<AbortController | null>(null);
+  /** Incremente a chaque ecriture : une reponse perimee n'ecrit plus l'etat. */
+  const writeSeq = useRef(0);
 
-  const write = useCallback(async () => {
+  const write = useCallback(async (): Promise<boolean> => {
     const id = projectIdRef.current;
-    if (!id || !writable.current) return;
+    if (!id || !writable.current) return false;
+
+    inFlight.current?.abort();
+    const controller = new AbortController();
+    inFlight.current = controller;
+    const seq = ++writeSeq.current;
 
     pending.current = false;
     setStatus("saving");
@@ -88,7 +116,12 @@ export function useProjectSync(): ProjectSyncState {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(toProjectPatch(readSlice())),
+        signal: controller.signal,
       });
+
+      // Une ecriture plus recente est deja partie (ou revenue) entre-temps :
+      // cette reponse ne represente plus l'etat courant, on ne l'applique pas.
+      if (seq !== writeSeq.current) return false;
 
       if (response.status === 409) {
         // Un autre membre a pris la main : on cesse d'ecrire plutot que
@@ -97,21 +130,29 @@ export function useProjectSync(): ProjectSyncState {
         const body = await response.json().catch(() => ({}));
         setLockedBy(body.lockedBy ?? null);
         setStatus("read-only");
-        return;
+        return false;
       }
 
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
         setError(body.error ?? `HTTP ${response.status}`);
         setStatus("error");
-        return;
+        return false;
       }
 
       setError(null);
       setStatus("saved");
+      return true;
     } catch (cause) {
+      // Un abort volontaire (write plus recent, ou demontage) n'est pas un
+      // echec a signaler : la requete qui le remplace porte le vrai resultat.
+      if (cause instanceof DOMException && cause.name === "AbortError") {
+        return false;
+      }
+      if (seq !== writeSeq.current) return false;
       setError(cause instanceof Error ? cause.message : "Network error");
       setStatus("error");
+      return false;
     }
   }, []);
 
@@ -124,7 +165,7 @@ export function useProjectSync(): ProjectSyncState {
 
   const saveNow = useCallback(async () => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
-    await write();
+    return write();
   }, [write]);
 
   useEffect(() => {
@@ -202,16 +243,58 @@ export function useProjectSync(): ProjectSyncState {
   }, []);
 
   // Renouvellement du bail pendant toute la duree de l'edition.
+  //
+  // Le resultat compte : un renouvellement refuse (bail repris entre-temps)
+  // laissait `writable` a `true` cote client sans que personne ne le sache
+  // avant le PROCHAIN write — qui peut tarder si l'edition est calme. Le
+  // bascule en lecture seule des ce renouvellement, pas au prochain essai
+  // d'ecriture.
   useEffect(() => {
     if (!projectId) return;
 
     const renew = setInterval(() => {
       if (!writable.current) return;
-      void fetch(`/api/video-projects/${projectId}/lock`, { method: "POST" });
+      void fetch(`/api/video-projects/${projectId}/lock`, { method: "POST" })
+        .then(async (response) => {
+          if (response.ok) return;
+          writable.current = false;
+          if (response.status === 409) {
+            const body = await response.json().catch(() => ({}));
+            setLockedBy(body.lockedBy ?? null);
+          }
+          setStatus("read-only");
+        })
+        .catch(() => {
+          // Un echec reseau ponctuel ne bascule pas en lecture seule : le
+          // bail cote serveur tient encore LOCK_TTL_MS, le prochain
+          // renouvellement peut reussir. Seul un refus explicite du serveur
+          // (409, ou reponse non ok) signifie que le bail est vraiment perdu.
+        });
     }, LOCK_RENEW_MS);
 
     return () => clearInterval(renew);
   }, [projectId]);
+
+  // En lecture seule, retente periodiquement de reprendre le bail : sans
+  // cela, un projet ouvert pendant qu'un autre membre editait restait bloque
+  // meme apres son depart, jusqu'a un rechargement manuel de la page.
+  useEffect(() => {
+    if (!projectId || status !== "read-only") return;
+
+    const retry = setInterval(() => {
+      void fetch(`/api/video-projects/${projectId}/lock`, { method: "POST" })
+        .then(async (response) => {
+          if (!response.ok) return;
+          writable.current = true;
+          setLockedBy(null);
+          setError(null);
+          setStatus("saved");
+        })
+        .catch(() => {});
+    }, LOCK_RETRY_MS);
+
+    return () => clearInterval(retry);
+  }, [projectId, status]);
 
   // Ecrit a chaque changement du document, jamais sur l'etat d'ecran.
   useEffect(() => {

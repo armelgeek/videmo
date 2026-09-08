@@ -10,7 +10,13 @@ export class AudioManager {
   private boundLoadedMetadata: () => void;
   private durationMs = 0;
 
-  constructor() {
+  /**
+   * Un echec de chargement ou de lecture, pour qu'un appelant le montre a
+   * l'utilisateur. Sans ca, un enregistrement introuvable (404, reseau) ne
+   * laissait qu'une ligne en `console.error` — la voix manquait sans
+   * qu'aucune explication n'atteigne l'ecran.
+   */
+  constructor(private onError: (message: string) => void = () => {}) {
     this.el = new Audio();
     this.boundTimeUpdate = () => {
       const ms = this.el.currentTime * 1000;
@@ -36,6 +42,7 @@ export class AudioManager {
     // Set error handler before loading
     const errorHandler = () => {
       console.error(`Failed to load audio from: ${url}`, this.el.error);
+      this.onError(`Failed to load narration audio (${url.split("/").pop()}).`);
     };
     this.el.addEventListener('error', errorHandler, { once: true });
     this.el.load();

@@ -36,7 +36,7 @@ const clamp = (v: number, min: number, max: number) =>
  * ni `play` ni `load`, donc ce lecteur ne se prouve pas directement.
  */
 export class NarrationPlayer {
-  private managers = [new AudioManager(), new AudioManager()];
+  private managers: [AudioManager, AudioManager];
   /** Quel enregistrement chaque element porte, `null` s'il n'en porte aucun. */
   private porte: (number | null)[] = [null, null];
   private actif = 0;
@@ -51,7 +51,15 @@ export class NarrationPlayer {
    */
   private attendu: number | null = null;
 
-  constructor(private parts: NarrationPart[]) {}
+  constructor(
+    private parts: NarrationPart[],
+    onError: (message: string) => void = () => {},
+  ) {
+    // Les DEUX elements partagent le meme canal : l'utilisateur n'a pas
+    // besoin de savoir lequel des deux echoue, seulement qu'un enregistrement
+    // n'a pas charge.
+    this.managers = [new AudioManager(onError), new AudioManager(onError)];
+  }
 
   private get manager(): AudioManager {
     return this.managers[this.actif];

@@ -143,7 +143,16 @@ export interface UseWhiteboardRendererProps {
    * a passer de l'horloge globale a l'horloge locale du moteur.
    */
   clips?: ClipWindow[];
+  /**
+   * Un echec que l'utilisateur doit voir : image introuvable, moteur qui ne
+   * demarre pas, lecture audio refusee par le navigateur. Sans ce canal, ces
+   * echecs partaient uniquement en `console.error` — l'ecran restait blanc
+   * ou silencieux sans que rien n'explique pourquoi.
+   */
+  onError?: (message: string) => void;
 }
+
+const NOOP_ON_ERROR = (_message: string) => {};
 
 export function useWhiteboardRenderer({
   canvasRef,
@@ -160,7 +169,13 @@ export function useWhiteboardRenderer({
   savedAnnotations = null,
   clipOffsetMs = 0,
   clips = [],
+  onError = NOOP_ON_ERROR,
 }: UseWhiteboardRendererProps) {
+  // Toujours la derniere fonction recue, sans rentrer dans les dependances
+  // des effets qui l'appellent : un composant qui passe une closure inline
+  // en ferait une nouvelle a chaque rendu, et chaque effet se relancerait.
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const {
     progress,
     isPlaying,
@@ -172,7 +187,9 @@ export function useWhiteboardRenderer({
     chunks,
   } = useUnifiedEngine();
 
-  const audioClock = useNarrationClock(narrationParts, audioUrl);
+  const audioClock = useNarrationClock(narrationParts, audioUrl, (m) =>
+    onErrorRef.current(m),
+  );
 
   // Narration length, preferring the decoded value and falling back to what
   // the config recorded — a stalled element never reports one.
@@ -304,7 +321,10 @@ export function useWhiteboardRenderer({
       applyImage(img);
     } else {
       img.onload = () => applyImage(img);
-      img.onerror = () => console.error('Failed to load scene image', targetSrc);
+      img.onerror = () => {
+        console.error('Failed to load scene image', targetSrc);
+        onErrorRef.current('Failed to load the image for this clip.');
+      };
     }
 
     return () => {
@@ -799,6 +819,7 @@ export function useWhiteboardRenderer({
       animRef.current = stoppedRef.current ? null : anim;
     } catch (err) {
       console.error('Failed to seek animation engine:', err);
+      onErrorRef.current('Failed to seek the animation.');
     } finally {
       seekingRef.current = false;
       stoppedRef.current = false;
@@ -903,6 +924,7 @@ export function useWhiteboardRenderer({
         animRef.current = buildEngine(canvas, handCanvas, ctx, hctx, offscreen);
       } catch (err) {
         console.error('Failed to start animation engine:', err);
+        onErrorRef.current('Failed to start the animation.');
         useUnifiedEngineStore.getState().setIsPlaying(false);
         return;
       }
@@ -1023,6 +1045,7 @@ export function useWhiteboardRenderer({
           }
           manager.play().catch((err) => {
             console.error('Failed to start audio playback:', err);
+            onErrorRef.current('Failed to start audio playback.');
           });
           audioStarted = true;
           lastResyncAt = now;

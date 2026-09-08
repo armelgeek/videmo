@@ -323,6 +323,10 @@ export default function StoryboardPage() {
   };
 
   const deleteClip = (index: number) => {
+    // Irreversible : l'image generee, sa narration et ses annotations
+    // disparaissent, et l'autosave enregistre la suppression dans la minute.
+    // Sans confirmation, un clic malencontreux ne se rattrape pas.
+    if (!confirm("Delete this clip? This cannot be undone.")) return;
     const newClips = editableClips.filter((_, i) => i !== index);
     const newImages = generatedImages.filter((_, i) => i !== index);
     setEditableClips(newClips);
@@ -978,8 +982,18 @@ export default function StoryboardPage() {
   };
 
   const handleSaveProgress = async () => {
-    await projectSync.saveNow();
-    toast.success("Project saved");
+    const ok = await projectSync.saveNow();
+    if (ok) {
+      toast.success("Project saved");
+    } else if (projectSync.status === "read-only") {
+      toast.error(
+        projectSync.lockedBy
+          ? `Read-only: ${projectSync.lockedBy} is editing this project`
+          : "Read-only: someone else is editing this project",
+      );
+    } else {
+      toast.error(projectSync.error ?? "Failed to save project");
+    }
   };
 
   const handleClearSession = () => {
@@ -1036,6 +1050,21 @@ export default function StoryboardPage() {
     <AppShell contentClassName="h-screen overflow-hidden">
       <div className="h-full bg-background text-foreground flex flex-col overflow-hidden">
         <DevPanel currentStep={step} />
+
+        {projectSync.status === "read-only" && (
+          // Visible tant que le bail n'est pas repris : sans cette bannière,
+          // l'edition continuait sur une interface normale alors que plus
+          // rien ne s'enregistrait — le travail se perdait en silence.
+          <div className="shrink-0 z-50 border-b border-destructive/30 bg-destructive/10 px-6 py-2 flex items-center justify-center gap-2 text-sm text-destructive">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              {projectSync.lockedBy
+                ? `Read-only — ${projectSync.lockedBy} is currently editing this project.`
+                : "Read-only — this project is being edited elsewhere."}{" "}
+              Changes are not being saved.
+            </span>
+          </div>
+        )}
 
         <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-sm">
           <div className="px-6 py-3 flex items-center justify-center gap-8 relative">

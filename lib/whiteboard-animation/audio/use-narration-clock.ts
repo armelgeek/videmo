@@ -45,9 +45,12 @@ export interface NarrationClockState {
 export function useNarrationClock(
   parts: NarrationPart[],
   url: string | null,
+  onError: (message: string) => void = () => {},
 ): NarrationClockState {
   const empreinte = parts.map((p) => `${p.url}@${p.startMs}`).join("|");
   const managerRef = useRef<NarrationClock | null>(null);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
   const [state, setState] = useState<NarrationClockState>({
     manager: null,
     durationMs: 0,
@@ -59,7 +62,7 @@ export function useNarrationClock(
     managerRef.current = null;
 
     if (empreinte) {
-      const player = new NarrationPlayer(parts);
+      const player = new NarrationPlayer(parts, (m) => onErrorRef.current(m));
       // Charge des maintenant : au clic, l'element doit etre pret, sinon la
       // voix demarre en retard sur le dessin et perd son attaque.
       player.prepare();
@@ -81,7 +84,7 @@ export function useNarrationClock(
       return;
     }
 
-    const manager = new AudioManager();
+    const manager = new AudioManager((m) => onErrorRef.current(m));
     managerRef.current = manager;
     manager.load(url);
 
