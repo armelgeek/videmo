@@ -140,6 +140,11 @@ export class NarrationPlayer {
       return;
     }
 
+    // Le precedent saut n'a pas fini de charger : en redemander un maintenant
+    // ne ferait que le repousser encore, sans jamais laisser la voix rattraper
+    // son retard. On attend la frame suivante, ou il aura peut-etre abouti.
+    if (this.manager.isSeeking()) return;
+
     this.attendu = action.offsetMs;
     this.manager.seekMs(action.offsetMs);
   }
@@ -181,6 +186,10 @@ export class NarrationPlayer {
    */
   isUsableClock(): boolean {
     return this.parts.length > 0;
+  }
+
+  isSeeking(): boolean {
+    return this.manager.isSeeking();
   }
 
   destroy(): void {

@@ -60,6 +60,19 @@ export class AudioManager {
     this.el.currentTime = ms / 1000;
   }
 
+  /**
+   * Un saut est en cours : l'element n'a pas encore fini de se replacer.
+   *
+   * Utilise par le lecteur multi-pistes pour NE PAS redemander un saut tant
+   * que le precedent n'a pas abouti — sans cette garde, un flux pas encore
+   * mis en tampon reste toujours "en retard" pendant qu'il rattrape, et
+   * chaque frame relancait un nouveau saut avant que le premier n'ait eu le
+   * temps de charger. La voix ne finissait jamais de se stabiliser.
+   */
+  isSeeking(): boolean {
+    return this.el.seeking;
+  }
+
   setVolume(v: number): void {
     this.el.volume = Math.max(0, Math.min(1, v));
   }

@@ -11,6 +11,7 @@ import type { NarrationPart } from './narration-schedule';
  */
 export interface NarrationClock {
   isUsableClock(): boolean;
+  isSeeking(): boolean;
   getCurrentMs(): number;
   getDurationMs(): number;
   seekMs(ms: number): void;
