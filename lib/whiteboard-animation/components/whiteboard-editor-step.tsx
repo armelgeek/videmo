@@ -14,7 +14,10 @@ import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { deriveTimeline } from "../timeline/derive-timeline";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
 import { panelWindows, type DrawnSpan } from "../timeline/panel-windows";
-import { annotationPleineImage } from "../timeline/panel-fallback-annotation";
+import {
+  annotationPleineImage,
+  PLEINE_IMAGE_ID,
+} from "../timeline/panel-fallback-annotation";
 import { AnnotationListPanel } from "./annotation-list-panel";
 import { AudioTrackRow } from "./audio-track-row";
 import { TimelinePlayhead } from "./timeline-playhead";
@@ -173,7 +176,13 @@ export function WhiteboardEditorStep({
       const anns = annotationsDe(panel);
       return anns.map((a, aIdx) => {
         let gapBeforeMs = a.reveal.gapBeforeMs ?? 0;
-        if (panelIdx > 0 && aIdx === 0 && gapBeforeMs === 0) {
+        // Le blanc par defaut est refuse a l'image entiere : sa duree EST celle
+        // de sa voix, donc tout blanc pose devant decale le reste de la piste
+        // sans decaler la narration, qui s'enchaine sans trou. Le decalage
+        // s'accumulait d'une image a la suivante et la voix, tiree sur le
+        // dessin a chaque frame, sautait 300 ms de plus a chaque bascule.
+        const pleineImage = a.id === PLEINE_IMAGE_ID;
+        if (panelIdx > 0 && aIdx === 0 && gapBeforeMs === 0 && !pleineImage) {
           gapBeforeMs = 300;
         }
         return {
