@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { deriveTimeline } from "./derive-timeline";
+import { sansAttenteInitiale } from "./sans-attente-initiale";
 
 export interface UseDerivedAnnotationsOptions {
   /**
@@ -28,7 +29,18 @@ export function useDerivedAnnotations(
   const storeDuration = useUnifiedEngineStore((s) => s.timeline.duration);
   const setDuration = useUnifiedEngineStore((s) => s.setDuration);
 
-  const derived = useMemo(() => deriveTimeline(annotations), [annotations]);
+  // L'attente devant la premiere annotation est retiree ICI, a l'entree unique
+  // du chemin de rendu : elle mesure la distance depuis le clip precedent sur
+  // l'horloge globale, et n'a pas de sens a l'interieur du clip. La garder
+  // faisait attendre le moteur sur un fond vide, puis debordait la fenetre du
+  // clip d'autant. Voir sansAttenteInitiale.
+  //
+  // Les frontieres de panneaux, elles, derivent la sequence GLOBALE sans passer
+  // par ici : leurs intervalles entre clips restent intacts.
+  const derived = useMemo(
+    () => deriveTimeline(sansAttenteInitiale(annotations)),
+    [annotations],
+  );
 
   useEffect(() => {
     if (!governsDuration) return;

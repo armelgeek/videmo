@@ -15,6 +15,7 @@ import { transitionAt, type ClipWindow } from '../timeline/clip-transitions';
 import { normalizeGaps } from '../timeline/normalize-gaps';
 import { planSeek } from '../timeline/plan-seek';
 import { useDerivedAnnotations } from '../timeline/use-derived-annotations';
+import { sansAttenteInitiale } from '../timeline/sans-attente-initiale';
 import { DRIFT_MAX_MS } from './audio-delta';
 import { useNarrationClock } from '../audio/use-narration-clock';
 import { AUCUNE_PART } from '../audio/narration-schedule';
@@ -266,6 +267,16 @@ export function useWhiteboardRenderer({
   const engineTimeRef = useRef(0);
   // Instant de la derniere PUBLICATION dans le store, cf. PUBLISH_INTERVAL_MS.
   const lastPublishRef = useRef(0);
+  // La POSITION portee par la derniere publication — la derniere valeur que le
+  // moteur a lui-meme ecrite dans le store.
+  //
+  // C'est elle, et non l'horloge courante du moteur, qui dit si le store a ete
+  // change par QUELQU'UN D'AUTRE. Le store est publie a intervalle : entre deux
+  // publications il retarde par construction, et comparer l'horloge courante a
+  // ce retard normal faisait prendre la lenteur du rendu pour un clic sur la
+  // reglette. Le moteur se replacait alors sur une valeur perimee, a chaque
+  // frame trop longue — la lecture reculait sans jamais avancer.
+  const dernierePositionPublieeRef = useRef(0);
   // Instant du dernier rejeu de seek, cf. SEEK_COOLDOWN_MS.
   const lastSeekAtRef = useRef(0);
   // The drawing reached the end of its schedule. The video can still be
@@ -697,6 +708,7 @@ export function useWhiteboardRenderer({
     const now = performance.now();
     if (!force && now - lastPublishRef.current < PUBLISH_INTERVAL_MS) return;
     lastPublishRef.current = now;
+    dernierePositionPublieeRef.current = ms;
     useUnifiedEngineStore.getState().setCurrentTime(ms);
   };
 
@@ -732,7 +744,9 @@ export function useWhiteboardRenderer({
       // Toujours en mode annotation : c'est le modele de l'editeur, pas une
       // option. config.useAnnotation subsiste pour les projets enregistres
       // mais n'est plus lu.
-      annotations: deriveTimeline(store.animation.annotations).annotations,
+      annotations: deriveTimeline(
+        sansAttenteInitiale(store.animation.annotations),
+      ).annotations,
     };
 
     const anim = AnimationFactory.create(animStyle, {
@@ -957,6 +971,9 @@ export function useWhiteboardRenderer({
     // de lecture qui suit ne soit pas retenue.
     engineTimeRef.current = targetMs;
     lastPublishRef.current = 0;
+    // Le moteur est desormais LA ou le store le demandait : sans cela l'ecart
+    // subsisterait et la frame suivante rejouerait le meme replacement.
+    dernierePositionPublieeRef.current = targetMs;
   };
 
   useEffect(() => {
@@ -1088,7 +1105,7 @@ export function useWhiteboardRenderer({
       // has to be replayed to the new position, or the very next tick writes
       // the old one back and the click looks like it did nothing.
       if (
-        Math.abs(s.timeline.currentTime - engineTimeRef.current) >
+        Math.abs(s.timeline.currentTime - dernierePositionPublieeRef.current) >
         EXTERNAL_SEEK_MS
       ) {
         repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
@@ -1193,6 +1210,13 @@ export function useWhiteboardRenderer({
 
       if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
+    // La boucle demarre en phase avec le store : tant qu'elle n'y a rien publie,
+    // c'est sa valeur d'entree qui fait foi pour juger d'un seek exterieur. Pose
+    // ICI, apres les remises a zero ci-dessus, sinon elle porterait la position
+    // d'avant et la premiere frame croirait a un seek.
+    dernierePositionPublieeRef.current =
+      useUnifiedEngineStore.getState().timeline.currentTime;
+
     frame = requestAnimationFrame(step);
 
     // Keep animRef so a pause can resume; only cancel the frame loop.

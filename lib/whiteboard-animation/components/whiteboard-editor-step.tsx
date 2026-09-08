@@ -331,7 +331,12 @@ export function WhiteboardEditorStep({
         : null,
     // Global offset of the active clip on the shared narration clock. The
     // engine always receives 0-based annotations; the renderer translates.
-    clipOffsetMs: panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0,
+    // L'origine du clip pour le moteur est le debut de son TRACE, pas celui du
+    // panneau : c'est ce que `clipWindows` publie deja (startMs: drawStartMs),
+    // et c'est ce a quoi la sequence locale, ramenee a zero, se rapporte.
+    // Prendre `startMs` decalait le dessin de toute l'attente initiale.
+    clipOffsetMs:
+      panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.drawStartMs ?? 0,
     clips: clipWindows,
     onError: signalerErreurRendu,
   });
