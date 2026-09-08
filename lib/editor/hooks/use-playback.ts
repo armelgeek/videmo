@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useCallback, useEffect } from "react"
+import { poserPositionLecture } from "@/lib/editor/playback-clock"
 import type { TimelineClip, Track, MediaItem, ClipEffects, TextOverlayStyle } from "../types"
 
 export interface UsePlaybackOptions {
@@ -60,9 +61,9 @@ export function usePlayback({
   const [isPreviewPlayback, setIsPreviewPlayback] = useState(false)
 
   const currentTimeRef = useRef(0)
-  // Position de depart de la lecture, tenue a jour tant qu'on ne joue PAS.
-  // Elle sert a amorcer currentTimeRef au demarrage, sans que la boucle ait a
-  // dependre de `currentTime`.
+  // Position ou la lecture reprendra. Posee par un seek, par un deplacement
+  // venu de l'exterieur, et par l'arret de la lecture — jamais deduite du
+  // rendu : `currentTime` ne suit plus l'horloge pendant la lecture.
   const seekTargetRef = useRef(0)
 
   // Refs for video/audio elements
@@ -81,10 +82,6 @@ export function usePlayback({
   // Animation refs
   const requestRef = useRef<number | null>(null)
   const lastTimeRef = useRef<number | null>(null)
-  const lastStateUpdateRef = useRef<number>(0)
-  const STATE_UPDATE_INTERVAL = 1000 / 30 // Update React state at 30fps max
-
-  if (!isPlaying) seekTargetRef.current = currentTime
 
   const setupAudioGraph = useCallback(() => {
     if (typeof window === "undefined") return
@@ -166,8 +163,21 @@ export function usePlayback({
         if (player && clip) {
           const mediaItem = mediaMap[clip.mediaId]
           if (mediaItem) {
-            if (!player.src.includes(mediaItem.url)) {
+            // Une source qui vient de changer n'a pas encore ses metadonnees :
+            // ecrire `currentTime` dessus est ignore, et `play()` est
+            // interrompu par le chargement — l'erreur partait dans le `catch`
+            // vide, et le clip suivant demarrait au debut du fichier au lieu de
+            // son point d'entree. On laisse donc le chargement se faire et on
+            // reprend a la frame suivante.
+            const sourceChangee = !player.src.includes(mediaItem.url)
+            if (sourceChangee) {
               player.src = mediaItem.url
+            }
+            if (sourceChangee || player.readyState < 1) {
+              if (player.style.opacity !== opacity.toString()) {
+                player.style.opacity = opacity.toString()
+              }
+              return
             }
             // `clip.speed` etait un champ mort : il etait ecrit partout mais ni
             // la position ni le playbackRate ne le lisaient, si bien que changer
@@ -539,6 +549,7 @@ export function usePlayback({
     // cours de lecture doit atterrir.
     currentTimeRef.current = time
     seekTargetRef.current = time
+    poserPositionLecture(time)
     setCurrentTime((prev) => (prev === time ? prev : time))
   }, [])
 
@@ -566,20 +577,49 @@ export function usePlayback({
     }
   }, [isPreviewPlayback])
 
+  // La boucle est relancee par une ref, jamais par une dependance d'effet.
+  //
+  // `animate` depend de `syncMediaToTime`, donc des clips, des pistes et du
+  // media : la moindre nouvelle reference en amont lui donnait une nouvelle
+  // identite, l'effet de demarrage se rejouait, et sa premiere ligne
+  // (`currentTimeRef = seekTargetRef`) ramenait la tete de lecture a la
+  // position de reprise. La lecture repartait du debut toutes les deux
+  // secondes. `battre` est stable : la frame suivante appelle toujours la
+  // derniere version d'`animate` sans que rien n'ait a se redemarrer.
+  const animateRef = useRef<(time: number) => void>(() => {})
+  const battre = useCallback((time: number) => {
+    animateRef.current(time)
+  }, [])
+
   const animate = useCallback(
     (time: number) => {
       if (isExporting || isRendering) return
       if (lastTimeRef.current !== null) {
-        const deltaTime = (time - lastTimeRef.current) / 1000
+        // Le pas d'une frame est BORNE.
+        //
+        // Sans borne, il vaut tout le temps ecoule depuis la frame precedente —
+        // y compris un gel du thread principal. Au passage au clip suivant,
+        // `syncMediaToTime` reassigne `src` et rappelle `play()` : le
+        // chargement gele la boucle, et la frame d'apres arrivait avec un pas
+        // de plusieurs secondes. Un seul de ces pas suffisait a franchir
+        // `timelineDuration`, et la tete de lecture bondissait a la fin.
+        //
+        // Un quart de seconde est bien au-dela d'une frame normale (16 ms a
+        // 60 Hz) tout en gardant la lecture proche du temps reel : un gel plus
+        // long prend du retard, il ne saute plus.
+        const PAS_MAX_SECONDES = 0.25
+        const deltaTime = Math.min((time - lastTimeRef.current) / 1000, PAS_MAX_SECONDES)
         const nextTime = currentTimeRef.current + deltaTime
 
         if (nextTime >= timelineDuration) {
           if (isLooping) {
             currentTimeRef.current = 0
+            poserPositionLecture(0)
             setCurrentTime(0)
           } else {
             setIsPlaying(false)
             currentTimeRef.current = 0
+            poserPositionLecture(0)
             setCurrentTime(0)
             lastTimeRef.current = time
             return
@@ -588,20 +628,25 @@ export function usePlayback({
           currentTimeRef.current = nextTime
         }
 
+        // L'horloge externe est posee a CHAQUE frame : elle ne rend que ses
+        // abonnes — le curseur, la reglette — pas l'editeur entier.
+        poserPositionLecture(currentTimeRef.current)
+
         syncMediaToTime(currentTimeRef.current, false)
 
-        const now = performance.now()
-        if (now - lastStateUpdateRef.current >= STATE_UPDATE_INTERVAL) {
-          setCurrentTime(currentTimeRef.current)
-          lastStateUpdateRef.current = now
-        }
+        // Plus d'ecriture dans l'etat React pendant la lecture. Meme ramenee a
+        // 30 Hz, elle rendait l'editeur entier — timeline, apercu, dialogues —
+        // trente fois par seconde pour deplacer un curseur. Ce qui suit
+        // l'horloge y est abonne (cf. playback-clock) ; `currentTime` ne porte
+        // plus que les deplacements DISCRETS : un seek, un arret, un retour au
+        // debut.
       }
       lastTimeRef.current = time
       if (isPlaying) {
-        requestRef.current = requestAnimationFrame(animate)
+        requestRef.current = requestAnimationFrame(battre)
       }
     },
-    [isPlaying, timelineDuration, isExporting, isRendering, isLooping, syncMediaToTime],
+    [isPlaying, timelineDuration, isExporting, isRendering, isLooping, syncMediaToTime, battre],
   )
 
   useEffect(() => {
@@ -610,8 +655,10 @@ export function usePlayback({
     }
   }, [currentTime, syncMediaToTime, isExporting, isRendering, isPlaying])
 
+  animateRef.current = animate
+
   useEffect(() => {
-    // `currentTime` n'est PLUS une dependance.
+    // Ni `currentTime` ni `animate` ne sont des dependances.
     //
     // La boucle ecrit currentTime 30 fois par seconde ; l'effet se reexecutait
     // donc 30 fois par seconde, annulant et recreant le requestAnimationFrame a
@@ -619,21 +666,38 @@ export function usePlayback({
     // c'est-a-dire en retard d'une frame sur l'horloge reelle.
     if (isPlaying && !isExporting && !isRendering) {
       currentTimeRef.current = seekTargetRef.current
+      poserPositionLecture(currentTimeRef.current)
       lastTimeRef.current = null
-      lastStateUpdateRef.current = performance.now()
-      requestRef.current = requestAnimationFrame(animate)
+      requestRef.current = requestAnimationFrame(battre)
     } else {
       lastTimeRef.current = null
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
+      // L'arret est un instant DISCRET : c'est la que l'etat React reprend la
+      // main sur l'horloge. Sans cela il porterait encore la position du
+      // dernier seek, et reprendre la lecture repartirait de la.
+      seekTargetRef.current = currentTimeRef.current
+      setCurrentTime((prev) =>
+        prev === currentTimeRef.current ? prev : currentTimeRef.current,
+      )
     }
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
     }
-  }, [isPlaying, animate, isExporting, isRendering])
+  }, [isPlaying, battre, isExporting, isRendering])
+
+  // Deplacer la tete de lecture depuis l'exterieur doit bouger les TROIS
+  // representations : l'horloge de la boucle, l'horloge externe a laquelle le
+  // curseur est abonne, et l'etat React que lisent encore quelques ecrans.
+  const placerPositionLecture = useCallback((time: number) => {
+    currentTimeRef.current = time
+    seekTargetRef.current = time
+    poserPositionLecture(time)
+    setCurrentTime(time)
+  }, [])
 
   return {
     currentTime,
-    setCurrentTime,
+    setCurrentTime: placerPositionLecture,
     isPlaying,
     setIsPlaying,
     isPreviewPlayback,

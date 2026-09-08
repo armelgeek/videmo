@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useCallback, useRef } from "react"
+import { lirePositionLecture } from "@/lib/editor/playback-clock"
 import type { TimelineClip, Track } from "../types"
 
 interface UseTimelineKeyboardOptions {
   clips: TimelineClip[]
   tracks: Track[]
   selectedClipIds: string[]
-  currentTime: number
   duration: number
   zoomLevel: number
   isPlaying: boolean
@@ -25,7 +25,6 @@ export function useTimelineKeyboard({
   clips,
   tracks,
   selectedClipIds,
-  currentTime,
   duration,
   zoomLevel,
   isPlaying,
@@ -43,8 +42,6 @@ export function useTimelineKeyboard({
   clipsRef.current = clips
   const selectedRef = useRef(selectedClipIds)
   selectedRef.current = selectedClipIds
-  const currentTimeRef = useRef(currentTime)
-  currentTimeRef.current = currentTime
 
   // Find adjacent clip for navigation
   const findAdjacentClip = useCallback(
@@ -136,8 +133,8 @@ export function useTimelineKeyboard({
       const amount = large ? 5 : 1 // 5 seconds or 1 second
       const newTime =
         direction === "left"
-          ? Math.max(0, currentTimeRef.current - amount)
-          : Math.min(duration, currentTimeRef.current + amount)
+          ? Math.max(0, lirePositionLecture() - amount)
+          : Math.min(duration, lirePositionLecture() + amount)
       onSeek(newTime)
     },
     [duration, onSeek],

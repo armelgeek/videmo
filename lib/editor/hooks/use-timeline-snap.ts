@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
+import { lirePositionLecture } from "@/lib/editor/playback-clock"
 import type { TimelineClip } from "../types"
 
 const SNAP_THRESHOLD_PX = 15
@@ -15,12 +16,11 @@ export interface SnapConfig {
 
 interface UseTimelineSnapOptions {
   clips: TimelineClip[]
-  currentTime: number
   zoomLevel: number
   isDraggingPlayhead?: boolean
 }
 
-export function useTimelineSnap({ clips, currentTime, zoomLevel, isDraggingPlayhead = false }: UseTimelineSnapOptions) {
+export function useTimelineSnap({ clips, zoomLevel, isDraggingPlayhead = false }: UseTimelineSnapOptions) {
   const [snapConfig, setSnapConfig] = useState<SnapConfig>({
     enabled: true,
     toGrid: true,
@@ -33,8 +33,6 @@ export function useTimelineSnap({ clips, currentTime, zoomLevel, isDraggingPlayh
   // Refs for callbacks
   const clipsRef = useRef(clips)
   clipsRef.current = clips
-  const currentTimeRef = useRef(currentTime)
-  currentTimeRef.current = currentTime
   const zoomLevelRef = useRef(zoomLevel)
   zoomLevelRef.current = zoomLevel
   const snapConfigRef = useRef(snapConfig)
@@ -53,7 +51,10 @@ export function useTimelineSnap({ clips, currentTime, zoomLevel, isDraggingPlayh
         snapPoints.push(nearestGrid)
       }
       if (config.toPlayhead && !isDraggingPlayhead) {
-        snapPoints.push(currentTimeRef.current)
+        // Position LUE ici : l'aimantation ne s'en sert qu'au moment d'un
+        // glisser. La recevoir en prop obligeait l'appelant a se rendre a
+        // chaque frame pour la tenir a jour.
+        snapPoints.push(lirePositionLecture())
       }
       if (config.toClips) {
         clipsRef.current.forEach((c) => {

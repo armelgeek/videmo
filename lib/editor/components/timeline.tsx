@@ -6,6 +6,11 @@ import type { TimelineClip, Track, MediaItem, Marker } from "../types";
 import { TimelineRuler } from "./timeline-ruler";
 import { TimelineClipItem } from "./timeline-clip";
 import { TimelineToolbar } from "./timeline-toolbar";
+import { PlayheadCursor } from "./playhead-cursor";
+import {
+  abonnerPositionLecture,
+  lirePositionLecture,
+} from "../playback-clock";
 import { TimelineTrackHeaders } from "./timeline-track-headers";
 import { TimelineContextMenu } from "./timeline-context-menu";
 import { TimelineMarkers } from "./timeline-markers";
@@ -24,7 +29,6 @@ interface TimelineProps {
   tracks: Track[];
   clips: TimelineClip[];
   mediaMap: Record<string, MediaItem>;
-  currentTime: number;
   duration: number;
   zoomLevel: number;
   selectedClipIds: string[];
@@ -116,7 +120,6 @@ export const Timeline = memo(function Timeline({
   tracks,
   clips,
   mediaMap,
-  currentTime,
   duration,
   zoomLevel,
   selectedClipIds = [],
@@ -209,11 +212,15 @@ export const Timeline = memo(function Timeline({
       clips.length > 0
         ? Math.max(...clips.map((c) => c.start + c.duration))
         : 0;
-    const maxTime = Math.max(maxClipEnd, currentTime, duration || 0);
+    // La position de lecture n'entre PLUS dans ce calcul : elle changeait a la
+    // frame et refaisait la mesure autant de fois. Le remplissage de fin — un
+    // viewport entier par defaut — laisse deja de quoi mener le curseur au-dela
+    // du dernier clip.
+    const maxTime = Math.max(maxClipEnd, duration || 0);
     const padding = endPadding ?? Math.max(viewportWidth, 300);
     const calculatedWidth = maxTime * zoomLevel + padding;
     return Math.max(calculatedWidth, viewportWidth || 800);
-  }, [clips, currentTime, duration, zoomLevel, viewportWidth, endPadding]);
+  }, [clips, duration, zoomLevel, viewportWidth, endPadding]);
 
   // Publish the viewport for lanes rendered outside this component. Scroll
   // offset is deliberately NOT a dependency — see onViewportChange's contract.
@@ -235,7 +242,6 @@ export const Timeline = memo(function Timeline({
     setGridInterval,
   } = useTimelineSnap({
     clips,
-    currentTime,
     zoomLevel,
     isDraggingPlayhead,
   });
@@ -338,25 +344,31 @@ export const Timeline = memo(function Timeline({
     }
   }, [isDraggingPlayhead, duration, zoomLevel, onSeek]);
 
-  // Auto-scroll timeline to center playhead during playback or dragging
+  // Auto-scroll timeline to center playhead during playback or dragging.
+  //
+  // Abonne a l'horloge plutot que dependant d'une prop : le defilement est un
+  // geste imperatif sur un element, il n'a jamais eu besoin d'un rendu. Cet
+  // effet ne se refait donc qu'au changement de zoom ou de largeur, pas vingt
+  // fois par seconde.
   useEffect(() => {
-    if (!scrollContainerRef.current) return;
-    const playheadX = currentTime * zoomLevel;
-    const currentScrollLeft = scrollContainerRef.current.scrollLeft;
-    const viewWidth =
-      viewportWidth || scrollContainerRef.current.clientWidth || 800;
-    const halfWidth = viewWidth / 2;
+    const suivre = () => {
+      const conteneur = scrollContainerRef.current;
+      if (!conteneur) return;
+      const playheadX = lirePositionLecture() * zoomLevel;
+      const currentScrollLeft = conteneur.scrollLeft;
+      const viewWidth = viewportWidth || conteneur.clientWidth || 800;
+      const halfWidth = viewWidth / 2;
 
-    if (
-      playheadX >= currentScrollLeft + halfWidth ||
-      playheadX < currentScrollLeft
-    ) {
-      scrollContainerRef.current.scrollLeft = Math.max(
-        0,
-        playheadX - halfWidth,
-      );
-    }
-  }, [currentTime, zoomLevel, viewportWidth, isPlaying, isDraggingPlayhead]);
+      if (
+        playheadX >= currentScrollLeft + halfWidth ||
+        playheadX < currentScrollLeft
+      ) {
+        conteneur.scrollLeft = Math.max(0, playheadX - halfWidth);
+      }
+    };
+    suivre();
+    return abonnerPositionLecture(suivre);
+  }, [zoomLevel, viewportWidth]);
 
   useEffect(() => {
     if (isSelecting) {
@@ -416,7 +428,6 @@ export const Timeline = memo(function Timeline({
     >
       {/* Toolbar */}
       <TimelineToolbar
-        currentTime={currentTime}
         duration={duration}
         isPlaying={isPlaying}
         isLooping={isLooping}
@@ -442,14 +453,17 @@ export const Timeline = memo(function Timeline({
         onToolChange={onToolChange}
         onSplitAtPlayhead={() => {
           if (selectedClipIds.length > 0) {
+            // La position est LUE au moment de la coupe : c'est la seule ou
+            // elle compte, et s'y abonner rendrait la timeline a la frame.
+            const position = lirePositionLecture();
             selectedClipIds.forEach((id) => {
               const clip = clips.find((c) => c.id === id);
               if (
                 clip &&
-                currentTime > clip.start &&
-                currentTime < clip.start + clip.duration
+                position > clip.start &&
+                position < clip.start + clip.duration
               ) {
-                onSplitClip(id, currentTime);
+                onSplitClip(id, position);
               }
             });
           }
@@ -558,38 +572,11 @@ export const Timeline = memo(function Timeline({
               >
                 {/* Playhead Line (Interactive) */}
                 {showPlayhead && (
-                  <div
-                    className="absolute top-0 bottom-0 z-50 group/playhead"
-                    style={{
-                      transform: `translateX(${currentTime * zoomLevel}px)`,
-                    }}
-                  >
-                    {/* Hit Area */}
-                    <div
-                      className="absolute -left-2 w-4 h-full cursor-ew-resize z-50"
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        setIsDraggingPlayhead(true);
-                      }}
-                    />
-                    {/* Visual Line */}
-                    <div
-                      className={`absolute left-0 w-0.5 h-full bg-red-500 pointer-events-none shadow-[0_0_6px_rgba(239,68,68,0.6)] ${
-                        isDraggingPlayhead
-                          ? "w-1 bg-red-400 shadow-[0_0_12px_rgba(239,68,68,1)]"
-                          : ""
-                      }`}
-                    />
-                    {/* Head/Handle */}
-                    <div
-                      className={`absolute -left-[5.5px] top-0 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] pointer-events-none transition-colors ${
-                        isDraggingPlayhead
-                          ? "border-t-white"
-                          : "border-t-[var(--accent-primary)] group-hover/playhead:border-t-[var(--accent-text)]"
-                      }`}
-                    />
-                  </div>
+                  <PlayheadCursor
+                    zoomLevel={zoomLevel}
+                    isDragging={isDraggingPlayhead}
+                    onStartDrag={() => setIsDraggingPlayhead(true)}
+                  />
                 )}
 
                 {/* Snap Indicator Line */}
@@ -707,7 +694,7 @@ export const Timeline = memo(function Timeline({
             clipId={contextMenu.clipId}
             clips={clips}
             tracks={tracks}
-            currentTime={currentTime}
+            currentTime={lirePositionLecture()}
             selectedClipIds={selectedClipIds}
             onSplitClip={onSplitClip}
             onDuplicateClip={onDuplicateClip}

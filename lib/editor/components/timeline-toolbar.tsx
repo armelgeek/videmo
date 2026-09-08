@@ -3,6 +3,7 @@
 import { TooltipTrigger } from "@/components/ui/tooltip";
 
 import { memo } from "react";
+import { lirePositionLecture, usePositionLecture } from "../playback-clock";
 import type { SnapConfig } from "../hooks/use-timeline-snap";
 import { getNextZoom, getPrevZoom } from "../utils/timeline-scale";
 import {
@@ -34,7 +35,6 @@ import {
 } from "@/components/ui/tooltip";
 
 interface TimelineToolbarProps {
-  currentTime: number;
   duration: number;
   isPlaying: boolean;
   isLooping: boolean;
@@ -72,7 +72,6 @@ interface TimelineToolbarProps {
 }
 
 export const TimelineToolbar = memo(function TimelineToolbar({
-  currentTime,
   duration,
   isPlaying,
   isLooping,
@@ -111,9 +110,11 @@ export const TimelineToolbar = memo(function TimelineToolbar({
   const frameDuration = 1 / frameRate;
 
   const stepFrame = (direction: 1 | -1) => {
+    // Position LUE au moment du pas : la barre d'outils n'a pas a se rendre a
+    // chaque frame pour savoir d'ou avancer d'une image.
     const newTime = Math.max(
       0,
-      Math.min(duration, currentTime + frameDuration * direction),
+      Math.min(duration, lirePositionLecture() + frameDuration * direction),
     );
     onSeek(newTime);
   };
@@ -171,9 +172,7 @@ export const TimelineToolbar = memo(function TimelineToolbar({
 
           {/* Timecode Display */}
           <div className="flex items-center gap-1.5 font-mono text-xs">
-            <span className="text-[var(--accent-text)] font-bold tabular-nums">
-              {formatTimecode(currentTime, frameRate)}
-            </span>
+            <TimecodeCourant frameRate={frameRate} />
             <span className="text-[var(--text-muted)]">/</span>
             <span className="text-[var(--text-secondary)] tabular-nums">
               {formatTimecode(duration, frameRate)}
@@ -231,6 +230,25 @@ export const TimelineToolbar = memo(function TimelineToolbar({
         </div>
       </div>
     </TooltipProvider>
+  );
+});
+
+/**
+ * Le compteur de temps, seul element de la barre d'outils qui suive l'horloge.
+ *
+ * Isole pour que la barre — ses vingt boutons, ses menus — ne se rende pas a
+ * chaque frame juste pour afficher des chiffres qui changent.
+ */
+const TimecodeCourant = memo(function TimecodeCourant({
+  frameRate,
+}: {
+  frameRate: number;
+}) {
+  const position = usePositionLecture();
+  return (
+    <span className="text-[var(--accent-text)] font-bold tabular-nums">
+      {formatTimecode(position, frameRate)}
+    </span>
   );
 });
 

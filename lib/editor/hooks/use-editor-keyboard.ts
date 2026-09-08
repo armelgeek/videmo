@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import { lirePositionLecture } from "@/lib/editor/playback-clock"
 
 import { useEffect, useCallback } from "react"
 
@@ -15,7 +16,6 @@ interface UseEditorKeyboardProps {
   onAddMarker: () => void
   onZoomToFit: () => void
   onSaveFrame: (videoElement: HTMLVideoElement | null, currentTime: number) => void
-  currentTime: number
   previewVideoRef: React.RefObject<HTMLVideoElement> | null
   videoRefA: React.RefObject<HTMLVideoElement> | null
   videoRefB: React.RefObject<HTMLVideoElement> | null
@@ -29,7 +29,6 @@ export function useEditorKeyboard({
   onAddMarker,
   onZoomToFit,
   onSaveFrame,
-  currentTime,
   previewVideoRef,
   videoRefA,
   videoRefB,
@@ -61,9 +60,12 @@ export function useEditorKeyboard({
         ctx.imageSmoothingEnabled = false
         ctx.drawImage(videoElement, 0, 0, width, height)
 
-        const mins = Math.floor(currentTime / 60)
-        const secs = Math.floor(currentTime % 60)
-        const ms = Math.floor((currentTime % 1) * 1000)
+        // Position LUE ici : elle ne sert qu'a nommer le fichier. En prop,
+        // elle recreait ce callback a chaque frame de lecture.
+        const position = lirePositionLecture()
+        const mins = Math.floor(position / 60)
+        const secs = Math.floor(position % 60)
+        const ms = Math.floor((position % 1) * 1000)
         const timecode = `${mins.toString().padStart(2, "0")}-${secs.toString().padStart(2, "0")}-${ms.toString().padStart(3, "0")}`
         const filename = `frame_${timecode}_${width}x${height}.png`
 
@@ -84,7 +86,7 @@ export function useEditorKeyboard({
     } else {
       toastCtx.error("No video frame available to capture")
     }
-  }, [currentTime, isPreviewPlayback, previewVideoRef, videoRefA, videoRefB, toastCtx])
+  }, [isPreviewPlayback, previewVideoRef, videoRefA, videoRefB, toastCtx])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

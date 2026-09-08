@@ -1,7 +1,8 @@
 "use client";
 
 import type React from "react";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { lirePositionLecture } from "@/lib/editor/playback-clock";
 import type {
   MediaItem,
   TimelineClip,
@@ -323,7 +324,6 @@ const EditorInner: React.FC<EditorProps> = ({
     clips: timeline.timelineClips,
     tracks: timeline.tracks,
     selectedClipIds: timeline.selectedClipIds,
-    currentTime: playback.currentTime,
     duration: timeline.timelineDuration,
     zoomLevel: timeline.zoomLevel,
     isPlaying: playback.isPlaying,
@@ -361,6 +361,14 @@ const EditorInner: React.FC<EditorProps> = ({
   // Add markers state after other useState hooks
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [showAddMarkerDialog, setShowAddMarkerDialog] = useState(false);
+  // Position capturee a l'ouverture du dialogue : c'est celle que l'auteur
+  // voyait en demandant le marqueur, et la lire ici evite de tenir tout
+  // l'editeur abonne a l'horloge.
+  const [positionMarqueur, setPositionMarqueur] = useState(0);
+  const ouvrirAjoutMarqueur = useCallback(() => {
+    setPositionMarqueur(lirePositionLecture());
+    setShowAddMarkerDialog(true);
+  }, []);
 
   const resizeRef = useRef<{ startY: number; startHeight: number } | null>(
     null,
@@ -1358,10 +1366,9 @@ const EditorInner: React.FC<EditorProps> = ({
   useEditorKeyboard({
     onSaveProject: handleSaveProject,
     onLoadProject: handleLoadProject,
-    onAddMarker: () => setShowAddMarkerDialog(true),
+    onAddMarker: ouvrirAjoutMarqueur,
     onZoomToFit: handleZoomToFit,
     onSaveFrame: () => {},
-    currentTime: playback.currentTime,
     previewVideoRef:
       playback.previewVideoRef as React.RefObject<HTMLVideoElement>,
     videoRefA: playback.videoRefA as React.RefObject<HTMLVideoElement>,
@@ -1529,6 +1536,11 @@ const EditorInner: React.FC<EditorProps> = ({
     canvasBg: 'white',
   });
 
+  const videoClips = useMemo(
+    () => timeline.timelineClips.filter((c) => c.trackId.startsWith("video")),
+    [timeline.timelineClips],
+  );
+
   const whiteboardCanvasRef = useRef<HTMLCanvasElement>(null);
   const whiteboardHandCanvasRef = useRef<HTMLCanvasElement>(null);
   // Pas de useUnifiedEngine() ici : personne ne lisait le resultat, mais
@@ -1612,7 +1624,6 @@ const EditorInner: React.FC<EditorProps> = ({
               <div className="flex-1 flex flex-col bg-[var(--surface-0)] min-w-0">
                 <PanelErrorBoundary fallbackTitle="Preview Error">
                   <PreviewPlayer
-                    currentTime={playback.currentTime}
                     isPlaying={playback.isPlaying}
                     duration={timeline.timelineDuration}
                     onSeek={playback.handleSeek}
@@ -1645,12 +1656,7 @@ const EditorInner: React.FC<EditorProps> = ({
                     isExporting={ffmpeg.isExporting}
                     onPlay={() => playback.setIsPlaying(true)}
                     onZoomReset={() => setPlayerZoom(1)}
-                    activeClip={timeline.timelineClips.find(
-                      (c) =>
-                        c.trackId.startsWith("video") &&
-                        playback.currentTime >= c.start &&
-                        playback.currentTime < c.start + c.duration,
-                    )}
+                    videoClips={videoClips}
                     textClips={timeline.timelineClips.filter((c) => {
                       const track = timeline.tracks.find((t) => t.id === c.trackId);
                       return track?.type === "text" && c.textOverlay;
@@ -1682,7 +1688,6 @@ const EditorInner: React.FC<EditorProps> = ({
                         tracks={timeline.tracks}
                         clips={timeline.timelineClips}
                         mediaMap={timeline.mediaMap}
-                        currentTime={playback.currentTime}
                         duration={timeline.timelineDuration}
                         zoomLevel={timeline.zoomLevel}
                         selectedClipIds={timeline.selectedClipIds}
@@ -1718,7 +1723,7 @@ const EditorInner: React.FC<EditorProps> = ({
                         onRedo={timeline.redo}
                         onShowShortcuts={() => setIsShortcutsOpen(true)}
                         markers={markers}
-                        onAddMarker={() => setShowAddMarkerDialog(true)}
+                        onAddMarker={ouvrirAjoutMarqueur}
                         onMarkerClick={handleMarkerClick}
                         onMarkerDelete={handleMarkerDelete}
                         onMarkerUpdate={handleMarkerUpdate}
@@ -1750,7 +1755,7 @@ const EditorInner: React.FC<EditorProps> = ({
           isOpen={showAddMarkerDialog}
           onClose={() => setShowAddMarkerDialog(false)}
           onAdd={handleAddMarker}
-          time={playback.currentTime}
+          time={positionMarqueur}
         />
       </div>
     </SidebarProvider>

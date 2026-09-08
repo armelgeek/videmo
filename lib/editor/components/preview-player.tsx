@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { lirePositionLecture, useValeurALaPosition } from "../playback-clock";
 import { memo, useCallback, useState, useRef, useEffect } from "react";
 import {
   PlayIcon,
@@ -65,7 +66,6 @@ function effectsToCSSFilter(effects?: ClipEffects): string {
 }
 
 export interface PreviewPlayerProps {
-  currentTime: number;
   videoRefA: React.RefObject<HTMLVideoElement | null>;
   videoRefB: React.RefObject<HTMLVideoElement | null>;
   whiteOverlayRef: React.RefObject<HTMLDivElement | null>;
@@ -85,7 +85,12 @@ export interface PreviewPlayerProps {
   isSafeGuidesVisible: boolean;
   ffmpegLoaded: boolean;
   ffmpegLoading: boolean;
-  activeClip?: TimelineClip | null;
+  /**
+   * Les clips video, parmi lesquels l'apercu choisit lui-meme celui qui est
+   * sous le curseur. C'etait a l'appelant de le faire, ce qui l'obligeait a se
+   * rendre a chaque frame pour un resultat qui change quelques fois par minute.
+   */
+  videoClips?: TimelineClip[];
   textClips?: TimelineClip[];
   isWhiteboardView?: boolean;
   whiteboardCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
@@ -127,7 +132,6 @@ function computeCanvasSize(
 }
 
 export const PreviewPlayer = memo(function PreviewPlayer({
-  currentTime,
   videoRefA,
   videoRefB,
   whiteOverlayRef,
@@ -145,7 +149,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
   timelineClips,
   ffmpegLoaded,
   ffmpegLoading,
-  activeClip,
+  videoClips = [],
   textClips = [],
   isWhiteboardView = false,
   whiteboardCanvasRef,
@@ -183,6 +187,15 @@ export const PreviewPlayer = memo(function PreviewPlayer({
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
   }, []);
+
+  const choisirClip = useCallback(
+    (position: number) =>
+      videoClips.find(
+        (c) => position >= c.start && position < c.start + c.duration,
+      ) ?? null,
+    [videoClips],
+  );
+  const activeClip = useValeurALaPosition(choisirClip);
 
   const cssFilter = effectsToCSSFilter(activeClip?.effects);
   const clipOpacity = activeClip?.effects?.opacity ?? 100;
@@ -253,7 +266,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
           ctx.drawImage(videoElement, 0, 0, width, height);
         }
 
-        const timecode = formatTimecodeForFilename(currentTime);
+        const timecode = formatTimecodeForFilename(lirePositionLecture());
         const extension = format === "jpeg" ? "jpg" : format;
         const filename = `frame_${timecode}_${width}x${height}.${extension}`;
 
@@ -289,7 +302,6 @@ export const PreviewPlayer = memo(function PreviewPlayer({
       }
     },
     [
-      currentTime,
       isPreviewPlayback,
       previewVideoRef,
       videoRefA,
@@ -419,7 +431,6 @@ export const PreviewPlayer = memo(function PreviewPlayer({
               {!isPreviewPlayback && textClips.length > 0 && (
                 <TextOverlayPreview
                   clips={textClips}
-                  currentTime={currentTime}
                   containerWidth={containerSize.width}
                   containerHeight={containerSize.height}
                 />
