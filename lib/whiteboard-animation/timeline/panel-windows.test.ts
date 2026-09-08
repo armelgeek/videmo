@@ -50,14 +50,27 @@ describe("panelWindows", () => {
     expect(window).toMatchObject({ panelIdx: 0, startMs: 0, endMs: 0 });
   });
 
-  it("laisse le trace primer sur la voix la ou il existe", () => {
-    // Les temps de revelation que le moteur anime viennent du trace : poser la
-    // fenetre ailleurs desynchroniserait le dessin de sa propre fenetre.
+  it("etend la fenetre jusqu'a la voix quand elle depasse le trace", () => {
+    // Le bug que ca corrige : activeClipIndex bascule des que t franchit
+    // endMs (whiteboard-editor-step.tsx). Avec endMs fige au trace, l'image
+    // suivante prenait l'ecran alors que la voix de CELLE-CI parlait encore.
     const [window] = panelWindows(
       [{ audioDurationMs: 9000 }],
       [{ panelIdx: 0, drawStartMs: 0, drawEndMs: 2000 }],
     );
-    expect(window.endMs).toBe(2000);
+    expect(window.endMs).toBe(9000);
+  });
+
+  it("laisse le trace primer sur la voix pour ses PROPRES bornes", () => {
+    // L'extension de la fenetre ne touche ni drawStartMs ni drawEndMs : les
+    // temps de revelation que le moteur anime, et le blanc mesure pour les
+    // transitions, restent exactement ceux du trace.
+    const [window] = panelWindows(
+      [{ audioDurationMs: 9000 }],
+      [{ panelIdx: 0, drawStartMs: 0, drawEndMs: 2000 }],
+    );
+    expect(window.drawStartMs).toBe(0);
+    expect(window.drawEndMs).toBe(2000);
   });
 
   it("conserve les bornes du trace pour le calcul des transitions", () => {

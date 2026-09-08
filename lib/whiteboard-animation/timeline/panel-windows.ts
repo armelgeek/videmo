@@ -6,10 +6,14 @@
  * avec un `?? 0` et retombait a zero — en basculant sur elle, la narration
  * repartait du tout debut au lieu de jouer son passage.
  *
- * Le dessin reste la reference LA OU IL EXISTE : ce sont ses temps que
- * `deriveTimeline` donne au moteur, et poser la fenetre ailleurs
- * desynchroniserait le trace de sa propre fenetre. La voix mesuree ne comble
- * que les trous, puis la duree reglee a l'etape storyboard en dernier recours.
+ * Le dessin reste la reference pour SES PROPRES bornes (drawStartMs/
+ * drawEndMs) : ce sont ces temps que `deriveTimeline` donne au moteur, et les
+ * changer desynchroniserait le trace de lui-meme. Mais la fenetre globale
+ * (startMs/endMs), elle, ne peut pas finir avant la voix : sinon l'image
+ * suivante prend l'ecran pendant que celle-ci parle encore, le dessin fini
+ * mais la phrase non. La voix mesuree comble les trous ET etire la fenetre
+ * quand elle depasse le trace ; la duree reglee a l'etape storyboard ne sert
+ * qu'en tout dernier recours.
  */
 
 /** Ce que le trace d'une image occupe, tel que deriveTimeline le situe. */
@@ -63,11 +67,19 @@ export function panelWindows(
     const span = parIndex.get(panelIdx);
     const startMs = curseur;
 
-    // Avec un trace, la fenetre va jusqu'a la FIN du dessin, en absolu : le
-    // blanc qui precede l'image lui revient. C'est la regle d'origine, et la
-    // changer decalerait tout le calage audio des projets existants.
+    // Avec un trace, la fenetre va au moins jusqu'a la FIN du dessin, en
+    // absolu : le blanc qui precede l'image lui revient. C'est la regle
+    // d'origine, et la changer decalerait tout le calage audio des projets
+    // existants.
+    //
+    // Mais si sa voix depasse ce trace — le dessin fini avant la phrase — la
+    // fenetre s'etend jusqu'a elle : sans ca, activeClipIndex basculait sur
+    // l'image suivante des la derniere touche de pinceau, et son dessin a lui
+    // commencait pendant que la voix de la PRECEDENTE parlait encore. Voir
+    // whiteboard-editor-step.tsx, l'effet qui suit l'horloge dans le clip
+    // suivant : il ne connait que cette fenetre pour decider du changement.
     const endMs = span
-      ? Math.max(startMs, span.drawEndMs)
+      ? Math.max(startMs, span.drawEndMs, startMs + secoursMs(panel))
       : startMs + secoursMs(panel);
 
     windows.push({
