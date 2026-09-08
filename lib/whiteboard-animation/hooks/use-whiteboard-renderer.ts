@@ -1224,6 +1224,18 @@ export function useWhiteboardRenderer({
       stoppedRef.current = true;
       cancelAnimationFrame(frame);
       manager?.pause();
+      // La derniere frame DESSINEE fait foi.
+      //
+      // Le store est publie a intervalle : a l'arret il portait donc une
+      // position anterieure a ce que le canvas montre. Le repeint d'inactivite
+      // y voyait un ecart, le prenait pour un seek de l'utilisateur, et
+      // rejouait le moteur jusqu'a cette position perimee — la main sautait
+      // sur une autre frame que celle ou la pause avait ete demandee.
+      //
+      // En publiant de force la position reelle, l'ecart tombe sous le seuil
+      // et le repeint ne se declenche pas : l'image reste exactement celle
+      // qu'on voyait.
+      publishTime(engineTimeRef.current, true);
     };
   }, [isPlaying, imageLoaded, audioClock.manager]);
 
