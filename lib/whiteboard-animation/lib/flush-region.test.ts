@@ -43,4 +43,13 @@ describe('_flushRegion', () => {
 
     expect(ctx.drawImage).not.toHaveBeenCalled();
   });
+
+  it('reveals the entire image on _flushFull', () => {
+    const { ctx, hctx, offscreen, state } = makeHarness();
+    const anim = new Animation({ state, ctx, hctx, offscreen });
+
+    anim._flushFull();
+
+    expect(ctx.drawImage).toHaveBeenCalledWith(offscreen, 0, 0);
+  });
 });
