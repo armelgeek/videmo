@@ -121,6 +121,11 @@ export interface UseWhiteboardRendererProps {
   annotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   /** Dynamic clip image background URL */
   imageUrl?: string | null;
+  /**
+   * The next scene's artwork. Loaded and prepared while the current scene
+   * plays, so the handover does not stop to decode and normalise it.
+   */
+  nextImageUrl?: string | null;
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
@@ -180,6 +185,7 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
   imageUrl = null,
+  nextImageUrl,
   audioUrl = null,
   narrationParts = AUCUNE_PART as NarrationPart[],
   audioVolume = 1,
@@ -244,6 +250,7 @@ export function useWhiteboardRenderer({
   // la retelecharger ni la redecoder. Borne pour qu'une session tres longue
   // n'accumule pas indefiniment des HTMLImageElement decodes.
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const offscreenCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
   // Rectangle ou l'artwork est dessine. Memorise pour pouvoir transporter les
   // regions quand le canvas change de forme.
   const rectRef = useRef<RectContenu | null>(null);
@@ -655,43 +662,97 @@ export function useWhiteboardRenderer({
     animRef.current = null;
     drawingDoneRef.current = false;
     pendingClipResyncRef.current = true;
-    // Rebuild here rather than leaving it to the next animation frame. Handing
-    // it to the loop cost a whole frame of dead time — a visible pause before
-    // the new clip started drawing — for no benefit: the store already holds
-    // the new sequence by the time this effect runs.
-    const canvas = canvasRef.current;
-    const handCanvas = handCanvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    const hctx = handCanvas?.getContext('2d');
-    const s = useUnifiedEngineStore.getState();
-    // Replaying on the previous scene's artwork is wasted: applyImage throws
-    // that engine away on arrival and asks for another replay. Leave it pending
-    // for the loop unless the right artwork is already loaded.
-    const targetSrc = new URL(imageUrl || SCENE_IMAGE, window.location.href).href;
-    const artworkReady = imageRef.current?.src === targetSrc;
-    if (canvas && handCanvas && ctx && hctx && artworkReady && s.timeline.isPlaying) {
-      pendingClipResyncRef.current = false;
-      repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
-    }
+    // The replay is left to the run loop on purpose. A handover changes this
+    // key twice — the clip offset first, the new annotations a render later —
+    // and replaying from here rebuilt the engine for both, the first time on
+    // the previous scene's annotations (175 ms thrown away). The loop picks
+    // the pending flag up once, after both have landed.
   }, [sequenceKey]);
 
   // Offscreen holds the source artwork the engine reveals from.
-  const ensureOffscreen = (canvas: HTMLCanvasElement) => {
-    let offscreen = offscreenRef.current;
-    if (!offscreen) {
-      offscreen = document.createElement('canvas');
-      offscreenRef.current = offscreen;
-    }
-    offscreen.width = canvas.width;
-    offscreen.height = canvas.height;
-    const rect = rectArtwork(canvas);
+  /**
+   * The artwork as the engine reveals it: placed on a canvas-sized sheet, its
+   * near-white background normalised. Styles only ever read from it, so one
+   * sheet per artwork and size is built once and shared by every replay —
+   * rebuilding it cost up to 77 ms on each seek and at every scene handover.
+   */
+  const prepareOffscreen = (img: HTMLImageElement, width: number, height: number) => {
+    const key = `${img.src}@${width}x${height}`;
+    const cache = offscreenCacheRef.current;
+    const cached = cache.get(key);
+    if (cached) return cached;
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = width;
+    offscreen.height = height;
+    const rect = rectContenu(width, height, img.naturalWidth || width, img.naturalHeight || height);
     const octx = offscreen.getContext('2d');
-    octx?.drawImage(imageRef.current!, rect.x, rect.y, rect.w, rect.h);
+    octx?.drawImage(img, rect.x, rect.y, rect.w, rect.h);
     // Meme normalisation qu'au rendu serveur : sans elle l'apercu montre des
     // rectangles gris la ou les regions ont ete revelees.
-    if (octx) blanchirFond(octx, offscreen.width, offscreen.height);
+    if (octx) blanchirFond(octx, width, height);
+
+    cache.set(key, offscreen);
+    if (cache.size > IMAGE_CACHE_MAX) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
     return offscreen;
   };
+
+  const ensureOffscreen = (canvas: HTMLCanvasElement) => {
+    const offscreen = prepareOffscreen(imageRef.current!, canvas.width, canvas.height);
+    offscreenRef.current = offscreen;
+    return offscreen;
+  };
+
+  // Prepare the next scene while this one plays: decode its artwork and build
+  // its sheet when the browser is idle, so the handover finds both cached.
+  useEffect(() => {
+    if (!nextImageUrl) return;
+    let cancelled = false;
+    let idleHandle: number | null = null;
+    const win = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+
+    const prepare = (img: HTMLImageElement) => {
+      if (cancelled) return;
+      const run = () => {
+        const canvas = canvasRef.current;
+        if (!cancelled && canvas) prepareOffscreen(img, canvas.width, canvas.height);
+      };
+      idleHandle = win.requestIdleCallback
+        ? win.requestIdleCallback(run, { timeout: 2000 })
+        : window.setTimeout(run, 300);
+    };
+
+    const images = imageCacheRef.current;
+    const cached = images.get(nextImageUrl);
+    if (cached && cached.complete && cached.naturalWidth > 0) {
+      prepare(cached);
+    } else {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        images.set(nextImageUrl, img);
+        if (images.size > IMAGE_CACHE_MAX) {
+          const oldest = images.keys().next().value;
+          if (oldest !== undefined) images.delete(oldest);
+        }
+        prepare(img);
+      };
+      img.src = nextImageUrl;
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleHandle === null) return;
+      if (win.cancelIdleCallback) win.cancelIdleCallback(idleHandle);
+      else window.clearTimeout(idleHandle);
+    };
+  }, [nextImageUrl, canvasWidth, canvasHeight]);
 
   /**
    * Pose l'horloge du moteur, et la publie dans le store au plus a la cadence

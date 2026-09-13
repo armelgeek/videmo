@@ -275,6 +275,7 @@ export function WhiteboardEditorStep({
       activePanel?.imageUrl ||
       DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
       "/scene-premium-bag.png",
+    nextImageUrl: storyboardPanels[activeClipIndex + 1]?.imageUrl ?? null,
     audioUrl: config.audio?.url ?? null,
     // La voix par temps prime sur la piste unique : c'est elle que la chaine
     // produit, et elle n'a pas a etre reconcatenee quand un temps change.
