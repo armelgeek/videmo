@@ -18,6 +18,7 @@ import {
   PLEINE_IMAGE_ID,
 } from "../timeline/panel-fallback-annotation";
 import { AnnotationListPanel } from "./annotation-list-panel";
+import { SceneDetailsPanel } from "./scene-details-panel";
 import { TimelinePlayhead } from "./timeline-playhead";
 import { ClipTransitionMarkers } from "./clip-transition-markers";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
@@ -414,7 +415,7 @@ export function WhiteboardEditorStep({
   );
 
   return (
-    <div className="w-full h-full flex gap-3 overflow-hidden px-2">
+    <div className="w-full h-full flex gap-4 overflow-hidden px-6 xl:px-10">
       {/* Column 1: Vertical Clip Selector Sidebar */}
       <ClipSelectorBar />
 
@@ -566,6 +567,7 @@ export function WhiteboardEditorStep({
           deux controles seuls ne la remplissaient pas. */}
       <div className="w-80 shrink-0 min-h-0 flex flex-col gap-3">
 
+        <SceneDetailsPanel />
         <AnnotationListPanel className="flex-1" />
 
       </div>

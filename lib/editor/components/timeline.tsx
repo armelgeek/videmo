@@ -99,6 +99,7 @@ interface TimelineProps {
    */
   showPlayhead?: boolean;
   hideTrackHeaders?: boolean;
+  videoTrackHeight?: string;
   /**
    * Reports the horizontal viewport so a lane rendered OUTSIDE this component
    * can line up with the ruler: same pixels-per-second, same scroll offset.
@@ -174,6 +175,7 @@ export const Timeline = memo(function Timeline({
   onTransitionResize,
   onTransitionTypeChange,
   hideTrackHeaders = false,
+  videoTrackHeight = "h-11",
   showPlayhead = true,
   hideScrollbar = false,
 }: TimelineProps) {
@@ -613,7 +615,7 @@ export const Timeline = memo(function Timeline({
                     ? "h-11"
                     : isText
                       ? "h-12"
-                      : "h-11";
+                      : videoTrackHeight;
 
                   const pxParMs = zoomLevel / 1000;
                   const marqueurs =
