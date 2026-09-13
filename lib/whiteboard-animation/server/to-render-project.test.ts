@@ -34,9 +34,9 @@ describe("toRenderProject", () => {
     expect(p.scenes[0].canvasImage).toBe("/img/p1.png");
   });
 
-  it("reprend le style, la main et la cadence depuis la config", () => {
+  it("dessine en style global chunkjump, reprend la main et la cadence de la config", () => {
     const p = toRenderProject({ panels: [panel("p1", 0, 400)], config });
-    expect(p).toMatchObject({ animStyle: "contour", hand: "custom1", speed: 40 });
+    expect(p).toMatchObject({ animStyle: "chunkjump", hand: "custom1", speed: 40 });
   });
 
   it("prend l'audio persistable et non l'URL blob, illisible hors de l'onglet", () => {

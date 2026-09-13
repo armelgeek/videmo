@@ -65,7 +65,6 @@ import { measureSubjectCandidates } from "@/lib/storyboard/image-subjects";
 import { narrationParts } from "@/lib/speech/narration-track";
 import { scheduleParts } from "@/lib/whiteboard-animation/audio/narration-schedule";
 import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
-import { WhiteboardConfigPanel } from "@/lib/whiteboard-animation/components/whiteboard-config-panel";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
 
@@ -1356,12 +1355,6 @@ export default function StoryboardPage() {
                 {/* Whiteboard Config Panel & Preview */}
                 {projectParams.style === "whiteboard" && (
                   <div className="space-y-4">
-                    <WhiteboardConfigPanel
-                      config={whiteboardConfig}
-                      onChange={(updates) =>
-                        setWhiteboardConfig(updates)
-                      }
-                    />
 
                     {/* Whiteboard Preview */}
                     <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-2">

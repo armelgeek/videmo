@@ -1,3 +1,4 @@
+import { DEFAULT_ANIM_STYLE } from "../schema";
 import { toEngineAnnotations } from "@/lib/whiteboard-animation/timeline/annotation-interop";
 import { deriveTimeline } from "@/lib/whiteboard-animation/timeline/derive-timeline";
 import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
@@ -57,7 +58,7 @@ export function toRenderProject({
     // taille ne depend que du ratio. Le renderer en a besoin pour les ramener
     // dans l'espace naturel de l'image avant SA propre projection.
     annotationSpace: tailleCanvas(aspectRatio),
-    animStyle: config.animStyle,
+    animStyle: DEFAULT_ANIM_STYLE,
     hand: config.handStyle,
     handSpeed: config.handSpeed ?? 5,
     tileSlider: config.chunks ?? 30,

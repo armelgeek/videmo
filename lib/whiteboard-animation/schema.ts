@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+/** Le style de tout projet : une annotation sans style propre se dessine ainsi. */
+export const DEFAULT_ANIM_STYLE = 'chunkjump';
+
 // Timing bounds for annotation reveal
 export const AnnotationRevealSchema = z.object({
   from: z.number().min(0).optional(),

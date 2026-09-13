@@ -5,12 +5,12 @@ import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { cn } from '@/lib/utils';
+import { DEFAULT_ANIM_STYLE } from '../schema';
 
 /** Couleur de repli du calque d'annotations — meme valeur qu'AnnotationOverlay. */
 const DEFAULT_STROKE = '#2563eb';
 
 const ANIM_STYLES = [
-  { value: 'global', label: 'Style global du projet' },
   { value: 'chunkjump', label: 'Chunk Jump' },
   { value: 'contour', label: 'Contour' },
   { value: 'gesture', label: 'Gesture' },
@@ -53,7 +53,7 @@ function AnnotationListPanelImpl({
   );
 
   const handleStyleChange = (index: number, styleVal: string) => {
-    const newStyle = styleVal === 'global' ? undefined : styleVal;
+    const newStyle = styleVal === DEFAULT_ANIM_STYLE ? undefined : styleVal;
     updateAnnotation(index, { animStyle: newStyle });
 
     try {
@@ -90,7 +90,7 @@ function AnnotationListPanelImpl({
           {derived.map((annotation, i) => {
             const selected = selectedIndex === i;
             const color = annotation.style?.strokeColor ?? DEFAULT_STROKE;
-            const currentAnimStyle = annotation.animStyle ?? 'global';
+            const currentAnimStyle = annotation.animStyle ?? DEFAULT_ANIM_STYLE;
 
             return (
               <li key={annotation.id ?? i} className="px-1.5 py-0.5">
@@ -114,7 +114,7 @@ function AnnotationListPanelImpl({
                       {formatMs(annotation.reveal.from)} – {formatMs(annotation.reveal.to)}
                     </span>
                   </div>
-                  {!selected && currentAnimStyle !== 'global' && (
+                  {!selected && currentAnimStyle !== DEFAULT_ANIM_STYLE && (
                     <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                       {ANIM_STYLES.find((st) => st.value === currentAnimStyle)?.label ?? currentAnimStyle}
                     </span>
@@ -138,7 +138,6 @@ function AnnotationListPanelImpl({
                           onClick={() => handleStyleChange(i, st.value)}
                           className={cn(
                             'truncate rounded-md border px-2 py-1 text-left text-[10px] transition-colors',
-                            st.value === 'global' && 'col-span-2',
                             active
                               ? 'border-primary bg-primary/15 text-foreground'
                               : 'border-transparent bg-background/60 text-muted-foreground hover:border-border hover:text-foreground',

@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { WhiteboardConfigPanel } from "./whiteboard-config-panel";
+import { DEFAULT_ANIM_STYLE } from "../schema";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
@@ -395,7 +395,7 @@ export function WhiteboardEditorStep({
 
   // Sync config with engine
   useEffect(() => {
-    setAnimStyle(config.animStyle);
+    setAnimStyle(DEFAULT_ANIM_STYLE);
     setHandStyle(config.handStyle);
     setRevealSpeed(config.revealSpeed);
     setHandSpeed(config.handSpeed);
@@ -571,10 +571,6 @@ export function WhiteboardEditorStep({
           justifie le rail : elle a besoin de toute la hauteur disponible, la ou
           deux controles seuls ne la remplissaient pas. */}
       <div className="w-72 shrink-0 min-h-0 flex flex-col gap-3">
-        <WhiteboardConfigPanel
-          config={config}
-          onChange={handleConfigChange}
-        />
 
         <AnnotationListPanel className="flex-1" />
 
