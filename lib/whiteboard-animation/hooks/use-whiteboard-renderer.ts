@@ -127,9 +127,7 @@ const ENGINE_DEFAULT_SPEED = 40;
 const BIG_GAP_MS = 1000;
 
 /** Nombre d'images decodees gardees en cache, au-dela duquel la plus vieille cede sa place. */
-// Assez pour couvrir la fenetre d'attente avant lecture (voir SEQUENCE_READY_WINDOW)
-// plus quelques scenes preparees d'avance au-dela, sans evincer la scene active.
-const IMAGE_CACHE_MAX = 16;
+const IMAGE_CACHE_MAX = 12;
 
 /** Repli stable : un `[]` ecrit dans une signature est neuf a chaque rendu. */
 const EMPTY_SCENES: { imageUrl: string; annotations: Annotation[] }[] = [];
@@ -143,18 +141,6 @@ const touch = <V,>(cache: Map<string, V>, key: string, value: V) => {
 };
 /** How long a new scene plays before the next one starts being prepared. */
 const NEXT_SCENE_PREP_DELAY_MS = 2000;
-
-/**
- * Combien de scenes a venir la lecture attend avant de demarrer.
- *
- * Attendre la liste ENTIERE faisait, sur un long projet, un premier demarrage
- * qui pouvait prendre tres longtemps : tout le gain se payait d'un coup au
- * lieu d'etre etale. Une petite fenetre suffit a absorber l'arret constate en
- * lecture (une poignee de scenes suffit a ce que la preparation ait
- * toujours une longueur d'avance sur la lecture) ; le reste de la liste
- * continue de se preparer en arriere-plan sans bloquer.
- */
-const SEQUENCE_READY_WINDOW = 4;
 
 /**
  * Minimum spacing between two corrections of the narration. Each one is a
@@ -224,11 +210,10 @@ export interface UseWhiteboardRendererProps {
    * Toutes les scenes A VENIR, dans l'ordre (la scene active exclue). Chacune
    * est decodee, sa feuille preparee et le setup de ses regions calcule
    * d'avance pendant les temps morts, pour que la bascule d'une scene a la
-   * suivante ne coute plus qu'une copie. La lecture attend que les premieres
-   * (SEQUENCE_READY_WINDOW, voir `isPreparingSequence` en retour) soient
-   * pretes avant de demarrer — sans cela, la premiere scene non encore
-   * preparee provoquait un arret de plusieurs secondes au milieu de la
-   * lecture. Le reste de la liste continue de se preparer sans bloquer.
+   * suivante ne coute plus qu'une copie. La lecture attend que TOUTE la liste
+   * soit prete avant de demarrer (voir `isPreparingSequence` en retour) : sans
+   * cela, la premiere scene non encore preparee provoquait un arret de
+   * plusieurs secondes au milieu de la lecture.
    */
   scenes?: { imageUrl: string; annotations: Annotation[] }[];
   /** Narration URL. When set, the audio clock drives engine timing instead
@@ -1074,23 +1059,15 @@ export function useWhiteboardRenderer({
     // Sequentiel plutot qu'en parallele : les scenes rapprochees comptent le
     // plus, et le decodage/l'analyse d'images concurrentes se genent entre eux
     // pour un gain nul sur un seul coeur.
-    //
-    // sequenceReady ne guette qu'une FENETRE proche (SEQUENCE_READY_WINDOW),
-    // pas la liste entiere : sur un long projet, attendre tout aurait retarde
-    // le tout premier demarrage d'autant. Le reste continue de se preparer en
-    // arriere-plan sans plus bloquer la lecture.
-    const readyTarget = Math.min(scenes.length, SEQUENCE_READY_WINDOW);
     let cursor = 0;
-    let termine = 0;
     const suivanteScene = () => {
       if (cancelled) return;
-      if (cursor >= scenes.length) return;
+      if (cursor >= scenes.length) {
+        setSequenceReady(true);
+        return;
+      }
       const scene = scenes[cursor++];
-      prepareImage(scene.imageUrl, scene.annotations, () => {
-        termine++;
-        if (termine >= readyTarget) setSequenceReady(true);
-        whenIdle(suivanteScene);
-      });
+      prepareImage(scene.imageUrl, scene.annotations, () => whenIdle(suivanteScene));
     };
     whenIdle(suivanteScene);
 
@@ -1990,10 +1967,9 @@ export function useWhiteboardRenderer({
     isOverlayHidden,
     isScrubbing: scrubbing,
     isPreparingArtwork,
-    // Vrai tant que la fenetre proche (SEQUENCE_READY_WINDOW scenes) n'a pas
-    // fini d'etre chargee et ses regions calculees. La lecture attend ce
-    // signal (voir l'effet ci-dessus) ; expose pour qu'un indicateur puisse
-    // le montrer.
+    // Vrai tant que toutes les scenes a venir n'ont pas fini d'etre chargees
+    // et leurs regions calculees. La lecture attend ce signal (voir l'effet
+    // ci-dessus) ; expose pour qu'un indicateur puisse le montrer.
     isPreparingSequence: !sequenceReady,
   };
 }
