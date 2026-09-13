@@ -5,19 +5,12 @@ import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { cn } from '@/lib/utils';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 /** Couleur de repli du calque d'annotations — meme valeur qu'AnnotationOverlay. */
 const DEFAULT_STROKE = '#2563eb';
 
 const ANIM_STYLES = [
-  { value: 'global', label: 'Par défaut (Global)' },
+  { value: 'global', label: 'Style global du projet' },
   { value: 'chunkjump', label: 'Chunk Jump' },
   { value: 'contour', label: 'Contour' },
   { value: 'gesture', label: 'Gesture' },
@@ -129,22 +122,32 @@ function AnnotationListPanelImpl({
                 </div>
 
                 {selected && (
-                  <div className="px-2 pb-1.5 pt-1">
-                    <Select
-                      value={currentAnimStyle}
-                      onValueChange={(val) => handleStyleChange(i, val)}
-                    >
-                      <SelectTrigger aria-label="Animation style" className="h-7 w-full text-[11px] px-2 bg-background border-border">
-                        <SelectValue placeholder="Par défaut" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ANIM_STYLES.map((st) => (
-                          <SelectItem key={st.value} value={st.value} className="text-xs">
-                            {st.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div
+                    role="radiogroup"
+                    aria-label="Animation style"
+                    className="grid grid-cols-2 gap-1 px-2 pb-2 pt-1.5"
+                  >
+                    {ANIM_STYLES.map((st) => {
+                      const active = currentAnimStyle === st.value;
+                      return (
+                        <button
+                          key={st.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => handleStyleChange(i, st.value)}
+                          className={cn(
+                            'truncate rounded-md border px-2 py-1 text-left text-[10px] transition-colors',
+                            st.value === 'global' && 'col-span-2',
+                            active
+                              ? 'border-primary bg-primary/15 text-foreground'
+                              : 'border-transparent bg-background/60 text-muted-foreground hover:border-border hover:text-foreground',
+                          )}
+                        >
+                          {st.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </li>
