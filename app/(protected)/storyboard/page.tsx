@@ -39,6 +39,7 @@ import {
   ImageIcon,
   ChevronDown,
   ChevronRight,
+  ArrowRight,
 } from "lucide-react";
 import Image from "next/image";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
@@ -1567,14 +1568,22 @@ export default function StoryboardPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {isGeneratingNarration && (
+                      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                        Recording voice · {Math.round(narrationProgress)}%
+                      </span>
+                    )}
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => void generateImagesProgressively({ force: true })}
                       disabled={isGeneratingImages || isGeneratingNarration}
+                      title="Redraw every scene's visual, replacing the current ones"
+                      className="text-muted-foreground hover:text-foreground"
                     >
                       <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                      Regenerate all
+                      Redraw visuals
                     </Button>
                     <Button
                       size="sm"
@@ -1585,14 +1594,8 @@ export default function StoryboardPage() {
                       disabled={isGeneratingImages || isGeneratingNarration}
                       className="bg-primary hover:bg-primary/90"
                     >
-                      {isGeneratingNarration ? (
-                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                      ) : (
-                        <Film className="w-3.5 h-3.5 mr-1.5" />
-                      )}
-                      {isGeneratingNarration
-                        ? `Recording narration ${Math.round(narrationProgress)}%`
-                        : "Continue to Whiteboard"}
+                      Next: Whiteboard
+                      <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
                     </Button>
                   </div>
                 </div>
@@ -1606,16 +1609,6 @@ export default function StoryboardPage() {
                         className="h-full bg-primary transition-all"
                         style={{ width: `${(generatingProgress.current / Math.max(1, generatingProgress.total)) * 100}%` }}
                       />
-                    </div>
-                  </div>
-                )}
-
-                {isGeneratingNarration && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                    Recording narration {Math.round(narrationProgress)}%
-                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary transition-all" style={{ width: `${narrationProgress}%` }} />
                     </div>
                   </div>
                 )}
