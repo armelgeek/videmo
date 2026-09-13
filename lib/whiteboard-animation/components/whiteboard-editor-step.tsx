@@ -9,7 +9,10 @@ import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import * as selectors from "@/lib/unified-engine/hooks/selectors";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
-import { toEngineAnnotations, toStoredAnnotations } from "../timeline/annotation-interop";
+import {
+  toEngineAnnotations,
+  toStoredAnnotations,
+} from "../timeline/annotation-interop";
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { deriveTimeline } from "../timeline/derive-timeline";
 import { AnnotationTimeline } from "../timeline/annotation-timeline";
@@ -25,11 +28,10 @@ import { TimelinePlayhead } from "./timeline-playhead";
 import { ClipTransitionMarkers } from "./clip-transition-markers";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import { useStoryboardStore } from "@/lib/storyboard/store";
-import { narrationEndMs } from '../audio/narration-schedule';
+import { narrationEndMs } from "../audio/narration-schedule";
 import { DEMO_STORYBOARD } from "@/lib/demo-data";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
 import { ClipSelectorBar } from "./clip-selector-bar";
-
 
 /** Konva touche `window` des son chargement : pas d'evaluation au rendu serveur. */
 const AnnotationOverlay = dynamic(
@@ -274,42 +276,44 @@ export function WhiteboardEditorStep({
   );
 
   // Enable canvas rendering.
-  const { isOverlayHidden, isScrubbing, isPreparingArtwork } = useWhiteboardRenderer({
-    canvasRef,
-    canvasWidth,
-    canvasHeight,
-    handCanvasRef,
-    imageUrl:
-      activePanel?.imageUrl ||
-      DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
-      "/scene-premium-bag.png",
-    nextImageUrl: storyboardPanels[activeClipIndex + 1]?.imageUrl ?? null,
-    nextAnnotations: nextPanelAnnotations,
-    audioUrl: config.audio?.url ?? null,
-    // La voix par temps prime sur la piste unique : c'est elle que la chaine
-    // produit, et elle n'a pas a etre reconcatenee quand un temps change.
-    narrationParts: config.narration ?? [],
-    audioVolume: config.audio?.volume ?? 1,
-    audioMuted: config.audio?.muted ?? false,
-    audioDurationMs: config.narration?.length
-      ? narrationEndMs(config.narration)
-      : config.audio?.durationMs ?? null,
-    savedAnnotations: activePanel
-      ? annotationsDe(activePanel)
-      : config.annotations
-        ? toEngineAnnotations(config.annotations)
-        : null,
-    // Global offset of the active clip on the shared narration clock. The
-    // engine always receives 0-based annotations; the renderer translates.
-    // L'origine du clip pour le moteur est le debut de son TRACE, pas celui du
-    // panneau : c'est ce que `clipWindows` publie deja (startMs: drawStartMs),
-    // et c'est ce a quoi la sequence locale, ramenee a zero, se rapporte.
-    // Prendre `startMs` decalait le dessin de toute l'attente initiale.
-    clipOffsetMs:
-      panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.drawStartMs ?? 0,
-    clips: clipWindows,
-    onError: signalerErreurRendu,
-  });
+  const { isOverlayHidden, isScrubbing, isPreparingArtwork } =
+    useWhiteboardRenderer({
+      canvasRef,
+      canvasWidth,
+      canvasHeight,
+      handCanvasRef,
+      imageUrl:
+        activePanel?.imageUrl ||
+        DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]
+          ?.imageUrl,
+      nextImageUrl: storyboardPanels[activeClipIndex + 1]?.imageUrl ?? null,
+      nextAnnotations: nextPanelAnnotations,
+      audioUrl: config.audio?.url ?? null,
+      // La voix par temps prime sur la piste unique : c'est elle que la chaine
+      // produit, et elle n'a pas a etre reconcatenee quand un temps change.
+      narrationParts: config.narration ?? [],
+      audioVolume: config.audio?.volume ?? 1,
+      audioMuted: config.audio?.muted ?? false,
+      audioDurationMs: config.narration?.length
+        ? narrationEndMs(config.narration)
+        : (config.audio?.durationMs ?? null),
+      savedAnnotations: activePanel
+        ? annotationsDe(activePanel)
+        : config.annotations
+          ? toEngineAnnotations(config.annotations)
+          : null,
+      // Global offset of the active clip on the shared narration clock. The
+      // engine always receives 0-based annotations; the renderer translates.
+      // L'origine du clip pour le moteur est le debut de son TRACE, pas celui du
+      // panneau : c'est ce que `clipWindows` publie deja (startMs: drawStartMs),
+      // et c'est ce a quoi la sequence locale, ramenee a zero, se rapporte.
+      // Prendre `startMs` decalait le dessin de toute l'attente initiale.
+      clipOffsetMs:
+        panelBoundaries.find((b) => b.panelIdx === activeClipIndex)
+          ?.drawStartMs ?? 0,
+      clips: clipWindows,
+      onError: signalerErreurRendu,
+    });
 
   // Une scene deja preparee arrive en quelques ms : l'indicateur n'apparait
   // qu'au-dela, sinon il clignoterait a chaque bascule.
@@ -327,7 +331,6 @@ export function WhiteboardEditorStep({
   // en dependance le ferait courir apres l'etat au lieu de le consulter.
   const isScrubbingRef = useRef(isScrubbing);
   isScrubbingRef.current = isScrubbing;
-
 
   // ── Engine store = active panel, 0-based local annotations ──────────────
   const activePanelAnnotations = useMemo(
@@ -351,10 +354,14 @@ export function WhiteboardEditorStep({
       lastAnns = anns;
 
       const storyboard = useStoryboardStore.getState();
-      const currentPanel = storyboard.storyboardPanels[storyboard.activeClipIndex];
+      const currentPanel =
+        storyboard.storyboardPanels[storyboard.activeClipIndex];
       if (currentPanel) {
         const storedAnns = toStoredAnnotations(anns);
-        if (JSON.stringify(currentPanel.annotations) !== JSON.stringify(storedAnns)) {
+        if (
+          JSON.stringify(currentPanel.annotations) !==
+          JSON.stringify(storedAnns)
+        ) {
           storyboard.updatePanel(currentPanel.id, { annotations: storedAnns });
         }
       }
@@ -429,7 +436,8 @@ export function WhiteboardEditorStep({
       onConfigChange(updates);
       if (updates.animStyle) setAnimStyle(updates.animStyle);
       if (updates.handStyle) setHandStyle(updates.handStyle);
-      if (updates.revealSpeed !== undefined) setRevealSpeed(updates.revealSpeed);
+      if (updates.revealSpeed !== undefined)
+        setRevealSpeed(updates.revealSpeed);
       if (updates.handSpeed !== undefined) setHandSpeed(updates.handSpeed);
       if (updates.chunks !== undefined) setChunks(updates.chunks);
     },
@@ -449,59 +457,63 @@ export function WhiteboardEditorStep({
         {/* Le canevas prend toute la hauteur laissee par la timeline, au format
             du projet : sa taille se deduit de la place, pas d'une hauteur figee. */}
         <div className="flex-1 min-h-0 rounded-xl border border-border bg-muted/20 p-4">
-        <div className="h-full w-full flex items-center justify-center [container-type:size]">
-        <div
-          className="rounded-md bg-white overflow-hidden relative shadow-xl ring-1 ring-black/10"
-          style={{
-            aspectRatio: cssAspectRatio(aspectRatio),
-            width: `min(100cqw, calc(100cqh * ${canvasWidth} / ${canvasHeight}))`,
-          }}
-        >
-          <canvas
-            ref={canvasRef}
-            width={canvasWidth}
-            height={canvasHeight}
-            className="absolute inset-0 w-full h-full object-contain z-10"
-          />
-          <canvas
-            ref={handCanvasRef}
-            width={canvasWidth}
-            height={canvasHeight}
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none z-20"
-          />
-          {showPreparing && (
+          <div className="h-full w-full flex items-center justify-center [container-type:size]">
             <div
-              role="status"
-              aria-live="polite"
-              className="absolute inset-0 z-30 flex items-center justify-center bg-background/30 pointer-events-none"
+              className="rounded-md bg-white overflow-hidden relative shadow-xl ring-1 ring-black/10"
+              style={{
+                aspectRatio: cssAspectRatio(aspectRatio),
+                width: `min(100cqw, calc(100cqh * ${canvasWidth} / ${canvasHeight}))`,
+              }}
             >
-              <div className="flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-                Préparation de la scène…
-              </div>
-            </div>
-          )}
-          {/* Calque d'edition des annotations. Il masque le dessin qu'on est
+              <canvas
+                ref={canvasRef}
+                width={canvasWidth}
+                height={canvasHeight}
+                className="absolute inset-0 w-full h-full object-contain z-10"
+              />
+              <canvas
+                ref={handCanvasRef}
+                width={canvasWidth}
+                height={canvasHeight}
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none z-20"
+              />
+              {showPreparing && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="absolute inset-0 z-30 flex items-center justify-center bg-background/30 pointer-events-none"
+                >
+                  <div className="flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                    <Loader2
+                      className="h-3.5 w-3.5 animate-spin"
+                      aria-hidden="true"
+                    />
+                    Préparation de la scène…
+                  </div>
+                </div>
+              )}
+              {/* Calque d'edition des annotations. Il masque le dessin qu'on est
               venu regarder : il s'efface donc pendant la lecture et revient a
               l'arret, fin de lecture comprise — d'ou isOverlayHidden, que
               use-whiteboard-renderer calcule en sachant aussi quand on scrube. */}
 
-            <AnnotationOverlay
-              canvasWidth={canvasWidth}
-              canvasHeight={canvasHeight}
-              hidden={isOverlayHidden}
-            />
-
+              <AnnotationOverlay
+                canvasWidth={canvasWidth}
+                canvasHeight={canvasHeight}
+                hidden={isOverlayHidden}
+              />
+            </div>
+          </div>
         </div>
-        </div>
-        </div>
-
 
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
         <ScriptSegmentsCard
-          sceneStartMs={panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0}
+          sceneStartMs={
+            panelBoundaries.find((b) => b.panelIdx === activeClipIndex)
+              ?.startMs ?? 0
+          }
         />
 
         <div className="relative shrink-0 rounded-xl border border-border bg-card overflow-hidden">
@@ -516,7 +528,10 @@ export function WhiteboardEditorStep({
 
               const newDuration = Math.max(50, durationMs);
               useStoryboardStore.getState().updatePanel(sortantPanel.id, {
-                transition: { ...sortantPanel.transition, durationMs: newDuration },
+                transition: {
+                  ...sortantPanel.transition,
+                  durationMs: newDuration,
+                },
               });
 
               if (entrantPanel) {
@@ -545,7 +560,10 @@ export function WhiteboardEditorStep({
                       annotations: updatedStored,
                     });
 
-                    if (panelIdx + 1 === useStoryboardStore.getState().activeClipIndex) {
+                    if (
+                      panelIdx + 1 ===
+                      useStoryboardStore.getState().activeClipIndex
+                    ) {
                       useUnifiedEngineStore.getState().setAnnotations(anns);
                     }
                   }
@@ -557,7 +575,8 @@ export function WhiteboardEditorStep({
               const entrantPanel = storyboardPanels[panelIdx + 1];
               if (!sortantPanel) return;
 
-              const currentDuration = sortantPanel.transition?.durationMs ?? 300;
+              const currentDuration =
+                sortantPanel.transition?.durationMs ?? 300;
               useStoryboardStore.getState().updatePanel(sortantPanel.id, {
                 transition: {
                   type: newType as any,
@@ -589,7 +608,10 @@ export function WhiteboardEditorStep({
                       annotations: updatedStored,
                     });
 
-                    if (panelIdx + 1 === useStoryboardStore.getState().activeClipIndex) {
+                    if (
+                      panelIdx + 1 ===
+                      useStoryboardStore.getState().activeClipIndex
+                    ) {
                       useUnifiedEngineStore.getState().setAnnotations(anns);
                     }
                   }
@@ -599,15 +621,17 @@ export function WhiteboardEditorStep({
           />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
-
       </div>
 
       {/* Right: reglages, puis la sequence d'annotations. C'est cette liste qui
           justifie le rail : elle a besoin de toute la hauteur disponible, la ou
           deux controles seuls ne la remplissaient pas. */}
       <div className="w-80 shrink-0 min-h-0 flex flex-col gap-3">
-
-        <div role="tablist" aria-label="Side panel" className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-border bg-card p-1">
+        <div
+          role="tablist"
+          aria-label="Side panel"
+          className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-border bg-card p-1"
+        >
           {(["scene", "annotations"] as const).map((tab) => (
             <button
               key={tab}
@@ -616,7 +640,9 @@ export function WhiteboardEditorStep({
               aria-selected={sideTab === tab}
               onClick={() => setSideTab(tab)}
               className={`flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
-                sideTab === tab ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+                sideTab === tab
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {tab === "scene" ? "Scene" : "Annotations"}
@@ -634,10 +660,12 @@ export function WhiteboardEditorStep({
         ) : (
           <AnnotationListPanel
             className="flex-1"
-            sceneOffsetMs={panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.drawStartMs ?? 0}
+            sceneOffsetMs={
+              panelBoundaries.find((b) => b.panelIdx === activeClipIndex)
+                ?.drawStartMs ?? 0
+            }
           />
         )}
-
       </div>
     </div>
   );
