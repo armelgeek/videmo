@@ -4,17 +4,65 @@ import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
+import type { StoryboardPanel } from "@/lib/storyboard/schema";
+import type { NarrationPart } from "../audio/narration-schedule";
 
-const INK = "#1a2340";
 const STYLES = [
   { accent: "#e91e8c", variant: "tinted" },
   { accent: "#00d8ff", variant: "underline" },
 ] as const;
 
-interface Segment {
+export interface SegmentWindow {
   text: string;
   startMs: number;
   endMs: number;
+}
+
+/**
+ * Where each beat of a scene is heard on the project clock.
+ *
+ * A beat's `startMs` is its offset inside its recording, and one recording
+ * usually carries the whole script: the recording's own start on the clock
+ * has to be added, not the scene's. A beat not recorded yet falls back to its
+ * estimated duration, chained from the scene start.
+ */
+export function segmentWindows(
+  panel: Pick<StoryboardPanel, "beats" | "narration" | "audioDurationMs">,
+  parts: readonly NarrationPart[],
+  sceneStartMs: number,
+): SegmentWindow[] {
+  const beats = panel.beats?.length
+    ? panel.beats
+    : panel.narration
+      ? [{ narration: panel.narration, durationSec: (panel.audioDurationMs ?? 0) / 1000 }]
+      : [];
+
+  let cursor = sceneStartMs;
+  const windows: SegmentWindow[] = [];
+  for (const beat of beats) {
+    const text = beat.narration.trim();
+    const estimatedMs = Math.round((beat.durationSec ?? 0) * 1000);
+    const part =
+      "audioUrl" in beat && beat.audioUrl ? parts.find((p) => p.url === beat.audioUrl) : undefined;
+    const measured = "audioDurationMs" in beat ? beat.audioDurationMs : undefined;
+    const offset = "startMs" in beat ? beat.startMs : undefined;
+
+    const startMs = part && typeof offset === "number" ? part.startMs + offset : cursor;
+    const endMs = startMs + (measured ?? estimatedMs);
+    cursor = endMs;
+    if (text) windows.push({ text, startMs, endMs });
+  }
+  return windows;
+}
+
+/** The segment heard at `t`, or the last one started when `t` falls in a gap. */
+function segmentAt(segments: SegmentWindow[], t: number): number {
+  let lastStarted = 0;
+  for (let i = 0; i < segments.length; i++) {
+    if (t >= segments[i].startMs && t < segments[i].endMs) return i;
+    if (segments[i].startMs <= t) lastStarted = i;
+  }
+  return lastStarted;
 }
 
 /**
@@ -23,36 +71,29 @@ interface Segment {
  */
 function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
   const panel = useStoryboardStore((s) => s.storyboardPanels[s.activeClipIndex]);
+  const parts = useStoryboardStore((s) => s.whiteboardConfig.narration);
 
-  const segments = useMemo<Segment[]>(() => {
-    if (!panel) return [];
-    const beats = panel.beats?.length
-      ? panel.beats
-      : panel.narration
-        ? [{ narration: panel.narration, durationSec: (panel.audioDurationMs ?? 0) / 1000 }]
-        : [];
-    let cursor = 0;
-    return beats
-      .map((beat) => {
-        const measured = "audioDurationMs" in beat ? beat.audioDurationMs : undefined;
-        const durationMs = measured ?? Math.round((beat.durationSec ?? 0) * 1000);
-        const offset = "startMs" in beat && typeof beat.startMs === "number" ? beat.startMs : cursor;
-        cursor = offset + durationMs;
-        return { text: beat.narration.trim(), startMs: sceneStartMs + offset, endMs: sceneStartMs + cursor };
-      })
-      .filter((segment) => segment.text);
-  }, [panel, sceneStartMs]);
+  const segments = useMemo(
+    () => (panel ? segmentWindows(panel, parts ?? [], sceneStartMs) : []),
+    [panel, parts, sceneStartMs],
+  );
 
   // Follows the clock outside React; only a change of segment re-renders.
   const [current, setCurrent] = useState(0);
-  const lastRef = useRef(0);
+  const lastRef = useRef(-1);
+  const progressRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    lastRef.current = 0;
-    setCurrent(0);
+    lastRef.current = -1;
     const place = () => {
+      if (segments.length === 0) return;
       const t = useUnifiedEngineStore.getState().timeline.currentTime;
-      const idx = segments.findIndex((s) => t >= s.startMs && t < s.endMs);
-      if (idx === -1 || idx === lastRef.current) return;
+      const idx = segmentAt(segments, t);
+      const segment = segments[idx];
+      if (progressRef.current) {
+        const ratio = (t - segment.startMs) / Math.max(1, segment.endMs - segment.startMs);
+        progressRef.current.style.transform = `scaleX(${Math.min(1, Math.max(0, ratio))})`;
+      }
+      if (idx === lastRef.current) return;
       lastRef.current = idx;
       setCurrent(idx);
     };
@@ -69,14 +110,14 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
     useUnifiedEngineStore.getState().setCurrentTime(segments[target].startMs);
 
   return (
-    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-white px-4 py-2">
+    <div className="relative flex shrink-0 items-center gap-3 border-b border-border px-4 py-2.5 text-foreground">
       <p
-        className="line-clamp-2 min-w-0 flex-1"
+        key={idx}
+        className="line-clamp-2 min-w-0 flex-1 animate-in fade-in duration-300"
         style={{
-          color: INK,
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-          fontSize: 12,
-          lineHeight: 1.9,
+          fontSize: 12.5,
+          lineHeight: 1.85,
         }}
       >
         {words.map((word, wordIdx) => (
@@ -88,10 +129,11 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
                     background: accent,
                     color: "#ffffff",
                     fontSize: 10,
-                    padding: "1px 4px",
-                    borderRadius: 3,
-                    marginRight: 2,
-                    verticalAlign: "middle",
+                    fontWeight: 600,
+                    padding: "1px 6px",
+                    borderRadius: 999,
+                    marginRight: 6,
+                    verticalAlign: "1px",
                   }}
                 >
                   #{idx + 1}
@@ -111,11 +153,12 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
                   aria-hidden
                   style={{
                     display: "inline-block",
-                    width: 3,
-                    height: "1.3em",
-                    marginLeft: 3,
+                    width: 2,
+                    height: "1.2em",
+                    marginLeft: 4,
+                    borderRadius: 1,
                     background: accent,
-                    verticalAlign: "middle",
+                    verticalAlign: "-3px",
                   }}
                 />
               )}
@@ -124,28 +167,39 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
         ))}
       </p>
 
-      <div className="flex shrink-0 items-center gap-1 text-[11px] tabular-nums" style={{ color: INK }}>
+      <div
+        className="flex shrink-0 items-center rounded-full border border-border text-[11px] tabular-nums text-muted-foreground"
+      >
         <button
           type="button"
           onClick={() => goTo(idx - 1)}
           disabled={idx === 0}
           aria-label="Previous segment"
-          className="rounded p-1 hover:bg-black/5 disabled:opacity-30"
+          className="rounded-l-full py-1 pl-1.5 pr-1 hover:bg-muted hover:text-foreground disabled:opacity-30"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
-        <span>
-          {idx + 1} / {segments.length}
+        <span className="px-1 text-foreground">
+          {idx + 1}
+          <span className="opacity-40"> / {segments.length}</span>
         </span>
         <button
           type="button"
           onClick={() => goTo(idx + 1)}
           disabled={idx === segments.length - 1}
           aria-label="Next segment"
-          className="rounded p-1 hover:bg-black/5 disabled:opacity-30"
+          className="rounded-r-full py-1 pl-1 pr-1.5 hover:bg-muted hover:text-foreground disabled:opacity-30"
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>
+      </div>
+
+      <div aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-muted">
+        <div
+          ref={progressRef}
+          className="h-full origin-left"
+          style={{ background: accent, transform: "scaleX(0)" }}
+        />
       </div>
     </div>
   );
