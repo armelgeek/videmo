@@ -7,7 +7,7 @@ import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 
 const INK = "#1a2340";
 const STYLES = [
-  { accent: "#e91e8c", variant: "fill" },
+  { accent: "#e91e8c", variant: "tinted" },
   { accent: "#00d8ff", variant: "underline" },
 ] as const;
 
@@ -99,7 +99,7 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
               )}
               <span
                 style={
-                  variant === "fill"
+                  variant === "tinted"
                     ? { color: accent, fontWeight: 600, borderBottom: `2px dotted ${accent}` }
                     : { fontWeight: 700, borderBottom: `3px solid ${accent}` }
                 }
