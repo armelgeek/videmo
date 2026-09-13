@@ -78,6 +78,10 @@ const nextConfig: NextConfig = {
               `media-src 'self' blob: data: https:${bucketSource}`,
               "font-src 'self' data:",
               `connect-src 'self' blob: data: https:${bucketSource}`,
+              // Sans worker-src, la regle retombe sur script-src, qui refuse
+              // blob: — or le bundler lance les Web Workers depuis un blob.
+              // La preparation des illustrations echouait donc sans message.
+              "worker-src 'self' blob:",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
