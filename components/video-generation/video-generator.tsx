@@ -66,12 +66,36 @@ const LANGUAGES = [
   "hi",
 ] as const;
 
+const VOICES = [
+  { value: "alloy", label: "Alloy" },
+  { value: "ash", label: "Ash" },
+  { value: "ballad", label: "Ballad" },
+  { value: "coral", label: "Coral" },
+  { value: "echo", label: "Echo" },
+  { value: "fable", label: "Fable" },
+  { value: "nova", label: "Nova (Default)" },
+  { value: "onyx", label: "Onyx" },
+  { value: "sage", label: "Sage" },
+  { value: "shimmer", label: "Shimmer" },
+  { value: "verse", label: "Verse" },
+] as const;
+
+const HAND_STYLES = [
+  { value: "custom1", label: "Hand 1" },
+  { value: "custom2", label: "Hand 2" },
+  { value: "custom3", label: "Hand 3" },
+  { value: "custom4", label: "Hand 4" },
+  { value: "ghost", label: "No hand" },
+] as const;
+
 export function VideoGenerator() {
   const [content, setContent] = useState("");
   const [format, setFormat] = useState<"explainer" | "brief">("explainer");
   const [style, setStyle] = useState("anime");
   const [aspectRatio, setAspectRatio] = useState("16:9");
   const [language, setLanguage] = useState("en");
+  const [voice, setVoice] = useState("nova");
+  const [handStyle, setHandStyle] = useState("custom1");
   const [isLoading, setIsLoading] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
   const [progress, setProgress] = useState<GenerationProgress | null>(null);
@@ -93,6 +117,8 @@ export function VideoGenerator() {
           style,
           aspectRatio,
           language,
+          handStyle,
+          narrativeVoiceId: voice,
         } as VideoGenerationRequest),
       });
 
@@ -234,6 +260,40 @@ export function VideoGenerator() {
                   {LANGUAGES.map((lang) => (
                     <SelectItem key={lang} value={lang}>
                       {lang.toUpperCase()}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Voice */}
+            <div className="grid gap-2">
+              <Label htmlFor="voice">Narrative Voice</Label>
+              <Select value={voice} onValueChange={setVoice}>
+                <SelectTrigger id="voice">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {VOICES.map((v) => (
+                    <SelectItem key={v.value} value={v.value}>
+                      {v.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Hand Style */}
+            <div className="grid gap-2">
+              <Label htmlFor="handStyle">Hand Animation</Label>
+              <Select value={handStyle} onValueChange={setHandStyle}>
+                <SelectTrigger id="handStyle">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {HAND_STYLES.map((h) => (
+                    <SelectItem key={h.value} value={h.value}>
+                      {h.label}
                     </SelectItem>
                   ))}
                 </SelectContent>

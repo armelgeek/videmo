@@ -65,30 +65,33 @@ export function panelWindows(
 
   panels.forEach((panel, panelIdx) => {
     const span = parIndex.get(panelIdx);
+    const nextSpan = parIndex.get(panelIdx + 1);
     const startMs = curseur;
 
-    // Avec un trace, la fenetre va au moins jusqu'a la FIN du dessin, en
-    // absolu : le blanc qui precede l'image lui revient. C'est la regle
-    // d'origine, et la changer decalerait tout le calage audio des projets
-    // existants.
-    //
-    // Mais si sa voix depasse ce trace — le dessin fini avant la phrase — la
-    // fenetre s'etend jusqu'a elle : sans ca, activeClipIndex basculait sur
-    // l'image suivante des la derniere touche de pinceau, et son dessin a lui
-    // commencait pendant que la voix de la PRECEDENTE parlait encore. Voir
-    // whiteboard-editor-step.tsx, l'effet qui suit l'horloge dans le clip
-    // suivant : il ne connait que cette fenetre pour decider du changement.
-    const endMs = span
+    // Le tracé de cette image (s'il existe) a ses propres bornes absolues :
+    const drawStartMs = span ? span.drawStartMs : startMs;
+
+    // Avec un tracé, la fenêtre va au moins jusqu'à la FIN du dessin.
+    // Si sa voix dépasse ce tracé, la fenêtre s'étend jusqu'à elle.
+    const dureeMin = span
       ? Math.max(startMs, span.drawEndMs, startMs + secoursMs(panel))
       : startMs + secoursMs(panel);
+
+    // Si une image suivante commence son dessin plus tard (trou / blanc),
+    // la fenêtre s'étend jusqu'au début de ce tracé suivant (nextSpan.drawStartMs).
+    // Le trou appartient ainsi au clip sortant (qui peut jouer sa transition vers le fond
+    // ou maintenir son image en pause) plutôt que de faire basculer prématurément sur le suivant.
+    const endMs = nextSpan
+      ? Math.max(dureeMin, nextSpan.drawStartMs)
+      : dureeMin;
 
     windows.push({
       panelIdx,
       startMs,
       endMs,
-      // Sans trace, le dessin se confond avec la fenetre : le blanc calcule
-      // entre deux images reste alors nul plutot que negatif.
-      drawStartMs: span ? span.drawStartMs : startMs,
+      // Sans tracé, le dessin se confond avec la fenêtre : le blanc calculé
+      // entre deux images reste alors nul plutôt que négatif.
+      drawStartMs,
       drawEndMs: span ? span.drawEndMs : endMs,
     });
 

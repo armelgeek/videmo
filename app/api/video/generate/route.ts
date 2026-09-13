@@ -54,6 +54,7 @@ async function generateVideoWithMastra(jobId: string, request: any) {
       style: request.style,
       aspectRatio: request.aspectRatio,
       language: request.language,
+      handStyle: request.handStyle,
       customInstructions: request.customInstructions,
       narrativeVoiceId: request.narrativeVoiceId,
       narrativeStyle: request.narrativeStyle,

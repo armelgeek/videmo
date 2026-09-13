@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { panelWindows } from "./panel-windows";
 
 describe("panelWindows", () => {
-  it("enchaine les images : chacune commence ou la precedente finit", () => {
+  it("enchaine les images : le trou entre deux clips appartient au clip sortant (pause/transition)", () => {
     const windows = panelWindows(
       [{}, {}],
       [
@@ -11,12 +11,17 @@ describe("panelWindows", () => {
       ],
     );
 
-    // La fenetre va jusqu'a la FIN du dessin : le blanc de 300 ms qui precede
-    // la seconde image lui appartient, comme avant ce changement.
+    // Le trou de 300 ms (2000 a 2300) appartient au clip sortant afin de permettre
+    // d'animer sa transition de sortie ou de tenir son image en pause sans sauter.
+    // Le clip suivant ne demarre qu'a son temps de dessin reel (2300 ms).
     expect(windows.map((w) => [w.startMs, w.endMs])).toEqual([
-      [0, 2000],
-      [2000, 5300],
+      [0, 2300],
+      [2300, 5300],
     ]);
+    expect(windows[0].drawStartMs).toBe(0);
+    expect(windows[0].drawEndMs).toBe(2000);
+    expect(windows[1].drawStartMs).toBe(2300);
+    expect(windows[1].drawEndMs).toBe(5300);
   });
 
   it("donne une fenetre a une image qui ne dessine rien", () => {

@@ -77,13 +77,13 @@ export const storyboardPanelSchema = z.object({
 });
 export type StoryboardPanel = z.infer<typeof storyboardPanelSchema>;
 
-// Ordre du parcours. Le whiteboard vient APRES la voix : le dessin est cale sur
+// Ordre du parcours. Le whiteboard vient APRES le storyboard : le dessin est cale sur
 // la narration, il faut donc que celle-ci existe avant d'entrer dans l'editeur.
+// La voix est choisie directement dans le prompt step.
 export const workflowStepSchema = z.enum([
   "prompt",
   "scriptValidation",
   "storyboard",
-  "voiceChoice",
   "whiteboard",
 ]);
 export type WorkflowStep = z.infer<typeof workflowStepSchema>;

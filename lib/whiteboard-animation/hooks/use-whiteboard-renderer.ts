@@ -799,7 +799,14 @@ export function useWhiteboardRenderer({
           const globalEnd = localSpan + clipOffsetMsRef.current;
           // Force : la fin du trace est un instant qu'on doit voir a l'ecran,
           // pas au prochain creneau de publication.
-          publishTime(globalEnd, true);
+          //
+          // On publie la position REELLE, pas `globalEnd`. Poser globalEnd
+          // tirait l'horloge en avant chaque fois que le trace s'achevait
+          // avant la fin de sa fenetre — mesure : des bonds de 12 s et 15 s,
+          // le dernier atterrissant a 88161 pour une fenetre finissant a
+          // 88912. Le temps appartient a l'horloge murale ; finir de dessiner
+          // ne le deplace pas, cela ne fait que tenir l'image jusqu'au bout.
+          publishTime(engineTimeRef.current, true);
           if (globalEnd >= s.timeline.duration - 1) {
             // No narration left to play out: the video ends with the drawing.
             stoppedRef.current = true;

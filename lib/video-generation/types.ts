@@ -59,6 +59,16 @@ export const languageSchema = z.enum([
 ]);
 export type Language = z.infer<typeof languageSchema>;
 
+// Hand styles for animation
+export const handStyleSchema = z.enum([
+  "custom1",
+  "custom2",
+  "custom3",
+  "custom4",
+  "ghost",
+]);
+export type HandStyle = z.infer<typeof handStyleSchema>;
+
 // Video generation request schema
 export const videoGenerationSchema = z.object({
   content: z.string().min(10, "Content must be at least 10 characters"),
@@ -66,6 +76,7 @@ export const videoGenerationSchema = z.object({
   style: styleSchema,
   aspectRatio: aspectRatioSchema.default("16:9"),
   language: languageSchema.default("en"),
+  handStyle: handStyleSchema.default("custom1"),
   customInstructions: z.string().optional(),
   narrativeVoiceId: z.string().optional(),
   narrativeStyle: z.string().optional(),

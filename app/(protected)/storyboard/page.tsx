@@ -72,9 +72,7 @@ import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
 const STEPS = [
   { key: "prompt", label: "Prompt", icon: Wand2 },
   { key: "scriptValidation", label: "Script", icon: Settings },
-  { key: "storyboard", label: "Storyboard", icon: Layers },
-  { key: "voiceChoice", label: "Voice", icon: Film },
-  { key: "whiteboard", label: "Whiteboard", icon: Settings },
+  { key: "storyboard", label: "Storyboard", icon: Layers },  { key: "whiteboard", label: "Whiteboard", icon: Settings },
 ] as const;
 
 /**
@@ -1648,7 +1646,7 @@ export default function StoryboardPage() {
                     <Button
                       onClick={() => {
                         syncClipsToStore(editableClips, generatedImages);
-                        setStep("voiceChoice");
+                        setStep("whiteboard");
                       }}
                       size="sm"
                       className="bg-primary hover:bg-primary/90"
@@ -1907,7 +1905,7 @@ export default function StoryboardPage() {
                 <Button
                   onClick={() => {
                     syncClipsToStore(editableClips, generatedImages);
-                    setStep("voiceChoice");
+                    setStep("whiteboard");
                   }}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                 >
@@ -1926,300 +1924,17 @@ export default function StoryboardPage() {
               onConfigChange={(updates) =>
                 setWhiteboardConfig(updates)
               }
-              onNavigateBack={() => setStep("voiceChoice")}
+              onNavigateBack={() => setStep("whiteboard")}
               nextLabel="Save project"
               onNavigateNext={() => void handleSaveProgress()}
             />
           )}
 
-          {step === "voiceChoice" &&
-            generatedImages.length > 0 &&
-            !isGeneratingNarration && (
-              <div className="max-w-6xl mx-auto space-y-8 pt-6">
-                <div className="flex items-start justify-between gap-6">
-                  <div className="space-y-2 flex-1">
-                    <h2 className="text-3xl font-bold">Pick a voice</h2>
-                    <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-                      Every voice reads your script in{" "}
-                      <span className="font-medium text-foreground">
-                        {LANGUAGE_LABELS[projectParams.language] ??
-                          projectParams.language}
-                      </span>
-                      . They are multilingual and carry no description on
-                      purpose — listening is the only honest way to tell them
-                      apart.
-                    </p>
-                  </div>
-
-                  <div className="flex gap-3 pt-1 shrink-0">
-                    <Button
-                      variant="outline"
-                      onClick={() => setStep("storyboard")}
-                      size="sm"
-                    >
-                      ← Back
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => void replanAnnotations()}
-                      disabled={isPlanningAnnotations}
-                      size="sm"
-                      title="Re-place the annotations from the narration already recorded, without synthesising it again"
-                    >
-                      {isPlanningAnnotations ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Planning...
-                        </>
-                      ) : (
-                        "Re-plan annotations"
-                      )}
-                    </Button>
-                    <Button
-                      onClick={() => void handleVoiceSelected(selectedVoice)}
-                      className="bg-primary hover:bg-primary/90"
-                      size="sm"
-                    >
-                      <Check className="w-4 h-4 mr-2" />
-                      Continue
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                  {/* Une voix par rangee, l'ecoute au premier plan. Les grandes
-                      vignettes d'avant promettaient une difference visuelle qui
-                      n'existe pas : rien ne separe ces voix a l'oeil. */}
-                  <div
-                    role="radiogroup"
-                    aria-label="Narration voice"
-                    className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2"
-                  >
-                    {VOICES.map((voice) => {
-                      const isSelected = selectedVoice === voice;
-                      const isPlaying = previewingVoice === voice;
-                      return (
-                        <div
-                          key={voice}
-                          className={cn(
-                            "relative flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors",
-                            isSelected
-                              ? "border-primary/60 bg-primary/5"
-                              : "border-border/60 bg-card hover:border-border",
-                          )}
-                        >
-                          {/* Etendue sur toute la rangee : on choisit d'un clic
-                              n'importe ou, sans imbriquer un bouton dans un
-                              autre — ce que le HTML interdit. */}
-                          <button
-                            type="button"
-                            role="radio"
-                            aria-checked={isSelected}
-                            onClick={() => setSelectedVoice(voice)}
-                            className="absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                          >
-                            <span className="sr-only">Use {voice}</span>
-                          </button>
-
-                          <span
-                            className={cn(
-                              "pointer-events-none flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                              isSelected
-                                ? "bg-primary/15 text-primary"
-                                : "bg-muted text-muted-foreground",
-                            )}
-                          >
-                            {VOICE_INITIALS[voice] ?? voice[0].toUpperCase()}
-                          </span>
-
-                          <span className="pointer-events-none flex-1 truncate text-sm font-medium capitalize text-foreground">
-                            {voice}
-                          </span>
-
-                          {isSelected && (
-                            <Check className="pointer-events-none h-4 w-4 shrink-0 text-primary" />
-                          )}
-
-                          <button
-                            type="button"
-                            onClick={() => void playVoicePreview(voice)}
-                            disabled={previewingVoice !== null}
-                            className={cn(
-                              "relative z-10 flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-colors",
-                              "text-muted-foreground hover:bg-muted hover:text-foreground",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                              "disabled:opacity-50",
-                            )}
-                          >
-                            {isPlaying ? (
-                              <>
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                Playing
-                              </>
-                            ) : (
-                              <>
-                                <Volume2 className="h-3 w-3" />
-                                Listen
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <aside className="space-y-2">
-                    <AudioPanel />
-                    {/* Le store fait primer la narration produite sur cette
-                        piste : le taire laissait croire qu'un televersement
-                        remplace la voix generee. */}
-                    <p className="px-1 text-xs text-muted-foreground">
-                      Generating narration takes precedence over an uploaded
-                      track.
-                    </p>
-                  </aside>
-                </div>
-              </div>
-            )}
 
           {/* Sans clips, le bloc ci-dessus ne rend RIEN : l'ecran restait
               vide et sans issue. Mieux vaut dire ce qui manque et rouvrir le
               chemin qui le produit. */}
-          {step === "voiceChoice" &&
-            !isGeneratingNarration &&
-            generatedImages.length === 0 && (
-              <div className="mx-auto max-w-md pt-20 text-center">
-                <h2 className="text-lg font-semibold">No clips to narrate yet</h2>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Build the storyboard and generate its visuals first — the
-                  narration is timed against them.
-                </p>
-                <Button
-                  variant="outline"
-                  className="mt-6"
-                  onClick={() => setStep("storyboard")}
-                >
-                  Back to storyboard
-                </Button>
-              </div>
-            )}
 
-          {step === "voiceChoice" && isGeneratingNarration && (
-            <div className="flex justify-center pt-12">
-              <div className="w-full">
-                <div className="w-full max-w-lg mx-auto px-4">
-                  <div className="space-y-8">
-                    {/* Animated Waveform */}
-                    <div className="flex justify-center items-end gap-1 h-20">
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                        <div
-                          key={i}
-                          className="w-1.5 bg-primary rounded-full"
-                          style={{
-                            height: `${Math.sin(i * 0.5) * 30 + 40}%`,
-                            animation: `wave 0.6s ease-in-out infinite`,
-                            animationDelay: `${i * 0.1}s`,
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    {/* Title & Description */}
-                    <div className="text-center space-y-3">
-                      <h2 className="text-3xl font-bold text-foreground">
-                        Generating Narration
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        Processing your audio with the selected voice
-                      </p>
-                    </div>
-
-                    {/* Progress Card */}
-                    <div className="p-6 border border-border/50 rounded-lg bg-gradient-to-br from-card to-card/60 space-y-6">
-                      {/* Progress Bar */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            Processing
-                          </span>
-                          <span className="text-sm font-bold text-primary">
-                            {Math.round(narrationProgress)}%
-                          </span>
-                        </div>
-                        <div className="w-full bg-muted/50 rounded-full h-2.5 overflow-hidden border border-border/50">
-                          <div
-                            className="bg-gradient-to-r from-primary to-primary/70 h-full rounded-full transition-all duration-300"
-                            style={{ width: `${narrationProgress}%` }}
-                          />
-                        </div>
-                      </div>
-
-                      {/* Status Steps */}
-                      <div className="space-y-3">
-                        {[
-                          { label: "Preparing audio", min: 0, max: 30 },
-                          { label: "Processing voice", min: 30, max: 70 },
-                          { label: "Placing annotations", min: 70, max: 100 },
-                        ].map((step, idx) => (
-                          <div key={idx} className="flex items-center gap-3">
-                            <div
-                              className={cn(
-                                "w-6 h-6 rounded-full flex items-center justify-center transition-all flex-shrink-0",
-                                narrationProgress >= step.max
-                                  ? "bg-green-500/20 border border-green-500/50"
-                                  : narrationProgress > step.min
-                                    ? "bg-primary/20 border border-primary/50"
-                                    : "bg-muted border border-border/50",
-                              )}
-                            >
-                              {narrationProgress >= step.max ? (
-                                <Check className="w-4 h-4 text-green-500" />
-                              ) : narrationProgress > step.min ? (
-                                <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                              ) : (
-                                <div className="w-2 h-2 bg-muted-foreground rounded-full" />
-                              )}
-                            </div>
-                            <span
-                              className={cn(
-                                "text-sm transition-colors font-medium",
-                                narrationProgress >= step.max
-                                  ? "text-green-600 dark:text-green-400"
-                                  : narrationProgress > step.min
-                                    ? "text-foreground"
-                                    : "text-muted-foreground",
-                              )}
-                            >
-                              {step.label}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Estimated Time */}
-                      <div className="pt-4 border-t border-border/30">
-                        <p className="text-xs text-center text-muted-foreground">
-                          Estimated time remaining: ~
-                          {Math.max(
-                            1,
-                            Math.round((100 - narrationProgress) / 20),
-                          )}
-                          s
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <style>{`
-                  @keyframes wave {
-                    0%, 100% { transform: scaleY(0.5); opacity: 0.6; }
-                    50% { transform: scaleY(1); opacity: 1; }
-                  }
-                `}</style>
-                </div>
-              </div>
-            </div>
-          )}
 
         </div>
 
