@@ -571,20 +571,21 @@ export function WhiteboardEditorStep({
           justifie le rail : elle a besoin de toute la hauteur disponible, la ou
           deux controles seuls ne la remplissaient pas. */}
       <div className="w-72 shrink-0 min-h-0 flex flex-col gap-3">
-
-        <AnnotationListPanel className="flex-1" />
-
-        <div className="flex shrink-0 gap-2 border-t pt-3">
-          <Button variant="outline" onClick={onNavigateBack} className="flex-1">
+        <div className="flex shrink-0 gap-2 border-b pb-3">
+          <Button variant="outline" size="sm" onClick={onNavigateBack} className="flex-1">
             ← Back
           </Button>
           <Button
+            size="sm"
             onClick={onNavigateNext}
             className="flex-1 bg-primary hover:bg-primary/90"
           >
             {nextLabel}
           </Button>
         </div>
+
+        <AnnotationListPanel className="flex-1" />
+
       </div>
     </div>
   );
