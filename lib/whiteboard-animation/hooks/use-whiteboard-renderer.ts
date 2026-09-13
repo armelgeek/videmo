@@ -1474,6 +1474,61 @@ export function useWhiteboardRenderer({
     };
   }, [isPlaying, imageLoaded, audioClock.manager]);
 
+  // ---- preparation des regions ---------------------------------------------
+
+  // Le setup d'une region coute jusqu'a ~90 ms (illust, outlinefill) : paye a
+  // son entree, il gelait le dessin au passage d'une annotation a la suivante.
+  // A l'arret, on le calcule d'avance, une region par temps mort ; le moteur
+  // de lecture le retrouve dans le cache de la feuille.
+  useEffect(() => {
+    if (isPlaying || !imageLoaded) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || !imageRef.current) return;
+
+    const win = window as Window & {
+      requestIdleCallback?: (cb: (d: { timeRemaining: () => number }) => void) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let handle: number | null = null;
+    let cancelled = false;
+    let prep: any = null;
+    let index = 0;
+
+    const step = (deadline?: { timeRemaining: () => number }) => {
+      if (cancelled) return;
+      if (!deadline || deadline.timeRemaining() >= 20) {
+        if (!prep) {
+          const store = useUnifiedEngineStore.getState();
+          prep = AnimationFactory.create(animStyle, {
+            state: {
+              canvasW: canvas.width,
+              canvasH: canvas.height,
+              animStyle,
+              contentBounds: rectArtwork(canvas),
+              annotations: deriveTimeline(sansAttenteInitiale(store.animation.annotations)).annotations,
+            },
+            ctx,
+            hctx: ctx,
+            offscreen: ensureOffscreen(canvas),
+          });
+        }
+        if (!prep.prepareRegion?.(index++)) return;
+      }
+      handle = win.requestIdleCallback
+        ? win.requestIdleCallback(step)
+        : window.setTimeout(() => step(), 50);
+    };
+    handle = win.requestIdleCallback ? win.requestIdleCallback(step) : window.setTimeout(() => step(), 50);
+
+    return () => {
+      cancelled = true;
+      if (handle === null) return;
+      if (win.cancelIdleCallback) win.cancelIdleCallback(handle);
+      else window.clearTimeout(handle);
+    };
+  }, [isPlaying, imageLoaded, annotations, animStyle, canvasWidth, canvasHeight]);
+
   // ---- seek ---------------------------------------------------------------
 
   // Pas fixe utilise pour rejouer le moteur jusqu'a la position cherchee. La
