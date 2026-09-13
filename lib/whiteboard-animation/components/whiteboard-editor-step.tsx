@@ -465,10 +465,11 @@ export function WhiteboardEditorStep({
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
+        <ScriptSegmentsCard
+          sceneStartMs={panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0}
+        />
+
         <div className="relative shrink-0 rounded-xl border border-border bg-card overflow-hidden">
-          <ScriptSegmentsCard
-            sceneStartMs={panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0}
-          />
           <AnnotationTimeline
             onViewportChange={setTimelineViewport}
             globalAnnotations={allAnnotations}

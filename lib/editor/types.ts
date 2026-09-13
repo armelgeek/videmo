@@ -50,6 +50,7 @@ export interface TimelineClip {
     duration: number // Duration of the transition in seconds
   }
   isAudioDetached?: boolean // If true, audio waveform is hidden and player is muted for this clip
+  color?: string // Border colour, replacing the track's accent
   effects?: ClipEffects
   textOverlay?: TextOverlayStyle
   fadeIn?: number // Duration in seconds for fade-in (0 = no fade)

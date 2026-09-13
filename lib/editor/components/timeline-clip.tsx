@@ -57,6 +57,11 @@ export const TimelineClipItem = memo(
           ? "bg-emerald-900/60 border-emerald-400 z-20 ring-1 ring-emerald-400 shadow-md"
           : "bg-[var(--surface-3)] border-[var(--tertiary)] z-20 ring-1 ring-[var(--tertiary)] shadow-md"
       : `${baseColor} ${hoverColor} border-transparent hover:border-[var(--border-emphasis)] z-10`
+    const tinted = clip.color
+      ? isSelected
+        ? "bg-[var(--surface-3)] z-20 shadow-md"
+        : "bg-[var(--surface-2)] hover:bg-[var(--surface-3)] z-10"
+      : null
 
     const lockedClass = isLocked ? "opacity-60 grayscale-[30%]" : ""
 
@@ -82,11 +87,15 @@ export const TimelineClipItem = memo(
         tabIndex={isLocked ? -1 : tabIndex}
         onKeyDown={onKeyDown}
         data-clip="true"
-        className={`clip-item absolute ${verticalPos} rounded-md overflow-visible ${cursorClass} flex flex-col ${borderClass} transition-colors select-none group/item ${selectedClass} ${lockedClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface-0)] focus-visible:ring-[var(--tertiary)]`}
+        className={`clip-item absolute ${verticalPos} rounded-md overflow-visible ${cursorClass} flex flex-col ${borderClass} transition-colors select-none group/item ${tinted ?? selectedClass} ${lockedClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface-0)] focus-visible:ring-[var(--tertiary)]`}
         style={{
           left: `${clip.start * zoomLevel}px`,
           width: `${clip.duration * zoomLevel}px`,
           opacity: track.isMuted ? 0.5 : undefined,
+          ...(clip.color && {
+            borderColor: isSelected ? clip.color : `color-mix(in srgb, ${clip.color} 70%, transparent)`,
+            borderWidth: isSelected ? 2 : 1,
+          }),
         }}
         onMouseDown={(e) => handleClipMouseDown(e, "move")}
         onContextMenu={onContextMenu}

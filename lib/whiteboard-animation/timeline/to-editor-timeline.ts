@@ -1,5 +1,6 @@
 import type { MediaItem, TimelineClip, Track } from "@/lib/editor/types";
 import type { DerivedTimeline } from "./derive-timeline";
+import { annotationColors } from "../schema";
 
 export const ANNOTATION_TRACK_ID = "annotations";
 
@@ -24,8 +25,14 @@ export function toEditorTimeline(derived: DerivedTimeline): EditorTimelineView {
   const clips: TimelineClip[] = [];
   const mediaMap: Record<string, MediaItem> = {};
 
+  // Same rank as on the canvas: counted within the annotation's own scene.
+  const rankByScene = new Map<string, number>();
+
   for (const annotation of derived.annotations) {
     const duration = toSeconds(annotation.reveal.durationMs);
+    const scene = annotation.id.match(/^p\d+-/)?.[0] ?? "";
+    const rank = rankByScene.get(scene) ?? 0;
+    rankByScene.set(scene, rank + 1);
 
     clips.push({
       id: annotation.id,
@@ -35,6 +42,7 @@ export function toEditorTimeline(derived: DerivedTimeline): EditorTimelineView {
       duration,
       offset: 0,
       speed: 1,
+      color: annotationColors(annotation, rank).stroke,
     });
 
     mediaMap[annotation.id] = {
