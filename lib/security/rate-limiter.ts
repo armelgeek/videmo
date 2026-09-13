@@ -1,105 +1,125 @@
+export interface RateLimitConfig {
+  limit: number;
+  windowSeconds: number;
+}
 
-
-interface RateLimitEntry {
-  count: number;
+export interface RateLimitResult {
+  success: boolean;
+  limit: number;
+  remaining: number;
   resetAt: number;
 }
 
-class RateLimiter {
-  private requests: Map<string, RateLimitEntry> = new Map();
-  private cleanupInterval: NodeJS.Timeout;
+/**
+ * Compte un appel sur `key` et rend le compte de la fenetre courante.
+ *
+ * Le compteur vivait dans la memoire de chaque instance : avec N instances, la
+ * limite reelle etait multipliee par N. Il est desormais en base, partage.
+ */
+export interface RateLimitBackend {
+  hit(key: string, windowSeconds: number): Promise<{ count: number; resetAt: number }>;
+}
 
-  constructor() {
-    
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
-    }, 5 * 60 * 1000);
-  }
+export class InMemoryRateLimitBackend implements RateLimitBackend {
+  readonly buckets = new Map<string, { count: number; resetAt: number }>();
 
-  check(identifier: string, maxRequests: number, windowMs: number): boolean {
+  async hit(key: string, windowSeconds: number) {
     const now = Date.now();
-    const entry = this.requests.get(identifier);
-
-    if (!entry || now > entry.resetAt) {
-      
-      this.requests.set(identifier, {
-        count: 1,
-        resetAt: now + windowMs,
-      });
-      return true;
+    const bucket = this.buckets.get(key);
+    if (!bucket || bucket.resetAt <= now) {
+      const fresh = { count: 1, resetAt: now + windowSeconds * 1000 };
+      this.buckets.set(key, fresh);
+      return { ...fresh };
     }
-
-    if (entry.count >= maxRequests) {
-      
-      return false;
-    }
-
-    entry.count++;
-    return true;
-  }
-
-  getRemaining(identifier: string, maxRequests: number): number {
-    const entry = this.requests.get(identifier);
-    if (!entry || Date.now() > entry.resetAt) {
-      return maxRequests;
-    }
-    return Math.max(0, maxRequests - entry.count);
-  }
-
-  getResetTime(identifier: string): number {
-    const entry = this.requests.get(identifier);
-    if (!entry) {
-      return 0;
-    }
-    return Math.max(0, entry.resetAt - Date.now());
-  }
-
-  private cleanup() {
-    const now = Date.now();
-    for (const [key, entry] of this.requests.entries()) {
-      if (now > entry.resetAt) {
-        this.requests.delete(key);
-      }
-    }
-  }
-
-  clear() {
-    this.requests.clear();
-  }
-
-  destroy() {
-    clearInterval(this.cleanupInterval);
-    this.requests.clear();
+    bucket.count++;
+    return { ...bucket };
   }
 }
 
-export const rateLimiter = new RateLimiter();
+/** Part des appels qui purgent au passage les fenetres expirees. */
+const CLEANUP_PROBABILITY = 0.01;
 
-export function createRateLimitMiddleware(
-  maxRequests: number = 10,
-  windowMs: number = 60 * 1000 
-) {
-  return (identifier: string) => {
-    const allowed = rateLimiter.check(identifier, maxRequests, windowMs);
+export class PrismaRateLimitBackend implements RateLimitBackend {
+  async hit(key: string, windowSeconds: number) {
+    const { prisma } = await import("@/lib/prisma");
+    // Une seule requete, atomique : lire puis ecrire laissait deux instances
+    // compter le meme appel. L'horloge est celle de la base, commune a toutes,
+    // en UTC : les colonnes sont sans fuseau et Prisma les lit comme UTC, alors
+    // que now() suit le fuseau de la session — fenetres decalees de 3 h mesurees.
+    const rows = await prisma.$queryRaw<{ count: number; reset_at: Date }[]>`
+      INSERT INTO rate_limit_buckets (key, count, reset_at)
+      VALUES (${key}, 1, timezone('utc', now()) + make_interval(secs => ${windowSeconds}))
+      ON CONFLICT (key) DO UPDATE SET
+        count = CASE WHEN rate_limit_buckets.reset_at <= timezone('utc', now())
+          THEN 1 ELSE rate_limit_buckets.count + 1 END,
+        reset_at = CASE WHEN rate_limit_buckets.reset_at <= timezone('utc', now())
+          THEN EXCLUDED.reset_at ELSE rate_limit_buckets.reset_at END
+      RETURNING count, reset_at`;
+
+    if (Math.random() < CLEANUP_PROBABILITY) {
+      void prisma.$executeRaw`DELETE FROM rate_limit_buckets WHERE reset_at < timezone('utc', now())`.catch(
+        () => {},
+      );
+    }
+
+    const row = rows[0];
+    return { count: Number(row.count), resetAt: new Date(row.reset_at).getTime() };
+  }
+}
+
+let backend: RateLimitBackend = new PrismaRateLimitBackend();
+
+/** Les tests passent le backend en memoire. */
+export function setRateLimitBackend(next: RateLimitBackend): void {
+  backend = next;
+}
+
+export async function rateLimit(
+  identifier: string,
+  config: RateLimitConfig = { limit: 10, windowSeconds: 60 },
+): Promise<RateLimitResult> {
+  try {
+    const { count, resetAt } = await backend.hit(`rl:${identifier}`, config.windowSeconds);
     return {
-      allowed,
-      remaining: rateLimiter.getRemaining(identifier, maxRequests),
-      resetAt: rateLimiter.getResetTime(identifier),
+      success: count <= config.limit,
+      limit: config.limit,
+      remaining: Math.max(0, config.limit - count),
+      resetAt,
+    };
+  } catch (error) {
+    // Une base indisponible ne doit pas fermer la connexion ni les paiements :
+    // on laisse passer, et on le dit.
+    console.error("[rate-limit] backend unavailable, allowing request:", error);
+    return {
+      success: true,
+      limit: config.limit,
+      remaining: config.limit,
+      resetAt: Date.now() + config.windowSeconds * 1000,
+    };
+  }
+}
+
+/** `resetAt` y est un DELAI en ms avant la remise a zero, comme avant. */
+export function createRateLimitMiddleware(maxRequests = 10, windowMs = 60 * 1000) {
+  return async (identifier: string) => {
+    const result = await rateLimit(identifier, {
+      limit: maxRequests,
+      windowSeconds: Math.ceil(windowMs / 1000),
+    });
+    return {
+      allowed: result.success,
+      remaining: result.remaining,
+      resetAt: Math.max(0, result.resetAt - Date.now()),
     };
   };
 }
 
-export function getClientIdentifier(
-  headers: Headers,
-  fallback: string = "unknown"
-): string {
-  
+export function getClientIdentifier(headers: Headers, fallback = "unknown"): string {
   const forwarded = headers.get("x-forwarded-for");
   const realIp = headers.get("x-real-ip");
   const cfConnectingIp = headers.get("cf-connecting-ip");
 
   if (forwarded) {
-    
     return forwarded.split(",")[0].trim();
   }
 
@@ -114,72 +134,6 @@ export function getClientIdentifier(
   return fallback;
 }
 
-export interface RateLimitConfig {
-  
-  limit: number;
-  
-  windowSeconds: number;
-}
-
-export interface RateLimitResult {
-  success: boolean;
-  limit: number;
-  remaining: number;
-  resetAt: number;
-}
-
-const store = new Map<string, RateLimitEntry>();
-
-if (typeof setInterval !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of store.entries()) {
-      if (entry.resetAt < now) {
-        store.delete(key);
-      }
-    }
-  }, 5 * 60 * 1000);
-}
-
-export function rateLimit(
-  identifier: string,
-  config: RateLimitConfig = { limit: 10, windowSeconds: 60 }
-): RateLimitResult {
-  const now = Date.now();
-  const windowMs = config.windowSeconds * 1000;
-  const key = `rl:${identifier}`;
-
-  const existing = store.get(key);
-
-  if (!existing || existing.resetAt < now) {
-    const entry: RateLimitEntry = { count: 1, resetAt: now + windowMs };
-    store.set(key, entry);
-    return {
-      success: true,
-      limit: config.limit,
-      remaining: config.limit - 1,
-      resetAt: entry.resetAt,
-    };
-  }
-
-  if (existing.count >= config.limit) {
-    return {
-      success: false,
-      limit: config.limit,
-      remaining: 0,
-      resetAt: existing.resetAt,
-    };
-  }
-
-  existing.count++;
-  return {
-    success: true,
-    limit: config.limit,
-    remaining: config.limit - existing.count,
-    resetAt: existing.resetAt,
-  };
-}
-
 export const authRateLimit = (ip: string) =>
   rateLimit(`auth:${ip}`, { limit: 10, windowSeconds: 60 });
 
@@ -188,3 +142,26 @@ export const passwordResetRateLimit = (ip: string) =>
 
 export const signupRateLimit = (ip: string) =>
   rateLimit(`signup:${ip}`, { limit: 5, windowSeconds: 60 });
+
+/**
+ * AI generation, per user: every call is billed by the provider and holds a
+ * request for minutes. Images get a wider budget because a storyboard asks for
+ * one per scene.
+ */
+const AI_LIMITS = {
+  images: { limit: 120, windowSeconds: 600 },
+  narration: { limit: 60, windowSeconds: 600 },
+  script: { limit: 20, windowSeconds: 600 },
+  storyboard: { limit: 20, windowSeconds: 600 },
+} as const;
+
+export const aiGenerationRateLimit = (userId: string, kind: keyof typeof AI_LIMITS) =>
+  rateLimit(`ai:${kind}:${userId}`, AI_LIMITS[kind]);
+
+export function tooManyGenerations(resetAt: number): Response {
+  const retryAfter = Math.max(1, Math.ceil((resetAt - Date.now()) / 1000));
+  return Response.json(
+    { error: "Trop de generations en peu de temps. Reessayez dans quelques minutes." },
+    { status: 429, headers: { "Retry-After": String(retryAfter) } },
+  );
+}

@@ -5,6 +5,7 @@ import {
   ImageGeneratorNotConfiguredError,
 } from "@/lib/image/image-generator";
 import { getImageGenerator } from "@/lib/image/openai-image-generator";
+import { encodeSceneImage, ensurePng } from "@/lib/image/scene-image-format";
 import {
   StorageNotConfiguredError,
   buildImageKey,
@@ -17,6 +18,7 @@ import {
 } from "@/lib/storyboard/image-generation";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
+import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
 
 // Une image prend plusieurs dizaines de secondes, l'envoi au bac s'y ajoute.
 export const maxDuration = 180;
@@ -31,7 +33,8 @@ async function fetchReference(url: string): Promise<Uint8Array | undefined> {
   try {
     const response = await fetch(url);
     if (!response.ok) return undefined;
-    return new Uint8Array(await response.arrayBuffer());
+    // Scenes are now stored as WebP; the edits endpoint receives a PNG.
+    return await ensurePng(new Uint8Array(await response.arrayBuffer()));
   } catch {
     return undefined;
   }
@@ -40,6 +43,8 @@ async function fetchReference(url: string): Promise<Uint8Array | undefined> {
 export async function POST(request: NextRequest) {
   try {
     const viewer = await requireViewer();
+    const limit = await aiGenerationRateLimit(viewer.userId, "images");
+    if (!limit.success) return tooManyGenerations(limit.resetAt);
     const input = generateImageRequestSchema.parse(await request.json());
 
     // Generer coute de l'argent : le droit d'ecrire sur CE projet est verifie
@@ -67,13 +72,15 @@ export async function POST(request: NextRequest) {
       reference,
     });
 
+    const encoded = await encodeSceneImage(image);
     const url = await storage.put({
       key: buildImageKey({
         projectId: input.projectId,
         sceneIndex: input.sceneIndex,
+        extension: encoded.extension,
       }),
-      body: image,
-      contentType: "image/png",
+      body: encoded.body,
+      contentType: encoded.contentType,
     });
 
     return NextResponse.json({ url });

@@ -16,6 +16,7 @@ import { TranscriptionFailedError } from "@/lib/speech/transcriber";
 import { alignBeats, type TranscriptWord } from "@/lib/speech/beat-alignment";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
+import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
 
 // Environ trois secondes par scene, plus l'envoi au bac.
 export const maxDuration = 120;
@@ -43,6 +44,8 @@ const requestSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const viewer = await requireViewer();
+    const limit = await aiGenerationRateLimit(viewer.userId, "narration");
+    if (!limit.success) return tooManyGenerations(limit.resetAt);
     const input = requestSchema.parse(await request.json());
 
     // Synthetiser coute de l'argent : le droit d'ecrire sur CE projet est

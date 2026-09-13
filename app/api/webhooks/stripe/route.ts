@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
   const requestHeaders = await headers();
   const clientIp = getClientIdentifier(requestHeaders);
 
-  const rateLimit = rateLimiter(clientIp);
+  const rateLimit = await rateLimiter(clientIp);
   if (!rateLimit.allowed) {
     auditLogger.logSecurity(
       AuditEventType.RATE_LIMIT_EXCEEDED,
@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const eventGuard = createEventGuard(event.id, event.type, event.created);
+  const eventGuard = await createEventGuard(event.id, event.type, event.created);
   if (!eventGuard.shouldProcess) {
     auditLogger.logWebhook(
       AuditEventType.WEBHOOK_PROCESSING_ERROR,
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
         );
     }
 
-    eventGuard.markProcessed();
+    await eventGuard.markProcessed();
 
     return NextResponse.json(
       { received: true },
@@ -160,6 +160,9 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (error) {
+    // Rendu a Stripe : son renvoi doit pouvoir le traiter, et non le trouver
+    // deja reclame.
+    await eventGuard.release();
     auditLogger.logWebhook(
       AuditEventType.WEBHOOK_PROCESSING_ERROR,
       "failure",

@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { DEFAULT_ANIM_STYLE } from "../schema";
 import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import * as selectors from "@/lib/unified-engine/hooks/selectors";
@@ -266,7 +267,7 @@ export function WhiteboardEditorStep({
   );
 
   // Enable canvas rendering.
-  const { isOverlayHidden, isScrubbing } = useWhiteboardRenderer({
+  const { isOverlayHidden, isScrubbing, isPreparingArtwork } = useWhiteboardRenderer({
     canvasRef,
     canvasWidth,
     canvasHeight,
@@ -301,6 +302,18 @@ export function WhiteboardEditorStep({
     clips: clipWindows,
     onError: signalerErreurRendu,
   });
+
+  // Une scene deja preparee arrive en quelques ms : l'indicateur n'apparait
+  // qu'au-dela, sinon il clignoterait a chaque bascule.
+  const [showPreparing, setShowPreparing] = useState(false);
+  useEffect(() => {
+    if (!isPreparingArtwork) {
+      setShowPreparing(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowPreparing(true), 150);
+    return () => clearTimeout(timer);
+  }, [isPreparingArtwork]);
 
   // Lu dans un effet declenche par le clip actif, pas par le scrub : une valeur
   // en dependance le ferait courir apres l'etat au lieu de le consulter.
@@ -448,6 +461,18 @@ export function WhiteboardEditorStep({
             height={canvasHeight}
             className="absolute inset-0 w-full h-full object-contain pointer-events-none z-20"
           />
+          {showPreparing && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="absolute inset-0 z-30 flex items-center justify-center bg-background/30 pointer-events-none"
+            >
+              <div className="flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                Préparation de la scène…
+              </div>
+            </div>
+          )}
           {/* Calque d'edition des annotations. Il masque le dessin qu'on est
               venu regarder : il s'efface donc pendant la lecture et revient a
               l'arret, fin de lecture comprise — d'ou isOverlayHidden, que

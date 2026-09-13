@@ -395,3 +395,47 @@ model Annotation {
 
   @@index([clipId])
 }
+
+/// Un export video. L'etat vit en base pour que toutes les instances le voient :
+/// suivi, annulation et telechargement peuvent tomber sur une autre que celle
+/// qui rend. heartbeatAt avance pendant le rendu ; au-dela d'un delai sans
+/// signal, l'instance est tenue pour morte et le job libere sa place.
+model RenderJob {
+  id          String   @id
+  userId      String   @map("user_id")
+  status      String   @db.VarChar(20)
+  progress    Int      @default(0)
+  outputKey   String?  @map("output_key")
+  error       String?  @db.Text
+  heartbeatAt DateTime @default(now()) @map("heartbeat_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([status, heartbeatAt])
+  @@index([userId, status])
+  @@index([createdAt])
+  @@map("render_jobs")
+}
+
+/// Compteur de rate limit partage par toutes les instances.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime @map("reset_at")
+
+  @@index([resetAt])
+  @@map("rate_limit_buckets")
+}
+
+/// Evenement de webhook reclame par une instance. completedAt nul et claimedAt
+/// ancien : l'instance est tombee en plein traitement, un nouvel envoi peut le
+/// reprendre.
+model ProcessedWebhookEvent {
+  id          String    @id
+  type        String
+  claimedAt   DateTime  @default(now()) @map("claimed_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@index([claimedAt])
+  @@map("processed_webhook_events")
+}

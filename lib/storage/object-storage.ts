@@ -15,6 +15,21 @@ export interface ObjectStorage {
     body: Uint8Array;
     contentType: string;
   }): Promise<string>;
+
+  /** Envoie un fichier local en flux : une video ne tient pas en memoire. */
+  putFile(input: { key: string; path: string; contentType: string }): Promise<void>;
+
+  /** Relit un objet en flux, `null` s'il n'existe pas. */
+  getStream(
+    key: string,
+  ): Promise<{ body: ReadableStream<Uint8Array>; contentLength: number | null } | null>;
+
+  delete(key: string): Promise<void>;
+}
+
+/** La video d'un export. L'id de job est un UUID : la cle n'est pas devinable. */
+export function buildRenderKey(userId: string, jobId: string): string {
+  return `renders/${userId.replace(/[^A-Za-z0-9_-]/g, "")}/${jobId}.mp4`;
 }
 
 export class StorageNotConfiguredError extends Error {
@@ -56,6 +71,18 @@ export function readS3Config(
 ): S3Config {
   const missing = REQUIRED_VARS.filter((name) => !env[name]?.trim());
   if (missing.length > 0) throw new StorageNotConfiguredError(missing);
+
+  // Une page https ne peut pas lire les pixels d'une illustration servie en
+  // http (contenu mixte) : l'animation ne demarrerait pas, et l'optimiseur
+  // d'images refuse aussi ce bac. Seul un bac local reste permis, pour tester
+  // un build de production sur sa machine.
+  if (env.NODE_ENV === "production") {
+    const url = new URL(env.S3_PUBLIC_URL as string);
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (url.protocol !== "https:" && !local) {
+      throw new StorageNotConfiguredError(["S3_PUBLIC_URL (https requis en production)"]);
+    }
+  }
 
   return {
     endpoint: env.S3_ENDPOINT as string,
@@ -135,5 +162,26 @@ export class InMemoryObjectStorage implements ObjectStorage {
       contentType: input.contentType,
     });
     return buildPublicUrl(this.publicUrl, input.key);
+  }
+
+  async putFile(input: { key: string; path: string; contentType: string }): Promise<void> {
+    const { readFile } = await import("node:fs/promises");
+    this.objects.set(input.key, {
+      body: new Uint8Array(await readFile(input.path)),
+      contentType: input.contentType,
+    });
+  }
+
+  async getStream(key: string) {
+    const object = this.objects.get(key);
+    if (!object) return null;
+    return {
+      body: new Response(object.body as unknown as BodyInit).body as ReadableStream<Uint8Array>,
+      contentLength: object.body.length,
+    };
+  }
+
+  async delete(key: string): Promise<void> {
+    this.objects.delete(key);
   }
 }

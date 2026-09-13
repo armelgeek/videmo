@@ -1,156 +1,300 @@
 import { randomUUID } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+
+export type RenderStatus = "pending" | "rendering" | "done" | "error" | "cancelled";
 
 export interface RenderJob {
   id: string;
   userId: string;
-  status: "pending" | "rendering" | "done" | "error" | "cancelled";
+  status: RenderStatus;
   progress: number;
-  outputPath: string | null;
+  /** Cle de la video dans le bac, une fois envoyee. */
+  outputKey: string | null;
   error: string | null;
   createdAt: Date;
 }
 
-interface Entree {
-  job: RenderJob;
-  child: { kill: () => void } | null;
-}
+export type RenderPatch = Partial<Pick<RenderJob, "status" | "progress" | "outputKey" | "error">>;
+
+/** Pourquoi une place est refusee : l'utilisateur a deja un rendu, ou le parc est plein. */
+export type Refusal = "user" | "global";
+
+const ACTIVE: RenderStatus[] = ["pending", "rendering"];
+const isActive = (status: RenderStatus) => ACTIVE.includes(status);
 
 /**
- * L'etat des rendus vit sur le DISQUE, a cote des videos.
- *
- * Un simple Map ne tient pas : Next recompile ses routes a chaud — le log
- * montre un `compile:` sur presque chaque requete — et chaque recompilation
- * remet l'etat du module a zero. Le job disparaissait alors en pleine
- * progression, avec un 404, pendant que sa video s'ecrivait sur le disque.
- * Observe deux fois en conditions reelles.
- *
- * Le Map reste comme cache et comme seul endroit ou vit la reference du process
- * enfant, qu'on ne peut pas serialiser.
+ * Sans signal de vie depuis ce delai, l'instance qui rendait est tenue pour
+ * morte : son job passe en erreur et libere sa place. La route emet un signal
+ * toutes les 30 s, meme quand une frame lente retient la progression.
  */
-const jobs = new Map<string, Entree>();
-
-const dossier = () =>
-  process.env.RENDER_OUTPUT_DIR || join(process.cwd(), ".renders");
+export const STALE_AFTER_MS = 2 * 60 * 1000;
+export const STALE_ERROR = "Rendu interrompu : le serveur qui le produisait s'est arrete";
 
 /**
- * Un id de job est un UUID, et rien d'autre.
- *
- * L'id arrive d'un segment d'URL et devient un CHEMIN de fichier. Sans ce
- * filtre, `../../quelque-chose` faisait lire un JSON hors du dossier des
- * rendus. Le seul producteur d'id etant randomUUID, restreindre a cette forme
- * ne coute rien.
+ * Un id de job est un UUID, et rien d'autre : il arrive d'un segment d'URL.
+ * Le seul producteur d'id etant randomUUID, restreindre a cette forme ne coute
+ * rien.
  */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const cheminEtat = (id: string) => join(dossier(), `${id}.json`);
+/** Cle du verrou Postgres qui serialise les reservations de toutes les instances. */
+const RENDER_LOCK_KEY = 72_406_001;
 
-function ecrire(job: RenderJob): void {
-  try {
-    mkdirSync(dossier(), { recursive: true });
-    writeFileSync(cheminEtat(job.id), JSON.stringify(job), "utf8");
-  } catch {
-    // Le disque peut refuser ; le cache memoire prend alors le relais tant que
-    // le module vit. Perdre l'etat vaut mieux que perdre le rendu.
-  }
+export interface RenderJobBackend {
+  /** Reserve une place et cree le job, ou dit pourquoi c'est refuse. Atomique. */
+  createIfCapacity(input: {
+    id: string;
+    userId: string;
+    perUser: number;
+    global: number;
+    now: Date;
+  }): Promise<RenderJob | Refusal>;
+  get(id: string): Promise<RenderJob | undefined>;
+  /** Signal de vie, progression facultative. false si le job n'est plus actif. */
+  touch(id: string, progress: number | null, now: Date): Promise<boolean>;
+  /** Conclut un job actif ; une conclusion deja prise n'est jamais defaite. */
+  finalize(id: string, patch: RenderPatch): Promise<boolean>;
+  cancel(id: string, userId: string): Promise<boolean>;
+  /** Retire et rend les jobs conclus crees avant `before`. */
+  takeExpired(before: Date): Promise<RenderJob[]>;
 }
 
-function lire(id: string): RenderJob | undefined {
-  try {
-    const brut = JSON.parse(readFileSync(cheminEtat(id), "utf8"));
-    if (!brut || typeof brut.id !== "string" || typeof brut.userId !== "string") {
-      return undefined;
+type Row = RenderJob & { heartbeatAt: Date };
+const strip = ({ heartbeatAt: _h, ...job }: Row): RenderJob => ({ ...job });
+
+export class InMemoryRenderJobBackend implements RenderJobBackend {
+  readonly rows = new Map<string, Row>();
+
+  private reapStale(now: Date) {
+    for (const row of this.rows.values()) {
+      if (isActive(row.status) && now.getTime() - row.heartbeatAt.getTime() > STALE_AFTER_MS) {
+        row.status = "error";
+        row.error = STALE_ERROR;
+      }
     }
-    return { ...brut, createdAt: new Date(brut.createdAt) } as RenderJob;
-  } catch {
-    return undefined;
+  }
+
+  async createIfCapacity({ id, userId, perUser, global, now }: Parameters<RenderJobBackend["createIfCapacity"]>[0]) {
+    this.reapStale(now);
+    const active = [...this.rows.values()].filter((r) => isActive(r.status));
+    if (active.filter((r) => r.userId === userId).length >= perUser) return "user" as const;
+    if (active.length >= global) return "global" as const;
+    const row: Row = {
+      id,
+      userId,
+      status: "rendering",
+      progress: 0,
+      outputKey: null,
+      error: null,
+      createdAt: now,
+      heartbeatAt: now,
+    };
+    this.rows.set(id, row);
+    return strip(row);
+  }
+
+  async get(id: string) {
+    const row = this.rows.get(id);
+    return row ? strip(row) : undefined;
+  }
+
+  async touch(id: string, progress: number | null, now: Date) {
+    const row = this.rows.get(id);
+    if (!row || !isActive(row.status)) return false;
+    if (progress !== null) row.progress = progress;
+    row.heartbeatAt = now;
+    return true;
+  }
+
+  async finalize(id: string, patch: RenderPatch) {
+    const row = this.rows.get(id);
+    if (!row || !isActive(row.status)) return false;
+    Object.assign(row, patch);
+    return true;
+  }
+
+  async cancel(id: string, userId: string) {
+    const row = this.rows.get(id);
+    if (!row || row.userId !== userId || !isActive(row.status)) return false;
+    row.status = "cancelled";
+    return true;
+  }
+
+  async takeExpired(before: Date) {
+    const expired: RenderJob[] = [];
+    for (const row of [...this.rows.values()]) {
+      if (!isActive(row.status) && row.createdAt < before) {
+        this.rows.delete(row.id);
+        expired.push(strip(row));
+      }
+    }
+    return expired;
   }
 }
 
-/** Vide le cache memoire. Sert aux tests a simuler une recompilation. */
-export function oublierJobsEnMemoire(): void {
-  jobs.clear();
+type PrismaRenderRow = {
+  id: string;
+  userId: string;
+  status: string;
+  progress: number;
+  outputKey: string | null;
+  error: string | null;
+  createdAt: Date;
+};
+
+const toJob = (row: PrismaRenderRow): RenderJob => ({
+  id: row.id,
+  userId: row.userId,
+  status: row.status as RenderStatus,
+  progress: row.progress,
+  outputKey: row.outputKey,
+  error: row.error,
+  createdAt: row.createdAt,
+});
+
+const db = async () => (await import("@/lib/prisma")).prisma;
+
+export class PrismaRenderJobBackend implements RenderJobBackend {
+  async createIfCapacity({ id, userId, perUser, global, now }: Parameters<RenderJobBackend["createIfCapacity"]>[0]) {
+    const prisma = await db();
+    return prisma.$transaction(async (tx) => {
+      // Le verrou serialise les reservations de TOUTES les instances : sans
+      // lui, deux exports simultanes comptaient la meme place libre.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${RENDER_LOCK_KEY}::bigint)`;
+      await tx.renderJob.updateMany({
+        where: {
+          status: { in: ACTIVE },
+          heartbeatAt: { lt: new Date(now.getTime() - STALE_AFTER_MS) },
+        },
+        data: { status: "error", error: STALE_ERROR },
+      });
+      const mine = await tx.renderJob.count({ where: { userId, status: { in: ACTIVE } } });
+      if (mine >= perUser) return "user" as const;
+      const all = await tx.renderJob.count({ where: { status: { in: ACTIVE } } });
+      if (all >= global) return "global" as const;
+      const row = await tx.renderJob.create({
+        data: { id, userId, status: "rendering", heartbeatAt: now, createdAt: now },
+      });
+      return toJob(row);
+    });
+  }
+
+  async get(id: string) {
+    const row = await (await db()).renderJob.findUnique({ where: { id } });
+    return row ? toJob(row) : undefined;
+  }
+
+  async touch(id: string, progress: number | null, now: Date) {
+    const { count } = await (await db()).renderJob.updateMany({
+      where: { id, status: { in: ACTIVE } },
+      data: { heartbeatAt: now, ...(progress !== null ? { progress } : {}) },
+    });
+    return count > 0;
+  }
+
+  async finalize(id: string, patch: RenderPatch) {
+    const { count } = await (await db()).renderJob.updateMany({
+      where: { id, status: { in: ACTIVE } },
+      data: patch,
+    });
+    return count > 0;
+  }
+
+  async cancel(id: string, userId: string) {
+    const { count } = await (await db()).renderJob.updateMany({
+      where: { id, userId, status: { in: ACTIVE } },
+      data: { status: "cancelled" },
+    });
+    return count > 0;
+  }
+
+  async takeExpired(before: Date) {
+    const prisma = await db();
+    const rows = await prisma.renderJob.findMany({
+      where: { status: { notIn: ACTIVE }, createdAt: { lt: before } },
+      take: 100,
+    });
+    if (rows.length > 0) {
+      await prisma.renderJob.deleteMany({ where: { id: { in: rows.map((r) => r.id) } } });
+    }
+    return rows.map(toJob);
+  }
 }
 
-export function createRenderJob(userId: string): RenderJob {
-  // randomUUID et non un compteur : l'id voyage dans une URL de telechargement,
-  // il ne doit pas etre devinable.
-  const job: RenderJob = {
+let backend: RenderJobBackend = new PrismaRenderJobBackend();
+
+/** Les tests passent le backend en memoire. */
+export function setRenderJobBackend(next: RenderJobBackend): void {
+  backend = next;
+}
+
+/**
+ * Les process enfants de CETTE instance. Un process ne se serialise pas : il
+ * reste ici, et une annulation recue ailleurs l'atteint au prochain signal de
+ * vie, qui trouve le job inactif.
+ */
+const children = new Map<string, { kill: () => void }>();
+
+/** Oublie les process connus. Sert aux tests a simuler une autre instance. */
+export function forgetLocalChildren(): void {
+  children.clear();
+}
+
+export async function reserveRenderJob(
+  userId: string,
+  limits: { perUser: number; global: number; perInstance: number },
+): Promise<RenderJob | Refusal> {
+  // Chaque rendu occupe un coeur de CETTE machine, quel que soit le parc.
+  if (children.size >= limits.perInstance) return "global";
+  return backend.createIfCapacity({
     id: randomUUID(),
     userId,
-    status: "pending",
-    progress: 0,
-    outputPath: null,
-    error: null,
-    createdAt: new Date(),
-  };
-  jobs.set(job.id, { job, child: null });
-  ecrire(job);
-  return job;
+    perUser: limits.perUser,
+    global: limits.global,
+    now: new Date(),
+  });
 }
 
-/** Le job, depuis le cache ou depuis le disque. Sans controle de proprietaire. */
-function charger(id: string): Entree | undefined {
+export async function getRenderJob(id: string, userId: string): Promise<RenderJob | undefined> {
   if (!UUID.test(id)) return undefined;
-  const e = jobs.get(id);
-  if (e) return e;
-  const job = lire(id);
-  if (!job) return undefined;
-  const rehydrate: Entree = { job, child: null };
-  jobs.set(id, rehydrate);
-  return rehydrate;
-}
-
-export function getRenderJob(id: string, userId: string): RenderJob | undefined {
-  const e = charger(id);
+  const job = await backend.get(id);
   // Le job d'un autre est traite comme inexistant : distinguer les deux
   // confirmerait son existence.
-  return e && e.job.userId === userId ? e.job : undefined;
+  return job && job.userId === userId ? job : undefined;
 }
 
 export function attachChild(id: string, child: { kill: () => void }): void {
-  const e = charger(id);
-  if (e) e.child = child;
+  children.set(id, child);
 }
-
-export function updateRenderJob(id: string, patch: Partial<RenderJob>): void {
-  const e = charger(id);
-  if (!e) return;
-  Object.assign(e.job, patch);
-  ecrire(e.job);
-}
-
-/** Un job qui a atteint l'un de ces etats n'en bouge plus. */
-const TERMINAUX = new Set(["done", "error", "cancelled"]);
 
 /**
- * Conclut un job, sans jamais revenir sur une conclusion deja prise.
- *
- * La sortie du process arrive APRES l'annulation : sans cette garde, un arret
- * volontaire se reafficherait en erreur. Et un 'done' deja recu ne doit pas
- * etre defait par le code de sortie qui le suit.
+ * Signal de vie et progression. Rend false si le job n'est plus actif — annule,
+ * y compris depuis une autre instance — et tue alors le process local.
  */
-export function finalizeRenderJob(id: string, patch: Partial<RenderJob>): void {
-  const e = charger(id);
-  if (!e || TERMINAUX.has(e.job.status)) return;
-  Object.assign(e.job, patch);
-  ecrire(e.job);
+export async function reportRenderProgress(id: string, progress: number | null): Promise<boolean> {
+  const active = await backend.touch(id, progress, new Date());
+  if (!active) {
+    children.get(id)?.kill();
+    children.delete(id);
+  }
+  return active;
 }
 
-export function cancelRenderJob(id: string, userId: string): boolean {
-  const e = charger(id);
-  if (!e || e.job.userId !== userId) return false;
-  // Un rendu deja conclu ne s'annule plus. Sans cette garde, un clic sur
-  // « Annuler » pendant la derniere seconde faisait passer un job 'done' a
-  // 'cancelled' : la video etait bien sur le disque, mais la route de
-  // telechargement, qui exige 'done', repondait 404. L'utilisateur perdait un
-  // rendu abouti.
-  if (TERMINAUX.has(e.job.status)) return false;
-  // Le process n'est connu que du module qui l'a lance : apres une
-  // recompilation il est hors de portee, mais l'etat reste juste.
-  e.child?.kill();
-  e.job.status = "cancelled";
-  ecrire(e.job);
-  return true;
+export async function finalizeRenderJob(id: string, patch: RenderPatch): Promise<boolean> {
+  children.delete(id);
+  return backend.finalize(id, patch);
+}
+
+export async function cancelRenderJob(id: string, userId: string): Promise<boolean> {
+  if (!UUID.test(id)) return false;
+  // Un rendu deja conclu ne s'annule plus : sa video reste telechargeable.
+  const cancelled = await backend.cancel(id, userId);
+  if (cancelled) {
+    children.get(id)?.kill();
+    children.delete(id);
+  }
+  return cancelled;
+}
+
+export async function takeExpiredRenders(maxAgeMs: number, now = Date.now()): Promise<RenderJob[]> {
+  return backend.takeExpired(new Date(now - maxAgeMs));
 }

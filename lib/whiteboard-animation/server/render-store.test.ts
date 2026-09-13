@@ -1,132 +1,154 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// @vitest-environment node
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  attachChild, cancelRenderJob, createRenderJob, finalizeRenderJob,
-  getRenderJob, oublierJobsEnMemoire, updateRenderJob,
+  InMemoryRenderJobBackend,
+  STALE_AFTER_MS,
+  STALE_ERROR,
+  attachChild,
+  cancelRenderJob,
+  finalizeRenderJob,
+  forgetLocalChildren,
+  getRenderJob,
+  reportRenderProgress,
+  reserveRenderJob,
+  setRenderJobBackend,
+  takeExpiredRenders,
+  type RenderJob,
 } from "./render-store";
 
-let dir: string;
+const LIMITS = { perUser: 1, global: 2, perInstance: 5 };
+let backend: InMemoryRenderJobBackend;
+
+async function reserve(userId: string, limits = LIMITS): Promise<RenderJob> {
+  const job = await reserveRenderJob(userId, limits);
+  if (typeof job === "string") throw new Error(`refused: ${job}`);
+  return job;
+}
 
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), "wb-store-"));
-  process.env.RENDER_OUTPUT_DIR = dir;
-  oublierJobsEnMemoire();
-});
-
-afterEach(() => {
-  rmSync(dir, { recursive: true, force: true });
-  delete process.env.RENDER_OUTPUT_DIR;
+  backend = new InMemoryRenderJobBackend();
+  setRenderJobBackend(backend);
+  forgetLocalChildren();
 });
 
 describe("render-store", () => {
-  it("cree un job en attente, a zero", () => {
-    const job = createRenderJob("u1");
-    expect(job).toMatchObject({ userId: "u1", status: "pending", progress: 0 });
-    expect(job.id).toBeTruthy();
+  it("reserve un job en cours, a zero", async () => {
+    const job = await reserve("u1");
+    expect(job).toMatchObject({ userId: "u1", status: "rendering", progress: 0 });
+    expect(job.id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("ne rend pas le job d'un autre utilisateur", () => {
-    const job = createRenderJob("u1");
-    expect(getRenderJob(job.id, "u1")).toBeDefined();
-    expect(getRenderJob(job.id, "u2")).toBeUndefined();
+  it("ne rend pas le job d'un autre utilisateur", async () => {
+    const job = await reserve("u1");
+    expect(await getRenderJob(job.id, "u1")).toBeDefined();
+    expect(await getRenderJob(job.id, "u2")).toBeUndefined();
   });
 
-  it("rend undefined sur un job inconnu", () => {
-    expect(getRenderJob("inexistant", "u1")).toBeUndefined();
+  it("refuse un id qui n'est pas un UUID", async () => {
+    expect(await getRenderJob("../vole", "u1")).toBeUndefined();
+    expect(await cancelRenderJob("../vole", "u1")).toBe(false);
   });
 
-  it("met a jour la progression", () => {
-    const job = createRenderJob("u1");
-    updateRenderJob(job.id, { status: "rendering", progress: 42 });
-    expect(getRenderJob(job.id, "u1")).toMatchObject({ status: "rendering", progress: 42 });
+  it("met a jour la progression", async () => {
+    const job = await reserve("u1");
+    expect(await reportRenderProgress(job.id, 42)).toBe(true);
+    expect(await getRenderJob(job.id, "u1")).toMatchObject({ progress: 42 });
   });
 
-  it("survit a la perte de la memoire", () => {
-    // Next recompile ses routes a chaud : l'etat du module est remis a zero, et
-    // le job disparaissait alors que sa video etait sur le disque. Observe deux
-    // fois en conditions reelles, avec un 404 en pleine progression.
-    const job = createRenderJob("u1");
-    updateRenderJob(job.id, { status: "rendering", progress: 60 });
-
-    oublierJobsEnMemoire();
-
-    expect(getRenderJob(job.id, "u1")).toMatchObject({
-      id: job.id, userId: "u1", status: "rendering", progress: 60,
-    });
-  });
-
-  it("garde le cloisonnement apres rechargement", () => {
-    const job = createRenderJob("u1");
-    oublierJobsEnMemoire();
-    expect(getRenderJob(job.id, "u2")).toBeUndefined();
-  });
-
-  it("ignore un fichier d'etat illisible", () => {
-    writeFileSync(join(dir, "casse.json"), "{ pas du json");
-    expect(getRenderJob("casse", "u1")).toBeUndefined();
-  });
-
-  it("annuler tue l'enfant et marque le job", () => {
-    const job = createRenderJob("u1");
+  it("annuler tue l'enfant et marque le job", async () => {
+    const job = await reserve("u1");
     const kill = vi.fn();
     attachChild(job.id, { kill });
-    expect(cancelRenderJob(job.id, "u1")).toBe(true);
+    expect(await cancelRenderJob(job.id, "u1")).toBe(true);
     expect(kill).toHaveBeenCalledOnce();
-    expect(getRenderJob(job.id, "u1")?.status).toBe("cancelled");
+    expect((await getRenderJob(job.id, "u1"))?.status).toBe("cancelled");
   });
 
-  it("un autre utilisateur ne peut pas annuler", () => {
-    const job = createRenderJob("u1");
+  it("un autre utilisateur ne peut pas annuler", async () => {
+    const job = await reserve("u1");
     const kill = vi.fn();
     attachChild(job.id, { kill });
-    expect(cancelRenderJob(job.id, "u2")).toBe(false);
+    expect(await cancelRenderJob(job.id, "u2")).toBe(false);
     expect(kill).not.toHaveBeenCalled();
   });
 
-  it("conclut un job encore en cours", () => {
-    const job = createRenderJob("u1");
-    updateRenderJob(job.id, { status: "rendering", progress: 88 });
-    finalizeRenderJob(job.id, { status: "done", progress: 100 });
-    expect(getRenderJob(job.id, "u1")).toMatchObject({ status: "done", progress: 100 });
+  it("une annulation recue par une autre instance atteint le process au signal suivant", async () => {
+    const job = await reserve("u1");
+    const kill = vi.fn();
+    attachChild(job.id, { kill });
+
+    // L'annulation arrive sur une instance qui ne tient pas le process.
+    expect(await backend.cancel(job.id, "u1")).toBe(true);
+    expect(kill).not.toHaveBeenCalled();
+
+    expect(await reportRenderProgress(job.id, 50)).toBe(false);
+    expect(kill).toHaveBeenCalledOnce();
   });
 
-  it("n'ecrase pas une annulation deliberee", () => {
-    const job = createRenderJob("u1");
+  it("n'ecrase pas une annulation deliberee", async () => {
+    const job = await reserve("u1");
+    await cancelRenderJob(job.id, "u1");
+    expect(await finalizeRenderJob(job.id, { status: "error", error: "SIGTERM" })).toBe(false);
+    expect((await getRenderJob(job.id, "u1"))?.status).toBe("cancelled");
+  });
+
+  it("n'annule pas un rendu deja abouti", async () => {
+    const job = await reserve("u1");
+    const kill = vi.fn();
+    attachChild(job.id, { kill });
+    await finalizeRenderJob(job.id, { status: "done", progress: 100, outputKey: "renders/u1/x.mp4" });
+
+    expect(await cancelRenderJob(job.id, "u1")).toBe(false);
+    expect(kill).not.toHaveBeenCalled();
+    expect(await getRenderJob(job.id, "u1")).toMatchObject({ status: "done", outputKey: "renders/u1/x.mp4" });
+  });
+});
+
+describe("render limits", () => {
+  it("un seul rendu a la fois par utilisateur", async () => {
+    await reserve("u1");
+    expect(await reserveRenderJob("u1", LIMITS)).toBe("user");
+    expect(typeof (await reserveRenderJob("u2", LIMITS))).toBe("object");
+  });
+
+  it("plafonne le parc entier, pas seulement l'instance", async () => {
+    await reserve("u1");
+    // Une autre instance a reserve la deuxieme place : elle ne tient aucun
+    // process ici, mais la place est prise.
+    forgetLocalChildren();
+    await reserve("u2");
+    expect(await reserveRenderJob("u3", LIMITS)).toBe("global");
+  });
+
+  it("plafonne les process de cette instance", async () => {
+    const job = await reserve("u1", { perUser: 5, global: 5, perInstance: 1 });
     attachChild(job.id, { kill: () => {} });
-    cancelRenderJob(job.id, "u1");
-    finalizeRenderJob(job.id, { status: "error", error: "Rendu interrompu (SIGTERM)" });
-    expect(getRenderJob(job.id, "u1")?.status).toBe("cancelled");
+    expect(await reserveRenderJob("u2", { perUser: 5, global: 5, perInstance: 1 })).toBe("global");
   });
 
-  it("n'annule pas un rendu deja abouti", () => {
-    // Un clic sur « Annuler » dans la derniere seconde faisait passer le job a
-    // 'cancelled' alors que la video etait ecrite : la route de telechargement
-    // exige 'done' et repondait 404. Rendu abouti, perdu.
-    const job = createRenderJob("u1");
-    const kill = vi.fn();
-    attachChild(job.id, { kill });
-    finalizeRenderJob(job.id, { status: "done", progress: 100, outputPath: "/x.mp4" });
+  it("libere la place d'une instance morte", async () => {
+    const job = await reserve("u1");
+    backend.rows.get(job.id)!.heartbeatAt = new Date(Date.now() - STALE_AFTER_MS - 1000);
 
-    expect(cancelRenderJob(job.id, "u1")).toBe(false);
-    expect(kill).not.toHaveBeenCalled();
-    expect(getRenderJob(job.id, "u1")).toMatchObject({ status: "done", outputPath: "/x.mp4" });
+    expect(typeof (await reserveRenderJob("u1", LIMITS))).toBe("object");
+    expect(await getRenderJob(job.id, "u1")).toMatchObject({ status: "error", error: STALE_ERROR });
   });
 
-  it("refuse un id qui n'est pas un UUID, donc tout echappement de dossier", () => {
-    // L'id vient d'un segment d'URL et devient un chemin de fichier.
-    writeFileSync(join(dir, "..", "vole.json"), JSON.stringify({ id: "x", userId: "u1" }));
-    expect(getRenderJob("../vole", "u1")).toBeUndefined();
-    expect(getRenderJob("..%2Fvole", "u1")).toBeUndefined();
-    rmSync(join(dir, "..", "vole.json"), { force: true });
-  });
+  it("retire les rendus conclus expires, jamais un rendu actif", async () => {
+    const done = await reserve("u1");
+    await finalizeRenderJob(done.id, { status: "done", outputKey: "renders/u1/old.mp4" });
+    const running = await reserve("u2");
+    const recent = await reserve("u3", { ...LIMITS, global: 5 });
+    await finalizeRenderJob(recent.id, { status: "done" });
 
-  it("n'ecrase pas un job deja conclu, meme apres rechargement", () => {
-    const job = createRenderJob("u1");
-    finalizeRenderJob(job.id, { status: "done", progress: 100 });
-    oublierJobsEnMemoire();
-    finalizeRenderJob(job.id, { status: "error", error: "trop tard" });
-    expect(getRenderJob(job.id, "u1")).toMatchObject({ status: "done", error: null });
+    const old = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+    backend.rows.get(done.id)!.createdAt = old;
+    backend.rows.get(running.id)!.createdAt = old;
+
+    const expired = await takeExpiredRenders(24 * 60 * 60 * 1000);
+    expect(expired.map((j) => j.outputKey)).toEqual(["renders/u1/old.mp4"]);
+    expect(await getRenderJob(done.id, "u1")).toBeUndefined();
+    expect(await getRenderJob(running.id, "u2")).toBeDefined();
+    expect(await getRenderJob(recent.id, "u3")).toBeDefined();
   });
 });

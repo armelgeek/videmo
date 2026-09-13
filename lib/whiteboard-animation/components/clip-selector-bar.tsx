@@ -91,6 +91,8 @@ const ClipThumb = memo(function ClipThumb({
   return (
             <button
               onClick={() => onSelect(idx)}
+              // Hundreds of scenes: off-screen entries skip layout and paint.
+              style={{ contentVisibility: "auto", containIntrinsicSize: "auto 160px" }}
               className={`group/clip relative flex flex-col gap-1.5 p-1.5 rounded-lg border transition-colors text-left ${
                 isActive
                   ? "bg-primary/10 border-primary/60"

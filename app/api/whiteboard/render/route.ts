@@ -2,23 +2,43 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import {
+  StorageNotConfiguredError,
+  buildRenderKey,
+} from "@/lib/storage/object-storage";
+import { getObjectStorage } from "@/lib/storage/s3-storage";
 import {
   renderRequestSchema,
   resolveExportSize,
 } from "@/lib/whiteboard-animation/server/render-request";
 import {
+  type RenderPatch,
   attachChild,
-  createRenderJob,
   finalizeRenderJob,
-  updateRenderJob,
+  reportRenderProgress,
+  reserveRenderJob,
+  takeExpiredRenders,
 } from "@/lib/whiteboard-animation/server/render-store";
 
-// Hors de public/ : Next y sert tout fichier sans aucun controle, donc la video
-// d'un utilisateur serait telechargeable par quiconque devine l'URL.
-const OUTPUT_DIR =
-  process.env.RENDER_OUTPUT_DIR || join(process.cwd(), ".renders");
+/** Rendus simultanes sur tout le parc : l'etat est en base, partage. */
+const MAX_CONCURRENT_RENDERS = Number(process.env.MAX_CONCURRENT_RENDERS) || 2;
+/** Rendus sur CETTE instance ; chacun occupe un coeur CPU entier. */
+const MAX_RENDERS_PER_INSTANCE = Number(process.env.MAX_RENDERS_PER_INSTANCE) || 2;
+const MAX_RENDERS_PER_USER = 1;
+/** Une video exportee reste telechargeable 24 h, puis quitte le bac. */
+const RENDER_TTL_MS = 24 * 60 * 60 * 1000;
+/** Signal de vie : sans lui pendant STALE_AFTER_MS, le job est tenu pour mort. */
+const HEARTBEAT_MS = 30_000;
+/** Ecrire chaque progression en base ferait une requete par frame. */
+const PROGRESS_WRITE_MS = 1000;
+
+// La video n'est ecrite ici que le temps du rendu, puis part dans le bac : une
+// autre instance doit pouvoir la servir, et le disque ne se remplit plus.
+const LOCAL_DIR =
+  process.env.RENDER_OUTPUT_DIR || join(tmpdir(), "whiteboard-renders");
 
 // Le worker est un fichier reel sur le disque, pas un module du bundle.
 //
@@ -31,6 +51,17 @@ const WORKER = join(
   process.cwd(),
   "lib/whiteboard-animation/server/render-worker.js",
 );
+
+const logError = (context: string) => (error: unknown) =>
+  console.error(`[render] ${context}:`, error);
+
+/** Retire du bac les videos expirees. Hors du chemin de la requete. */
+async function purgeExpiredRenders() {
+  const storage = getObjectStorage();
+  for (const job of await takeExpiredRenders(RENDER_TTL_MS)) {
+    if (job.outputKey) await storage.delete(job.outputKey).catch(logError("purge"));
+  }
+}
 
 export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -53,39 +84,105 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   }
 
+  let storage: ReturnType<typeof getObjectStorage>;
+  try {
+    storage = getObjectStorage();
+  } catch (error) {
+    if (error instanceof StorageNotConfiguredError) {
+      return NextResponse.json(
+        { error: error.message, missing: error.missing },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
+
+  void purgeExpiredRenders().catch(logError("purge"));
+
+  const userId = session.user.id;
+  const job = await reserveRenderJob(userId, {
+    perUser: MAX_RENDERS_PER_USER,
+    global: MAX_CONCURRENT_RENDERS,
+    perInstance: MAX_RENDERS_PER_INSTANCE,
+  });
+  if (job === "user") {
+    return NextResponse.json(
+      { error: "Un export est deja en cours. Attendez sa fin pour en lancer un autre." },
+      { status: 429 },
+    );
+  }
+  if (job === "global") {
+    return NextResponse.json(
+      { error: "Le serveur traite deja d'autres exports. Reessayez dans une minute." },
+      { status: 429, headers: { "Retry-After": "60" } },
+    );
+  }
+
   const { width, height } = resolveExportSize(
     parsed.data.quality,
     parsed.data.aspectRatio,
   );
-  const job = createRenderJob(session.user.id);
 
-  mkdirSync(OUTPUT_DIR, { recursive: true });
-  const outputPath = join(OUTPUT_DIR, `${job.id}.mp4`);
+  mkdirSync(LOCAL_DIR, { recursive: true });
+  const outputPath = join(LOCAL_DIR, `${job.id}.mp4`);
 
   const child = spawn(process.execPath, [WORKER], {
     stdio: ["pipe", "pipe", "pipe", "ipc"],
   });
   attachChild(job.id, child);
-  updateRenderJob(job.id, { status: "rendering" });
+
+  const heartbeat = setInterval(() => {
+    void reportRenderProgress(job.id, null).catch(logError("heartbeat"));
+  }, HEARTBEAT_MS);
 
   // Un message terminal est-il arrive ? process.send etant asynchrone, un
   // 'done' peut se perdre si le worker sort avant de l'avoir vide. Le job
   // restait alors fige sur sa derniere progression — observe a 88 % alors que
   // la video etait complete sur le disque.
   let conclu = false;
+  let lastProgressWrite = 0;
+
+  const conclure = (patch: RenderPatch) => {
+    conclu = true;
+    clearInterval(heartbeat);
+    rmSync(outputPath, { force: true });
+    void finalizeRenderJob(job.id, patch).catch(logError("finalize"));
+  };
+
+  const livrer = async () => {
+    conclu = true;
+    clearInterval(heartbeat);
+    try {
+      // Annule pendant les dernieres secondes : rien a envoyer.
+      if (!(await reportRenderProgress(job.id, 100))) return;
+      const outputKey = buildRenderKey(userId, job.id);
+      await storage.putFile({ key: outputKey, path: outputPath, contentType: "video/mp4" });
+      await finalizeRenderJob(job.id, { status: "done", progress: 100, outputKey });
+    } catch (error) {
+      logError("upload")(error);
+      await finalizeRenderJob(job.id, {
+        status: "error",
+        error: "La video est prete mais n'a pas pu etre enregistree",
+      }).catch(logError("finalize"));
+    } finally {
+      rmSync(outputPath, { force: true });
+    }
+  };
 
   child.on("message", (m: unknown) => {
     const msg = m as { type?: string; value?: number; message?: string };
     if (msg?.type === "progress") {
-      updateRenderJob(job.id, { progress: msg.value ?? 0 });
+      const now = Date.now();
+      if (now - lastProgressWrite >= PROGRESS_WRITE_MS) {
+        lastProgressWrite = now;
+        void reportRenderProgress(job.id, msg.value ?? 0).catch(logError("progress"));
+      }
     }
-    if (msg?.type === "done") {
-      conclu = true;
-      finalizeRenderJob(job.id, { status: "done", progress: 100, outputPath });
+    if (msg?.type === "done" && !conclu) {
+      void livrer();
     }
-    if (msg?.type === "error") {
-      conclu = true;
-      finalizeRenderJob(job.id, { status: "error", error: msg.message ?? null });
+    if (msg?.type === "error" && !conclu) {
+      conclure({ status: "error", error: msg.message ?? null });
     }
   });
 
@@ -95,11 +192,8 @@ export async function POST(request: NextRequest) {
   // du worker manque (un build qui ne copie pas lib/), ou que le systeme
   // refuse un process de plus sous charge (EAGAIN), pour que tout Next tombe.
   child.on("error", (err) => {
-    conclu = true;
-    finalizeRenderJob(job.id, {
-      status: "error",
-      error: `Worker impossible a lancer : ${err.message}`,
-    });
+    if (conclu) return;
+    conclure({ status: "error", error: `Worker impossible a lancer : ${err.message}` });
   });
 
   child.on("exit", (code, signal) => {
@@ -111,17 +205,16 @@ export async function POST(request: NextRequest) {
     const abouti =
       code === 0 && existsSync(outputPath) && statSync(outputPath).size > 0;
 
-    finalizeRenderJob(
-      job.id,
-      abouti
-        ? { status: "done", progress: 100, outputPath }
-        : {
-            status: "error",
-            error: signal
-              ? `Rendu interrompu (${signal})`
-              : `Worker sorti avec le code ${code} sans produire de video`,
-          },
-    );
+    if (abouti) {
+      void livrer();
+      return;
+    }
+    conclure({
+      status: "error",
+      error: signal
+        ? `Rendu interrompu (${signal})`
+        : `Worker sorti avec le code ${code} sans produire de video`,
+    });
   });
 
   child.send({

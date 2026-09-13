@@ -15,7 +15,7 @@ export async function GET() {
   const session = await auth.api.getSession({ headers: headersList })
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const rateLimit = listRateLimiter(`api-key-list:${session.user.id}`)
+  const rateLimit = await listRateLimiter(`api-key-list:${session.user.id}`)
   if (!rateLimit.allowed) {
     auditLogger.logSecurity(
       AuditEventType.RATE_LIMIT_EXCEEDED,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
   const session = await auth.api.getSession({ headers: headersList })
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const rateLimit = createRateLimiter(`api-key-create:${session.user.id}`)
+  const rateLimit = await createRateLimiter(`api-key-create:${session.user.id}`)
   if (!rateLimit.allowed) {
     auditLogger.logSecurity(
       AuditEventType.RATE_LIMIT_EXCEEDED,
@@ -125,7 +125,7 @@ export async function DELETE(request: NextRequest) {
   const session = await auth.api.getSession({ headers: headersList })
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  const rateLimit = deleteRateLimiter(`api-key-delete:${session.user.id}`)
+  const rateLimit = await deleteRateLimiter(`api-key-delete:${session.user.id}`)
   if (!rateLimit.allowed) {
     auditLogger.logSecurity(
       AuditEventType.RATE_LIMIT_EXCEEDED,

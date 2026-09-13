@@ -1,8 +1,7 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { createReadStream, existsSync, statSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
-import { Readable } from "node:stream";
+import { getObjectStorage } from "@/lib/storage/s3-storage";
 import { getRenderJob } from "@/lib/whiteboard-animation/server/render-store";
 
 export async function GET(
@@ -15,26 +14,25 @@ export async function GET(
   }
 
   const { jobId } = await params;
-  const job = getRenderJob(jobId, session.user.id);
-  if (
-    !job ||
-    job.status !== "done" ||
-    !job.outputPath ||
-    !existsSync(job.outputPath)
-  ) {
+  const job = await getRenderJob(jobId, session.user.id);
+  if (!job || job.status !== "done" || !job.outputKey) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Diffuse plutot que de charger : une video de plusieurs centaines de Mo ne
-  // doit pas transiter par un Buffer en memoire.
-  const stream = Readable.toWeb(
-    createReadStream(job.outputPath),
-  ) as ReadableStream;
+  // Relue depuis le bac, pas depuis le disque : n'importe quelle instance peut
+  // servir la video, pas seulement celle qui l'a rendue. Diffusee en flux, elle
+  // ne transite jamais entiere par la memoire.
+  const object = await getObjectStorage().getStream(job.outputKey);
+  if (!object) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
-  return new NextResponse(stream, {
+  return new NextResponse(object.body, {
     headers: {
       "Content-Type": "video/mp4",
-      "Content-Length": String(statSync(job.outputPath).size),
+      ...(object.contentLength !== null
+        ? { "Content-Length": String(object.contentLength) }
+        : {}),
       "Content-Disposition": `attachment; filename="whiteboard-${jobId}.mp4"`,
     },
   });

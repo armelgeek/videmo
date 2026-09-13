@@ -128,6 +128,14 @@ const BIG_GAP_MS = 1000;
 
 /** Nombre d'images decodees gardees en cache, au-dela duquel la plus vieille cede sa place. */
 const IMAGE_CACHE_MAX = 12;
+/** While scrubbing, a scene is only prepared once the cursor settles on it. */
+const SCRUB_PREP_DELAY_MS = 120;
+
+/** Moves a cache hit to the young end, so eviction drops the least recently used. */
+const touch = <V,>(cache: Map<string, V>, key: string, value: V) => {
+  cache.delete(key);
+  cache.set(key, value);
+};
 /** How long a new scene plays before the next one starts being prepared. */
 const NEXT_SCENE_PREP_DELAY_MS = 2000;
 
@@ -384,6 +392,20 @@ export function useWhiteboardRenderer({
   // s'effacer la aussi. Un delai de retour evite qu'il ne clignote entre deux
   // positions pendant un drag.
   const [scrubbing, setScrubbing] = useState(false);
+  // Read by the artwork effect, which must not re-run when scrubbing toggles.
+  const scrubbingRef = useRef(scrubbing);
+  scrubbingRef.current = scrubbing;
+  // True while the incoming clip's artwork loads or its sheet is prepared.
+  // Nothing may draw then: imageRef still holds the outgoing artwork, and
+  // replaying it at the incoming clip's time showed the wrong picture.
+  const artworkPendingRef = useRef(false);
+  // The same flag as state, for the editor's loading indicator. It flips twice
+  // per handover at most, never per frame.
+  const [isPreparingArtwork, setIsPreparingArtwork] = useState(false);
+  const markArtworkPending = (pending: boolean) => {
+    artworkPendingRef.current = pending;
+    setIsPreparingArtwork(pending);
+  };
   const scrubTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Latest config, readable from inside the rAF closure without re-subscribing.
@@ -403,19 +425,26 @@ export function useWhiteboardRenderer({
 
   // ---- assets -------------------------------------------------------------
 
-  // Preload hand sprites ONCE on mount so clip switches don't re-instantiate
-  // 16 Image objects and trigger redundant asset requests.
+  // Only the sprite in use: the tier the canvas needs, plus its 720 tier that
+  // drawHand falls back on while the right one loads. Preloading all four
+  // styles at three tiers pulled ~9 MB on every editor open.
+  const handRequestedRef = useRef(new Set<string>());
   useEffect(() => {
-    ['custom1', 'custom2', 'custom3', 'custom4'].forEach((key) => {
-      PALIERS_MAIN.forEach((palier) => {
-        const h = new Image();
-        h.src = handAssetUrl(key, palier);
-        h.onload = () => {
-          handImagesRef.current[`${key}@${palier}`] = h;
-        };
-      });
-    });
-  }, []);
+    if (handStyle === 'ghost') return;
+    const key = normalizeHandKey(handStyle);
+    const paliers = new Set([720, palierPourCanvas(Math.max(canvasWidth, canvasHeight))]);
+    for (const palier of paliers) {
+      const cacheKey = `${key}@${palier}`;
+      if (handRequestedRef.current.has(cacheKey)) continue;
+      handRequestedRef.current.add(cacheKey);
+      const h = new Image();
+      h.onload = () => {
+        handImagesRef.current[cacheKey] = h;
+      };
+      h.onerror = () => handRequestedRef.current.delete(cacheKey);
+      h.src = handAssetUrl(key, palier);
+    }
+  }, [handStyle, canvasWidth, canvasHeight]);
 
   useEffect(() => {
     const targetSrc = imageUrl || SCENE_IMAGE;
@@ -430,6 +459,7 @@ export function useWhiteboardRenderer({
       imageRef.current.complete &&
       imageRef.current.naturalWidth > 0
     ) {
+      markArtworkPending(false);
       return;
     }
 
@@ -441,11 +471,15 @@ export function useWhiteboardRenderer({
     // it, while the loop and the narration carry on untouched.
     const isFirstArtwork = !imageRef.current;
     if (isFirstArtwork) setImageLoaded(false);
+    markArtworkPending(!isFirstArtwork);
 
     let cancelled = false;
 
-    const applyImage = (loadedImg: HTMLImageElement) => {
+    let prepTimer: number | null = null;
+
+    const swapIn = (loadedImg: HTMLImageElement) => {
       if (cancelled) return;
+      markArtworkPending(false);
       imageRef.current = loadedImg;
       // The engine reveals from an offscreen copy of the artwork, so both it
       // and the instance built from it belong to the previous clip.
@@ -455,6 +489,30 @@ export function useWhiteboardRenderer({
       pendingClipResyncRef.current = true;
       if (isFirstArtwork) setImageLoaded(true);
       setArtworkVersion((v) => v + 1);
+    };
+
+    // A scene reached by a jump (click, seek) was never prepared ahead: its
+    // sheet is built in the worker first, the previous artwork staying on
+    // screen meanwhile, instead of freezing the main thread for ~110 ms.
+    const applyImage = (loadedImg: HTMLImageElement) => {
+      if (cancelled) return;
+      const canvas = canvasRef.current;
+      const key = canvas ? `${loadedImg.src}@${canvas.width}x${canvas.height}` : '';
+      if (isFirstArtwork || !canvas || offscreenCacheRef.current.has(key) || !getSheetWorker()) {
+        swapIn(loadedImg);
+        return;
+      }
+      const start = () => {
+        prepTimer = null;
+        void prepareSheetInWorker(loadedImg, canvas.width, canvas.height).then(() => swapIn(loadedImg));
+      };
+      if (scrubbingRef.current) prepTimer = window.setTimeout(start, SCRUB_PREP_DELAY_MS);
+      else start();
+    };
+
+    const cleanup = () => {
+      cancelled = true;
+      if (prepTimer !== null) window.clearTimeout(prepTimer);
     };
 
     const remember = (loadedImg: HTMLImageElement) => {
@@ -470,10 +528,9 @@ export function useWhiteboardRenderer({
     // element deja decode, sans nouvelle requete ni nouveau decodage.
     const cached = imageCacheRef.current.get(targetSrc);
     if (cached && cached.complete && cached.naturalWidth > 0) {
+      touch(imageCacheRef.current, targetSrc, cached);
       applyImage(cached);
-      return () => {
-        cancelled = true;
-      };
+      return cleanup;
     }
 
     const img = new Image();
@@ -494,14 +551,14 @@ export function useWhiteboardRenderer({
         applyImage(img);
       };
       img.onerror = () => {
+        // Unfrozen on failure, or the picture would stay held for good.
+        if (!cancelled) markArtworkPending(false);
         console.error('Failed to load scene image', targetSrc);
         onErrorRef.current('Failed to load the image for this clip.');
       };
     }
 
-    return () => {
-      cancelled = true;
-    };
+    return cleanup;
   }, [imageUrl]);
 
   // Amorcage de la scene de demo, puis suivi de la forme du canvas.
@@ -754,7 +811,10 @@ export function useWhiteboardRenderer({
     const key = `${img.src}@${width}x${height}`;
     const cache = offscreenCacheRef.current;
     const cached = cache.get(key);
-    if (cached) return cached;
+    if (cached) {
+      touch(cache, key, cached);
+      return cached;
+    }
 
     const offscreen = document.createElement('canvas');
     offscreen.width = width;
@@ -783,6 +843,46 @@ export function useWhiteboardRenderer({
     const offscreen = prepareOffscreen(imageRef.current!, canvas.width, canvas.height);
     offscreenRef.current = offscreen;
     return offscreen;
+  };
+
+  /**
+   * Builds the sheet of `img` in the worker, where it costs the main thread
+   * only a copy. Resolves false when there is no worker or it failed: the
+   * caller then lets prepareOffscreen build it here.
+   */
+  const prepareSheetInWorker = async (img: HTMLImageElement, width: number, height: number) => {
+    const key = `${img.src}@${width}x${height}`;
+    const cache = offscreenCacheRef.current;
+    if (cache.has(key)) return true;
+    const worker = getSheetWorker();
+    if (!worker) return false;
+
+    const rect = rectContenu(width, height, img.naturalWidth || width, img.naturalHeight || height);
+    let prepared: PreparedSheet;
+    try {
+      prepared = await requestPreparedSheet(worker, key, img, width, height, rect);
+    } catch {
+      return false;
+    }
+    const { sheet, map } = prepared;
+    // Built on the main thread meanwhile: the engine may already hold that one.
+    if (cache.has(key)) {
+      sheet.close();
+      return true;
+    }
+    const offscreen = document.createElement('canvas');
+    offscreen.width = width;
+    offscreen.height = height;
+    offscreen.getContext('2d', { willReadFrequently: true })?.drawImage(sheet, 0, 0);
+    sheet.close();
+    (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable = true;
+    seedPresenceMap(offscreen, map);
+    cache.set(key, offscreen);
+    if (cache.size > IMAGE_CACHE_MAX) {
+      const oldest = cache.keys().next().value;
+      if (oldest !== undefined) cache.delete(oldest);
+    }
+    return true;
   };
 
   // Prepare the next scene while this one plays: decode its artwork and build
@@ -826,53 +926,21 @@ export function useWhiteboardRenderer({
       });
     };
 
-    // The sheet and its presence map are built in a worker: on the main thread
-    // they cost ~110 ms, a freeze wherever they land. Only copying the result
-    // back onto a canvas stays here.
-    const prepareInWorker = async (img: HTMLImageElement, worker: Worker) => {
+    // The worker result is cached even if this effect is cancelled meanwhile:
+    // the scene is still likely to come back.
+    const prepare = (img: HTMLImageElement) => {
       const canvas = canvasRef.current;
       if (!canvas || cancelled) return;
-      const width = canvas.width;
-      const height = canvas.height;
-      const key = `${img.src}@${width}x${height}`;
-      if (offscreenCacheRef.current.has(key)) return;
-
-      const rect = rectContenu(width, height, img.naturalWidth || width, img.naturalHeight || height);
-      const { sheet, map } = await requestPreparedSheet(worker, key, img, width, height, rect);
-      const cache = offscreenCacheRef.current;
-      // The handover may have built it on the main thread meanwhile; the engine
-      // already holds that one, so keep it. Otherwise cache the result even if
-      // this effect was cancelled: the scene is still likely to come back.
-      if (cache.has(key)) {
-        sheet.close();
-        return;
-      }
-      const offscreen = document.createElement('canvas');
-      offscreen.width = width;
-      offscreen.height = height;
-      offscreen.getContext('2d', { willReadFrequently: true })?.drawImage(sheet, 0, 0);
-      sheet.close();
-      (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable = true;
-      seedPresenceMap(offscreen, map);
-      cache.set(key, offscreen);
-      if (cache.size > IMAGE_CACHE_MAX) {
-        const oldest = cache.keys().next().value;
-        if (oldest !== undefined) cache.delete(oldest);
-      }
-    };
-
-    const prepare = (img: HTMLImageElement) => {
-      const worker = getSheetWorker();
-      if (worker) {
-        void prepareInWorker(img, worker).catch(() => prepareOnMainThread(img));
-        return;
-      }
-      startTimer = window.setTimeout(() => prepareOnMainThread(img), NEXT_SCENE_PREP_DELAY_MS);
+      void prepareSheetInWorker(img, canvas.width, canvas.height).then((ok) => {
+        if (ok || cancelled) return;
+        startTimer = window.setTimeout(() => prepareOnMainThread(img), NEXT_SCENE_PREP_DELAY_MS);
+      });
     };
 
     const images = imageCacheRef.current;
     const cached = images.get(nextImageUrl);
     if (cached && cached.complete && cached.naturalWidth > 0) {
+      touch(images, nextImageUrl, cached);
       prepare(cached);
     } else {
       const img = new Image();
@@ -1328,6 +1396,15 @@ export function useWhiteboardRenderer({
       // already running on: repositionTo skips the lead-in gap rather than
       // animating through it. Deliberately NOT the seek path below — the
       // narration is one continuous take and must never be dragged back.
+      // The incoming artwork is not ready: hold the last frame while the clock
+      // and the narration run on. swapIn raises the resync once it lands.
+      if (artworkPendingRef.current) {
+        publishTime(engineTimeRef.current + delta);
+        hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
+        frame = requestAnimationFrame(step);
+        return;
+      }
+
       if (pendingClipResyncRef.current) {
         pendingClipResyncRef.current = false;
         repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
@@ -1600,6 +1677,8 @@ export function useWhiteboardRenderer({
       const lancer = () => {
         lastSeekAtRef.current = performance.now();
         raf = requestAnimationFrame(() => {
+          // The artwork effect repaints at the playhead once it lands.
+          if (artworkPendingRef.current) return;
           repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
         });
       };
@@ -1702,6 +1781,7 @@ export function useWhiteboardRenderer({
     const hctx = handCanvas?.getContext('2d');
     if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
 
+    if (artworkPendingRef.current) return;
     versionRepeinteRef.current = artworkVersion;
     repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
     // currentTime hors des deps : on repeint quand l'illustration change, pas a
@@ -1763,5 +1843,5 @@ export function useWhiteboardRenderer({
   // affaire de rendu : franchir une frontiere de clip change le clip actif, et
   // l'appelant ne doit pas replacer la tete de lecture sous les doigts de qui
   // scrube.
-  return { isOverlayHidden, isScrubbing: scrubbing };
+  return { isOverlayHidden, isScrubbing: scrubbing, isPreparingArtwork };
 }

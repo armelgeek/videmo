@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
 import { storyboardAgent } from "@/lib/mastra/agents/storyboard-agent";
 import {
   buildScriptPrompt,
@@ -26,6 +27,8 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const limit = await aiGenerationRateLimit(session.user.id, "script");
+    if (!limit.success) return tooManyGenerations(limit.resetAt);
 
     const input = requestSchema.parse(await request.json());
 

@@ -1,129 +1,136 @@
+/** Un evenement plus vieux n'est plus traite : Stripe ne le renverrait pas. */
+const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Une reclamation sans conclusion depuis ce delai vient d'une instance tombee
+ * en plein traitement : un nouvel envoi peut reprendre l'evenement.
+ */
+export const CLAIM_TIMEOUT_MS = 5 * 60 * 1000;
 
-interface ProcessedEvent {
-  eventId: string;
-  processedAt: number;
-  eventType: string;
+/**
+ * Les evenements deja pris en charge, partages par toutes les instances.
+ *
+ * Le registre vivait en memoire : deux instances pouvaient traiter le meme
+ * paiement. La reclamation est atomique, avant le traitement, et non plus une
+ * simple marque apres coup.
+ */
+export interface WebhookEventBackend {
+  /** true si CETTE instance obtient l'evenement. */
+  claim(eventId: string, eventType: string): Promise<boolean>;
+  complete(eventId: string): Promise<void>;
+  /** Rend l'evenement apres un echec, pour que le renvoi de Stripe le traite. */
+  release(eventId: string): Promise<void>;
 }
 
-class WebhookEventStore {
-  private processedEvents: Map<string, ProcessedEvent> = new Map();
-  private cleanupInterval: NodeJS.Timeout;
-  private readonly MAX_AGE_MS = 24 * 60 * 60 * 1000; 
-  private readonly CLEANUP_INTERVAL_MS = 60 * 60 * 1000; 
+export class InMemoryWebhookEventBackend implements WebhookEventBackend {
+  readonly events = new Map<string, { claimedAt: number; completedAt: number | null }>();
 
-  constructor() {
-    
-    this.cleanupInterval = setInterval(() => {
-      this.cleanup();
-    }, this.CLEANUP_INTERVAL_MS);
+  async claim(eventId: string) {
+    const now = Date.now();
+    const existing = this.events.get(eventId);
+    if (existing && (existing.completedAt !== null || now - existing.claimedAt < CLAIM_TIMEOUT_MS)) {
+      return false;
+    }
+    this.events.set(eventId, { claimedAt: now, completedAt: null });
+    return true;
   }
 
-  shouldProcess(
-    eventId: string,
-    eventType: string,
-    eventCreatedTimestamp: number
-  ): {
-    shouldProcess: boolean;
-    reason?: string;
-  } {
-    
-    const eventAge = Date.now() - eventCreatedTimestamp * 1000;
-    if (eventAge > this.MAX_AGE_MS) {
-      return {
-        shouldProcess: false,
-        reason: `Event is too old: ${Math.floor(eventAge / 1000 / 60)} minutes old`,
-      };
-    }
-
-    const existing = this.processedEvents.get(eventId);
-    if (existing) {
-      return {
-        shouldProcess: false,
-        reason: `Event already processed at ${new Date(existing.processedAt).toISOString()}`,
-      };
-    }
-
-    return { shouldProcess: true };
+  async complete(eventId: string) {
+    const existing = this.events.get(eventId);
+    if (existing) existing.completedAt = Date.now();
   }
 
-  markProcessed(eventId: string, eventType: string): void {
-    this.processedEvents.set(eventId, {
-      eventId,
-      processedAt: Date.now(),
-      eventType,
+  async release(eventId: string) {
+    if (this.events.get(eventId)?.completedAt === null) this.events.delete(eventId);
+  }
+}
+
+export class PrismaWebhookEventBackend implements WebhookEventBackend {
+  async claim(eventId: string, eventType: string) {
+    const { prisma } = await import("@/lib/prisma");
+    // En UTC, comme Prisma lit ces colonnes sans fuseau.
+    const rows = await prisma.$queryRaw<{ id: string }[]>`
+      INSERT INTO processed_webhook_events (id, type, claimed_at)
+      VALUES (${eventId}, ${eventType}, timezone('utc', now()))
+      ON CONFLICT (id) DO UPDATE SET claimed_at = timezone('utc', now())
+      WHERE processed_webhook_events.completed_at IS NULL
+        AND processed_webhook_events.claimed_at < timezone('utc', now()) - make_interval(secs => ${CLAIM_TIMEOUT_MS / 1000})
+      RETURNING id`;
+    return rows.length > 0;
+  }
+
+  async complete(eventId: string) {
+    const { prisma } = await import("@/lib/prisma");
+    await prisma.processedWebhookEvent.updateMany({
+      where: { id: eventId },
+      data: { completedAt: new Date() },
     });
   }
 
-  private cleanup(): void {
-    const now = Date.now();
-    const cutoff = now - this.MAX_AGE_MS;
-
-    let removedCount = 0;
-    for (const [eventId, event] of this.processedEvents.entries()) {
-      if (event.processedAt < cutoff) {
-        this.processedEvents.delete(eventId);
-        removedCount++;
-      }
-    }
-
-    if (removedCount > 0) {
-      console.log(
-        `[WebhookEventStore] Cleaned up ${removedCount} old events. Current size: ${this.processedEvents.size}`
-      );
-    }
-  }
-
-  getStats(): {
-    totalProcessed: number;
-    oldestEvent: string | null;
-    newestEvent: string | null;
-  } {
-    if (this.processedEvents.size === 0) {
-      return {
-        totalProcessed: 0,
-        oldestEvent: null,
-        newestEvent: null,
-      };
-    }
-
-    let oldest: ProcessedEvent | null = null;
-    let newest: ProcessedEvent | null = null;
-
-    for (const event of this.processedEvents.values()) {
-      if (!oldest || event.processedAt < oldest.processedAt) {
-        oldest = event;
-      }
-      if (!newest || event.processedAt > newest.processedAt) {
-        newest = event;
-      }
-    }
-
-    return {
-      totalProcessed: this.processedEvents.size,
-      oldestEvent: oldest ? new Date(oldest.processedAt).toISOString() : null,
-      newestEvent: newest ? new Date(newest.processedAt).toISOString() : null,
-    };
-  }
-
-  clear(): void {
-    this.processedEvents.clear();
-  }
-
-  destroy(): void {
-    clearInterval(this.cleanupInterval);
-    this.processedEvents.clear();
+  async release(eventId: string) {
+    const { prisma } = await import("@/lib/prisma");
+    await prisma.processedWebhookEvent.deleteMany({
+      where: { id: eventId, completedAt: null },
+    });
   }
 }
 
-export const webhookEventStore = new WebhookEventStore();
+let backend: WebhookEventBackend = new PrismaWebhookEventBackend();
 
-export function createEventGuard(eventId: string, eventType: string, created: number) {
-  const check = webhookEventStore.shouldProcess(eventId, eventType, created);
+/** Les tests passent le backend en memoire. */
+export function setWebhookEventBackend(next: WebhookEventBackend): void {
+  backend = next;
+}
+
+const logError = (context: string) => (error: unknown) =>
+  console.error(`[webhook-events] ${context}:`, error);
+
+export interface EventGuard {
+  shouldProcess: boolean;
+  reason?: string;
+  markProcessed: () => Promise<void>;
+  release: () => Promise<void>;
+}
+
+const noop = async () => {};
+
+export async function createEventGuard(
+  eventId: string,
+  eventType: string,
+  created: number,
+): Promise<EventGuard> {
+  const age = Date.now() - created * 1000;
+  if (age > MAX_AGE_MS) {
+    return {
+      shouldProcess: false,
+      reason: `Event is too old: ${Math.floor(age / 1000 / 60)} minutes old`,
+      markProcessed: noop,
+      release: noop,
+    };
+  }
+
+  let claimed: boolean;
+  try {
+    claimed = await backend.claim(eventId, eventType);
+  } catch (error) {
+    // Base indisponible : les handlers y ecrivent aussi, donc ils echoueront
+    // et Stripe renverra. Refuser ici perdrait l'evenement pour de bon.
+    logError("claim")(error);
+    claimed = true;
+  }
+
+  if (!claimed) {
+    return {
+      shouldProcess: false,
+      reason: "Event already processed or being processed",
+      markProcessed: noop,
+      release: noop,
+    };
+  }
 
   return {
-    shouldProcess: check.shouldProcess,
-    reason: check.reason,
-    markProcessed: () => webhookEventStore.markProcessed(eventId, eventType),
+    shouldProcess: true,
+    markProcessed: () => backend.complete(eventId).catch(logError("complete")),
+    release: () => backend.release(eventId).catch(logError("release")),
   };
 }

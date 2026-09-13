@@ -42,6 +42,18 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        // Hand sprites and other static artwork: their names carry no version,
+        // so no immutable — a day fresh, then revalidated in the background.
+        // Without it every editor open revalidated each sprite.
+        source: "/images/(.*)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+      {
         source: "/(.*)",
         headers: [
           {
@@ -105,11 +117,19 @@ const nextConfig: NextConfig = {
     // donc la production, garde la protection : elle est globale, elle ne se
     // restreint pas a une origine.
     dangerouslyAllowLocalIP: bucket?.protocol === "http:",
+    // Seul le bac est optimise. `hostname: "**"` faisait de l'optimiseur un
+    // proxy ouvert : n'importe qui pouvait faire redimensionner, a nos frais,
+    // les images de n'importe quel site. Un autre hote se declare dans
+    // IMAGE_REMOTE_HOSTS (liste separee par des virgules).
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "**",
-      },
+      ...(bucket && bucket.protocol === "https:"
+        ? [{ protocol: "https" as const, hostname: bucket.hostname }]
+        : []),
+      ...(process.env.IMAGE_REMOTE_HOSTS ?? "")
+        .split(",")
+        .map((h) => h.trim())
+        .filter(Boolean)
+        .map((hostname) => ({ protocol: "https" as const, hostname })),
       ...(bucket && bucket.protocol === "http:"
         ? [
             {
