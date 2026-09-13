@@ -266,6 +266,13 @@ export function WhiteboardEditorStep({
     [panelBoundaries, storyboardPanels],
   );
 
+  // Les regions de la scene suivante sont preparees avant la bascule.
+  const nextPanel = storyboardPanels[activeClipIndex + 1];
+  const nextPanelAnnotations = useMemo(
+    () => (nextPanel ? annotationsDe(nextPanel) : null),
+    [nextPanel, annotationsDe],
+  );
+
   // Enable canvas rendering.
   const { isOverlayHidden, isScrubbing, isPreparingArtwork } = useWhiteboardRenderer({
     canvasRef,
@@ -277,6 +284,7 @@ export function WhiteboardEditorStep({
       DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]?.imageUrl ||
       "/scene-premium-bag.png",
     nextImageUrl: storyboardPanels[activeClipIndex + 1]?.imageUrl ?? null,
+    nextAnnotations: nextPanelAnnotations,
     audioUrl: config.audio?.url ?? null,
     // La voix par temps prime sur la piste unique : c'est elle que la chaine
     // produit, et elle n'a pas a etre reconcatenee quand un temps change.

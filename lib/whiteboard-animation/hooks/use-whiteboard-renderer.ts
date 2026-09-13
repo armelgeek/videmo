@@ -208,6 +208,11 @@ export interface UseWhiteboardRendererProps {
    * plays, so the handover does not stop to decode and normalise it.
    */
   nextImageUrl?: string | null;
+  /**
+   * Les annotations de la scene suivante, en pixels de canvas. Avec sa feuille,
+   * elles permettent de calculer d'avance le setup de ses regions.
+   */
+  nextAnnotations?: Annotation[] | null;
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
@@ -268,6 +273,7 @@ export function useWhiteboardRenderer({
   annotationCanvasRef,
   imageUrl = null,
   nextImageUrl,
+  nextAnnotations = null,
   audioUrl = null,
   narrationParts = AUCUNE_PART as NarrationPart[],
   audioVolume = 1,
@@ -369,6 +375,12 @@ export function useWhiteboardRenderer({
   // running: with narration longer than the schedule, the finished image is
   // held on screen while the audio plays out.
   const drawingDoneRef = useRef(false);
+  // Lus par la preparation de la scene suivante, qui ne doit pas repartir de
+  // zero a chaque rendu.
+  const nextAnnotationsRef = useRef(nextAnnotations);
+  nextAnnotationsRef.current = nextAnnotations;
+  const animStyleRef = useRef(animStyle);
+  animStyleRef.current = animStyle;
   // A new clip took over and its engine has to be placed on the running clock
   // before it draws. Its annotations start at the clip's global offset, so a
   // freshly built engine would otherwise animate its way through that whole
@@ -917,12 +929,63 @@ export function useWhiteboardRenderer({
       idleHandle = win.requestIdleCallback(attempt as () => void);
     };
 
+    // Un setup de region coute jusqu'a ~90 ms : lance pendant un trace, il le
+    // gelerait. En lecture on attend donc que la main ne dessine pas — entre
+    // deux annotations, region finie, ou dessin acheve pendant la voix.
+    const momentCalme = () => {
+      if (!useUnifiedEngineStore.getState().timeline.isPlaying) return true;
+      if (drawingDoneRef.current) return true;
+      const anim = animRef.current;
+      const manager = anim?.annotationManager;
+      if (!anim || !manager) return false;
+      return !!anim._regionDone || manager.tick(0).length === 0;
+    };
+
+    const prepareRegions = (img: HTMLImageElement) => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      const annots = nextAnnotationsRef.current;
+      if (!canvas || !ctx || !annots?.length) return;
+      const sheet = offscreenCacheRef.current.get(`${img.src}@${canvas.width}x${canvas.height}`);
+      if (!sheet) return;
+      const style = animStyleRef.current;
+      const prep = AnimationFactory.create(style, {
+        state: {
+          canvasW: canvas.width,
+          canvasH: canvas.height,
+          animStyle: style,
+          contentBounds: rectContenu(
+            canvas.width,
+            canvas.height,
+            img.naturalWidth || canvas.width,
+            img.naturalHeight || canvas.height
+          ),
+          annotations: deriveTimeline(sansAttenteInitiale(annots)).annotations,
+        },
+        ctx,
+        hctx: ctx,
+        offscreen: sheet,
+      });
+      let index = 0;
+      const suivante = () => {
+        if (!momentCalme()) {
+          whenIdle(suivante);
+          return;
+        }
+        if (prep.prepareRegion?.(index++)) whenIdle(suivante);
+      };
+      whenIdle(suivante);
+    };
+
     const prepareOnMainThread = (img: HTMLImageElement) => {
       whenIdle(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const sheet = prepareOffscreen(img, canvas.width, canvas.height);
-        whenIdle(() => warmPresenceMap(sheet));
+        whenIdle(() => {
+          warmPresenceMap(sheet);
+          prepareRegions(img);
+        });
       });
     };
 
@@ -932,7 +995,11 @@ export function useWhiteboardRenderer({
       const canvas = canvasRef.current;
       if (!canvas || cancelled) return;
       void prepareSheetInWorker(img, canvas.width, canvas.height).then((ok) => {
-        if (ok || cancelled) return;
+        if (cancelled) return;
+        if (ok) {
+          prepareRegions(img);
+          return;
+        }
         startTimer = window.setTimeout(() => prepareOnMainThread(img), NEXT_SCENE_PREP_DELAY_MS);
       });
     };
