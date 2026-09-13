@@ -1285,6 +1285,51 @@ export default function StoryboardPage() {
                       <SelectItem value="kids">Kids</SelectItem>
                     </SelectContent>
                   </Select>
+                  {/* Narrative Voice */}
+                  <Select
+                    value={projectParams.narrativeVoiceId || "nova"}
+                    onValueChange={(val) =>
+                      setProjectParams({ ...projectParams, narrativeVoiceId: val })
+                    }
+                  >
+                    <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
+                      <Volume2 className="w-4 h-4" />
+                      <SelectValue className="text-sm" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="alloy">Alloy</SelectItem>
+                      <SelectItem value="ash">Ash</SelectItem>
+                      <SelectItem value="ballad">Ballad</SelectItem>
+                      <SelectItem value="coral">Coral</SelectItem>
+                      <SelectItem value="echo">Echo</SelectItem>
+                      <SelectItem value="fable">Fable</SelectItem>
+                      <SelectItem value="nova">Nova</SelectItem>
+                      <SelectItem value="onyx">Onyx</SelectItem>
+                      <SelectItem value="sage">Sage</SelectItem>
+                      <SelectItem value="shimmer">Shimmer</SelectItem>
+                      <SelectItem value="verse">Verse</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Hand Style */}
+                  <Select
+                    value={projectParams.handStyle || "custom1"}
+                    onValueChange={(val) =>
+                      setProjectParams({ ...projectParams, handStyle: val })
+                    }
+                  >
+                    <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
+                      <Settings className="w-4 h-4" />
+                      <SelectValue className="text-sm" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="custom1">Hand 1</SelectItem>
+                      <SelectItem value="custom2">Hand 2</SelectItem>
+                      <SelectItem value="custom3">Hand 3</SelectItem>
+                      <SelectItem value="custom4">Hand 4</SelectItem>
+                      <SelectItem value="ghost">No Hand</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Whiteboard Config Panel & Preview */}

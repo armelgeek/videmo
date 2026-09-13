@@ -149,6 +149,8 @@ const DEFAULT_PROJECT_PARAMS: ProjectParams = {
   duration: "3-5 minutes",
   targetAudience: "general",
   tone: "professional",
+  narrativeVoiceId: "nova",
+  handStyle: "custom1",
 };
 
 export const DEFAULT_WHITEBOARD_CONFIG: WhiteboardConfig = {
