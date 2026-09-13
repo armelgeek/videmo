@@ -39,20 +39,12 @@ interface WhiteboardEditorStepProps {
   /** Ratio du PROJET (projectParams), seule source pour la forme du canvas. */
   aspectRatio: RatioProjet;
   onConfigChange: (config: Partial<WhiteboardConfig>) => void;
-  onNavigateBack?: () => void;
-  onNavigateNext?: () => void;
-  /** Libelle du bouton d'avancement. Le whiteboard etant la DERNIERE etape, ce
-   *  n'est plus un "Next" mais une action de fin de parcours. */
-  nextLabel?: string;
 }
 
 export function WhiteboardEditorStep({
   config,
   aspectRatio,
   onConfigChange,
-  onNavigateBack,
-  onNavigateNext,
-  nextLabel = "Next →",
 }: WhiteboardEditorStepProps) {
   // Shared so the narration lane lines up with the timeline ruler above it.
   const [timelineViewport, setTimelineViewport] = useState<
@@ -571,18 +563,6 @@ export function WhiteboardEditorStep({
           justifie le rail : elle a besoin de toute la hauteur disponible, la ou
           deux controles seuls ne la remplissaient pas. */}
       <div className="w-72 shrink-0 min-h-0 flex flex-col gap-3">
-        <div className="flex shrink-0 gap-2 border-b pb-3">
-          <Button variant="outline" size="sm" onClick={onNavigateBack} className="flex-1">
-            ← Back
-          </Button>
-          <Button
-            size="sm"
-            onClick={onNavigateNext}
-            className="flex-1 bg-primary hover:bg-primary/90"
-          >
-            {nextLabel}
-          </Button>
-        </div>
 
         <AnnotationListPanel className="flex-1" />
 

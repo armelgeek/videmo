@@ -1717,9 +1717,6 @@ export default function StoryboardPage() {
               onConfigChange={(updates) =>
                 setWhiteboardConfig(updates)
               }
-              onNavigateBack={() => setStep("storyboard")}
-              nextLabel="Save project"
-              onNavigateNext={() => void handleSaveProgress()}
             />
           )}
 
