@@ -6,11 +6,10 @@ import { useStoryboardStore } from "@/lib/storyboard/store";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import type { StoryboardPanel } from "@/lib/storyboard/schema";
 import type { NarrationPart } from "../audio/narration-schedule";
+import { annotationColors } from "../schema";
 
-const STYLES = [
-  { accent: "#e91e8c", variant: "tinted" },
-  { accent: "#00d8ff", variant: "underline" },
-] as const;
+/** Alternates so two neighbouring segments stay apart; colour comes from the annotation. */
+const VARIANTS = ["tinted", "underline"] as const;
 
 export interface SegmentWindow {
   text: string;
@@ -104,7 +103,9 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
   if (segments.length === 0) return null;
 
   const idx = Math.min(current, segments.length - 1);
-  const { accent, variant } = STYLES[idx % STYLES.length];
+  // The segment shares the colour of the annotation at the same rank.
+  const accent = annotationColors(panel?.annotations?.[idx] ?? {}, idx).stroke;
+  const variant = VARIANTS[idx % VARIANTS.length];
   const words = segments[idx].text.split(/\s+/).filter(Boolean);
   const goTo = (target: number) =>
     useUnifiedEngineStore.getState().setCurrentTime(segments[target].startMs);
