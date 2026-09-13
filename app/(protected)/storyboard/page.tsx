@@ -40,8 +40,10 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowRight,
+  ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
 import { VOICES, normalizeVoice } from "@/lib/speech/speech-generator";
 import {
@@ -1047,7 +1049,7 @@ export default function StoryboardPage() {
   // Ne pas afficher l'interface tant que le projet n'est pas chargé
   if (projectSync.status === "loading") {
     return (
-      <AppShell contentClassName="h-screen overflow-hidden">
+      <AppShell showSidebar={false} contentClassName="h-screen overflow-hidden">
         <div className="h-full bg-background text-foreground flex flex-col items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
           <p className="text-sm text-muted-foreground">Loading project...</p>
@@ -1058,7 +1060,7 @@ export default function StoryboardPage() {
 
   if (projectSync.status === "error") {
     return (
-      <AppShell contentClassName="h-screen overflow-hidden">
+      <AppShell showSidebar={false} contentClassName="h-screen overflow-hidden">
         <div className="h-full bg-background text-foreground flex flex-col items-center justify-center gap-4">
           <AlertTriangle className="h-8 w-8 text-destructive" />
           <div className="text-center">
@@ -1073,7 +1075,7 @@ export default function StoryboardPage() {
   }
 
   return (
-    <AppShell contentClassName="h-screen overflow-hidden">
+    <AppShell showSidebar={false} contentClassName="h-screen overflow-hidden">
       <div className="h-full bg-background text-foreground flex flex-col overflow-hidden">
         <DevPanel currentStep={step} />
 
@@ -1096,6 +1098,14 @@ export default function StoryboardPage() {
           <div className="px-6 py-3 flex items-center justify-center gap-8 relative">
             {/* Project Title + Actions - Left */}
             <div className="absolute left-6 flex items-center gap-3">
+              <Link
+                href="/workspace"
+                aria-label="Back to workspace"
+                title="Back to workspace"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
               <input
                 type="text"
                 value={projectTitle}
