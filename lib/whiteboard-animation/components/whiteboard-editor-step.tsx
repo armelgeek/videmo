@@ -427,13 +427,16 @@ export function WhiteboardEditorStep({
       <ClipSelectorBar />
 
       {/* Column 2: Canvas Preview & Annotation Timeline */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3 justify-start overflow-y-auto">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3 overflow-hidden">
         {/* Canvas Container */}
+        {/* Le canevas prend toute la hauteur laissee par la timeline, au format
+            du projet : sa taille se deduit de la place, pas d'une hauteur figee. */}
+        <div className="flex-1 min-h-0 flex items-center justify-center [container-type:size]">
         <div
-          className="shrink-0 mx-auto w-full rounded-lg border border-white/10 bg-black overflow-hidden relative"
+          className="rounded-lg border border-white/10 bg-black overflow-hidden relative"
           style={{
             aspectRatio: cssAspectRatio(aspectRatio),
-            maxWidth: `min(100%, calc(52vh * ${canvasWidth} / ${canvasHeight}))`,
+            width: `min(100cqw, calc(100cqh * ${canvasWidth} / ${canvasHeight}))`,
           }}
         >
           <canvas
@@ -460,12 +463,13 @@ export function WhiteboardEditorStep({
             />
 
         </div>
+        </div>
 
 
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
-        <div className="relative">
+        <div className="relative shrink-0">
           <AnnotationTimeline
             onViewportChange={setTimelineViewport}
             globalAnnotations={allAnnotations}
