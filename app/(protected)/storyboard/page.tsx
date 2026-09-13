@@ -37,6 +37,8 @@ import {
   Plus,
   Pencil,
   ImageIcon,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
@@ -180,6 +182,7 @@ export default function StoryboardPage() {
   const [selectedClipIndex, setSelectedClipIndex] = useState(0);
   // Le champ en cours d'edition, pour la scene selectionnee : `${index}:field`.
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [isPlanningAnnotations, setIsPlanningAnnotations] = useState(false);
   const [narrationProgress, setNarrationProgress] = useState(0);
 
@@ -1712,18 +1715,18 @@ export default function StoryboardPage() {
                             </div>
                             {([
                               {
-                                key: "description",
-                                label: "Description",
-                                value: item.summary || item.narration || "",
-                                placeholder: "What is said during this scene...",
-                                onChange: (v: string) => updateClipField(i, { summary: v, narration: v }),
-                              },
-                              {
                                 key: "prompt",
                                 label: "Image prompt",
                                 value: item.visualPrompt || "",
                                 placeholder: "What the visual should show...",
                                 onChange: (v: string) => updateClipField(i, { visualPrompt: v }),
+                              },
+                              {
+                                key: "description",
+                                label: "Description",
+                                value: item.summary || item.narration || "",
+                                placeholder: "What is said during this scene...",
+                                onChange: (v: string) => updateClipField(i, { summary: v, narration: v }),
                               },
                             ] as const).map((field) => {
                               const editing = editingField === `${i}:${field.key}`;
@@ -1731,9 +1734,22 @@ export default function StoryboardPage() {
                               return (
                                 <div key={field.key} className="group/field space-y-1.5">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                      {field.label}
-                                    </span>
+                                    {isPrompt ? (
+                                      <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground">
+                                        <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                                        {field.label}
+                                      </span>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setDescriptionOpen((open) => !open)}
+                                        aria-expanded={descriptionOpen}
+                                        className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                                      >
+                                        {descriptionOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                                        {field.label}
+                                      </button>
+                                    )}
                                     {editing ? (
                                       <button
                                         type="button"
@@ -1754,7 +1770,15 @@ export default function StoryboardPage() {
                                       </button>
                                     )}
                                   </div>
-                                  {editing ? (
+                                  {!isPrompt && !descriptionOpen && !editing ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setDescriptionOpen(true)}
+                                      className="w-full truncate px-1 text-left text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                      {field.value || field.placeholder}
+                                    </button>
+                                  ) : editing ? (
                                     <Textarea
                                       autoFocus
                                       value={field.value}
@@ -1763,7 +1787,7 @@ export default function StoryboardPage() {
                                       placeholder={field.placeholder}
                                       className={cn(
                                         "field-sizing-fixed min-h-0 overflow-y-auto text-xs leading-relaxed resize-none",
-                                        isPrompt ? "h-24" : "h-36",
+                                        isPrompt ? "h-32" : "h-28",
                                       )}
                                     />
                                   ) : (
@@ -1773,11 +1797,10 @@ export default function StoryboardPage() {
                                       className={cn(
                                         "w-full text-left rounded-md transition-colors",
                                         isPrompt
-                                          ? "flex gap-2 border-l-2 border-primary/40 bg-muted/30 px-3 py-2 text-xs italic text-muted-foreground hover:bg-muted/50"
-                                          : "px-1 py-0.5 text-sm leading-relaxed text-foreground/90 hover:bg-muted/30",
+                                          ? "border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm leading-relaxed text-foreground hover:border-primary/60"
+                                          : "px-1 py-0.5 text-xs leading-relaxed text-muted-foreground hover:bg-muted/30",
                                       )}
                                     >
-                                      {isPrompt && <ImageIcon className="w-3.5 h-3.5 mt-0.5 shrink-0 not-italic" />}
                                       <span className={cn(!field.value && "text-muted-foreground/60")}>
                                         {field.value || field.placeholder}
                                       </span>
