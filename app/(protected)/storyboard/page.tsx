@@ -1050,7 +1050,7 @@ export default function StoryboardPage() {
       <AppShell contentClassName="h-screen overflow-hidden">
         <div className="h-full bg-background text-foreground flex flex-col items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
-          <p className="text-sm text-muted-foreground">Chargement du projet...</p>
+          <p className="text-sm text-muted-foreground">Loading project...</p>
         </div>
       </AppShell>
     );
@@ -1882,7 +1882,7 @@ export default function StoryboardPage() {
                   throw new Error(
                     r.status === 404
                       ? "Le rendu a ete perdu par le serveur"
-                      : `Suivi du rendu impossible (${r.status})`
+                      : `Could not track the render (${r.status})`
                   );
                 }
                 const s = await r.json();

@@ -83,7 +83,7 @@ function AnnotationListPanelImpl({
 
       {derived.length === 0 ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">
-          Aucune annotation. Dessinez une région sur le canvas pour en ajouter une.
+          No annotations yet. Draw a region on the canvas to add one.
         </p>
       ) : (
         <ul className="min-h-0 flex-1 overflow-y-auto py-1">
@@ -108,7 +108,7 @@ function AnnotationListPanelImpl({
                   />
                   <div className="min-w-0 flex-1">
                     <span className={cn('block truncate text-xs', selected ? 'font-medium text-foreground' : 'text-foreground/90')}>
-                      {annotation.text || `Région ${i + 1}`}
+                      {annotation.text || `Region ${i + 1}`}
                     </span>
                     <span className="block text-[10px] tabular-nums text-muted-foreground">
                       {formatMs(annotation.reveal.from)} – {formatMs(annotation.reveal.to)}

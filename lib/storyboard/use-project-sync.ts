@@ -186,7 +186,7 @@ export function useProjectSync(): ProjectSyncState {
           if (!response.ok) {
             setError(
               response.status === 404
-                ? "Ce projet n'existe plus."
+                ? "This project no longer exists."
                 : `HTTP ${response.status}`,
             );
             setStatus("error");

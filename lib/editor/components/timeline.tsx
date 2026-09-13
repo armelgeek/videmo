@@ -723,12 +723,12 @@ const COULEUR_PAR_TYPE: Record<string, string> = {
 };
 
 const LIBELLES_TRANSITIONS: { value: string; label: string }[] = [
-  { value: "fade", label: "Fondu" },
-  { value: "slideup", label: "Glisse vers le haut" },
-  { value: "slidedown", label: "Glisse vers le bas" },
-  { value: "slideleft", label: "Glisse vers la gauche" },
-  { value: "slideright", label: "Glisse vers la droite" },
-  { value: "none", label: "Coupe franche (Supprimer)" },
+  { value: "fade", label: "Fade" },
+  { value: "slideup", label: "Slide up" },
+  { value: "slidedown", label: "Slide down" },
+  { value: "slideleft", label: "Slide left" },
+  { value: "slideright", label: "Slide right" },
+  { value: "none", label: "Cut (remove transition)" },
 ];
 
 function TimelineTransitionCard({
@@ -827,7 +827,7 @@ function TimelineTransitionCard({
         backgroundColor: couleur,
         opacity: 0.95,
       }}
-      title={`Cliquer pour changer la transition : ${type} (${initialDurationMs}ms)`}
+      title={`Click to change the transition: ${type} (${initialDurationMs}ms)`}
     >
       <span
         ref={labelRef}
@@ -850,7 +850,7 @@ function TimelineTransitionCard({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider border-b border-white/10 mb-1">
-            Changer la transition
+            Change transition
           </div>
           {LIBELLES_TRANSITIONS.map((t) => (
             <button
