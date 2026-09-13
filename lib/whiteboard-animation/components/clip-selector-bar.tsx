@@ -91,25 +91,44 @@ const ClipThumb = memo(function ClipThumb({
   return (
             <button
               onClick={() => onSelect(idx)}
-              className={`group/clip flex items-center gap-2.5 rounded-lg border p-1.5 text-left transition-colors ${
-                isActive ? "bg-primary/10 border-primary/60" : "border-transparent hover:bg-muted/50"
+              className={`group/clip relative flex flex-col gap-1.5 p-1.5 rounded-lg border transition-colors text-left ${
+                isActive
+                  ? "bg-primary/10 border-primary/60"
+                  : "border-transparent hover:bg-muted/50"
               }`}
             >
-              <div className="relative h-12 w-20 shrink-0 overflow-hidden rounded-md border border-border/40 bg-white">
-                <Image src={imageUrl} alt={title} fill sizes="80px" className="object-contain" />
+              {/* Thumbnail */}
+              <div className="relative w-full aspect-video rounded-md overflow-hidden bg-white border border-border/40 shrink-0 flex items-center justify-center">
+                <Image
+                  src={imageUrl}
+                  alt={title}
+                  fill
+                  sizes="224px"
+                  className="object-contain"
+                />
+                <span className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                  #{idx + 1}
+                </span>
               </div>
-              <div className="min-w-0 flex-1">
-                <p className={`line-clamp-2 text-xs leading-snug ${isActive ? "font-semibold text-foreground" : "text-foreground/90"}`}>
-                  <span className="mr-1 tabular-nums text-muted-foreground">{idx + 1}.</span>
+
+              {/* Title & Info */}
+              <div className="flex items-center justify-between min-w-0 px-0.5">
+                <span
+                  className={`text-xs font-semibold truncate ${
+                    isActive ? "text-primary font-bold" : "text-foreground"
+                  }`}
+                >
                   {title}
-                </p>
-                <p className="mt-1 flex items-center gap-2 text-[10px] tabular-nums text-muted-foreground">
-                  <span>{duration}s</span>
-                  <span className="flex items-center gap-0.5">
-                    <Layers className="h-2.5 w-2.5" />
+                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[10px] text-muted-foreground font-mono">
+                    {duration}s
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium flex items-center gap-1">
+                    <Layers className="w-2.5 h-2.5" />
                     {annotationCount}
                   </span>
-                </p>
+                </div>
               </div>
             </button>
   );
