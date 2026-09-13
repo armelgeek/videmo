@@ -3,6 +3,28 @@ import { z } from 'zod';
 /** Le style de tout projet : une annotation sans style propre se dessine ainsi. */
 export const DEFAULT_ANIM_STYLE = 'chunkjump';
 
+export const ANNOTATION_PALETTE = [
+  { stroke: '#2563eb', fill: 'rgba(37, 99, 235, 0.12)' },
+  { stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)' },
+  { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.12)' },
+  { stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.12)' },
+  { stroke: '#f97316', fill: 'rgba(249, 115, 22, 0.12)' },
+] as const;
+
+/**
+ * Black was every planned annotation's stored default, so every frame looked
+ * the same: an unset or black stroke takes its rank's colour instead.
+ */
+export function annotationColors(
+  annotation: { style?: { strokeColor?: string; fillColor?: string } },
+  index: number,
+): { stroke: string; fill: string } {
+  const swatch = ANNOTATION_PALETTE[index % ANNOTATION_PALETTE.length];
+  const stroke = annotation.style?.strokeColor;
+  if (!stroke || stroke.toLowerCase() === '#000000') return swatch;
+  return { stroke, fill: annotation.style?.fillColor ?? swatch.fill };
+}
+
 // Timing bounds for annotation reveal
 export const AnnotationRevealSchema = z.object({
   from: z.number().min(0).optional(),

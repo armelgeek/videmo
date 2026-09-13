@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { annotationColors } from '../schema';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import * as selectors from '@/lib/unified-engine/hooks/selectors';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
@@ -1454,8 +1455,7 @@ export function useWhiteboardRenderer({
       const region = annot.region;
       if (!region) return;
 
-      const stroke = annot.style?.strokeColor ?? '#2563eb';
-      const fill = annot.style?.fillColor ?? 'rgba(37, 99, 235, 0.12)';
+      const { stroke, fill } = annotationColors(annot, i);
 
       actx.fillStyle = fill;
       actx.fillRect(region.x, region.y, region.width, region.height);

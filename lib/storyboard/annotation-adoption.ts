@@ -1,4 +1,5 @@
 import type { Annotation } from "@/lib/whiteboard-animation/schema";
+import { annotationColors } from "@/lib/whiteboard-animation/schema";
 import type { TranscriptCue } from "@/lib/whiteboard-animation/audio/types";
 import {
   type TailleCanvas,
@@ -76,7 +77,7 @@ export function adoptPlannedAnnotations(input: {
   // tableau ne suffit plus, il ne designait le temps que tant qu'il n'y en
   // avait qu'une par temps.
   const rangs = new Map<number, number>();
-  const planned: Annotation[] = input.planned.map((annotation) => {
+  const planned: Annotation[] = input.planned.map((annotation, index) => {
     const beatIndex = annotation.beatIndex;
     const rang = rangs.get(beatIndex) ?? 0;
     rangs.set(beatIndex, rang + 1);
@@ -93,7 +94,12 @@ export function adoptPlannedAnnotations(input: {
         startMs: annotation.reveal.startMs,
         gapBeforeMs: 0,
       },
-      style: prev?.style ?? { strokeColor: "#000000", strokeWidth: 2, opacity: 1 },
+      style: prev?.style ?? {
+        strokeColor: annotationColors({}, index).stroke,
+        fillColor: annotationColors({}, index).fill,
+        strokeWidth: 2,
+        opacity: 1,
+      },
       ...(prev?.animStyle ? { animStyle: prev.animStyle } : {}),
       metadata: { source: PLANNED_SOURCE, beatIndex },
     };

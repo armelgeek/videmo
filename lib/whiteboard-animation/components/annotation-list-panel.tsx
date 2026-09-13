@@ -5,7 +5,7 @@ import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { cn } from '@/lib/utils';
-import { DEFAULT_ANIM_STYLE } from '../schema';
+import { DEFAULT_ANIM_STYLE, annotationColors } from '../schema';
 
 /** Couleur de repli du calque d'annotations — meme valeur qu'AnnotationOverlay. */
 const DEFAULT_STROKE = '#2563eb';
@@ -90,7 +90,7 @@ function AnnotationListPanelImpl({
         <ul className="min-h-0 flex-1 overflow-y-auto py-1">
           {derived.map((annotation, i) => {
             const selected = selectedIndex === i;
-            const color = annotation.style?.strokeColor ?? DEFAULT_STROKE;
+            const color = annotationColors(annotation, i).stroke;
             const currentAnimStyle = annotation.animStyle ?? DEFAULT_ANIM_STYLE;
 
             return (

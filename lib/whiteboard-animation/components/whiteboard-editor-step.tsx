@@ -19,6 +19,7 @@ import {
 } from "../timeline/panel-fallback-annotation";
 import { AnnotationListPanel } from "./annotation-list-panel";
 import { SceneDetailsPanel } from "./scene-details-panel";
+import { ScriptSegmentsCard } from "./script-segments-card";
 import { TimelinePlayhead } from "./timeline-playhead";
 import { ClipTransitionMarkers } from "./clip-transition-markers";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
@@ -559,6 +560,8 @@ export function WhiteboardEditorStep({
           />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
+
+        <ScriptSegmentsCard className="shrink-0 max-h-40 overflow-y-auto" />
 
       </div>
 

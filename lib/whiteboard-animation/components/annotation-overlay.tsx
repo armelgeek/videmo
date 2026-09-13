@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { annotationColors } from "../schema";
 import { Stage, Layer, Rect, Group, Label, Tag, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
@@ -188,8 +189,7 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
               const region = annot.region;
               if (!region) return null;
 
-              const stroke = annot.style?.strokeColor ?? DEFAULT_STROKE;
-              const fill = annot.style?.fillColor ?? DEFAULT_FILL;
+              const { stroke, fill } = annotationColors(annot, i);
               const isSelected = selectedIndex === i;
 
               return (
