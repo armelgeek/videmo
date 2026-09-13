@@ -94,7 +94,7 @@ export const TimelineClipItem = memo(
           opacity: track.isMuted ? 0.5 : undefined,
           ...(clip.color && {
             borderColor: isSelected ? clip.color : `color-mix(in srgb, ${clip.color} 70%, transparent)`,
-            borderWidth: isSelected ? 2 : 1,
+            borderWidth: isSelected ? 3 : 2,
           }),
         }}
         onMouseDown={(e) => handleClipMouseDown(e, "move")}
