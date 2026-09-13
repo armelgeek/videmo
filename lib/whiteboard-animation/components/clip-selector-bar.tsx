@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback } from "react";
+import { memo, useCallback, useEffect, useRef, type Ref } from "react";
 import Image from "next/image";
 import { Layers } from "lucide-react";
 import { useStoryboardStore } from "@/lib/storyboard/store";
@@ -29,6 +29,22 @@ function ClipSelectorBarImpl() {
     [setActiveClipIndex],
   );
 
+  // Centre la scene active dans la liste a chaque changement — au clic comme
+  // au fil de la lecture, ou l'auto-avance de l'editeur change activeClipIndex
+  // sans jamais passer par handleSelect. scrollIntoView({block:'nearest'}) ne
+  // bouge que si l'element deborde, donc une scene active mais deja visible
+  // (en haut ou en bas de la liste) n'etait jamais recentree.
+  const listRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const list = listRef.current;
+    const active = activeRef.current;
+    if (!list || !active) return;
+    const cible =
+      active.offsetTop - list.clientHeight / 2 + active.offsetHeight / 2;
+    list.scrollTo({ top: Math.max(0, cible), behavior: "smooth" });
+  }, [activeClipIndex]);
+
   if (!storyboardPanels || storyboardPanels.length === 0) return null;
 
   return (
@@ -40,10 +56,11 @@ function ClipSelectorBarImpl() {
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1.5">
+      <div ref={listRef} className="flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-1.5">
         {storyboardPanels.map((panel, idx) => (
           <ClipThumb
             key={panel.id || idx}
+            ref={idx === activeClipIndex ? activeRef : undefined}
             idx={idx}
             isActive={idx === activeClipIndex}
             title={panel.title || `Clip ${idx + 1}`}
@@ -70,6 +87,9 @@ interface ClipThumbProps {
   annotationCount: number;
   imageUrl: string;
   onSelect: (idx: number) => void;
+  // React 19 transmet `ref` comme une prop ordinaire aux composants fonction ;
+  // forwardRef n'est plus necessaire.
+  ref?: Ref<HTMLButtonElement>;
 }
 
 /**
@@ -87,9 +107,11 @@ const ClipThumb = memo(function ClipThumb({
   annotationCount,
   imageUrl,
   onSelect,
+  ref,
 }: ClipThumbProps) {
   return (
             <button
+              ref={ref}
               onClick={() => onSelect(idx)}
               // Hundreds of scenes: off-screen entries skip layout and paint.
               style={{ contentVisibility: "auto", containIntrinsicSize: "auto 160px" }}
