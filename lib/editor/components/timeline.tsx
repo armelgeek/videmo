@@ -98,6 +98,7 @@ interface TimelineProps {
    * cursor spanning several lanes, which would otherwise sit on top of it.
    */
   showPlayhead?: boolean;
+  hideTrackHeaders?: boolean;
   /**
    * Reports the horizontal viewport so a lane rendered OUTSIDE this component
    * can line up with the ruler: same pixels-per-second, same scroll offset.
@@ -172,6 +173,7 @@ export const Timeline = memo(function Timeline({
   clipWindows,
   onTransitionResize,
   onTransitionTypeChange,
+  hideTrackHeaders = false,
   showPlayhead = true,
   hideScrollbar = false,
 }: TimelineProps) {
@@ -485,6 +487,7 @@ export const Timeline = memo(function Timeline({
         id="timeline-wrapper"
       >
         {/* Track Headers */}
+        {!hideTrackHeaders && (
         <div
           ref={headerContainerRef}
           className="w-32 bg-[var(--surface-0)] border-r border-[var(--border-default)] shrink-0 z-20 flex flex-col pt-8 shadow-[4px_0_15px_-5px_rgba(0,0,0,0.5)] overflow-hidden"
@@ -497,6 +500,7 @@ export const Timeline = memo(function Timeline({
             onReorderTracks={onReorderTracks}
           />
         </div>
+        )}
 
         {/* Scrollable Timeline */}
         <div

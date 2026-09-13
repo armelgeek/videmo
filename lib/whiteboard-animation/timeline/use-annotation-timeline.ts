@@ -27,6 +27,7 @@ function panneauDe(id: string): { panelIdx: number; localId: string } | null {
 const DEFAULT_ZOOM = 100;
 const MIN_ZOOM = 10;
 const MAX_ZOOM = 400;
+const READABLE_ZOOM = 60;
 
 /**
  * Wires the unified engine store to the NLE timeline component.
@@ -244,9 +245,11 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
       if (userChoseZoom.current) return;
       if (availableWidth <= 0 || durationSeconds <= 0) return;
 
+      // Faire tenir toute la sequence rendait les libelles illisibles : on garde
+      // une echelle lisible et on fait defiler au-dela.
       const fitted = Math.min(
         MAX_ZOOM,
-        Math.max(MIN_ZOOM, availableWidth / durationSeconds),
+        Math.max(READABLE_ZOOM, availableWidth / durationSeconds),
       );
       setZoomLevel((current) =>
         Math.abs(current - fitted) < 1 ? current : fitted,

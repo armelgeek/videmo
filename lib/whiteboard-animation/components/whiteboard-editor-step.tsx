@@ -18,7 +18,6 @@ import {
   PLEINE_IMAGE_ID,
 } from "../timeline/panel-fallback-annotation";
 import { AnnotationListPanel } from "./annotation-list-panel";
-import { AudioTrackRow } from "./audio-track-row";
 import { TimelinePlayhead } from "./timeline-playhead";
 import { ClipTransitionMarkers } from "./clip-transition-markers";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
@@ -559,7 +558,6 @@ export function WhiteboardEditorStep({
               }
             }}
           />
-          <AudioTrackRow viewport={timelineViewport} />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
 

@@ -34,12 +34,8 @@ const TIMELINE_THEME: React.CSSProperties = {
  * The whiteboard editor's timeline: every clip is an annotation, chained in
  * sequence. Positions are derived, never stored.
  */
-/** Width of the track-header gutter that sits left of the clips. Exported so
- *  sibling track rows (e.g. AudioTrackRow) can align their own gutter.
- *
- *  Must match the Timeline's own header (`w-32`). It was 132 against that 128,
- *  which offset every sibling lane by 4px before any scrolling came into it. */
-export const TRACK_HEADER_PX = 128;
+/** The whiteboard timeline hides its track headers: clips start at the left edge. */
+export const TRACK_HEADER_PX = 0;
 
 /**
  * The video editor keeps a full viewport of empty timeline past the last clip
@@ -104,8 +100,8 @@ const AnnotationTimelineImpl: React.FC<AnnotationTimelineProps> = ({
       <Timeline
         {...timeline}
         endPadding={END_PADDING_PX}
-        hideScrollbar
         showPlayhead={false}
+        hideTrackHeaders
         onViewportChange={onViewportChange}
         clipWindows={clipWindows}
         onTransitionResize={onTransitionResize}
