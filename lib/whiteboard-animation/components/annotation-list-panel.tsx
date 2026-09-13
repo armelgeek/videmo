@@ -86,9 +86,6 @@ function AnnotationListPanelImpl({
         <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Annotations ({derived.length})
         </span>
-        <span className="text-[10px] text-muted-foreground">
-          Style individuel
-        </span>
       </header>
 
       {derived.length === 0 ? (
@@ -96,56 +93,60 @@ function AnnotationListPanelImpl({
           Aucune annotation. Dessinez une région sur le canvas pour en ajouter une.
         </p>
       ) : (
-        <ul className="min-h-0 flex-1 overflow-y-auto py-1 divide-y divide-border/30">
+        <ul className="min-h-0 flex-1 overflow-y-auto py-1">
           {derived.map((annotation, i) => {
             const selected = selectedIndex === i;
             const color = annotation.style?.strokeColor ?? DEFAULT_STROKE;
             const currentAnimStyle = annotation.animStyle ?? 'global';
 
             return (
-              <li key={annotation.id ?? i} className="p-2 space-y-1.5 hover:bg-muted/30">
+              <li key={annotation.id ?? i} className="px-1.5 py-0.5">
                 <div
                   onClick={() => setSelectedAnnotation(selected ? null : i)}
                   className={cn(
-                    'flex w-full items-center gap-2 cursor-pointer rounded px-1.5 py-1 transition-colors',
-                    selected ? 'bg-muted font-medium' : 'hover:bg-muted/50',
+                    'flex w-full items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 transition-colors',
+                    selected ? 'bg-muted' : 'hover:bg-muted/50',
                   )}
                 >
                   <span
                     aria-hidden
-                    className="h-5 w-1 shrink-0 rounded-full"
+                    className="h-7 w-1 shrink-0 rounded-full"
                     style={{ backgroundColor: color }}
                   />
                   <div className="min-w-0 flex-1">
-                    <span className="block truncate text-xs text-foreground">
+                    <span className={cn('block truncate text-xs', selected ? 'font-medium text-foreground' : 'text-foreground/90')}>
                       {annotation.text || `Région ${i + 1}`}
                     </span>
                     <span className="block text-[10px] tabular-nums text-muted-foreground">
                       {formatMs(annotation.reveal.from)} – {formatMs(annotation.reveal.to)}
                     </span>
                   </div>
+                  {!selected && currentAnimStyle !== 'global' && (
+                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {ANIM_STYLES.find((st) => st.value === currentAnimStyle)?.label ?? currentAnimStyle}
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-2 pl-3 pt-0.5">
-                  <span className="text-[10px] font-medium text-muted-foreground shrink-0">
-                    Style :
-                  </span>
-                  <Select
-                    value={currentAnimStyle}
-                    onValueChange={(val) => handleStyleChange(i, val)}
-                  >
-                    <SelectTrigger className="h-6 w-full text-[11px] px-2 bg-background border-border">
-                      <SelectValue placeholder="Par défaut" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ANIM_STYLES.map((s) => (
-                        <SelectItem key={s.value} value={s.value} className="text-xs">
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {selected && (
+                  <div className="px-2 pb-1.5 pt-1">
+                    <Select
+                      value={currentAnimStyle}
+                      onValueChange={(val) => handleStyleChange(i, val)}
+                    >
+                      <SelectTrigger aria-label="Animation style" className="h-7 w-full text-[11px] px-2 bg-background border-border">
+                        <SelectValue placeholder="Par défaut" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ANIM_STYLES.map((st) => (
+                          <SelectItem key={st.value} value={st.value} className="text-xs">
+                            {st.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </li>
             );
           })}
