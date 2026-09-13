@@ -175,6 +175,7 @@ export default function StoryboardPage() {
   const [showVoiceSelector, setShowVoiceSelector] = useState(false);
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
+  const [selectedClipIndex, setSelectedClipIndex] = useState(0);
   const [isPlanningAnnotations, setIsPlanningAnnotations] = useState(false);
   const [narrationProgress, setNarrationProgress] = useState(0);
 
@@ -1549,7 +1550,7 @@ export default function StoryboardPage() {
 
 
           {step === "storyboard" && (
-            <div className="max-w-6xl mx-auto px-4 pt-4 pb-12">
+            <div className="max-w-7xl mx-auto px-4 pt-4 pb-12">
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -1612,98 +1613,127 @@ export default function StoryboardPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  {editableClips.map((item, i) =>
-                    item.isSection ? (
-                      <div
-                        key={item.id || `item-${i}`}
-                        className="col-span-full flex items-center gap-2 border-b border-border/50 pt-2 pb-1"
-                      >
-                        <input
-                          type="text"
-                          value={item.title || ""}
-                          onChange={(e) => updateClipField(i, { title: e.target.value })}
-                          placeholder="Section title..."
-                          className="flex-1 bg-transparent text-xs font-semibold uppercase tracking-wider text-muted-foreground outline-none focus:text-foreground"
-                        />
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => deleteClip(i)} title="Delete section">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div
-                        key={item.id || `item-${i}`}
-                        className="group rounded-xl border border-border bg-card overflow-hidden flex flex-col sm:flex-row"
-                      >
-                        <div className="relative sm:w-2/5 shrink-0 aspect-video sm:aspect-auto sm:min-h-full bg-muted/30 flex items-center justify-center">
-                          {generatedImages[i] ? (
-                            <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-contain bg-white" />
-                          ) : isGeneratingImages ? (
-                            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                          ) : (
-                            <Film className="w-5 h-5 text-muted-foreground/40" />
+                <div className="flex gap-4 items-start">
+                  <div className="flex-1 min-w-0 grid grid-cols-2 lg:grid-cols-3 gap-3">
+                    {editableClips.map((item, i) => {
+                      const selected = i === selectedClipIndex;
+                      return item.isSection ? (
+                        <button
+                          key={item.id || `item-${i}`}
+                          type="button"
+                          onClick={() => setSelectedClipIndex(i)}
+                          className={cn(
+                            "col-span-full text-left text-xs font-semibold uppercase tracking-wider border-b pt-2 pb-1",
+                            selected ? "text-primary border-primary" : "text-muted-foreground border-border/50",
                           )}
-                          <span className="absolute top-1.5 left-1.5 rounded bg-background/80 px-1.5 text-[10px] font-bold">
-                            {i + 1}
+                        >
+                          {item.title || "Untitled section"}
+                        </button>
+                      ) : (
+                        <button
+                          key={item.id || `item-${i}`}
+                          type="button"
+                          onClick={() => setSelectedClipIndex(i)}
+                          className={cn(
+                            "text-left rounded-lg border bg-card overflow-hidden transition-all",
+                            selected ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/50",
+                          )}
+                        >
+                          <div className="relative aspect-video bg-white flex items-center justify-center">
+                            {generatedImages[i] ? (
+                              <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-contain" />
+                            ) : isGeneratingImages ? (
+                              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                            ) : (
+                              <Film className="w-5 h-5 text-muted-foreground/40" />
+                            )}
+                            <span className="absolute top-1.5 left-1.5 rounded bg-black/70 px-1.5 text-[10px] font-bold text-white">
+                              {i + 1}
+                            </span>
+                          </div>
+                          <p className="px-2.5 py-2 text-xs font-medium truncate">
+                            {item.title || `Clip ${i + 1}`}
+                          </p>
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => { addClip(); setSelectedClipIndex(editableClips.length); }}
+                      className="aspect-video rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-xs"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Add scene
+                    </button>
+                  </div>
+
+                  {editableClips[selectedClipIndex] && (() => {
+                    const i = selectedClipIndex;
+                    const item = editableClips[i];
+                    return (
+                      <aside className="w-96 shrink-0 sticky top-0 max-h-[calc(100vh-9rem)] overflow-y-auto rounded-xl border border-border bg-card p-4 space-y-3">
+                        <div className="flex items-center gap-1">
+                          <span className="flex-1 truncate text-sm font-semibold">
+                            {item.isSection ? "Section" : `${i + 1}. ${item.title || `Clip ${i + 1}`}`}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => void regenerateImageForClip(i)}
-                            disabled={isGeneratingImages}
-                            className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md bg-background/90 border border-border px-2 py-1 text-[11px] flex items-center gap-1 disabled:opacity-40"
-                            title="Regenerate visual"
-                          >
-                            <RefreshCw className="w-3 h-3" />
-                            Redraw
-                          </button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" disabled={i === 0} onClick={() => { moveClip(i, "up"); setSelectedClipIndex(i - 1); }} title="Move up">↑</Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" disabled={i === editableClips.length - 1} onClick={() => { moveClip(i, "down"); setSelectedClipIndex(i + 1); }} title="Move down">↓</Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => duplicateClip(i)} title="Duplicate"><Copy className="w-3.5 h-3.5" /></Button>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => { deleteClip(i); setSelectedClipIndex(Math.max(0, i - 1)); }} title="Delete"><Trash2 className="w-3.5 h-3.5" /></Button>
                         </div>
 
-                        <div className="flex-1 min-w-0 p-3 space-y-2">
-                          <div className="flex items-center gap-1">
-                            <p className="flex-1 truncate text-sm font-semibold">{item.title || `Clip ${i + 1}`}</p>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" disabled={i === 0} onClick={() => moveClip(i, "up")} title="Move up">↑</Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" disabled={i === editableClips.length - 1} onClick={() => moveClip(i, "down")} title="Move down">↓</Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => duplicateClip(i)} title="Duplicate"><Copy className="w-3.5 h-3.5" /></Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => deleteClip(i)} title="Delete"><Trash2 className="w-3.5 h-3.5" /></Button>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Description</Label>
-                            <Textarea
-                              value={item.summary || item.narration || ""}
-                              onChange={(e) => updateClipField(i, { summary: e.target.value, narration: e.target.value })}
-                              placeholder="What is said during this scene..."
-                              className="field-sizing-fixed h-24 min-h-0 overflow-y-auto text-xs resize-none"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Image prompt</Label>
-                            <Textarea
-                              value={item.visualPrompt || ""}
-                              onChange={(e) => updateClipField(i, { visualPrompt: e.target.value })}
-                              placeholder="What the visual should show..."
-                              className="field-sizing-fixed h-16 min-h-0 overflow-y-auto text-xs resize-none"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ),
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => addClip()}
-                    className="min-h-32 rounded-xl border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50 flex items-center justify-center gap-2 text-xs"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add scene
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => addSection()}
-                    className="min-h-32 rounded-xl border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50 flex items-center justify-center gap-2 text-xs"
-                  >
-                    <Layers className="w-4 h-4" />
-                    Add section
-                  </button>
+                        {item.isSection ? (
+                          <input
+                            type="text"
+                            value={item.title || ""}
+                            onChange={(e) => updateClipField(i, { title: e.target.value })}
+                            placeholder="Section title..."
+                            className="w-full text-sm bg-muted/40 border border-border/50 rounded-lg p-2.5 outline-none focus:border-primary"
+                          />
+                        ) : (
+                          <>
+                            <div className="relative aspect-video rounded-lg overflow-hidden border bg-white">
+                              {generatedImages[i] && (
+                                <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-contain" />
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => void regenerateImageForClip(i)}
+                                disabled={isGeneratingImages}
+                                className="absolute bottom-2 right-2 rounded-md bg-background/90 border border-border px-2 py-1 text-[11px] flex items-center gap-1 disabled:opacity-40"
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                                Redraw
+                              </button>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Description</Label>
+                              <Textarea
+                                value={item.summary || item.narration || ""}
+                                onChange={(e) => updateClipField(i, { summary: e.target.value, narration: e.target.value })}
+                                placeholder="What is said during this scene..."
+                                className="field-sizing-fixed h-32 min-h-0 overflow-y-auto text-xs resize-none"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Image prompt</Label>
+                              <Textarea
+                                value={item.visualPrompt || ""}
+                                onChange={(e) => updateClipField(i, { visualPrompt: e.target.value })}
+                                placeholder="What the visual should show..."
+                                className="field-sizing-fixed h-24 min-h-0 overflow-y-auto text-xs resize-none"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" onClick={() => addSection(i)}>
+                          <Layers className="w-3.5 h-3.5 mr-1" />
+                          Insert section after
+                        </Button>
+                      </aside>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
