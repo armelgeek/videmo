@@ -178,7 +178,6 @@ export default function StoryboardPage() {
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [isPlanningAnnotations, setIsPlanningAnnotations] = useState(false);
   const [narrationProgress, setNarrationProgress] = useState(0);
-  const [selectedClipIndex, setSelectedClipIndex] = useState<number | null>(null);
 
   // Le projet vit en base : useProjectSync le charge (ou le cree), tient le
   // bail d'edition et ecrit chaque changement du store.
@@ -1209,7 +1208,12 @@ export default function StoryboardPage() {
           </div>
         </header>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-2 py-4">
+        <div
+          className={cn(
+            "flex-1 min-h-0 px-2 py-4",
+            step === "whiteboard" ? "overflow-hidden" : "overflow-y-auto",
+          )}
+        >
           {/* Step Content */}
           {step === "prompt" && (
             <div className="flex items-stretch px-4 py-8 gap-8 justify-center">
@@ -1552,13 +1556,13 @@ export default function StoryboardPage() {
 
 
           {step === "storyboard" && (
-            <div className="flex gap-6 px-4 pt-4 pb-12 items-start">
-              <div className="flex-1 min-w-0 space-y-4">
+            <div className="max-w-6xl mx-auto px-4 pt-4 pb-12">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h2 className="text-2xl font-bold">Storyboard</h2>
                     <p className="text-sm text-muted-foreground">
-                      {editableClips.filter((c) => !c.isSection).length} clips · click a clip to edit it
+                      {editableClips.filter((c) => !c.isSection).length} scenes
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1615,33 +1619,30 @@ export default function StoryboardPage() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {editableClips.map((item, i) =>
                     item.isSection ? (
-                      <button
+                      <div
                         key={item.id || `item-${i}`}
-                        type="button"
-                        onClick={() => setSelectedClipIndex(i)}
-                        className={cn(
-                          "col-span-full text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 pt-2 pb-1",
-                          selectedClipIndex === i && "text-primary border-primary",
-                        )}
+                        className="col-span-full flex items-center gap-2 border-b border-border/50 pt-2 pb-1"
                       >
-                        {item.title || "Untitled section"}
-                      </button>
+                        <input
+                          type="text"
+                          value={item.title || ""}
+                          onChange={(e) => updateClipField(i, { title: e.target.value })}
+                          placeholder="Section title..."
+                          className="flex-1 bg-transparent text-xs font-semibold uppercase tracking-wider text-muted-foreground outline-none focus:text-foreground"
+                        />
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => deleteClip(i)} title="Delete section">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     ) : (
-                      <button
+                      <div
                         key={item.id || `item-${i}`}
-                        type="button"
-                        onClick={() => setSelectedClipIndex(i)}
-                        className={cn(
-                          "group text-left rounded-lg border bg-card overflow-hidden transition-all",
-                          selectedClipIndex === i
-                            ? "border-primary ring-1 ring-primary"
-                            : "border-border hover:border-primary/50",
-                        )}
+                        className="group rounded-xl border border-border bg-card overflow-hidden flex flex-col sm:flex-row"
                       >
-                        <div className="relative aspect-video bg-muted/30 flex items-center justify-center">
+                        <div className="relative sm:w-2/5 shrink-0 aspect-video sm:aspect-auto sm:min-h-full bg-muted/30 flex items-center justify-center">
                           {generatedImages[i] ? (
                             <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-cover" />
                           ) : isGeneratingImages ? (
@@ -1652,94 +1653,68 @@ export default function StoryboardPage() {
                           <span className="absolute top-1.5 left-1.5 rounded bg-background/80 px-1.5 text-[10px] font-bold">
                             {i + 1}
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => void regenerateImageForClip(i)}
+                            disabled={isGeneratingImages}
+                            className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded-md bg-background/90 border border-border px-2 py-1 text-[11px] flex items-center gap-1 disabled:opacity-40"
+                            title="Regenerate visual"
+                          >
+                            <RefreshCw className="w-3 h-3" />
+                            Redraw
+                          </button>
                         </div>
-                        <p className="px-2.5 py-2 text-xs font-medium truncate">
-                          {item.title || `Clip ${i + 1}`}
-                        </p>
-                      </button>
+
+                        <div className="flex-1 min-w-0 p-3 space-y-2">
+                          <div className="flex items-center gap-1">
+                            <p className="flex-1 truncate text-sm font-semibold">{item.title || `Clip ${i + 1}`}</p>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" disabled={i === 0} onClick={() => moveClip(i, "up")} title="Move up">↑</Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" disabled={i === editableClips.length - 1} onClick={() => moveClip(i, "down")} title="Move down">↓</Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => duplicateClip(i)} title="Duplicate"><Copy className="w-3.5 h-3.5" /></Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => deleteClip(i)} title="Delete"><Trash2 className="w-3.5 h-3.5" /></Button>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Description</Label>
+                            <Textarea
+                              value={item.summary || item.narration || ""}
+                              onChange={(e) => updateClipField(i, { summary: e.target.value, narration: e.target.value })}
+                              placeholder="What is said during this scene..."
+                              rows={3}
+                              className="text-xs resize-none"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Image prompt</Label>
+                            <Textarea
+                              value={item.visualPrompt || ""}
+                              onChange={(e) => updateClipField(i, { visualPrompt: e.target.value })}
+                              placeholder="What the visual should show..."
+                              rows={2}
+                              className="text-xs resize-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     ),
                   )}
                   <button
                     type="button"
                     onClick={() => addClip()}
-                    className="aspect-video rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-xs"
+                    className="min-h-32 rounded-xl border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50 flex items-center justify-center gap-2 text-xs"
                   >
-                    <Plus className="w-5 h-5" />
-                    Add clip
+                    <Plus className="w-4 h-4" />
+                    Add scene
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => addSection()}
+                    className="min-h-32 rounded-xl border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50 flex items-center justify-center gap-2 text-xs"
+                  >
+                    <Layers className="w-4 h-4" />
+                    Add section
                   </button>
                 </div>
               </div>
-
-              {selectedClipIndex !== null && editableClips[selectedClipIndex] && (() => {
-                const i = selectedClipIndex;
-                const item = editableClips[i];
-                return (
-                  <aside className="w-full max-w-sm shrink-0 sticky top-4 bg-card border border-border rounded-xl p-4 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold">
-                        {item.isSection ? "Section" : `Clip ${i + 1}`}
-                      </span>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setSelectedClipIndex(null)}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-
-                    {item.isSection ? (
-                      <input
-                        type="text"
-                        value={item.title || ""}
-                        onChange={(e) => updateClipField(i, { title: e.target.value })}
-                        placeholder="Section title..."
-                        className="w-full text-sm bg-muted/40 border border-border/50 rounded-lg p-2.5 outline-none focus:border-primary"
-                      />
-                    ) : (
-                      <>
-                        <div className="relative aspect-video rounded-lg overflow-hidden bg-muted/30">
-                          {generatedImages[i] && (
-                            <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-cover" />
-                          )}
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          disabled={isGeneratingImages}
-                          onClick={() => void regenerateImageForClip(i)}
-                        >
-                          <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                          Regenerate visual
-                        </Button>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Narration</Label>
-                          <Textarea
-                            value={item.summary || item.narration || ""}
-                            onChange={(e) => updateClipField(i, { summary: e.target.value, narration: e.target.value })}
-                            rows={5}
-                            className="text-xs resize-none"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">Visual prompt</Label>
-                          <Textarea
-                            value={item.visualPrompt || item.summary || ""}
-                            onChange={(e) => updateClipField(i, { visualPrompt: e.target.value })}
-                            rows={4}
-                            className="text-xs resize-none"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    <div className="flex items-center gap-1 border-t border-border pt-3">
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={i === 0} onClick={() => { moveClip(i, "up"); setSelectedClipIndex(i - 1); }} title="Move up">↑</Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={i === editableClips.length - 1} onClick={() => { moveClip(i, "down"); setSelectedClipIndex(i + 1); }} title="Move down">↓</Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => duplicateClip(i)} title="Duplicate"><Copy className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => addSection(i)} title="Insert section after">+ Section</Button>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-auto text-muted-foreground hover:text-destructive" onClick={() => { deleteClip(i); setSelectedClipIndex(null); }} title="Delete"><Trash2 className="w-3.5 h-3.5" /></Button>
-                    </div>
-                  </aside>
-                );
-              })()}
             </div>
           )}
 
