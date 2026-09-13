@@ -19,8 +19,6 @@ export const projectParamsSchema = z.object({
   duration: z.string().default("3-5 minutes"),
   targetAudience: z.string().default("general"),
   tone: z.string().default("professional"),
-  narrativeVoiceId: z.string().default("nova"),
-  handStyle: z.string().default("custom1"),
 });
 export type ProjectParams = z.infer<typeof projectParamsSchema>;
 

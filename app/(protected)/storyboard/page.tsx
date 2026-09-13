@@ -194,46 +194,29 @@ export default function StoryboardPage() {
   // Le script est ecrit par l'agent a partir du prompt et des parametres. Le
   // garde sur les scenes deja presentes evite de regenerer — donc de repayer un
   // appel modele — en revenant sur l'etape depuis le storyboard.
-  useEffect(() => {
-    if (step !== "prompt" || isGeneratingScript) return;
-    if (scriptText.trim()) return;
-    if (!promptContent.trim()) return;
-
-    let cancelled = false;
+  const generateScript = async (content = promptContent) => {
+    if (!content.trim() || isGeneratingScript) return;
     setIsGeneratingScript(true);
     setScriptError(null);
-
-    (async () => {
-      try {
-        const response = await fetch("/api/generate-script", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: promptContent, ...projectParams }),
-        });
-        const body = await response.json();
-        if (cancelled) return;
-
-        if (!response.ok) {
-          setScriptError(body.error ?? `HTTP ${response.status}`);
-          return;
-        }
-        setScriptTitle(body.title ?? "");
-        setScriptText(body.text ?? "");
-      } catch (error) {
-        if (!cancelled) {
-          setScriptError(
-            error instanceof Error ? error.message : "Network error",
-          );
-        }
-      } finally {
-        if (!cancelled) setIsGeneratingScript(false);
+    try {
+      const response = await fetch("/api/generate-script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, ...projectParams }),
+      });
+      const body = await response.json();
+      if (!response.ok) {
+        setScriptError(body.error ?? `HTTP ${response.status}`);
+        return;
       }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [step, promptContent, scriptText]);
+      setScriptTitle(body.title ?? "");
+      setScriptText(body.text ?? "");
+    } catch (error) {
+      setScriptError(error instanceof Error ? error.message : "Network error");
+    } finally {
+      setIsGeneratingScript(false);
+    }
+  };
 
   const syncClipsToStore = (clipsToSync: any[], imagesToSync: string[]) => {
     const panels = clipsToSync
@@ -580,7 +563,7 @@ export default function StoryboardPage() {
 
   const handlePromptSubmit = (content: string) => {
     setPromptContent(content);
-    setStep("storyboard");
+    void generateScript(content);
   };
 
   const [isBreakingDown, setIsBreakingDown] = useState(false);
@@ -1287,10 +1270,8 @@ export default function StoryboardPage() {
                   </Select>
                   {/* Narrative Voice */}
                   <Select
-                    value={projectParams.narrativeVoiceId || "nova"}
-                    onValueChange={(val) =>
-                      setProjectParams({ ...projectParams, narrativeVoiceId: val })
-                    }
+                    value={selectedVoice}
+                    onValueChange={setSelectedVoice}
                   >
                     <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
                       <Volume2 className="w-4 h-4" />
@@ -1313,10 +1294,8 @@ export default function StoryboardPage() {
 
                   {/* Hand Style */}
                   <Select
-                    value={projectParams.handStyle || "custom1"}
-                    onValueChange={(val) =>
-                      setProjectParams({ ...projectParams, handStyle: val })
-                    }
+                    value={whiteboardConfig.handStyle}
+                    onValueChange={(val) => setWhiteboardConfig({ handStyle: val })}
                   >
                     <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
                       <Settings className="w-4 h-4" />
@@ -1475,64 +1454,73 @@ export default function StoryboardPage() {
                   </div>
                 </div>
               </div>
+
+              {(scriptText || isGeneratingScript || scriptError) && (
+                <aside className="w-full max-w-md shrink-0 self-start sticky top-4">
+                  <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
+                    <div className="border-b border-border bg-muted/50 px-4 py-3 flex items-center justify-between">
+                      <span className="font-medium text-sm">
+                        {isGeneratingScript ? "Writing script..." : `Script · ${scriptWordCount} words`}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={isGeneratingScript || isBreakingDown}
+                        onClick={() => void generateScript()}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-1" />
+                        Regenerate
+                      </Button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-4">
+                      {isGeneratingScript ? (
+                        <div className="flex flex-col items-center gap-3 py-12 text-muted-foreground">
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                          <p className="text-sm">Writing your script...</p>
+                        </div>
+                      ) : scriptError ? (
+                        <div className="flex items-start gap-2 text-sm text-destructive">
+                          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                          {scriptError}
+                        </div>
+                      ) : (
+                        <Textarea
+                          value={scriptText}
+                          onChange={(e) => setScriptText(e.target.value)}
+                          aria-label="Narration script"
+                          className="min-h-[50vh] resize-none border-0 bg-transparent p-0 text-sm leading-relaxed focus-visible:ring-0"
+                        />
+                      )}
+                    </div>
+                    <div className="border-t border-border px-4 py-3">
+                      <Button
+                        onClick={() => void handleScriptValidated()}
+                        disabled={!scriptText.trim() || isGeneratingScript || isBreakingDown}
+                        className="w-full bg-primary hover:bg-primary/90"
+                      >
+                        {isBreakingDown ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Check className="w-4 h-4 mr-2" />
+                        )}
+                        {isBreakingDown ? "Building storyboard..." : "Approve script"}
+                      </Button>
+                    </div>
+                  </div>
+                </aside>
+              )}
             </div>
           )}
 
 
-                {/* Script Preview */}
-                {scriptText && (
-                  <div className="max-w-4xl mx-auto">
-                    <div className="bg-card border border-border rounded-lg overflow-hidden">
-                      <div className="border-b border-border bg-muted/50 px-4 py-3 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full bg-green-500" />
-                          <span className="font-medium text-sm">Generated Script ({scriptWordCount} words)</span>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setScriptText("");
-                            setScriptTitle("");
-                          }}
-                        >
-                          <RefreshCw className="w-4 h-4 mr-1" />
-                          Regenerate
-                        </Button>
-                      </div>
-                      <div className="p-4 bg-background max-h-48 overflow-y-auto">
-                        <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{scriptText}</p>
-                      </div>
-                      <div className="border-t border-border bg-muted/20 px-4 py-3 flex gap-2 justify-end">
-                        <Button
-                          variant="outline"
-                          onClick={() => setStep("prompt")}
-                        >
-                          Back
-                        </Button>
-                        <Button
-                          onClick={() => setStep("storyboard")}
-                          className="bg-primary hover:bg-primary/90"
-                        >
-                          <Check className="w-4 h-4 mr-2" />
-                          Continue to Storyboard
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {isGeneratingScript && (
-                  <div className="max-w-4xl mx-auto text-center">
-                    <div className="flex flex-col items-center gap-3 py-8">
-                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">Writing your script...</p>
-                    </div>
-                  </div>
-                )}
-
           {step === "storyboard" && (
             <div className="max-w-5xl mx-auto space-y-6 pt-4 pb-12">
+              {isGeneratingNarration && (
+                <div className="bg-card border border-border rounded-lg p-4 flex items-center gap-2 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                  Recording narration... {Math.round(narrationProgress)}%
+                </div>
+              )}
               {/* Progress Bar */}
               {isGeneratingImages && (
                 <div className="bg-card border border-border rounded-lg p-4 space-y-2">
@@ -1605,13 +1593,13 @@ export default function StoryboardPage() {
                     <Button
                       onClick={() => {
                         syncClipsToStore(editableClips, generatedImages);
-                        setStep("whiteboard");
+                        void handleVoiceSelected(selectedVoice);
                       }}
                       size="sm"
                       className="bg-primary hover:bg-primary/90"
                     >
                       <Film className="w-3.5 h-3.5 mr-1.5" />
-                      Continue to Voice
+                      Continue to Whiteboard
                     </Button>
                   </div>
                 </div>
@@ -1864,12 +1852,12 @@ export default function StoryboardPage() {
                 <Button
                   onClick={() => {
                     syncClipsToStore(editableClips, generatedImages);
-                    setStep("whiteboard");
+                    void handleVoiceSelected(selectedVoice);
                   }}
                   className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
                 >
                   <Check className="w-4 h-4 mr-2" />
-                  Continue to Voice
+                  Continue to Whiteboard
                 </Button>
               </div>
             </div>
@@ -1883,7 +1871,7 @@ export default function StoryboardPage() {
               onConfigChange={(updates) =>
                 setWhiteboardConfig(updates)
               }
-              onNavigateBack={() => setStep("whiteboard")}
+              onNavigateBack={() => setStep("storyboard")}
               nextLabel="Save project"
               onNavigateNext={() => void handleSaveProgress()}
             />
