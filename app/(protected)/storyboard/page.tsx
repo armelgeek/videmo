@@ -35,6 +35,8 @@ import {
   Download,
   Copy,
   Plus,
+  Pencil,
+  ImageIcon,
 } from "lucide-react";
 import Image from "next/image";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
@@ -176,6 +178,8 @@ export default function StoryboardPage() {
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [selectedClipIndex, setSelectedClipIndex] = useState(0);
+  // Le champ en cours d'edition, pour la scene selectionnee : `${index}:field`.
+  const [editingField, setEditingField] = useState<string | null>(null);
   const [isPlanningAnnotations, setIsPlanningAnnotations] = useState(false);
   const [narrationProgress, setNarrationProgress] = useState(0);
 
@@ -1706,24 +1710,82 @@ export default function StoryboardPage() {
                                 Redraw
                               </button>
                             </div>
-                            <div className="space-y-1">
-                              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Description</Label>
-                              <Textarea
-                                value={item.summary || item.narration || ""}
-                                onChange={(e) => updateClipField(i, { summary: e.target.value, narration: e.target.value })}
-                                placeholder="What is said during this scene..."
-                                className="field-sizing-fixed h-32 min-h-0 overflow-y-auto text-xs resize-none"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Image prompt</Label>
-                              <Textarea
-                                value={item.visualPrompt || ""}
-                                onChange={(e) => updateClipField(i, { visualPrompt: e.target.value })}
-                                placeholder="What the visual should show..."
-                                className="field-sizing-fixed h-24 min-h-0 overflow-y-auto text-xs resize-none"
-                              />
-                            </div>
+                            {([
+                              {
+                                key: "description",
+                                label: "Description",
+                                value: item.summary || item.narration || "",
+                                placeholder: "What is said during this scene...",
+                                onChange: (v: string) => updateClipField(i, { summary: v, narration: v }),
+                              },
+                              {
+                                key: "prompt",
+                                label: "Image prompt",
+                                value: item.visualPrompt || "",
+                                placeholder: "What the visual should show...",
+                                onChange: (v: string) => updateClipField(i, { visualPrompt: v }),
+                              },
+                            ] as const).map((field) => {
+                              const editing = editingField === `${i}:${field.key}`;
+                              const isPrompt = field.key === "prompt";
+                              return (
+                                <div key={field.key} className="group/field space-y-1.5">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                      {field.label}
+                                    </span>
+                                    {editing ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingField(null)}
+                                        className="flex items-center gap-1 text-[11px] text-primary"
+                                      >
+                                        <Check className="w-3 h-3" />
+                                        Done
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={() => setEditingField(`${i}:${field.key}`)}
+                                        aria-label={`Edit ${field.label}`}
+                                        className="opacity-0 group-hover/field:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                  {editing ? (
+                                    <Textarea
+                                      autoFocus
+                                      value={field.value}
+                                      onChange={(e) => field.onChange(e.target.value)}
+                                      onBlur={() => setEditingField(null)}
+                                      placeholder={field.placeholder}
+                                      className={cn(
+                                        "field-sizing-fixed min-h-0 overflow-y-auto text-xs leading-relaxed resize-none",
+                                        isPrompt ? "h-24" : "h-36",
+                                      )}
+                                    />
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditingField(`${i}:${field.key}`)}
+                                      className={cn(
+                                        "w-full text-left rounded-md transition-colors",
+                                        isPrompt
+                                          ? "flex gap-2 border-l-2 border-primary/40 bg-muted/30 px-3 py-2 text-xs italic text-muted-foreground hover:bg-muted/50"
+                                          : "px-1 py-0.5 text-sm leading-relaxed text-foreground/90 hover:bg-muted/30",
+                                      )}
+                                    >
+                                      {isPrompt && <ImageIcon className="w-3.5 h-3.5 mt-0.5 shrink-0 not-italic" />}
+                                      <span className={cn(!field.value && "text-muted-foreground/60")}>
+                                        {field.value || field.placeholder}
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </>
                         )}
 
