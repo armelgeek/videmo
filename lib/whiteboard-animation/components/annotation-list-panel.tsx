@@ -4,6 +4,7 @@ import { memo, useMemo } from 'react';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { deriveTimeline } from '../timeline/derive-timeline';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DEFAULT_ANIM_STYLE, annotationColors } from '../schema';
 
@@ -74,48 +75,47 @@ function AnnotationListPanelImpl({
 
   return (
     <section className={cn('flex min-h-0 flex-col rounded-xl border border-border bg-card overflow-hidden', className)}>
-      <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-3">
-        <span className="text-xs font-semibold text-foreground">Annotations</span>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">
-          {derived.length}
-        </span>
-      </header>
 
       {derived.length === 0 ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">
           No annotations yet. Draw a region on the canvas to add one.
         </p>
       ) : (
-        <ul className="min-h-0 flex-1 overflow-y-auto py-1">
+        <ul className="min-h-0 flex-1 overflow-y-auto py-1.5">
           {derived.map((annotation, i) => {
             const selected = selectedIndex === i;
             const color = annotationColors(annotation, i).stroke;
             const currentAnimStyle = annotation.animStyle ?? DEFAULT_ANIM_STYLE;
 
             return (
-              <li key={annotation.id ?? i} className="px-1.5 py-0.5">
+              <li key={annotation.id ?? i} className="px-2 py-1">
                 <div
                   onClick={() => setSelectedAnnotation(selected ? null : i)}
                   className={cn(
-                    'flex w-full items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 transition-colors',
-                    selected ? 'bg-muted' : 'hover:bg-muted/50',
+                    'flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-l-[3px] px-2.5 py-2 transition-colors',
+                    selected ? 'bg-muted' : 'border-transparent hover:bg-muted/40',
                   )}
+                  style={{
+                    borderLeftColor: color,
+                    ...(selected && { borderColor: `color-mix(in srgb, ${color} 55%, transparent)`, borderLeftColor: color }),
+                  }}
                 >
                   <span
-                    aria-hidden
-                    className="h-7 w-1 shrink-0 rounded-full"
-                    style={{ backgroundColor: color }}
-                  />
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums"
+                    style={{ color, backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)` }}
+                  >
+                    {i + 1}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <span className={cn('block truncate text-xs', selected ? 'font-medium text-foreground' : 'text-foreground/90')}>
+                    <span className={cn('block truncate text-[13px] leading-tight', selected ? 'font-medium text-foreground' : 'text-foreground/90')}>
                       {annotation.text || `Region ${i + 1}`}
                     </span>
-                    <span className="block text-[10px] tabular-nums text-muted-foreground">
-                      {formatMs(annotation.reveal.from)} – {formatMs(annotation.reveal.to)}
+                    <span className="mt-0.5 block font-mono text-[10px] tabular-nums text-muted-foreground">
+                      {formatMs(annotation.reveal.from)} → {formatMs(annotation.reveal.to)}
                     </span>
                   </div>
                   {!selected && currentAnimStyle !== DEFAULT_ANIM_STYLE && (
-                    <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
                       {ANIM_STYLES.find((st) => st.value === currentAnimStyle)?.label ?? currentAnimStyle}
                     </span>
                   )}
@@ -125,7 +125,7 @@ function AnnotationListPanelImpl({
                   <div
                     role="radiogroup"
                     aria-label="Animation style"
-                    className="grid grid-cols-2 gap-1 px-2 pb-2 pt-1.5"
+                    className="grid grid-cols-2 gap-1.5 px-2 pb-3 pt-2"
                   >
                     {ANIM_STYLES.map((st) => {
                       const active = currentAnimStyle === st.value;
@@ -136,14 +136,16 @@ function AnnotationListPanelImpl({
                           role="radio"
                           aria-checked={active}
                           onClick={() => handleStyleChange(i, st.value)}
+                          style={active ? { borderColor: color, color } : undefined}
                           className={cn(
-                            'truncate rounded-md border px-2 py-1 text-left text-[10px] transition-colors',
+                            'flex items-center justify-between gap-1 truncate rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors',
                             active
-                              ? 'border-primary bg-primary/15 text-foreground'
-                              : 'border-transparent bg-background/60 text-muted-foreground hover:border-border hover:text-foreground',
+                              ? 'bg-muted'
+                              : 'border-border/60 bg-background/40 text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground',
                           )}
                         >
-                          {st.label}
+                          <span className="truncate">{st.label}</span>
+                          {active && <Check className="h-3.5 w-3.5 shrink-0" />}
                         </button>
                       );
                     })}
