@@ -11,21 +11,17 @@ import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { toEngineAnnotations, toStoredAnnotations } from "../timeline/annotation-interop";
 import { useWhiteboardRenderer } from "../hooks/use-whiteboard-renderer";
 import { deriveTimeline } from "../timeline/derive-timeline";
-import { AnnotationTimeline } from "../timeline/annotation-timeline";
 import { panelWindows, type DrawnSpan } from "../timeline/panel-windows";
 import {
   annotationPleineImage,
   PLEINE_IMAGE_ID,
 } from "../timeline/panel-fallback-annotation";
-import { AnnotationListPanel } from "./annotation-list-panel";
-import { TimelinePlayhead } from "./timeline-playhead";
-import { ClipTransitionMarkers } from "./clip-transition-markers";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { narrationEndMs } from '../audio/narration-schedule';
 import { DEMO_STORYBOARD } from "@/lib/demo-data";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
-import { ClipSelectorBar } from "./clip-selector-bar";
+import { AnnotationSequenceList } from "./annotation-sequence-list";
 
 
 /** Konva touche `window` des son chargement : pas d'evaluation au rendu serveur. */
@@ -54,11 +50,6 @@ export function WhiteboardEditorStep({
   onNavigateNext,
   nextLabel = "Next →",
 }: WhiteboardEditorStepProps) {
-  // Shared so the narration lane lines up with the timeline ruler above it.
-  const [timelineViewport, setTimelineViewport] = useState<
-    | { scrollEl: HTMLElement | null; contentWidth: number; zoomLevel: number }
-    | undefined
-  >(undefined);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -421,13 +412,91 @@ export function WhiteboardEditorStep({
     [onConfigChange],
   );
 
+  const changeTransitionType = useCallback(
+    (panelIdx: number, newType: string) => {
+        const sortantPanel = storyboardPanels[panelIdx];
+        const entrantPanel = storyboardPanels[panelIdx + 1];
+        if (!sortantPanel) return;
+
+        const currentDuration = sortantPanel.transition?.durationMs ?? 300;
+        useStoryboardStore.getState().updatePanel(sortantPanel.id, {
+          transition: {
+            type: newType as any,
+            durationMs: currentDuration,
+          },
+        });
+
+        if (newType !== "none" && entrantPanel) {
+          const sortantWindow = clipWindows[panelIdx];
+          const entrantWindow = clipWindows[panelIdx + 1];
+          const currentBlanc =
+            entrantWindow && sortantWindow
+              ? entrantWindow.startMs - sortantWindow.endMs
+              : 0;
+
+          if (currentBlanc === 0) {
+            const anns = annotationsDe(entrantPanel);
+            if (anns.length > 0) {
+              const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
+              anns[0] = {
+                ...anns[0],
+                reveal: {
+                  ...anns[0].reveal,
+                  gapBeforeMs: currentGap + 300,
+                },
+              };
+              const updatedStored = toStoredAnnotations(anns);
+              useStoryboardStore.getState().updatePanel(entrantPanel.id, {
+                annotations: updatedStored,
+              });
+
+              if (panelIdx + 1 === useStoryboardStore.getState().activeClipIndex) {
+                useUnifiedEngineStore.getState().setAnnotations(anns);
+              }
+            }
+          }
+        }
+    },
+    [storyboardPanels, clipWindows, annotationsDe],
+  );
+
+  // Une edition vise une annotation LOCALE a sa scene : la scene porte la
+  // donnee, le moteur ne represente que la scene active.
+  const updateSceneAnnotations = useCallback(
+    (panelIdx: number, update: (anns: ReturnType<typeof annotationsDe>) => ReturnType<typeof annotationsDe>) => {
+      const storyboard = useStoryboardStore.getState();
+      const panel = storyboard.storyboardPanels[panelIdx];
+      if (!panel) return;
+      const updated = update(annotationsDe(panel));
+      storyboard.updatePanel(panel.id, { annotations: toStoredAnnotations(updated) });
+      if (panelIdx === storyboard.activeClipIndex) {
+        useUnifiedEngineStore.getState().setAnnotations(updated);
+      }
+    },
+    [annotationsDe],
+  );
+
+  const changeAnnotationTiming = useCallback(
+    (panelIdx: number, localId: string, patch: { durationMs?: number; gapBeforeMs?: number }) =>
+      updateSceneAnnotations(panelIdx, (anns) =>
+        anns.map((a) => (a.id === localId ? { ...a, reveal: { ...a.reveal, ...patch } } : a)),
+      ),
+    [updateSceneAnnotations],
+  );
+
+  const changeAnnotationStyle = useCallback(
+    (panelIdx: number, localId: string, animStyle: string | undefined) =>
+      updateSceneAnnotations(panelIdx, (anns) =>
+        anns.map((a) => (a.id === localId ? { ...a, animStyle } : a)),
+      ),
+    [updateSceneAnnotations],
+  );
+
   return (
     <div className="w-full h-full flex gap-4 overflow-hidden">
-      {/* Column 1: Vertical Clip Selector Sidebar */}
-      <ClipSelectorBar />
 
       {/* Column 2: Canvas Preview & Annotation Timeline */}
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3 justify-start overflow-y-auto">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-3 overflow-hidden">
         {/* Canvas Container */}
         <div
           className="shrink-0 mx-auto w-full rounded-lg border border-white/10 bg-black overflow-hidden relative"
@@ -462,104 +531,14 @@ export function WhiteboardEditorStep({
         </div>
 
 
-        {/* Annotation timeline, with the narration lane below it. The playhead
-            is drawn by the timeline itself, so the lane has to borrow the same
-            scale and scroll offset to stay under it. */}
-        <div className="relative">
-          <AnnotationTimeline
-            onViewportChange={setTimelineViewport}
-            globalAnnotations={allAnnotations}
-            clipWindows={clipWindows}
-            onTransitionResize={(panelIdx, durationMs) => {
-              const sortantPanel = storyboardPanels[panelIdx];
-              const entrantPanel = storyboardPanels[panelIdx + 1];
-              if (!sortantPanel?.transition) return;
-
-              const newDuration = Math.max(50, durationMs);
-              useStoryboardStore.getState().updatePanel(sortantPanel.id, {
-                transition: { ...sortantPanel.transition, durationMs: newDuration },
-              });
-
-              if (entrantPanel) {
-                const sortantWindow = clipWindows[panelIdx];
-                const entrantWindow = clipWindows[panelIdx + 1];
-                const currentBlanc =
-                  entrantWindow && sortantWindow
-                    ? entrantWindow.startMs - sortantWindow.endMs
-                    : 0;
-
-                const deltaNeeded = newDuration - currentBlanc;
-                if (deltaNeeded !== 0) {
-                  const anns = annotationsDe(entrantPanel);
-                  if (anns.length > 0) {
-                    const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
-                    const newGap = Math.max(50, currentGap + deltaNeeded);
-                    anns[0] = {
-                      ...anns[0],
-                      reveal: {
-                        ...anns[0].reveal,
-                        gapBeforeMs: newGap,
-                      },
-                    };
-                    const updatedStored = toStoredAnnotations(anns);
-                    useStoryboardStore.getState().updatePanel(entrantPanel.id, {
-                      annotations: updatedStored,
-                    });
-
-                    if (panelIdx + 1 === useStoryboardStore.getState().activeClipIndex) {
-                      useUnifiedEngineStore.getState().setAnnotations(anns);
-                    }
-                  }
-                }
-              }
-            }}
-            onTransitionTypeChange={(panelIdx, newType) => {
-              const sortantPanel = storyboardPanels[panelIdx];
-              const entrantPanel = storyboardPanels[panelIdx + 1];
-              if (!sortantPanel) return;
-
-              const currentDuration = sortantPanel.transition?.durationMs ?? 300;
-              useStoryboardStore.getState().updatePanel(sortantPanel.id, {
-                transition: {
-                  type: newType as any,
-                  durationMs: currentDuration,
-                },
-              });
-
-              if (newType !== "none" && entrantPanel) {
-                const sortantWindow = clipWindows[panelIdx];
-                const entrantWindow = clipWindows[panelIdx + 1];
-                const currentBlanc =
-                  entrantWindow && sortantWindow
-                    ? entrantWindow.startMs - sortantWindow.endMs
-                    : 0;
-
-                if (currentBlanc === 0) {
-                  const anns = annotationsDe(entrantPanel);
-                  if (anns.length > 0) {
-                    const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
-                    anns[0] = {
-                      ...anns[0],
-                      reveal: {
-                        ...anns[0].reveal,
-                        gapBeforeMs: currentGap + 300,
-                      },
-                    };
-                    const updatedStored = toStoredAnnotations(anns);
-                    useStoryboardStore.getState().updatePanel(entrantPanel.id, {
-                      annotations: updatedStored,
-                    });
-
-                    if (panelIdx + 1 === useStoryboardStore.getState().activeClipIndex) {
-                      useUnifiedEngineStore.getState().setAnnotations(anns);
-                    }
-                  }
-                }
-              }
-            }}
-          />
-          <TimelinePlayhead viewport={timelineViewport} />
-        </div>
+        <AnnotationSequenceList
+          className="flex-1 min-h-48"
+          annotations={allAnnotations}
+          windows={panelBoundaries}
+          onTimingChange={changeAnnotationTiming}
+          onStyleChange={changeAnnotationStyle}
+          onTransitionTypeChange={changeTransitionType}
+        />
 
       </div>
 
@@ -572,9 +551,8 @@ export function WhiteboardEditorStep({
           onChange={handleConfigChange}
         />
 
-        <AnnotationListPanel className="flex-1" />
 
-        <div className="flex shrink-0 gap-2 border-t pt-3">
+        <div className="mt-auto flex shrink-0 gap-2 border-t pt-3">
           <Button variant="outline" onClick={onNavigateBack} className="flex-1">
             ← Back
           </Button>
