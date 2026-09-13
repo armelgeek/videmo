@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 import { DEFAULT_ANIM_STYLE, annotationColors } from '../schema';
 
 /** Couleur de repli du calque d'annotations — meme valeur qu'AnnotationOverlay. */
-const DEFAULT_STROKE = '#2563eb';
 
 const ANIM_STYLES = [
   { value: 'chunkjump', label: 'Chunk Jump' },

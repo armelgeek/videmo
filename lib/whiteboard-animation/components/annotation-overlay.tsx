@@ -26,7 +26,6 @@ import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 const MIN_REGION_PX = 24;
 
 const DEFAULT_STROKE = '#2563eb';
-const DEFAULT_FILL = 'rgba(37, 99, 235, 0.12)';
 
 export interface AnnotationOverlayProps {
   /** Largeur du repere canvas — celle des <canvas> empiles dessous. */

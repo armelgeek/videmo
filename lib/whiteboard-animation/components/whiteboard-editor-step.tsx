@@ -19,7 +19,7 @@ import {
 } from "../timeline/panel-fallback-annotation";
 import { AnnotationListPanel } from "./annotation-list-panel";
 import { SceneDetailsPanel } from "./scene-details-panel";
-import { ScriptSegmentsCard } from "./script-segments-card";
+import { NarrationRibbon } from "./narration-ribbon";
 import { TimelinePlayhead } from "./timeline-playhead";
 import { ClipTransitionMarkers } from "./clip-transition-markers";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
@@ -466,6 +466,9 @@ export function WhiteboardEditorStep({
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
         <div className="relative shrink-0 rounded-xl border border-border bg-card overflow-hidden">
+          <NarrationRibbon
+            sceneStartMs={panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.startMs ?? 0}
+          />
           <AnnotationTimeline
             onViewportChange={setTimelineViewport}
             globalAnnotations={allAnnotations}
@@ -560,8 +563,6 @@ export function WhiteboardEditorStep({
           />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
-
-        <ScriptSegmentsCard className="shrink-0 max-h-40 overflow-y-auto" />
 
       </div>
 
