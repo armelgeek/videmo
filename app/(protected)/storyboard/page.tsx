@@ -1479,6 +1479,58 @@ export default function StoryboardPage() {
           )}
 
 
+                {/* Script Preview */}
+                {scriptText && (
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-card border border-border rounded-lg overflow-hidden">
+                      <div className="border-b border-border bg-muted/50 px-4 py-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-green-500" />
+                          <span className="font-medium text-sm">Generated Script ({scriptWordCount} words)</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setScriptText("");
+                            setScriptTitle("");
+                          }}
+                        >
+                          <RefreshCw className="w-4 h-4 mr-1" />
+                          Regenerate
+                        </Button>
+                      </div>
+                      <div className="p-4 bg-background max-h-48 overflow-y-auto">
+                        <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{scriptText}</p>
+                      </div>
+                      <div className="border-t border-border bg-muted/20 px-4 py-3 flex gap-2 justify-end">
+                        <Button
+                          variant="outline"
+                          onClick={() => setStep("prompt")}
+                        >
+                          Back
+                        </Button>
+                        <Button
+                          onClick={() => setStep("storyboard")}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          <Check className="w-4 h-4 mr-2" />
+                          Continue to Storyboard
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isGeneratingScript && (
+                  <div className="max-w-4xl mx-auto text-center">
+                    <div className="flex flex-col items-center gap-3 py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">Writing your script...</p>
+                    </div>
+                  </div>
+                )}
+
           {step === "storyboard" && (
             <div className="max-w-5xl mx-auto space-y-6 pt-4 pb-12">
               {/* Progress Bar */}
