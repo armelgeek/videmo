@@ -268,15 +268,24 @@ export function WhiteboardEditorStep({
     [panelBoundaries, storyboardPanels],
   );
 
-  // Les regions de la scene suivante sont preparees avant la bascule.
-  const nextPanel = storyboardPanels[activeClipIndex + 1];
-  const nextPanelAnnotations = useMemo(
-    () => (nextPanel ? annotationsDe(nextPanel) : null),
-    [nextPanel, annotationsDe],
+  // Toutes les scenes a venir, dans l'ordre : chargees et leurs regions
+  // calculees d'avance, pour que la lecture n'ait plus jamais a s'arreter au
+  // passage d'une scene faute d'etre prete. La liste ne bouge que quand les
+  // panneaux ou la scene active changent, pas a chaque frame.
+  const upcomingScenes = useMemo(
+    () =>
+      storyboardPanels
+        .slice(activeClipIndex + 1)
+        .filter((panel) => !!panel.imageUrl)
+        .map((panel) => ({
+          imageUrl: panel.imageUrl as string,
+          annotations: annotationsDe(panel),
+        })),
+    [storyboardPanels, activeClipIndex, annotationsDe],
   );
 
   // Enable canvas rendering.
-  const { isOverlayHidden, isScrubbing, isPreparingArtwork } =
+  const { isOverlayHidden, isScrubbing, isPreparingArtwork, isPreparingSequence } =
     useWhiteboardRenderer({
       canvasRef,
       canvasWidth,
@@ -286,8 +295,7 @@ export function WhiteboardEditorStep({
         activePanel?.imageUrl ||
         DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]
           ?.imageUrl,
-      nextImageUrl: storyboardPanels[activeClipIndex + 1]?.imageUrl ?? null,
-      nextAnnotations: nextPanelAnnotations,
+      scenes: upcomingScenes,
       audioUrl: config.audio?.url ?? null,
       // La voix par temps prime sur la piste unique : c'est elle que la chaine
       // produit, et elle n'a pas a etre reconcatenee quand un temps change.
@@ -326,6 +334,21 @@ export function WhiteboardEditorStep({
     const timer = setTimeout(() => setShowPreparing(true), 150);
     return () => clearTimeout(timer);
   }, [isPreparingArtwork]);
+
+  // Meme delai que showPreparing : une sequence deja prete a l'ouverture ne
+  // doit pas faire clignoter le bandeau. Celui-ci, lui, peut rester affiche
+  // plusieurs secondes — la lecture attend deliberement avant de demarrer
+  // (voir isPreparingSequence dans use-whiteboard-renderer) plutot que de
+  // s'arreter au milieu, au passage d'une scene pas encore prete.
+  const [showSequencePreparing, setShowSequencePreparing] = useState(false);
+  useEffect(() => {
+    if (!isPreparingSequence) {
+      setShowSequencePreparing(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowSequencePreparing(true), 150);
+    return () => clearTimeout(timer);
+  }, [isPreparingSequence]);
 
   // Lu dans un effet declenche par le clip actif, pas par le scrub : une valeur
   // en dependance le ferait courir apres l'etat au lieu de le consulter.
@@ -489,6 +512,21 @@ export function WhiteboardEditorStep({
                       aria-hidden="true"
                     />
                     Préparation de la scène…
+                  </div>
+                </div>
+              )}
+              {!showPreparing && showSequencePreparing && (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className="absolute inset-x-0 bottom-2 z-30 flex items-center justify-center pointer-events-none"
+                >
+                  <div className="flex items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+                    <Loader2
+                      className="h-3.5 w-3.5 animate-spin"
+                      aria-hidden="true"
+                    />
+                    Préparation des scènes suivantes…
                   </div>
                 </div>
               )}

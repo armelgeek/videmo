@@ -128,6 +128,9 @@ const BIG_GAP_MS = 1000;
 
 /** Nombre d'images decodees gardees en cache, au-dela duquel la plus vieille cede sa place. */
 const IMAGE_CACHE_MAX = 12;
+
+/** Repli stable : un `[]` ecrit dans une signature est neuf a chaque rendu. */
+const EMPTY_SCENES: { imageUrl: string; annotations: Annotation[] }[] = [];
 /** While scrubbing, a scene is only prepared once the cursor settles on it. */
 const SCRUB_PREP_DELAY_MS = 120;
 
@@ -204,15 +207,15 @@ export interface UseWhiteboardRendererProps {
   /** Dynamic clip image background URL */
   imageUrl?: string | null;
   /**
-   * The next scene's artwork. Loaded and prepared while the current scene
-   * plays, so the handover does not stop to decode and normalise it.
+   * Toutes les scenes A VENIR, dans l'ordre (la scene active exclue). Chacune
+   * est decodee, sa feuille preparee et le setup de ses regions calcule
+   * d'avance pendant les temps morts, pour que la bascule d'une scene a la
+   * suivante ne coute plus qu'une copie. La lecture attend que TOUTE la liste
+   * soit prete avant de demarrer (voir `isPreparingSequence` en retour) : sans
+   * cela, la premiere scene non encore preparee provoquait un arret de
+   * plusieurs secondes au milieu de la lecture.
    */
-  nextImageUrl?: string | null;
-  /**
-   * Les annotations de la scene suivante, en pixels de canvas. Avec sa feuille,
-   * elles permettent de calculer d'avance le setup de ses regions.
-   */
-  nextAnnotations?: Annotation[] | null;
+  scenes?: { imageUrl: string; annotations: Annotation[] }[];
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
@@ -272,8 +275,7 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
   imageUrl = null,
-  nextImageUrl,
-  nextAnnotations = null,
+  scenes = EMPTY_SCENES,
   audioUrl = null,
   narrationParts = AUCUNE_PART as NarrationPart[],
   audioVolume = 1,
@@ -375,12 +377,14 @@ export function useWhiteboardRenderer({
   // running: with narration longer than the schedule, the finished image is
   // held on screen while the audio plays out.
   const drawingDoneRef = useRef(false);
-  // Lus par la preparation de la scene suivante, qui ne doit pas repartir de
+  // Lu par la preparation des scenes a venir, qui ne doit pas repartir de
   // zero a chaque rendu.
-  const nextAnnotationsRef = useRef(nextAnnotations);
-  nextAnnotationsRef.current = nextAnnotations;
   const animStyleRef = useRef(animStyle);
   animStyleRef.current = animStyle;
+  // Prete une fois que TOUTES les scenes a venir sont chargees et leurs
+  // regions calculees. La lecture attend ce signal (voir plus bas) plutot que
+  // de demarrer et de tomber sur la premiere scene non prete en cours de route.
+  const [sequenceReady, setSequenceReady] = useState(scenes.length === 0);
   // A new clip took over and its engine has to be placed on the running clock
   // before it draws. Its annotations start at the clip's global offset, so a
   // freshly built engine would otherwise animate its way through that whole
@@ -897,10 +901,19 @@ export function useWhiteboardRenderer({
     return true;
   };
 
-  // Prepare the next scene while this one plays: decode its artwork and build
-  // its sheet when the browser is idle, so the handover finds both cached.
+  // Prepare EVERY upcoming scene while this one plays: decode each artwork,
+  // build its sheet and calculate its regions' setup when the browser is
+  // idle, one scene after another, so the handover to any of them finds
+  // everything cached. Lecture attend `sequenceReady` (voir l'effet de
+  // lecture) plutot que de demarrer et de tomber, en cours de route, sur une
+  // scene pas encore prete — c'est ce qui produisait l'arret de plusieurs
+  // secondes au milieu de la lecture.
   useEffect(() => {
-    if (!nextImageUrl) return;
+    if (scenes.length === 0) {
+      setSequenceReady(true);
+      return;
+    }
+    setSequenceReady(false);
     let cancelled = false;
     let idleHandle: number | null = null;
     let startTimer: number | null = null;
@@ -941,87 +954,122 @@ export function useWhiteboardRenderer({
       return !!anim._regionDone || manager.tick(0).length === 0;
     };
 
-    const prepareRegions = (img: HTMLImageElement) => {
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
-      const annots = nextAnnotationsRef.current;
-      if (!canvas || !ctx || !annots?.length) return;
-      const sheet = offscreenCacheRef.current.get(`${img.src}@${canvas.width}x${canvas.height}`);
-      if (!sheet) return;
+    // Toujours des canvas jetables, jamais celui affiche : cette preparation
+    // tourne pendant que l'ecran montre une AUTRE scene, et une region sans
+    // annotations (garde plus bas) pourrait sinon peindre sur le canvas visible.
+    let scratch: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null;
+    const getScratch = (w: number, h: number) => {
+      if (!scratch) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+        scratch = { canvas, ctx };
+      }
+      if (scratch.canvas.width !== w || scratch.canvas.height !== h) {
+        scratch.canvas.width = w;
+        scratch.canvas.height = h;
+      }
+      return scratch;
+    };
+
+    const prepareRegions = (img: HTMLImageElement, annots: Annotation[], done: () => void) => {
+      if (!annots.length) { done(); return; }
+      const sc = getScratch(canvasWidth, canvasHeight);
+      const sheet = offscreenCacheRef.current.get(`${img.src}@${canvasWidth}x${canvasHeight}`);
+      if (!sc || !sheet) { done(); return; }
       const style = animStyleRef.current;
       const prep = AnimationFactory.create(style, {
         state: {
-          canvasW: canvas.width,
-          canvasH: canvas.height,
+          canvasW: canvasWidth,
+          canvasH: canvasHeight,
           animStyle: style,
           contentBounds: rectContenu(
-            canvas.width,
-            canvas.height,
-            img.naturalWidth || canvas.width,
-            img.naturalHeight || canvas.height
+            canvasWidth,
+            canvasHeight,
+            img.naturalWidth || canvasWidth,
+            img.naturalHeight || canvasHeight
           ),
           annotations: deriveTimeline(sansAttenteInitiale(annots)).annotations,
         },
-        ctx,
-        hctx: ctx,
+        ctx: sc.ctx,
+        hctx: sc.ctx,
         offscreen: sheet,
       });
       let index = 0;
       const suivante = () => {
+        if (cancelled) return;
         if (!momentCalme()) {
           whenIdle(suivante);
           return;
         }
         if (prep.prepareRegion?.(index++)) whenIdle(suivante);
+        else done();
       };
       whenIdle(suivante);
     };
 
-    const prepareOnMainThread = (img: HTMLImageElement) => {
+    const prepareOnMainThread = (img: HTMLImageElement, annots: Annotation[], done: () => void) => {
       whenIdle(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const sheet = prepareOffscreen(img, canvas.width, canvas.height);
+        const sheet = prepareOffscreen(img, canvasWidth, canvasHeight);
         whenIdle(() => {
           warmPresenceMap(sheet);
-          prepareRegions(img);
+          prepareRegions(img, annots, done);
         });
       });
     };
 
     // The worker result is cached even if this effect is cancelled meanwhile:
-    // the scene is still likely to come back.
-    const prepare = (img: HTMLImageElement) => {
-      const canvas = canvasRef.current;
-      if (!canvas || cancelled) return;
-      void prepareSheetInWorker(img, canvas.width, canvas.height).then((ok) => {
+    // some later scene is still likely to reuse it.
+    const prepareSheet = (img: HTMLImageElement, annots: Annotation[], done: () => void) => {
+      if (cancelled) return;
+      void prepareSheetInWorker(img, canvasWidth, canvasHeight).then((ok) => {
         if (cancelled) return;
         if (ok) {
-          prepareRegions(img);
+          prepareRegions(img, annots, done);
           return;
         }
-        startTimer = window.setTimeout(() => prepareOnMainThread(img), NEXT_SCENE_PREP_DELAY_MS);
+        startTimer = window.setTimeout(() => prepareOnMainThread(img, annots, done), NEXT_SCENE_PREP_DELAY_MS);
       });
     };
 
-    const images = imageCacheRef.current;
-    const cached = images.get(nextImageUrl);
-    if (cached && cached.complete && cached.naturalWidth > 0) {
-      touch(images, nextImageUrl, cached);
-      prepare(cached);
-    } else {
+    const prepareImage = (url: string, annots: Annotation[], done: () => void) => {
+      const images = imageCacheRef.current;
+      const cached = images.get(url);
+      if (cached && cached.complete && cached.naturalWidth > 0) {
+        touch(images, url, cached);
+        prepareSheet(cached, annots, done);
+        return;
+      }
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        images.set(nextImageUrl, img);
+        if (cancelled) return;
+        images.set(url, img);
         if (images.size > IMAGE_CACHE_MAX) {
           const oldest = images.keys().next().value;
           if (oldest !== undefined) images.delete(oldest);
         }
-        prepare(img);
+        prepareSheet(img, annots, done);
       };
-      img.src = nextImageUrl;
-    }
+      // Un echec (404, reseau) ne doit pas bloquer les scenes suivantes.
+      img.onerror = () => done();
+      img.src = url;
+    };
+
+    // Sequentiel plutot qu'en parallele : les scenes rapprochees comptent le
+    // plus, et le decodage/l'analyse d'images concurrentes se genent entre eux
+    // pour un gain nul sur un seul coeur.
+    let cursor = 0;
+    const suivanteScene = () => {
+      if (cancelled) return;
+      if (cursor >= scenes.length) {
+        setSequenceReady(true);
+        return;
+      }
+      const scene = scenes[cursor++];
+      prepareImage(scene.imageUrl, scene.annotations, () => whenIdle(suivanteScene));
+    };
+    whenIdle(suivanteScene);
 
     return () => {
       cancelled = true;
@@ -1030,7 +1078,7 @@ export function useWhiteboardRenderer({
       if (win.cancelIdleCallback) win.cancelIdleCallback(idleHandle);
       else window.clearTimeout(idleHandle);
     };
-  }, [nextImageUrl, canvasWidth, canvasHeight]);
+  }, [scenes, canvasWidth, canvasHeight]);
 
   /**
    * Pose l'horloge du moteur, et la publie dans le store au plus a la cadence
@@ -1332,6 +1380,11 @@ export function useWhiteboardRenderer({
     // Pausing must freeze the frame: keep the instance and the painted canvas
     // so resuming continues instead of restarting.
     if (!isPlaying) return;
+    // Play pressed before every scene ahead is ready: wait rather than start
+    // and hit a multi-second stall at the first unprepared handover. This
+    // effect re-runs the moment sequenceReady flips, and resumes on its own —
+    // no need to press play again.
+    if (!sequenceReady) return;
 
     const canvas = canvasRef.current;
     const handCanvas = handCanvasRef.current;
@@ -1616,7 +1669,7 @@ export function useWhiteboardRenderer({
       // qu'on voyait.
       publishTime(engineTimeRef.current, true);
     };
-  }, [isPlaying, imageLoaded, audioClock.manager]);
+  }, [isPlaying, imageLoaded, audioClock.manager, sequenceReady]);
 
   // ---- preparation des regions ---------------------------------------------
 
@@ -1910,5 +1963,13 @@ export function useWhiteboardRenderer({
   // affaire de rendu : franchir une frontiere de clip change le clip actif, et
   // l'appelant ne doit pas replacer la tete de lecture sous les doigts de qui
   // scrube.
-  return { isOverlayHidden, isScrubbing: scrubbing, isPreparingArtwork };
+  return {
+    isOverlayHidden,
+    isScrubbing: scrubbing,
+    isPreparingArtwork,
+    // Vrai tant que toutes les scenes a venir n'ont pas fini d'etre chargees
+    // et leurs regions calculees. La lecture attend ce signal (voir l'effet
+    // ci-dessus) ; expose pour qu'un indicateur puisse le montrer.
+    isPreparingSequence: !sequenceReady,
+  };
 }
