@@ -25,8 +25,13 @@ function ClipSelectorBarImpl() {
       const engine = useUnifiedEngineStore.getState();
       if (engine.timeline.isPlaying) engine.setIsPlaying(false);
       setActiveClipIndex(idx);
+      const target = storyboardPanels[idx];
+      if (target) {
+        engine.setActiveScenePanelId(target.id);
+        engine.setSelectedAnnotation(null);
+      }
     },
-    [setActiveClipIndex],
+    [setActiveClipIndex, storyboardPanels],
   );
 
   // Centre la scene active dans la liste a chaque changement — au clic comme

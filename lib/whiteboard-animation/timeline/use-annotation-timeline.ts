@@ -185,11 +185,19 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
     (clipIds: string[]) => {
       const [id = null] = clipIds;
       setSelectedClip(id);
-      setSelectedAnnotation(
-        id === null ? null : annotations.findIndex((a) => a.id === id),
+      if (id === null) {
+        setSelectedAnnotation(null);
+        return;
+      }
+      // Index local a la scene active : globalAnnotations porte le prefixe 'p{panelIdx}-'
+      const activeIdx = useStoryboardStore.getState().activeClipIndex;
+      const sceneAnns = selectSceneAnnotations(useUnifiedEngineStore.getState());
+      const localIdx = sceneAnns.findIndex(
+        (a) => a.id === id || `p${activeIdx}-${a.id}` === id,
       );
+      setSelectedAnnotation(localIdx >= 0 ? localIdx : null);
     },
-    [annotations, setSelectedClip, setSelectedAnnotation],
+    [setSelectedClip, setSelectedAnnotation],
   );
 
   return {

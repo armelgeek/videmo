@@ -41,6 +41,17 @@ const AnnotationOverlay = dynamic(
   { ssr: false },
 );
 
+function AnnotationCountBadge() {
+  const count = useUnifiedEngineStore(
+    (s) => selectSceneAnnotations(s).length,
+  );
+  return (
+    <span className="rounded-full bg-background px-1.5 text-[10px] tabular-nums text-muted-foreground">
+      {count}
+    </span>
+  );
+}
+
 interface WhiteboardEditorStepProps {
   config: WhiteboardConfig;
   /** Ratio du PROJET (projectParams), seule source pour la forme du canvas. */
@@ -86,6 +97,8 @@ export function WhiteboardEditorStep({
   // directement dans le store, voir use-whiteboard-renderer.ts), et les
   // inclure re-rendait tout cet arbre — canvas, sidebar, timeline, liste
   // d'annotations, panneau de config — a 60Hz durant toute lecture.
+  // De meme, le compte d'annotations est isole dans AnnotationCountBadge
+  // pour eviter de re-rendre tout l'editeur a chaque bascule de scene.
   const {
     animStyle,
     setAnimStyle,
@@ -98,7 +111,6 @@ export function WhiteboardEditorStep({
     chunks,
     setChunks,
     setCanvasBg,
-    annotations,
     setCurrentTime,
   } = useUnifiedEngine<{
     animStyle: string;
@@ -112,10 +124,6 @@ export function WhiteboardEditorStep({
     chunks: number;
     setChunks: (v: number | undefined) => void;
     setCanvasBg: (v: string) => void;
-    // Le compte affiche est celui de la SCENE ACTIVE, pas du projet entier :
-    // le store porte toutes les scenes a plat, selectSceneAnnotations en
-    // extrait la tranche courante.
-    annotations: ReturnType<typeof selectSceneAnnotations>;
     setCurrentTime: (v: number) => void;
   }>((state) => ({
     animStyle: selectors.selectAnimStyle(state),
@@ -129,7 +137,6 @@ export function WhiteboardEditorStep({
     chunks: selectors.selectChunks(state),
     setChunks: state.setChunks,
     setCanvasBg: state.setCanvasBg,
-    annotations: selectSceneAnnotations(state),
     setCurrentTime: state.setCurrentTime,
   }));
 
@@ -361,7 +368,9 @@ export function WhiteboardEditorStep({
   // ce que fait activeClipIndex plus bas — et se contente de pointer dans le
   // tableau plat ci-dessus, sans jamais le reecrire.
   useEffect(() => {
-    useUnifiedEngineStore.getState().setActiveScenePanelId(activePanel?.id ?? null);
+    const engine = useUnifiedEngineStore.getState();
+    engine.setActiveScenePanelId(activePanel?.id ?? null);
+    engine.setSelectedAnnotation(null);
   }, [activePanel?.id]);
 
   // ── Sync engine annotation edits back to persistent storyboard store ──────
@@ -416,6 +425,12 @@ export function WhiteboardEditorStep({
       const storyboard = useStoryboardStore.getState();
       if (playing.panelIdx !== storyboard.activeClipIndex) {
         storyboard.setActiveClipIndex(playing.panelIdx);
+        const targetPanel = storyboard.storyboardPanels[playing.panelIdx];
+        if (targetPanel) {
+          const engine = useUnifiedEngineStore.getState();
+          engine.setActiveScenePanelId(targetPanel.id);
+          engine.setSelectedAnnotation(null);
+        }
       }
     });
   }, [panelBoundaries]);
@@ -659,11 +674,7 @@ export function WhiteboardEditorStep({
               }`}
             >
               {tab === "scene" ? "Scene" : "Annotations"}
-              {tab === "annotations" && (
-                <span className="rounded-full bg-background px-1.5 text-[10px] tabular-nums text-muted-foreground">
-                  {annotations.length}
-                </span>
-              )}
+              {tab === "annotations" && <AnnotationCountBadge />}
             </button>
           ))}
         </div>
