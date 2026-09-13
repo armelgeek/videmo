@@ -74,10 +74,11 @@ function AnnotationListPanelImpl({
   };
 
   return (
-    <section className={cn('flex min-h-0 flex-col rounded-lg border bg-card', className)}>
-      <header className="flex h-8 shrink-0 items-center justify-between border-b px-3">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          Annotations ({derived.length})
+    <section className={cn('flex min-h-0 flex-col rounded-xl border border-border bg-card overflow-hidden', className)}>
+      <header className="flex h-10 shrink-0 items-center justify-between border-b border-border px-3">
+        <span className="text-xs font-semibold text-foreground">Annotations</span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+          {derived.length}
         </span>
       </header>
 

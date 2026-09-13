@@ -95,7 +95,7 @@ const AnnotationTimelineImpl: React.FC<AnnotationTimelineProps> = ({
     <div
       ref={wrapperRef}
       style={TIMELINE_THEME}
-      className="shrink-0 min-w-0 w-full overflow-hidden border-t border-border"
+      className="shrink-0 min-w-0 w-full overflow-hidden"
     >
       <Timeline
         {...timeline}

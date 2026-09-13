@@ -414,7 +414,7 @@ export function WhiteboardEditorStep({
   );
 
   return (
-    <div className="w-full h-full flex gap-4 overflow-hidden">
+    <div className="w-full h-full flex gap-3 overflow-hidden px-2">
       {/* Column 1: Vertical Clip Selector Sidebar */}
       <ClipSelectorBar />
 
@@ -423,9 +423,10 @@ export function WhiteboardEditorStep({
         {/* Canvas Container */}
         {/* Le canevas prend toute la hauteur laissee par la timeline, au format
             du projet : sa taille se deduit de la place, pas d'une hauteur figee. */}
-        <div className="flex-1 min-h-0 flex items-center justify-center [container-type:size]">
+        <div className="flex-1 min-h-0 rounded-xl border border-border bg-muted/20 p-4">
+        <div className="h-full w-full flex items-center justify-center [container-type:size]">
         <div
-          className="rounded-lg border border-white/10 bg-black overflow-hidden relative"
+          className="rounded-md bg-white overflow-hidden relative shadow-xl ring-1 ring-black/10"
           style={{
             aspectRatio: cssAspectRatio(aspectRatio),
             width: `min(100cqw, calc(100cqh * ${canvasWidth} / ${canvasHeight}))`,
@@ -456,12 +457,13 @@ export function WhiteboardEditorStep({
 
         </div>
         </div>
+        </div>
 
 
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 rounded-xl border border-border bg-card overflow-hidden">
           <AnnotationTimeline
             onViewportChange={setTimelineViewport}
             globalAnnotations={allAnnotations}
@@ -562,7 +564,7 @@ export function WhiteboardEditorStep({
       {/* Right: reglages, puis la sequence d'annotations. C'est cette liste qui
           justifie le rail : elle a besoin de toute la hauteur disponible, la ou
           deux controles seuls ne la remplissaient pas. */}
-      <div className="w-72 shrink-0 min-h-0 flex flex-col gap-3">
+      <div className="w-80 shrink-0 min-h-0 flex flex-col gap-3">
 
         <AnnotationListPanel className="flex-1" />
 
