@@ -484,6 +484,101 @@ export function WhiteboardEditorStep({
     [onConfigChange],
   );
 
+  const handleTransitionResize = useCallback(
+    (panelIdx: number, durationMs: number) => {
+      const storyboard = useStoryboardStore.getState();
+      const sortantPanel = storyboard.storyboardPanels[panelIdx];
+      const entrantPanel = storyboard.storyboardPanels[panelIdx + 1];
+      if (!sortantPanel?.transition) return;
+
+      const newDuration = Math.max(50, durationMs);
+      storyboard.updatePanel(sortantPanel.id, {
+        transition: {
+          ...sortantPanel.transition,
+          durationMs: newDuration,
+        },
+      });
+
+      if (entrantPanel) {
+        const sortantWindow = clipWindows[panelIdx];
+        const entrantWindow = clipWindows[panelIdx + 1];
+        const currentBlanc =
+          entrantWindow && sortantWindow
+            ? entrantWindow.startMs - sortantWindow.endMs
+            : 0;
+
+        const deltaNeeded = newDuration - currentBlanc;
+        if (deltaNeeded !== 0) {
+          const anns = annotationsDe(entrantPanel);
+          if (anns.length > 0) {
+            const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
+            const newGap = Math.max(50, currentGap + deltaNeeded);
+            anns[0] = {
+              ...anns[0],
+              reveal: {
+                ...anns[0].reveal,
+                gapBeforeMs: newGap,
+              },
+            };
+            const updatedStored = toStoredAnnotations(anns);
+            storyboard.updatePanel(entrantPanel.id, {
+              annotations: updatedStored,
+            });
+            useUnifiedEngineStore.getState().setSceneAnnotations(entrantPanel.id, anns);
+          }
+        }
+      }
+    },
+    [clipWindows, annotationsDe],
+  );
+
+  const handleTransitionTypeChange = useCallback(
+    (panelIdx: number, newType: string) => {
+      const storyboard = useStoryboardStore.getState();
+      const sortantPanel = storyboard.storyboardPanels[panelIdx];
+      const entrantPanel = storyboard.storyboardPanels[panelIdx + 1];
+      if (!sortantPanel) return;
+
+      const currentDuration =
+        sortantPanel.transition?.durationMs ?? 300;
+      storyboard.updatePanel(sortantPanel.id, {
+        transition: {
+          type: newType as any,
+          durationMs: currentDuration,
+        },
+      });
+
+      if (newType !== "none" && entrantPanel) {
+        const sortantWindow = clipWindows[panelIdx];
+        const entrantWindow = clipWindows[panelIdx + 1];
+        const currentBlanc =
+          entrantWindow && sortantWindow
+            ? entrantWindow.startMs - sortantWindow.endMs
+            : 0;
+
+        if (currentBlanc === 0) {
+          const anns = annotationsDe(entrantPanel);
+          if (anns.length > 0) {
+            const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
+            anns[0] = {
+              ...anns[0],
+              reveal: {
+                ...anns[0].reveal,
+                gapBeforeMs: currentGap + 300,
+              },
+            };
+            const updatedStored = toStoredAnnotations(anns);
+            storyboard.updatePanel(entrantPanel.id, {
+              annotations: updatedStored,
+            });
+            useUnifiedEngineStore.getState().setSceneAnnotations(entrantPanel.id, anns);
+          }
+        }
+      }
+    },
+    [clipWindows, annotationsDe],
+  );
+
   return (
     <div className="w-full h-full flex gap-4 overflow-hidden px-10 py-2 xl:px-20">
       {/* Column 1: Vertical Clip Selector Sidebar */}
@@ -559,93 +654,8 @@ export function WhiteboardEditorStep({
             onViewportChange={setTimelineViewport}
             globalAnnotations={allAnnotations}
             clipWindows={clipWindows}
-            onTransitionResize={(panelIdx, durationMs) => {
-              const sortantPanel = storyboardPanels[panelIdx];
-              const entrantPanel = storyboardPanels[panelIdx + 1];
-              if (!sortantPanel?.transition) return;
-
-              const newDuration = Math.max(50, durationMs);
-              useStoryboardStore.getState().updatePanel(sortantPanel.id, {
-                transition: {
-                  ...sortantPanel.transition,
-                  durationMs: newDuration,
-                },
-              });
-
-              if (entrantPanel) {
-                const sortantWindow = clipWindows[panelIdx];
-                const entrantWindow = clipWindows[panelIdx + 1];
-                const currentBlanc =
-                  entrantWindow && sortantWindow
-                    ? entrantWindow.startMs - sortantWindow.endMs
-                    : 0;
-
-                const deltaNeeded = newDuration - currentBlanc;
-                if (deltaNeeded !== 0) {
-                  const anns = annotationsDe(entrantPanel);
-                  if (anns.length > 0) {
-                    const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
-                    const newGap = Math.max(50, currentGap + deltaNeeded);
-                    anns[0] = {
-                      ...anns[0],
-                      reveal: {
-                        ...anns[0].reveal,
-                        gapBeforeMs: newGap,
-                      },
-                    };
-                    const updatedStored = toStoredAnnotations(anns);
-                    useStoryboardStore.getState().updatePanel(entrantPanel.id, {
-                      annotations: updatedStored,
-                    });
-                    // Toujours propage vers le tableau plat, active ou non :
-                    // il porte desormais toutes les scenes en permanence.
-                    useUnifiedEngineStore.getState().setSceneAnnotations(entrantPanel.id, anns);
-                  }
-                }
-              }
-            }}
-            onTransitionTypeChange={(panelIdx, newType) => {
-              const sortantPanel = storyboardPanels[panelIdx];
-              const entrantPanel = storyboardPanels[panelIdx + 1];
-              if (!sortantPanel) return;
-
-              const currentDuration =
-                sortantPanel.transition?.durationMs ?? 300;
-              useStoryboardStore.getState().updatePanel(sortantPanel.id, {
-                transition: {
-                  type: newType as any,
-                  durationMs: currentDuration,
-                },
-              });
-
-              if (newType !== "none" && entrantPanel) {
-                const sortantWindow = clipWindows[panelIdx];
-                const entrantWindow = clipWindows[panelIdx + 1];
-                const currentBlanc =
-                  entrantWindow && sortantWindow
-                    ? entrantWindow.startMs - sortantWindow.endMs
-                    : 0;
-
-                if (currentBlanc === 0) {
-                  const anns = annotationsDe(entrantPanel);
-                  if (anns.length > 0) {
-                    const currentGap = anns[0].reveal.gapBeforeMs ?? 0;
-                    anns[0] = {
-                      ...anns[0],
-                      reveal: {
-                        ...anns[0].reveal,
-                        gapBeforeMs: currentGap + 300,
-                      },
-                    };
-                    const updatedStored = toStoredAnnotations(anns);
-                    useStoryboardStore.getState().updatePanel(entrantPanel.id, {
-                      annotations: updatedStored,
-                    });
-                    useUnifiedEngineStore.getState().setSceneAnnotations(entrantPanel.id, anns);
-                  }
-                }
-              }
-            }}
+            onTransitionResize={handleTransitionResize}
+            onTransitionTypeChange={handleTransitionTypeChange}
           />
           <TimelinePlayhead viewport={timelineViewport} />
         </div>

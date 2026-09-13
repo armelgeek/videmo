@@ -578,6 +578,12 @@ export function useWhiteboardRenderer({
   // scene : chacune a sa propre image, donc son propre rectangle d'artwork,
   // et n'est amorcee qu'une fois (au lieu d'une fois pour tout le hook).
   const seededScenesRef = useRef<Set<string | null>>(new Set());
+  // Garde la VRAIE taille du canvas pour ne reprojeter que si elle change
+  // reellement. Sans ca, un changement de scenePanelId relancait l'effet,
+  // rectArtwork() lisait l'ANCIEN imageRef (pas encore swap), produisait un
+  // rect different du precedent, et declenchait reprojeterRegion → cascade
+  // de re-renders (setSceneAnnotations → annotationsEqual → updatePanel).
+  const lastCanvasSizeRef = useRef<{ w: number; h: number } | null>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !imageLoaded) return;
@@ -594,6 +600,7 @@ export function useWhiteboardRenderer({
     if (!dejaAmorcee && sceneVide && scenePanelId === null) {
       seededScenesRef.current.add(scenePanelId);
       rectParSceneRef.current.set(scenePanelId, rect);
+      lastCanvasSizeRef.current = { w: canvasWidth, h: canvasHeight };
 
       // A saved project wins over the demo scene. Its regions are already in
       // canvas pixels from the session that wrote them, so they are taken as
@@ -628,12 +635,33 @@ export function useWhiteboardRenderer({
     if (!dejaAmorcee && sceneVide && scenePanelId !== null) {
       seededScenesRef.current.add(scenePanelId);
       rectParSceneRef.current.set(scenePanelId, rect);
+      lastCanvasSizeRef.current = { w: canvasWidth, h: canvasHeight };
       if (savedAnnotations && savedAnnotations.length > 0) {
         store.setSceneAnnotations(scenePanelId, savedAnnotations);
       }
       return;
     }
     seededScenesRef.current.add(scenePanelId);
+
+    // ── Reprojection guard ────────────────────────────────────────────────
+    // Ne reprojeter QUE si les dimensions du canvas ont reellement change.
+    // Un changement de scenePanelId seul ne doit PAS declencher de
+    // reprojection : imageRef pointe encore sur l'ancienne image, donc
+    // rectArtwork() retourne un rect qui ne correspond pas a la nouvelle
+    // scene — c'est la source du lag (reprojection parasite → ecriture
+    // dans le store → auto-save reseau → cascade de re-renders).
+    const prevCanvasSize = lastCanvasSizeRef.current;
+    lastCanvasSizeRef.current = { w: canvasWidth, h: canvasHeight };
+    const canvasSizeChanged = !prevCanvasSize
+      || prevCanvasSize.w !== canvasWidth
+      || prevCanvasSize.h !== canvasHeight;
+
+    if (!canvasSizeChanged) {
+      // Le canvas n'a pas change de taille : on met a jour le rect de la
+      // scene courante (pour les futures reproj.) mais on ne reprojete pas.
+      rectParSceneRef.current.set(scenePanelId, rect);
+      return;
+    }
 
     const precedent = rectParSceneRef.current.get(scenePanelId) ?? null;
     rectParSceneRef.current.set(scenePanelId, rect);
