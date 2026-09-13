@@ -277,11 +277,18 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
         set({ storyboardPanels }),
       setActiveClipIndex: (activeClipIndex: number) => set({ activeClipIndex }),
       updatePanel: (id: string, updates: Partial<StoryboardPanel>) =>
-        set((state) => ({
-          storyboardPanels: state.storyboardPanels.map((p) =>
-            p.id === id ? { ...p, ...updates } : p,
-          ),
-        })),
+        set((state) => {
+          const idx = state.storyboardPanels.findIndex((p) => p.id === id);
+          if (idx === -1) return state;
+          const panel = state.storyboardPanels[idx];
+          const hasChanged = Object.entries(updates).some(
+            ([k, val]) => (panel as Record<string, unknown>)[k] !== val,
+          );
+          if (!hasChanged) return state;
+          const copy = [...state.storyboardPanels];
+          copy[idx] = { ...panel, ...updates };
+          return { storyboardPanels: copy };
+        }),
       setSelectedVoice: (selectedVoice: string) => set({ selectedVoice }),
       setIsGenerating: (isGenerating: boolean) => set({ isGenerating }),
       setWhiteboardConfig: (config: Partial<WhiteboardConfig>) =>

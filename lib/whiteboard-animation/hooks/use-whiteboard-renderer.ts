@@ -205,6 +205,8 @@ export interface UseWhiteboardRendererProps {
   annotationCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   /** Dynamic clip image background URL */
   imageUrl?: string | null;
+  /** Image URL of the upcoming scene for look-ahead pre-caching */
+  nextImageUrl?: string | null;
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
@@ -254,12 +256,15 @@ export interface UseWhiteboardRendererProps {
    */
   clips?: ClipWindow[];
   /**
-   * Un echec que l'utilisateur doit voir : image introuvable, moteur qui ne
-   * demarre pas, lecture audio refusee par le navigateur. Sans ce canal, ces
-   * echecs partaient uniquement en `console.error` — l'ecran restait blanc
-   * ou silencieux sans que rien n'explique pourquoi.
+   * onError callback
    */
   onError?: (message: string) => void;
+  /**
+   * Notifie quand la préparation de l'artwork démarre ou se termine.
+   * Permet à l'appelant de gérer un indicateur de chargement avec debounce
+   * sans forcer un re-render systématique du composant parent via un state retourné.
+   */
+  onArtworkPendingChange?: (pending: boolean) => void;
 }
 
 const NOOP_ON_ERROR = (_message: string) => {};
@@ -271,6 +276,7 @@ export function useWhiteboardRenderer({
   handCanvasRef,
   annotationCanvasRef,
   imageUrl = null,
+  nextImageUrl = null,
   audioUrl = null,
   narrationParts = AUCUNE_PART as NarrationPart[],
   audioVolume = 1,
@@ -281,12 +287,15 @@ export function useWhiteboardRenderer({
   clipOffsetMs = 0,
   clips = [],
   onError = NOOP_ON_ERROR,
+  onArtworkPendingChange,
 }: UseWhiteboardRendererProps) {
   // Toujours la derniere fonction recue, sans rentrer dans les dependances
   // des effets qui l'appellent : un composant qui passe une closure inline
   // en ferait une nouvelle a chaque rendu, et chaque effet se relancerait.
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
+  const onArtworkPendingChangeRef = useRef(onArtworkPendingChange);
+  onArtworkPendingChangeRef.current = onArtworkPendingChange;
   // Ni `progress` ni `currentTime` : lus par selecteur, ils re-rendaient le
   // composant hote — tout l'editeur et sa timeline — a chaque publication de
   // l'horloge pendant la lecture. Les effets qui suivent la position
@@ -405,12 +414,10 @@ export function useWhiteboardRenderer({
   // Nothing may draw then: imageRef still holds the outgoing artwork, and
   // replaying it at the incoming clip's time showed the wrong picture.
   const artworkPendingRef = useRef(false);
-  // The same flag as state, for the editor's loading indicator. It flips twice
-  // per handover at most, never per frame.
-  const [isPreparingArtwork, setIsPreparingArtwork] = useState(false);
   const markArtworkPending = (pending: boolean) => {
+    if (artworkPendingRef.current === pending) return;
     artworkPendingRef.current = pending;
-    setIsPreparingArtwork(pending);
+    onArtworkPendingChangeRef.current?.(pending);
   };
   const scrubTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -573,6 +580,55 @@ export function useWhiteboardRenderer({
 
     return cleanup;
   }, [imageUrl]);
+
+  // ── Look-ahead pre-caching ────────────────────────────────────────────────
+  // Pendant qu'une scène joue, précharger en tâche de fond l'image et la feuille
+  // (sheet) du Web Worker pour la scène suivante.
+  // Quand la lecture arrive sur cette scène, tout est déjà prêt en cache mémoire :
+  // l'enchaînement est instantané, sans freeze de rendu ni disparition de la main.
+  useEffect(() => {
+    if (!nextImageUrl) return;
+    const targetSrc = nextImageUrl;
+    const canvas = canvasRef.current;
+    const width = canvas ? canvas.width : canvasWidth;
+    const height = canvas ? canvas.height : canvasHeight;
+    const key = `${targetSrc}@${width}x${height}`;
+
+    if (offscreenCacheRef.current.has(key)) return;
+
+    let cancelled = false;
+
+    const prep = (img: HTMLImageElement) => {
+      if (cancelled) return;
+      void prepareSheetInWorker(img, width, height);
+    };
+
+    const cached = imageCacheRef.current.get(targetSrc);
+    if (cached && cached.complete && cached.naturalWidth > 0) {
+      prep(cached);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = targetSrc;
+    if (img.complete && img.naturalWidth > 0) {
+      imageCacheRef.current.set(targetSrc, img);
+      prep(img);
+    } else {
+      img.onload = () => {
+        if (cancelled) return;
+        imageCacheRef.current.set(targetSrc, img);
+        prep(img);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+    };
+  }, [nextImageUrl, canvasWidth, canvasHeight]);
 
   // Amorcage de la scene de demo, puis suivi de la forme du canvas — par
   // scene : chacune a sa propre image, donc son propre rectangle d'artwork,
@@ -1770,5 +1826,5 @@ export function useWhiteboardRenderer({
   // affaire de rendu : franchir une frontiere de clip change le clip actif, et
   // l'appelant ne doit pas replacer la tete de lecture sous les doigts de qui
   // scrube.
-  return { isOverlayHidden, isScrubbing: scrubbing, isPreparingArtwork };
+  return { isOverlayHidden, isScrubbing: scrubbing, isPreparingArtwork: artworkPendingRef.current };
 }

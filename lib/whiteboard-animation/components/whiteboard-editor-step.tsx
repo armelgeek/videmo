@@ -196,18 +196,46 @@ export function WhiteboardEditorStep({
   // Each id is prefixed with its panel index to stay unique across panels.
   // Assure un blanc par defaut (300ms) pour les panneaux secondaires afin
   // de reserver l'espace necessaire a l'affichage de la carte de transition.
+  //
+  // Un cache ref stabilise les références par panel : tant que les annotations
+  // et l'index d'un panel ne bougent pas, ses objets sont réutilisés verbatim,
+  // et si aucun panel n'a changé le tableau global conserve son identité.
+  const panelAnnotationsCacheRef = useRef<
+    Map<
+      string,
+      {
+        panel: (typeof storyboardPanels)[number];
+        panelIdx: number;
+        canvasWidth: number;
+        canvasHeight: number;
+        result: ReturnType<typeof annotationsDe>;
+      }
+    >
+  >(new Map());
+  const prevAllAnnotationsRef = useRef<ReturnType<typeof annotationsDe>>([]);
+
   const allAnnotations = useMemo(() => {
-    return storyboardPanels.flatMap((panel, panelIdx) => {
-      // Une image sans annotation garde un clip : toute l'image devient une
-      // zone, sur la duree de sa voix. Voir panel-fallback-annotation.ts.
+    let anyChanged = false;
+    const cache = panelAnnotationsCacheRef.current;
+    const newResults: ReturnType<typeof annotationsDe>[] = [];
+
+    storyboardPanels.forEach((panel, panelIdx) => {
+      const cached = cache.get(panel.id);
+      if (
+        cached &&
+        cached.panel === panel &&
+        cached.panelIdx === panelIdx &&
+        cached.canvasWidth === canvasWidth &&
+        cached.canvasHeight === canvasHeight
+      ) {
+        newResults.push(cached.result);
+        return;
+      }
+
+      anyChanged = true;
       const anns = annotationsDe(panel);
-      return anns.map((a, aIdx) => {
+      const transformed = anns.map((a, aIdx) => {
         let gapBeforeMs = a.reveal.gapBeforeMs ?? 0;
-        // Le blanc par defaut est refuse a l'image entiere : sa duree EST celle
-        // de sa voix, donc tout blanc pose devant decale le reste de la piste
-        // sans decaler la narration, qui s'enchaine sans trou. Le decalage
-        // s'accumulait d'une image a la suivante et la voix, tiree sur le
-        // dessin a chaque frame, sautait 300 ms de plus a chaque bascule.
         const pleineImage = a.id === PLEINE_IMAGE_ID;
         if (panelIdx > 0 && aIdx === 0 && gapBeforeMs === 0 && !pleineImage) {
           gapBeforeMs = 300;
@@ -221,8 +249,36 @@ export function WhiteboardEditorStep({
           },
         };
       });
+
+      cache.set(panel.id, {
+        panel,
+        panelIdx,
+        canvasWidth,
+        canvasHeight,
+        result: transformed,
+      });
+      newResults.push(transformed);
     });
-  }, [storyboardPanels, annotationsDe]);
+
+    if (cache.size > storyboardPanels.length) {
+      const currentIds = new Set(storyboardPanels.map((p) => p.id));
+      for (const id of cache.keys()) {
+        if (!currentIds.has(id)) cache.delete(id);
+      }
+    }
+
+    if (
+      !anyChanged &&
+      prevAllAnnotationsRef.current.length > 0 &&
+      newResults.length === storyboardPanels.length
+    ) {
+      return prevAllAnnotationsRef.current;
+    }
+
+    const flattened = newResults.flat();
+    prevAllAnnotationsRef.current = flattened;
+    return flattened;
+  }, [storyboardPanels, annotationsDe, canvasWidth, canvasHeight]);
 
   // Where each clip sits on the global timeline.
   // Panel i > 0 starts where Panel i-1 ends, so that the gap before Panel i
@@ -280,8 +336,35 @@ export function WhiteboardEditorStep({
     [panelBoundaries, storyboardPanels],
   );
 
+  // Une scene deja preparee arrive en quelques ms : l'indicateur n'apparait
+  // qu'au-dela, sinon il clignoterait a chaque bascule.
+  // En passant par un callback au lieu d'un state retourné par le renderer,
+  // on évite 2 re-renders complets de l'éditeur lors de chaque bascule rapide (<150ms).
+  const [showPreparing, setShowPreparing] = useState(false);
+  const prepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleArtworkPendingChange = useCallback((pending: boolean) => {
+    if (prepTimerRef.current) {
+      clearTimeout(prepTimerRef.current);
+      prepTimerRef.current = null;
+    }
+    if (!pending) {
+      setShowPreparing(false);
+    } else {
+      prepTimerRef.current = setTimeout(() => {
+        setShowPreparing(true);
+      }, 150);
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (prepTimerRef.current) clearTimeout(prepTimerRef.current);
+    };
+  }, []);
+
   // Enable canvas rendering.
-  const { isOverlayHidden, isScrubbing, isPreparingArtwork } =
+  const { isOverlayHidden, isScrubbing } =
     useWhiteboardRenderer({
       canvasRef,
       canvasWidth,
@@ -291,6 +374,11 @@ export function WhiteboardEditorStep({
         activePanel?.imageUrl ||
         DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]
           ?.imageUrl,
+      nextImageUrl:
+        storyboardPanels[activeClipIndex + 1]?.imageUrl ||
+        DEMO_STORYBOARD.panels[(activeClipIndex + 1) % DEMO_STORYBOARD.panels.length]
+          ?.imageUrl ||
+        null,
       scenePanelId: activePanel?.id ?? null,
       audioUrl: config.audio?.url ?? null,
       // La voix par temps prime sur la piste unique : c'est elle que la chaine
@@ -317,19 +405,8 @@ export function WhiteboardEditorStep({
           ?.drawStartMs ?? 0,
       clips: clipWindows,
       onError: signalerErreurRendu,
+      onArtworkPendingChange: handleArtworkPendingChange,
     });
-
-  // Une scene deja preparee arrive en quelques ms : l'indicateur n'apparait
-  // qu'au-dela, sinon il clignoterait a chaque bascule.
-  const [showPreparing, setShowPreparing] = useState(false);
-  useEffect(() => {
-    if (!isPreparingArtwork) {
-      setShowPreparing(false);
-      return;
-    }
-    const timer = setTimeout(() => setShowPreparing(true), 150);
-    return () => clearTimeout(timer);
-  }, [isPreparingArtwork]);
 
   // Lu dans un effet declenche par le clip actif, pas par le scrub : une valeur
   // en dependance le ferait courir apres l'etat au lieu de le consulter.
@@ -345,13 +422,57 @@ export function WhiteboardEditorStep({
   // recalculer ni republier. C'est ce qui evitait auparavant la reconstruction
   // du moteur de dessin — jusqu'a l'ecriture parasite vers le stockage — a
   // chaque passage d'une scene a l'autre.
-  const flatAnnotations = useMemo(
-    () =>
-      storyboardPanels.flatMap((panel) =>
-        annotationsDe(panel).map((a) => ({ ...a, panelId: panel.id })),
-      ),
-    [storyboardPanels, annotationsDe],
-  );
+  const flatAnnotationsCacheRef = useRef<
+    Map<
+      string,
+      {
+        panel: (typeof storyboardPanels)[number];
+        result: ReturnType<typeof annotationsDe>;
+      }
+    >
+  >(new Map());
+  const prevFlatAnnotationsRef = useRef<ReturnType<typeof annotationsDe>>([]);
+
+  const flatAnnotations = useMemo(() => {
+    let anyChanged = false;
+    const cache = flatAnnotationsCacheRef.current;
+    const newResults: ReturnType<typeof annotationsDe>[] = [];
+
+    storyboardPanels.forEach((panel) => {
+      const cached = cache.get(panel.id);
+      if (cached && cached.panel === panel) {
+        newResults.push(cached.result);
+        return;
+      }
+
+      anyChanged = true;
+      const res = annotationsDe(panel).map((a) => ({
+        ...a,
+        panelId: panel.id,
+      }));
+      cache.set(panel.id, { panel, result: res });
+      newResults.push(res);
+    });
+
+    if (cache.size > storyboardPanels.length) {
+      const currentIds = new Set(storyboardPanels.map((p) => p.id));
+      for (const id of cache.keys()) {
+        if (!currentIds.has(id)) cache.delete(id);
+      }
+    }
+
+    if (
+      !anyChanged &&
+      prevFlatAnnotationsRef.current.length > 0 &&
+      newResults.length === storyboardPanels.length
+    ) {
+      return prevFlatAnnotationsRef.current;
+    }
+
+    const flattened = newResults.flat();
+    prevFlatAnnotationsRef.current = flattened;
+    return flattened;
+  }, [storyboardPanels, annotationsDe]);
 
   useEffect(() => {
     const store = useUnifiedEngineStore.getState();

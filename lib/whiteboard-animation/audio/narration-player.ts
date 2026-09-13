@@ -159,8 +159,8 @@ export class NarrationPlayer {
     if (action.type === "charger") {
       // L'element qui ne joue pas porte deja la suite, en general : la bascule
       // n'est alors qu'un echange, sans chargement ni temps mort.
+      const ancien = this.actif;
       const autre = 1 - this.actif;
-      this.manager.pause();
       if (this.porte[autre] !== action.index) this.charger(action.index, autre);
       this.actif = autre;
 
@@ -169,12 +169,19 @@ export class NarrationPlayer {
       this.manager.setVolume(this.volume);
       this.manager.setMuted(this.muet);
       this.manager.setPlaybackRate(1);
-      this.manager.seekMs(action.offsetMs);
+
+      // Si l'element est deja calé sur la position voulue (ex: début à 0),
+      // eviter un seekMs asynchrone qui fige la lecture du navigateur.
+      if (Math.abs(this.manager.getCurrentMs() - action.offsetMs) > 20) {
+        this.manager.seekMs(action.offsetMs);
+      }
+
       if (this.voulu) {
         this.manager.play().catch((error) => {
           console.error("Failed to start narration playback:", error);
         });
       }
+      this.managers[ancien].pause();
       this.preparerSuivant(action.index);
       return;
     }

@@ -29,6 +29,8 @@ const DEFAULT_ZOOM = 100;
 const MIN_ZOOM = 10;
 const MAX_ZOOM = 400;
 const READABLE_ZOOM = 60;
+const NOOP = () => {};
+const EMPTY_SELECTED_CLIPS: string[] = [];
 
 /**
  * Wires the unified engine store to the NLE timeline component.
@@ -200,68 +202,112 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
     [setSelectedClip, setSelectedAnnotation],
   );
 
-  return {
-    // Data
-    tracks: view.tracks,
-    clips: view.clips,
-    mediaMap: view.mediaMap,
-    // The ruler spans the VIDEO, which narration can extend past the last
-    // annotation: the drawing ends, the clip does not. Falling back to the
-    // schedule keeps a project with no narration unchanged.
-    duration:
-      videoDuration > 0 ? videoDuration / 1000 : view.durationSeconds,
-    frameRate: fps,
-    isPlaying,
-    selectedClipIds: selectedClipId ? [selectedClipId] : [],
+  const onZoomChange = useCallback((zoom: number) => {
+    userChoseZoom.current = true;
+    setZoomLevel(zoom);
+  }, []);
 
-    // Local UI state
-    zoomLevel,
-    tool,
-    onZoomChange: (zoom: number) => {
-      userChoseZoom.current = true;
-      setZoomLevel(zoom);
-    },
-    onToolChange: setTool,
-    onDragStart: () => {},
+  const onSeek = useCallback(
+    (seconds: number) => setCurrentTime(Math.round(seconds * 1000)),
+    [setCurrentTime],
+  );
 
-    // Playback
-    onSeek: (seconds: number) => setCurrentTime(Math.round(seconds * 1000)),
-    onPlayPause: togglePlay,
-    isLooping: false,
-    onToggleLoop: () => {},
+  const onDeleteClip = useCallback(
+    (ids: string[]) => edit({ kind: "delete", ids }),
+    [edit],
+  );
+  const onRippleDeleteClip = useCallback(
+    (ids: string[]) => edit({ kind: "delete", ids }),
+    [edit],
+  );
+  const onDuplicateClip = useCallback(
+    (ids: string[]) => edit({ kind: "duplicate", ids }),
+    [edit],
+  );
+  const onSplitClip = useCallback(
+    (id: string, atSeconds: number) => edit({ kind: "split", id, atSeconds }),
+    [edit],
+  );
 
-    // Editing
-    onClipUpdate,
-    onSelectClips,
-    onDeleteClip: (ids: string[]) => edit({ kind: "delete", ids }),
-    onRippleDeleteClip: (ids: string[]) => edit({ kind: "delete", ids }),
-    onDuplicateClip: (ids: string[]) => edit({ kind: "duplicate", ids }),
-    onSplitClip: (id: string, atSeconds: number) =>
-      edit({ kind: "split", id, atSeconds }),
+  const fitZoomTo = useCallback((availableWidth: number, durationSeconds: number) => {
+    if (userChoseZoom.current) return;
+    if (availableWidth <= 0 || durationSeconds <= 0) return;
 
-    // Not meaningful for annotations: a single fixed track, no source media.
-    onTrackUpdate: () => {},
-    onDetachAudio: () => {},
+    const fitted = Math.min(
+      MAX_ZOOM,
+      Math.max(READABLE_ZOOM, availableWidth / durationSeconds),
+    );
+    setZoomLevel((current) =>
+      Math.abs(current - fitted) < 1 ? current : fitted,
+    );
+  }, []);
 
-    /**
-     * Fit the whole sequence in `availableWidth` px. Without this the default
-     * zoom overflows a short timeline, and the NLE's auto-scroll then pins the
-     * playhead to the middle of the viewport while the content slides beneath
-     * it. Skipped once the user has picked their own zoom.
-     */
-    fitZoomTo(availableWidth: number, durationSeconds: number) {
-      if (userChoseZoom.current) return;
-      if (availableWidth <= 0 || durationSeconds <= 0) return;
+  const selectedClipIds = useMemo(
+    () => (selectedClipId ? [selectedClipId] : EMPTY_SELECTED_CLIPS),
+    [selectedClipId],
+  );
 
-      // Faire tenir toute la sequence rendait les libelles illisibles : on garde
-      // une echelle lisible et on fait defiler au-dela.
-      const fitted = Math.min(
-        MAX_ZOOM,
-        Math.max(READABLE_ZOOM, availableWidth / durationSeconds),
-      );
-      setZoomLevel((current) =>
-        Math.abs(current - fitted) < 1 ? current : fitted,
-      );
-    },
-  };
+  const duration =
+    videoDuration > 0 ? videoDuration / 1000 : view.durationSeconds;
+
+  return useMemo(
+    () => ({
+      // Data
+      tracks: view.tracks,
+      clips: view.clips,
+      mediaMap: view.mediaMap,
+      duration,
+      frameRate: fps,
+      isPlaying,
+      selectedClipIds,
+
+      // Local UI state
+      zoomLevel,
+      tool,
+      onZoomChange,
+      onToolChange: setTool,
+      onDragStart: NOOP,
+
+      // Playback
+      onSeek,
+      onPlayPause: togglePlay,
+      isLooping: false,
+      onToggleLoop: NOOP,
+
+      // Editing
+      onClipUpdate,
+      onSelectClips,
+      onDeleteClip,
+      onRippleDeleteClip,
+      onDuplicateClip,
+      onSplitClip,
+
+      // Not meaningful for annotations: a single fixed track, no source media.
+      onTrackUpdate: NOOP,
+      onDetachAudio: NOOP,
+
+      fitZoomTo,
+    }),
+    [
+      view.tracks,
+      view.clips,
+      view.mediaMap,
+      duration,
+      fps,
+      isPlaying,
+      selectedClipIds,
+      zoomLevel,
+      tool,
+      onZoomChange,
+      onSeek,
+      togglePlay,
+      onClipUpdate,
+      onSelectClips,
+      onDeleteClip,
+      onRippleDeleteClip,
+      onDuplicateClip,
+      onSplitClip,
+      fitZoomTo,
+    ],
+  );
 }
