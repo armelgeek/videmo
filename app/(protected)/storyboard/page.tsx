@@ -1191,8 +1191,8 @@ export default function StoryboardPage() {
         <div className="flex-1 min-h-0 overflow-y-auto px-2 py-4">
           {/* Step Content */}
           {step === "prompt" && (
-            <div className="flex flex-col items-center px-4 py-8">
-              <div className="w-full max-w-2xl space-y-6">
+            <div className="flex items-stretch px-4 py-8 gap-8 justify-center">
+              <div className="flex-1 max-w-2xl space-y-6">
                 {/* Header */}
                 <div className="text-center space-y-2">
                   <h1 className="text-4xl font-bold">Create Your Video</h1>
