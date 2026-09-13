@@ -3,19 +3,25 @@ import {
   type NarrationPart,
   nextNarrationAction,
   narrationEndMs,
+  partAt,
 } from "./narration-schedule";
 
 /** Au-dela, la coupure vaut mieux qu'une derive qui durerait des secondes. */
 const SAUT_BRUTAL_MS = 1500;
 
-/** Le temps de lecture vise pour resorber un ecart par le tempo seul. */
-const FENETRE_RATTRAPAGE_MS = 3000;
+/**
+ * Tempo FIXE d'un rattrapage. Chaque changement de playbackRate relance
+ * l'etireur de temps du navigateur et s'entend comme un petit clic : un nudge
+ * recalcule a chaque frame en produisait des dizaines par seconde.
+ */
+const NUDGE = 0.03;
 
-/** La modification de tempo maximale : au-dela, le rattrapage s'entendrait. */
-const NUDGE_MAX = 0.05;
-
-const clamp = (v: number, min: number, max: number) =>
-  Math.max(min, Math.min(max, v));
+/**
+ * Un rattrapage engage court jusqu'a ce seuil, bien sous celui qui l'a
+ * declenche : sans cette hysteresis, l'ecart oscillait autour du seuil et le
+ * tempo basculait sans cesse entre 1 et le nudge.
+ */
+const RETOUR_MS = 25;
 
 /**
  * Joue la narration enregistrement par enregistrement, en presentant a la
@@ -130,10 +136,15 @@ export class NarrationPlayer {
     );
 
     if (action.type === "rien") {
-      // Un rattrapage en cours peut avoir resorbe l'ecart entre deux frames :
-      // sans ce retour au tempo normal, le nudge reste actif indefiniment et
-      // finit par creuser l'ecart dans l'autre sens.
-      if (this.manager.getPlaybackRate() !== 1) this.manager.setPlaybackRate(1);
+      const rate = this.manager.getPlaybackRate();
+      if (rate === 1) return;
+      // Le rattrapage continue tant que l'ecart n'est pas resorbe, et s'arrete
+      // s'il le depasse dans l'autre sens.
+      const cible = partAt(this.parts, positionMs);
+      const ecartMs = cible ? cible.offsetMs - offsetMs : 0;
+      if (Math.abs(ecartMs) <= RETOUR_MS || Math.sign(ecartMs) !== Math.sign(rate - 1)) {
+        this.manager.setPlaybackRate(1);
+      }
       return;
     }
 
@@ -188,8 +199,7 @@ export class NarrationPlayer {
     // En-dessous, on rattrape par le TEMPO plutot que par un saut : jouer
     // legerement plus vite ou plus lentement quelques secondes ne s'entend
     // pas, la ou chaque coupure s'entend. Voir AudioManager.setPlaybackRate.
-    const nudge = clamp(ecartMs / FENETRE_RATTRAPAGE_MS, -NUDGE_MAX, NUDGE_MAX);
-    this.manager.setPlaybackRate(1 + nudge);
+    this.manager.setPlaybackRate(ecartMs > 0 ? 1 + NUDGE : 1 - NUDGE);
   }
 
   /** Suivre l'horloge du projet, a chaque frame. */
