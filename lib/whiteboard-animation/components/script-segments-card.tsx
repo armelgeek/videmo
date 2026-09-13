@@ -100,7 +100,7 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
               <span
                 style={
                   variant === "fill"
-                    ? { background: accent, color: "#ffffff", padding: "1px 3px" }
+                    ? { color: accent, fontWeight: 600, borderBottom: `2px dotted ${accent}` }
                     : { fontWeight: 700, borderBottom: `3px solid ${accent}` }
                 }
               >
