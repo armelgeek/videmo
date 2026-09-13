@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Folder, ArrowRight } from 'lucide-react';
+import { Folder, ArrowRight, Plus } from 'lucide-react';
 
 const PROJECTS = [
   { id: 1, name: 'Summer Campaign', updated: '1m', status: 'Created', progress: 100 },
@@ -16,9 +16,19 @@ export default function WorkspacePage() {
     <div className="flex flex-col min-h-screen">
       {/* Header */}
       <div className="px-8 py-6 border-b border-white/10">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-white">Workspace</h1>
-          <p className="text-gray-400">Manage and access your video projects</p>
+        <div className="flex items-end justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-white">Workspace</h1>
+            <p className="text-gray-400">Manage and access your video projects</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push('/storyboard')}
+            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-black hover:bg-white/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            New project
+          </button>
         </div>
       </div>
 
