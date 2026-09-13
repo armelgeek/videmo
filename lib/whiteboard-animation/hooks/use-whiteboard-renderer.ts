@@ -27,6 +27,7 @@ const { CUSTOM_HANDS } = require('../lib/hands');
 const { handDrawRect } = require('../lib/handLayout');
 const { resoudreTransition } = require('../lib/transitions');
 const { blanchirFond } = require('../lib/fond-blanc');
+const { warmPresenceMap } = require('../lib/presence-map');
 
 const SCENE_IMAGE = '/scene-premium-bag.png';
 
@@ -691,6 +692,8 @@ export function useWhiteboardRenderer({
     // Meme normalisation qu'au rendu serveur : sans elle l'apercu montre des
     // rectangles gris la ou les regions ont ete revelees.
     if (octx) blanchirFond(octx, width, height);
+    // Never drawn into again: the engine may cache what it reads from it.
+    (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable = true;
 
     cache.set(key, offscreen);
     if (cache.size > IMAGE_CACHE_MAX) {
@@ -721,7 +724,7 @@ export function useWhiteboardRenderer({
       if (cancelled) return;
       const run = () => {
         const canvas = canvasRef.current;
-        if (!cancelled && canvas) prepareOffscreen(img, canvas.width, canvas.height);
+        if (!cancelled && canvas) warmPresenceMap(prepareOffscreen(img, canvas.width, canvas.height));
       };
       idleHandle = win.requestIdleCallback
         ? win.requestIdleCallback(run, { timeout: 2000 })
