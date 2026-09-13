@@ -79,12 +79,9 @@ export const storyboardPanelSchema = z.object({
 });
 export type StoryboardPanel = z.infer<typeof storyboardPanelSchema>;
 
-// Ordre du parcours. Le whiteboard vient APRES le storyboard : le dessin est cale sur
-// la narration, il faut donc que celle-ci existe avant d'entrer dans l'editeur.
-// La voix est choisie directement dans le prompt step.
+// Ordre du parcours simplifié : prompt (script inline) → storyboard → whiteboard
 export const workflowStepSchema = z.enum([
   "prompt",
-  "scriptValidation",
   "storyboard",
   "whiteboard",
 ]);

@@ -71,8 +71,8 @@ import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
 
 const STEPS = [
   { key: "prompt", label: "Prompt", icon: Wand2 },
-  { key: "scriptValidation", label: "Script", icon: Settings },
-  { key: "storyboard", label: "Storyboard", icon: Layers },  { key: "whiteboard", label: "Whiteboard", icon: Settings },
+  { key: "storyboard", label: "Storyboard", icon: Layers },
+  { key: "whiteboard", label: "Whiteboard", icon: Settings },
 ] as const;
 
 /**
@@ -195,7 +195,7 @@ export default function StoryboardPage() {
   // garde sur les scenes deja presentes evite de regenerer — donc de repayer un
   // appel modele — en revenant sur l'etape depuis le storyboard.
   useEffect(() => {
-    if (step !== "scriptValidation" || isGeneratingScript) return;
+    if (step !== "prompt" || isGeneratingScript) return;
     if (scriptText.trim()) return;
     if (!promptContent.trim()) return;
 
@@ -580,7 +580,7 @@ export default function StoryboardPage() {
 
   const handlePromptSubmit = (content: string) => {
     setPromptContent(content);
-    setStep("scriptValidation");
+    setStep("storyboard");
   };
 
   const [isBreakingDown, setIsBreakingDown] = useState(false);
@@ -1478,144 +1478,6 @@ export default function StoryboardPage() {
             </div>
           )}
 
-          {step === "scriptValidation" && (
-            <div className="max-w-5xl mx-auto px-2 space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold">Review Script</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Validate your script before generating storyboard
-                </p>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Script Content */}
-                <div className="lg:col-span-2">
-                  <div className="bg-card border border-border rounded-xl overflow-hidden">
-                    {/* Header */}
-                    <div className="border-b border-border bg-muted/50 px-4 py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500" />
-                        <span className="font-medium text-sm">
-                          Generated Script
-                        </span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {scriptWordCount > 0
-                          ? `${scriptWordCount} words`
-                          : "0 words"}
-                      </span>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-4 bg-background min-h-screen max-h-screen overflow-y-auto">
-                      {scriptText ? (
-                        <Textarea
-                          value={scriptText}
-                          onChange={(event) => setScriptText(event.target.value)}
-                          aria-label="Narration script"
-                          className="w-full h-full min-h-[60vh] resize-none border-0 bg-transparent p-0 text-sm leading-relaxed focus-visible:ring-0"
-                        />
-                      ) : isGeneratingScript ? (
-                        <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
-                          <Loader2 className="w-6 h-6 animate-spin" />
-                          <p className="text-sm">Writing your script...</p>
-                        </div>
-                      ) : scriptError ? (
-                        <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-6">
-                          <AlertTriangle className="w-6 h-6 text-destructive" />
-                          <p className="text-sm text-destructive">{scriptError}</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setScriptError(null);
-                              setStep("prompt");
-                            }}
-                          >
-                            Back to prompt
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center h-full text-muted-foreground">
-                          <p>Script will be generated here...</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions Sidebar */}
-                <div className="space-y-4">
-                  <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-                    <div>
-                      <h3 className="font-semibold text-sm mb-2">Status</h3>
-                      <div className="flex items-center gap-2 text-sm">
-                        <div
-                          className={cn(
-                            "w-2 h-2 rounded-full",
-                            scriptError
-                              ? "bg-destructive"
-                              : isGeneratingScript
-                                ? "bg-amber-500 animate-pulse"
-                                : "bg-green-500",
-                          )}
-                        />
-                        <span className="text-muted-foreground">
-                          {scriptError
-                            ? "Generation failed"
-                            : isGeneratingScript
-                              ? "Writing..."
-                              : isBreakingDown
-                                ? "Building storyboard..."
-                                : scriptText.trim()
-                                  ? "Ready to validate"
-                                  : "Pending generation"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-border pt-4">
-                      <h3 className="font-semibold text-sm mb-3">Actions</h3>
-                      <div className="space-y-2">
-                        <Button
-                          onClick={() => void handleScriptValidated()}
-                          disabled={!scriptText.trim() || isBreakingDown}
-                          className="w-full"
-                        >
-                          {isBreakingDown ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Building storyboard...
-                            </>
-                          ) : (
-                            <>
-                              <Check className="w-4 h-4 mr-2" />
-                              Approve Script
-                            </>
-                          )}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => setStep("prompt")}
-                          className="w-full"
-                        >
-                          Edit Prompt
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-border pt-4 text-xs space-y-2">
-                      <p className="font-medium text-foreground">Tips:</p>
-                      <ul className="space-y-1 text-muted-foreground list-disc list-inside">
-                        <li>Review for clarity</li>
-                        <li>Check flow</li>
-                        <li>Validate tone</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {step === "storyboard" && (
             <div className="max-w-5xl mx-auto space-y-6 pt-4 pb-12">
@@ -1663,7 +1525,7 @@ export default function StoryboardPage() {
                   <div className="flex items-center gap-2">
                     <Button
                       variant="ghost"
-                      onClick={() => setStep("scriptValidation")}
+                      onClick={() => setStep("storyboard")}
                       className="text-muted-foreground hover:text-foreground hover:bg-muted/50"
                       size="sm"
                     >
