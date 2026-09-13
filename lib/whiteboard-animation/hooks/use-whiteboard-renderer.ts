@@ -195,14 +195,12 @@ export function useWhiteboardRenderer({
   // en ferait une nouvelle a chaque rendu, et chaque effet se relancerait.
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
-  // `progress` n'est lu nulle part dans ce hook : l'inclure abonnait le
-  // composant a une valeur derivee de currentTime, recalculee et comparee
-  // pour rien 60 fois par seconde. `currentTime` reste necessaire — la
-  // detection de scrub plus bas en depend — donc ce hook continue de
-  // re-rendre a chaque tick pendant la lecture ; seul `progress` disparait.
+  // Ni `progress` ni `currentTime` : lus par selecteur, ils re-rendaient le
+  // composant hote — tout l'editeur et sa timeline — a chaque publication de
+  // l'horloge pendant la lecture. Les effets qui suivent la position
+  // s'abonnent au store directement.
   const {
     isPlaying,
-    currentTime,
     canvasBg,
     animStyle,
     handStyle,
@@ -210,7 +208,6 @@ export function useWhiteboardRenderer({
     chunks,
   } = useUnifiedEngine<{
     isPlaying: boolean;
-    currentTime: number;
     canvasBg: string;
     animStyle: string;
     handStyle: string;
@@ -218,7 +215,6 @@ export function useWhiteboardRenderer({
     chunks: number | undefined;
   }>((state) => ({
     isPlaying: selectors.selectIsPlaying(state),
-    currentTime: selectors.selectCurrentTime(state),
     canvasBg: selectors.selectCanvasBg(state),
     animStyle: selectors.selectAnimStyle(state),
     handStyle: selectors.selectHandStyle(state),
@@ -668,7 +664,12 @@ export function useWhiteboardRenderer({
     const ctx = canvas?.getContext('2d');
     const hctx = handCanvas?.getContext('2d');
     const s = useUnifiedEngineStore.getState();
-    if (canvas && handCanvas && ctx && hctx && imageRef.current && s.timeline.isPlaying) {
+    // Replaying on the previous scene's artwork is wasted: applyImage throws
+    // that engine away on arrival and asks for another replay. Leave it pending
+    // for the loop unless the right artwork is already loaded.
+    const targetSrc = new URL(imageUrl || SCENE_IMAGE, window.location.href).href;
+    const artworkReady = imageRef.current?.src === targetSrc;
+    if (canvas && handCanvas && ctx && hctx && artworkReady && s.timeline.isPlaying) {
       pendingClipResyncRef.current = false;
       repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
     }
@@ -1306,47 +1307,56 @@ export function useWhiteboardRenderer({
   // croitre avec la position cherchee.
   useEffect(() => {
     if (isPlaying || !imageLoaded) return;
-    if (currentTime < 0) return;
-    // Ecriture du moteur lui-meme (progression, fin de lecture) : rien a faire.
-    if (Math.abs(currentTime - engineTimeRef.current) < 1) return;
 
-    const canvas = canvasRef.current;
-    const handCanvas = handCanvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    const hctx = handCanvas?.getContext('2d');
-    if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
-
-    setScrubbing(true);
-    if (scrubTimer.current) clearTimeout(scrubTimer.current);
-    scrubTimer.current = setTimeout(() => setScrubbing(false), SCRUB_RETOUR_MS);
-
-    // Un drag emet un flot de seeks, et CHAQUE rejeu reconstruit un moteur
-    // complet — le setup() d'un style parcourt l'image entiere. Un par frame
-    // depassait donc largement le budget d'une frame et le curseur devenait
-    // pateux. On en garde un par palier de SEEK_COOLDOWN_MS : le premier part
-    // tout de suite (le retour visuel reste immediat), les suivants attendent
-    // la fin du palier. La derniere position est toujours rejouee, l'effet
-    // n'etant plus rappele apres elle.
     let raf = 0;
-    const lancer = () => {
-      lastSeekAtRef.current = performance.now();
-      raf = requestAnimationFrame(() => {
-        repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
-      });
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let lastSeen = useUnifiedEngineStore.getState().timeline.currentTime;
+
+    const onPosition = (currentTime: number) => {
+      if (currentTime < 0) return;
+      // Ecriture du moteur lui-meme (progression, fin de lecture) : rien a faire.
+      if (Math.abs(currentTime - engineTimeRef.current) < 1) return;
+
+      const canvas = canvasRef.current;
+      const handCanvas = handCanvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      const hctx = handCanvas?.getContext('2d');
+      if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
+
+      setScrubbing(true);
+      if (scrubTimer.current) clearTimeout(scrubTimer.current);
+      scrubTimer.current = setTimeout(() => setScrubbing(false), SCRUB_RETOUR_MS);
+
+      // Un drag emet un flot de seeks, et CHAQUE rejeu reconstruit un moteur
+      // complet — le setup() d'un style parcourt l'image entiere. On en garde un
+      // par palier de SEEK_COOLDOWN_MS : le premier part tout de suite, les
+      // suivants attendent la fin du palier, et la derniere position est
+      // toujours rejouee.
+      cancelAnimationFrame(raf);
+      if (timer) clearTimeout(timer);
+      const lancer = () => {
+        lastSeekAtRef.current = performance.now();
+        raf = requestAnimationFrame(() => {
+          repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
+        });
+      };
+      const reste = SEEK_COOLDOWN_MS - (performance.now() - lastSeekAtRef.current);
+      if (reste <= 0) lancer();
+      else timer = setTimeout(lancer, reste);
     };
 
-    const reste = SEEK_COOLDOWN_MS - (performance.now() - lastSeekAtRef.current);
-    if (reste <= 0) {
-      lancer();
-      return () => cancelAnimationFrame(raf);
-    }
-
-    const timer = setTimeout(lancer, reste);
+    const unsubscribe = useUnifiedEngineStore.subscribe((state) => {
+      const t = state.timeline.currentTime;
+      if (t === lastSeen) return;
+      lastSeen = t;
+      onPosition(t);
+    });
     return () => {
-      clearTimeout(timer);
+      unsubscribe();
+      if (timer) clearTimeout(timer);
       cancelAnimationFrame(raf);
     };
-  }, [currentTime, isPlaying, imageLoaded]);
+  }, [isPlaying, imageLoaded]);
 
   // Apercu statique au DEBUT DU CLIP (rien de revele encore, ou Reset).
   //
@@ -1364,21 +1374,29 @@ export function useWhiteboardRenderer({
     // scrubbing dans les deps — le meme delai que le retour du calque.
     if (scrubbing) return;
 
-    const local = currentTime - clipOffsetMsRef.current;
-    if (local > 0) return;
+    const showPreviewIfAtStart = (currentTime: number) => {
+      if (currentTime - clipOffsetMsRef.current > 0) return;
+      animRef.current = null;
+      drawingDoneRef.current = false;
+      engineTimeRef.current = 0;
+      const handCanvas = handCanvasRef.current;
+      handCanvas
+        ?.getContext('2d')
+        ?.clearRect(0, 0, handCanvas.width, handCanvas.height);
+      drawStaticPreview();
+    };
 
-    animRef.current = null;
-    drawingDoneRef.current = false;
-    engineTimeRef.current = 0;
-    const handCanvas = handCanvasRef.current;
-    handCanvas
-      ?.getContext('2d')
-      ?.clearRect(0, 0, handCanvas.width, handCanvas.height);
-    drawStaticPreview();
+    let lastSeen = useUnifiedEngineStore.getState().timeline.currentTime;
+    showPreviewIfAtStart(lastSeen);
+    return useUnifiedEngineStore.subscribe((state) => {
+      const t = state.timeline.currentTime;
+      if (t === lastSeen) return;
+      lastSeen = t;
+      showPreviewIfAtStart(t);
+    });
   }, [
     isPlaying,
     scrubbing,
-    currentTime,
     imageLoaded,
     artworkVersion,
     canvasBg,
@@ -1412,6 +1430,7 @@ export function useWhiteboardRenderer({
     // artworkVersion. Ne reste ici que le cas d'une illustration remplacee
     // ALORS qu'on est deja engage dans le clip : il faut alors rejouer le
     // reveal pour la montrer a la bonne etape.
+    const currentTime = useUnifiedEngineStore.getState().timeline.currentTime;
     if (currentTime - clipOffsetMsRef.current <= 0) return;
 
     const canvas = canvasRef.current;
