@@ -535,6 +535,24 @@ export default function StoryboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, projectSync.projectId, editableClips.length]);
 
+  // Des que tous les visuels sont la, la voix s'enregistre sans attendre le
+  // clic : la planification des annotations a besoin des images, d'ou l'ordre.
+  const autoNarrationRequested = useRef(false);
+  useEffect(() => {
+    if (step !== "storyboard") {
+      autoNarrationRequested.current = false;
+      return;
+    }
+    if (autoNarrationRequested.current) return;
+    if (isGeneratingImages || isGeneratingNarration || !projectSync.projectId) return;
+    const clips = editableClips.filter((c) => !c.isSection);
+    if (clips.length === 0 || !clips.every((_, idx) => generatedImages[idx])) return;
+    if (clips.every((c) => c.audioUrl)) return;
+    autoNarrationRequested.current = true;
+    void handleVoiceSelected(selectedVoice, { advance: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, isGeneratingImages, generatedImages, projectSync.projectId]);
+
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   /**
@@ -793,7 +811,10 @@ export default function StoryboardPage() {
    * trois secondes qui n'attendait rien, et l'etape suivante s'ouvrait sur des
    * clips sans audio.
    */
-  const handleVoiceSelected = async (voiceId: string) => {
+  const handleVoiceSelected = async (
+    voiceId: string,
+    { advance = true }: { advance?: boolean } = {},
+  ) => {
     if (!projectSync.projectId) return;
 
     const jobs = narrationJobs(editableClips);
@@ -816,7 +837,7 @@ export default function StoryboardPage() {
       parlantes.length > 0 &&
       parlantes.every((c) => c.audioUrl)
     ) {
-      setStep("whiteboard");
+      if (advance) setStep("whiteboard");
       return;
     }
 
@@ -937,7 +958,7 @@ export default function StoryboardPage() {
     const done = jobs.length - failed;
     if (done > 0) {
       toast.success(`Narrated ${done} beat${done > 1 ? "s" : ""}`);
-      setStep("whiteboard");
+      if (advance) setStep("whiteboard");
     }
     if (failed > 0) {
       toast.error(`${failed} beat${failed > 1 ? "s" : ""} failed`);
@@ -1580,6 +1601,16 @@ export default function StoryboardPage() {
                         className="h-full bg-primary transition-all"
                         style={{ width: `${(generatingProgress.current / Math.max(1, generatingProgress.total)) * 100}%` }}
                       />
+                    </div>
+                  </div>
+                )}
+
+                {isGeneratingNarration && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                    Recording narration {Math.round(narrationProgress)}%
+                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full bg-primary transition-all" style={{ width: `${narrationProgress}%` }} />
                     </div>
                   </div>
                 )}
