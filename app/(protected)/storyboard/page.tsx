@@ -178,7 +178,7 @@ export default function StoryboardPage() {
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [isPlanningAnnotations, setIsPlanningAnnotations] = useState(false);
   const [narrationProgress, setNarrationProgress] = useState(0);
-  const [storyboardPage, setStoryboardPage] = useState(0);
+  const [selectedClipIndex, setSelectedClipIndex] = useState<number | null>(null);
 
   // Le projet vit en base : useProjectSync le charge (ou le cree), tient le
   // bail d'edition et ecrit chaque changement du store.
@@ -517,6 +517,23 @@ export default function StoryboardPage() {
       setIsGeneratingImages(false);
     }
   };
+
+  // Arriver sur le storyboard dessine ce qui manque, une fois par arrivee :
+  // un visuel deja produit est garde, et un echec ne relance pas en boucle.
+  const autoVisualsRequested = useRef(false);
+  useEffect(() => {
+    if (step !== "storyboard") {
+      autoVisualsRequested.current = false;
+      return;
+    }
+    if (autoVisualsRequested.current || isGeneratingImages) return;
+    if (!projectSync.projectId) return;
+    const clips = editableClips.filter((c) => !c.isSection);
+    if (clips.length === 0 || clips.every((_, idx) => generatedImages[idx])) return;
+    autoVisualsRequested.current = true;
+    void generateImagesProgressively();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, projectSync.projectId, editableClips.length]);
 
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -1514,352 +1531,184 @@ export default function StoryboardPage() {
 
 
           {step === "storyboard" && (
-            <div className="max-w-5xl mx-auto space-y-6 pt-4 pb-12">
-              {isGeneratingNarration && (
-                <div className="bg-card border border-border rounded-lg p-4 flex items-center gap-2 text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                  Recording narration... {Math.round(narrationProgress)}%
-                </div>
-              )}
-              {/* Progress Bar */}
-              {isGeneratingImages && (
-                <div className="bg-card border border-border rounded-lg p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                      <span className="text-sm font-medium">
-                        Generating clip visuals... {generatingProgress.current} of{" "}
-                        {generatingProgress.total}
-                      </span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {Math.round(
-                        (generatingProgress.current /
-                          Math.max(1, generatingProgress.total)) *
-                          100,
-                      )}
-                      %
-                    </span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all duration-300"
-                      style={{
-                        width: `${(generatingProgress.current / Math.max(1, generatingProgress.total)) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Header */}
-              <div className="space-y-2">
+            <div className="flex gap-6 px-4 pt-4 pb-12 items-start">
+              <div className="flex-1 min-w-0 space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-3xl font-bold">Storyboard & Timeline Clips</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Customize durations, script narration, and visual prompts for each clip.
+                    <h2 className="text-2xl font-bold">Storyboard</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {editableClips.filter((c) => !c.isSection).length} clips · click a clip to edit it
                     </p>
                   </div>
-                  {/* Action Buttons */}
                   <div className="flex items-center gap-2">
                     <Button
-                      variant="ghost"
-                      onClick={() => setStep("storyboard")}
-                      className="text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                      size="sm"
-                    >
-                      ← Script
-                    </Button>
-                    <Button
-                      onClick={() => void generateImagesProgressively()}
-                      disabled={isGeneratingImages}
-                      size="sm"
                       variant="outline"
-                      title="Generate visuals for clips that don't have one yet"
+                      size="sm"
+                      onClick={() => void generateImagesProgressively({ force: true })}
+                      disabled={isGeneratingImages || isGeneratingNarration}
                     >
-                      {isGeneratingImages ? (
-                        <>
-                          <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-3.5 h-3.5 mr-1.5 text-primary" />
-                          Generate Visuals ({editableClips.filter((c) => !c.isSection).length})
-                        </>
-                      )}
+                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                      Regenerate all
                     </Button>
                     <Button
+                      size="sm"
                       onClick={() => {
                         syncClipsToStore(editableClips, generatedImages);
                         void handleVoiceSelected(selectedVoice);
                       }}
-                      size="sm"
+                      disabled={isGeneratingImages || isGeneratingNarration}
                       className="bg-primary hover:bg-primary/90"
                     >
-                      <Film className="w-3.5 h-3.5 mr-1.5" />
-                      Continue to Whiteboard
+                      {isGeneratingNarration ? (
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Film className="w-3.5 h-3.5 mr-1.5" />
+                      )}
+                      {isGeneratingNarration
+                        ? `Recording narration ${Math.round(narrationProgress)}%`
+                        : "Continue to Whiteboard"}
                     </Button>
                   </div>
                 </div>
-              </div>
 
-              {/* Add Clip / Add Section Toolbar */}
-              <div className="flex items-center justify-between border-y border-border/50 py-3 px-2">
-                <div className="text-xs text-muted-foreground font-medium">
-                  {editableClips.filter((c) => !c.isSection).length} Clips • Total Duration:{" "}
-                  {editableClips
-                    .filter((c) => !c.isSection)
-                    .reduce((acc, c) => acc + (c.duration || 5), 0)}s
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => addClip()}
-                    size="sm"
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Clip
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={() => addSection()}
-                    size="sm"
-                    className="h-8 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    + Section Header
-                  </Button>
-                </div>
-              </div>
-
-              {/* Clips & Sections List */}
-              <div className="space-y-4">
-                {editableClips.map((item, i) => (
-                  <div key={item.id || `item-${i}`} className="space-y-2">
-                    <div
-                      className={`group rounded-xl p-4 transition-all ${
-                        item.isSection
-                          ? "bg-muted/20 border border-border/50 flex items-center justify-between"
-                          : "bg-gradient-to-br from-card to-card/60 border border-border hover:border-primary/50 hover:shadow-lg flex flex-col gap-4"
-                      }`}
-                    >
-                      {/* Header Row */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary shrink-0 text-sm">
-                            {i + 1}
-                          </div>
-                          <div className="flex-1 min-w-0 flex items-center gap-2">
-                            {/* Le titre d'une section EST la section : elle n'a que lui, et
-                                « + Section Header » la cree sans nom. Celui d'un
-                                clip vient du script, il se lit. */}
-                            {item.isSection ? (
-                              <input
-                                type="text"
-                                value={item.title || ""}
-                                onChange={(e) => updateClipField(i, { title: e.target.value })}
-                                className="text-base font-semibold bg-transparent border-b border-transparent hover:border-border/60 focus:border-primary focus:outline-none px-1 py-0.5 w-full max-w-sm transition-colors text-foreground"
-                                placeholder="Section title..."
-                              />
-                            ) : (
-                              <h3 className="text-base font-semibold px-1 py-0.5 truncate text-foreground">
-                                {item.title || `Clip ${i + 1}`}
-                              </h3>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => moveClip(i, "up")}
-                            disabled={i === 0}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            title="Move up"
-                          >
-                            ↑
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => moveClip(i, "down")}
-                            disabled={i === editableClips.length - 1}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            title="Move down"
-                          >
-                            ↓
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => duplicateClip(i)}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            title="Duplicate clip"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteClip(i)}
-                            className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-                            title="Delete clip"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Content - Horizontal / Grid Layout for non-section clips */}
-                      {!item.isSection && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Left Column: Image Preview + Duration */}
-                          <div className="flex flex-col gap-3">
-                            <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-border/40 bg-gradient-to-br from-muted/20 via-card to-muted/20 flex items-center justify-center group/img hover:border-border/60 transition-all duration-300">
-                              {generatedImages[i] ? (
-                                <Image
-                                  src={generatedImages[i]}
-                                  alt={`Visual for ${item.title || i + 1}`}
-                                  fill
-                                  className="object-cover"
-                                />
-                              ) : (
-                                <div className="flex flex-col items-center justify-center gap-2 text-center p-4">
-                                  {isGeneratingImages && generatingProgress.current > i ? (
-                                    <>
-                                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                                      <p className="text-xs text-muted-foreground">Generating visual...</p>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Film className="w-6 h-6 text-muted-foreground/40" />
-                                      <p className="text-xs text-muted-foreground">Visual preview ready</p>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                              {/* Overlay Regenerate Button */}
-                              <button
-                                onClick={() => regenerateImageForClip(i)}
-                                className="absolute top-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity bg-background/90 backdrop-blur-sm border border-border hover:bg-muted text-foreground rounded-lg px-2 py-1 text-xs flex items-center gap-1.5 shadow-md"
-                                title="Regenerate image for this clip"
-                              >
-                                <RefreshCw className="w-3.5 h-3.5" />
-                                <span>Regenerate</span>
-                              </button>
-                            </div>
-
-                            {/* Duration Selector */}
-                            <div className="flex items-center justify-between bg-muted/30 border border-border/50 rounded-lg px-3 py-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                                <span className="text-xs font-medium text-muted-foreground">
-                                  Clip Duration:
-                                </span>
-                              </div>
-                              <Select
-                                value={String(item.duration || 5)}
-                                onValueChange={(val) =>
-                                  updateClipField(i, { duration: Number(val) })
-                                }
-                              >
-                                <SelectTrigger className="h-7 text-xs bg-background border-border/60 rounded-md w-28">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="3">3 seconds</SelectItem>
-                                  <SelectItem value="5">5 seconds</SelectItem>
-                                  <SelectItem value="8">8 seconds</SelectItem>
-                                  <SelectItem value="10">10 seconds</SelectItem>
-                                  <SelectItem value="12">12 seconds</SelectItem>
-                                  <SelectItem value="15">15 seconds</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          </div>
-
-                          {/* Right Column: Script Narration & Visual Prompt */}
-                          <div className="flex flex-col gap-3">
-                            {/* Script Narration */}
-                            <div>
-                              <label className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
-                                Script Narration
-                              </label>
-                              <textarea
-                                value={item.summary || item.narration || ""}
-                                onChange={(e) =>
-                                  updateClipField(i, {
-                                    summary: e.target.value,
-                                    narration: e.target.value,
-                                  })
-                                }
-                                placeholder="Voice narration for this clip..."
-                                className="w-full text-xs bg-muted/40 border border-border/50 rounded-lg p-2.5 resize-none focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors text-foreground"
-                                rows={3}
-                              />
-                            </div>
-
-                            {/* Visual Prompt */}
-                            <div>
-                              <label className="text-xs font-semibold text-muted-foreground uppercase block mb-1">
-                                Visual Prompt
-                              </label>
-                              <textarea
-                                value={item.visualPrompt || item.summary || ""}
-                                onChange={(e) =>
-                                  updateClipField(i, { visualPrompt: e.target.value })
-                                }
-                                placeholder="Visual prompt for AI image generation..."
-                                className="w-full text-xs bg-muted/40 border border-border/50 rounded-lg p-2.5 resize-none focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors text-foreground"
-                                rows={3}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Inline add clip / add section divider */}
-                    <div className="flex justify-center py-1 opacity-40 hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        onClick={() => addClip(i)}
-                        size="sm"
-                        className="h-6 text-[11px] text-muted-foreground hover:text-foreground gap-1 px-2"
-                      >
-                        <Plus className="w-3 h-3" /> Insert clip after
-                      </Button>
+                {isGeneratingImages && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                    Drawing visuals {generatingProgress.current}/{generatingProgress.total}
+                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${(generatingProgress.current / Math.max(1, generatingProgress.total)) * 100}%` }}
+                      />
                     </div>
                   </div>
-                ))}
+                )}
+
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                  {editableClips.map((item, i) =>
+                    item.isSection ? (
+                      <button
+                        key={item.id || `item-${i}`}
+                        type="button"
+                        onClick={() => setSelectedClipIndex(i)}
+                        className={cn(
+                          "col-span-full text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border/50 pt-2 pb-1",
+                          selectedClipIndex === i && "text-primary border-primary",
+                        )}
+                      >
+                        {item.title || "Untitled section"}
+                      </button>
+                    ) : (
+                      <button
+                        key={item.id || `item-${i}`}
+                        type="button"
+                        onClick={() => setSelectedClipIndex(i)}
+                        className={cn(
+                          "group text-left rounded-lg border bg-card overflow-hidden transition-all",
+                          selectedClipIndex === i
+                            ? "border-primary ring-1 ring-primary"
+                            : "border-border hover:border-primary/50",
+                        )}
+                      >
+                        <div className="relative aspect-video bg-muted/30 flex items-center justify-center">
+                          {generatedImages[i] ? (
+                            <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-cover" />
+                          ) : isGeneratingImages ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                          ) : (
+                            <Film className="w-5 h-5 text-muted-foreground/40" />
+                          )}
+                          <span className="absolute top-1.5 left-1.5 rounded bg-background/80 px-1.5 text-[10px] font-bold">
+                            {i + 1}
+                          </span>
+                        </div>
+                        <p className="px-2.5 py-2 text-xs font-medium truncate">
+                          {item.title || `Clip ${i + 1}`}
+                        </p>
+                      </button>
+                    ),
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => addClip()}
+                    className="aspect-video rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-xs"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Add clip
+                  </button>
+                </div>
               </div>
 
-              {/* Bottom Action Bar */}
-              <div className="flex gap-4 pt-4 border-t border-border/50">
-                <Button
-                  variant="outline"
-                  onClick={() => void generateImagesProgressively({ force: true })}
-                  disabled={isGeneratingImages}
-                  className="flex-1"
-                  title="Redraw every visual, replacing the ones already generated"
-                >
-                  <RefreshCw className="w-4 h-4 mr-2" />
-                  Regenerate All Visuals
-                </Button>
-                <Button
-                  onClick={() => {
-                    syncClipsToStore(editableClips, generatedImages);
-                    void handleVoiceSelected(selectedVoice);
-                  }}
-                  className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  Continue to Whiteboard
-                </Button>
-              </div>
+              {selectedClipIndex !== null && editableClips[selectedClipIndex] && (() => {
+                const i = selectedClipIndex;
+                const item = editableClips[i];
+                return (
+                  <aside className="w-full max-w-sm shrink-0 sticky top-4 bg-card border border-border rounded-xl p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">
+                        {item.isSection ? "Section" : `Clip ${i + 1}`}
+                      </span>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setSelectedClipIndex(null)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {item.isSection ? (
+                      <input
+                        type="text"
+                        value={item.title || ""}
+                        onChange={(e) => updateClipField(i, { title: e.target.value })}
+                        placeholder="Section title..."
+                        className="w-full text-sm bg-muted/40 border border-border/50 rounded-lg p-2.5 outline-none focus:border-primary"
+                      />
+                    ) : (
+                      <>
+                        <div className="relative aspect-video rounded-lg overflow-hidden bg-muted/30">
+                          {generatedImages[i] && (
+                            <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-cover" />
+                          )}
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled={isGeneratingImages}
+                          onClick={() => void regenerateImageForClip(i)}
+                        >
+                          <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+                          Regenerate visual
+                        </Button>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Narration</Label>
+                          <Textarea
+                            value={item.summary || item.narration || ""}
+                            onChange={(e) => updateClipField(i, { summary: e.target.value, narration: e.target.value })}
+                            rows={5}
+                            className="text-xs resize-none"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Visual prompt</Label>
+                          <Textarea
+                            value={item.visualPrompt || item.summary || ""}
+                            onChange={(e) => updateClipField(i, { visualPrompt: e.target.value })}
+                            rows={4}
+                            className="text-xs resize-none"
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="flex items-center gap-1 border-t border-border pt-3">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={i === 0} onClick={() => { moveClip(i, "up"); setSelectedClipIndex(i - 1); }} title="Move up">↑</Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" disabled={i === editableClips.length - 1} onClick={() => { moveClip(i, "down"); setSelectedClipIndex(i + 1); }} title="Move down">↓</Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => duplicateClip(i)} title="Duplicate"><Copy className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={() => addSection(i)} title="Insert section after">+ Section</Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 ml-auto text-muted-foreground hover:text-destructive" onClick={() => { deleteClip(i); setSelectedClipIndex(null); }} title="Delete"><Trash2 className="w-3.5 h-3.5" /></Button>
+                    </div>
+                  </aside>
+                );
+              })()}
             </div>
           )}
 
