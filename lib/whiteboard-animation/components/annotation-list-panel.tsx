@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { deriveTimeline } from '../timeline/derive-timeline';
@@ -33,9 +33,12 @@ function formatMs(ms: number) {
 function AnnotationListPanelImpl({
   className,
   annotations: annotationsProp,
+  sceneOffsetMs = 0,
 }: {
   className?: string;
   annotations?: import('@/lib/unified-engine/types').Annotation[];
+  /** Where the scene's drawing starts on the project clock; annotation times are local to it. */
+  sceneOffsetMs?: number;
 }) {
   const storeAnnotations = useUnifiedEngineStore((s) => s.animation.annotations);
   const updateAnnotation = useUnifiedEngineStore((s) => s.updateAnnotation);
@@ -51,6 +54,29 @@ function AnnotationListPanelImpl({
     () => deriveTimeline(annotations).annotations,
     [annotations],
   );
+
+  // The clock ticks every frame; only a change of playing annotation re-renders.
+  const [playingIndex, setPlayingIndex] = useState(-1);
+  useEffect(() => {
+    const place = () => {
+      const t = useUnifiedEngineStore.getState().timeline.currentTime - sceneOffsetMs;
+      const idx = derived.findIndex((a) => t >= a.reveal.from && t < a.reveal.to);
+      setPlayingIndex((prev) => (prev === idx ? prev : idx));
+    };
+    place();
+    return useUnifiedEngineStore.subscribe(place);
+  }, [derived, sceneOffsetMs]);
+
+  const selectAndSeek = (index: number, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedAnnotation(null);
+      return;
+    }
+    setSelectedAnnotation(index);
+    const engine = useUnifiedEngineStore.getState();
+    if (engine.timeline.isPlaying) engine.setIsPlaying(false);
+    engine.setCurrentTime(sceneOffsetMs + derived[index].reveal.from);
+  };
 
   const handleStyleChange = (index: number, styleVal: string) => {
     const newStyle = styleVal === DEFAULT_ANIM_STYLE ? undefined : styleVal;
@@ -84,16 +110,17 @@ function AnnotationListPanelImpl({
         <ul className="min-h-0 flex-1 overflow-y-auto py-1.5">
           {derived.map((annotation, i) => {
             const selected = selectedIndex === i;
+            const playing = playingIndex === i;
             const color = annotationColors(annotation, i).stroke;
             const currentAnimStyle = annotation.animStyle ?? DEFAULT_ANIM_STYLE;
 
             return (
               <li key={annotation.id ?? i} className="px-2 py-1">
                 <div
-                  onClick={() => setSelectedAnnotation(selected ? null : i)}
+                  onClick={() => selectAndSeek(i, selected)}
                   className={cn(
                     'flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-l-[3px] px-2.5 py-2 transition-colors',
-                    selected ? 'bg-muted' : 'border-transparent hover:bg-muted/40',
+                    selected ? 'bg-muted' : playing ? 'border-transparent bg-muted/60' : 'border-transparent hover:bg-muted/40',
                   )}
                   style={{
                     borderLeftColor: color,
@@ -107,13 +134,19 @@ function AnnotationListPanelImpl({
                     {i + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <span className={cn('block truncate text-[13px] leading-tight', selected ? 'font-medium text-foreground' : 'text-foreground/90')}>
+                    <span className={cn('line-clamp-2 text-[13px] leading-snug', selected || playing ? 'font-medium text-foreground' : 'text-foreground/90')}>
                       {annotation.text || `Region ${i + 1}`}
                     </span>
                     <span className="mt-0.5 block font-mono text-[10px] tabular-nums text-muted-foreground">
                       {formatMs(annotation.reveal.from)} → {formatMs(annotation.reveal.to)}
                     </span>
                   </div>
+                  {playing && (
+                    <span aria-label="Playing" className="relative flex h-2 w-2 shrink-0">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: color }} />
+                      <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                    </span>
+                  )}
                   {!selected && currentAnimStyle !== DEFAULT_ANIM_STYLE && (
                     <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
                       {ANIM_STYLES.find((st) => st.value === currentAnimStyle)?.label ?? currentAnimStyle}

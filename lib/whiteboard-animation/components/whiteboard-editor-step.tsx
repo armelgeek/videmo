@@ -598,7 +598,10 @@ export function WhiteboardEditorStep({
         {sideTab === "scene" ? (
           <SceneDetailsPanel className="flex-1 min-h-0 overflow-y-auto" />
         ) : (
-          <AnnotationListPanel className="flex-1" />
+          <AnnotationListPanel
+            className="flex-1"
+            sceneOffsetMs={panelBoundaries.find((b) => b.panelIdx === activeClipIndex)?.drawStartMs ?? 0}
+          />
         )}
 
       </div>
