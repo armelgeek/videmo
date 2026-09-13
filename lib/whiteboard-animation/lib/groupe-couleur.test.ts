@@ -104,6 +104,43 @@ describe('wcFill', () => {
   });
 });
 
+describe('pixels en indices (grouperCouleurs)', () => {
+  const indicesDuCarre = (x0: number, y0: number, w: number, h: number) =>
+    Int32Array.from(pixelsDuCarre(x0, y0, w, h), (p) => p.y * W + p.x);
+
+  it('decoupe le meme cadre et les memes couleurs que les objets', () => {
+    const src = sourceAvecCarre(10, 8, 6, 4);
+    const obj: any = { pixels: pixelsDuCarre(10, 8, 6, 4) };
+    const idx: any = { pixels: indicesDuCarre(10, 8, 6, 4) };
+    const a = decouperGroupeCouleur(obj, src, W, creerCanvas);
+    const b = decouperGroupeCouleur(idx, src, W, creerCanvas);
+
+    expect(idx.box).toEqual(obj.box);
+    const lireTout = (c: HTMLCanvasElement) =>
+      Array.from(c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data);
+    expect(lireTout(b)).toEqual(lireTout(a));
+  });
+
+  it('rend les memes waypoints que les objets', () => {
+    expect(waypointsGroupeCouleur(indicesDuCarre(10, 8, 6, 4), W)).toEqual(
+      waypointsGroupeCouleur(pixelsDuCarre(10, 8, 6, 4)),
+    );
+  });
+
+  it('groupe par couleur, les petits groupes a part, en ordre de balayage', () => {
+    const { grouperCouleurs } = require('./AnimationUtils');
+    const src = sourceAvecCarre(10, 8, 6, 4);
+    const cb = { x: 0, y: 0, w: W, h: H };
+    const { groups, small } = grouperCouleurs(src.data, cb, W, 10);
+
+    expect(groups).toHaveLength(1);
+    expect([groups[0].r, groups[0].g, groups[0].b]).toEqual([240, 0, 0]);
+    expect(Array.from(groups[0].pixels)).toEqual(Array.from(indicesDuCarre(10, 8, 6, 4)));
+    expect(small).toHaveLength(0);
+    expect(grouperCouleurs(src.data, cb, W, 100).small).toHaveLength(24);
+  });
+});
+
 describe('waypointsGroupeCouleur', () => {
   it('rend un point par ligne, alternativement a droite et a gauche', () => {
     const wps = waypointsGroupeCouleur(pixelsDuCarre(10, 8, 6, 4));
