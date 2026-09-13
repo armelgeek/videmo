@@ -31,6 +31,7 @@ describe('UnifiedEngineStore', () => {
       ui: {
         selectedClipId: null,
         selectedAnnotationIndex: null,
+        activeScenePanelId: null,
         activePanel: 'timeline',
         isLoading: false,
         error: null,

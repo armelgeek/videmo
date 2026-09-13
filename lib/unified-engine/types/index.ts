@@ -25,6 +25,12 @@ export interface Annotation {
     opacity?: number;
   };
   animStyle?: string;
+  /**
+   * La scene (panneau) a laquelle appartient l'annotation. Le store tient les
+   * annotations de TOUTES les scenes dans un seul tableau : c'est ce champ qui
+   * les separe. Absent en mode demo, sans panneau.
+   */
+  panelId?: string;
 }
 
 export interface InkplainerLayer {
@@ -87,7 +93,10 @@ export interface UnifiedEngineState {
   // ===== UI STATE =====
   ui: {
     selectedClipId: string | null;
+    /** Index DANS la scene active, pas dans le tableau de toutes les scenes. */
     selectedAnnotationIndex: number | null;
+    /** La scene dont on edite et dessine les annotations, deduite de la lecture. */
+    activeScenePanelId: string | null;
     activePanel: 'timeline' | 'whiteboard' | 'inspector';
     isLoading: boolean;
     error: string | null;
@@ -112,10 +121,17 @@ export interface UnifiedEngineActions {
   setUseAnnotation(enabled: boolean): void;
 
   // Annotations
+  //
+  // Le store tient TOUTES les scenes a plat. `setAnnotations` remplace ce
+  // tableau entier (chargement unique) ; les autres actions agissent sur la
+  // scene active, avec des index LOCAUX a cette scene.
   updateAnnotation(index: number, data: Partial<Annotation>): void;
   addAnnotation(annotation: Annotation): void;
   removeAnnotation(id: string): void;
   setAnnotations(annotations: Annotation[]): void;
+  /** Remplace les seules annotations d'une scene, sans toucher aux autres. */
+  setSceneAnnotations(panelId: string | null, annotations: Annotation[]): void;
+  setActiveScenePanelId(panelId: string | null): void;
 
   // Layers
   addLayer(layer: InkplainerLayer): void;

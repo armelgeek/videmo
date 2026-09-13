@@ -1,4 +1,49 @@
-import type { UnifiedEngineState } from '../types';
+import type { Annotation, UnifiedEngineState } from '../types';
+
+/** Une annotation sans scene (mode demo) appartient a toutes. */
+export const belongsToScene = (a: Annotation, panelId: string | null) =>
+  panelId === null || a.panelId === undefined || a.panelId === panelId;
+
+/**
+ * Extrait les annotations d'une scene depuis le tableau de toutes les scenes.
+ *
+ * `panelId: null` rend le tableau tel quel (pas de notion de scene — mode
+ * demo/standalone, comportement d'avant le passage au tableau plat).
+ */
+export function filterScene(
+  annotations: Annotation[],
+  panelId: string | null,
+): Annotation[] {
+  return panelId === null ? annotations : annotations.filter((a) => belongsToScene(a, panelId));
+}
+
+let sceneSource: Annotation[] | null = null;
+let scenePanelId: string | null = null;
+let sceneResult: Annotation[] = [];
+
+/**
+ * Version memorisee de `filterScene`, pour l'utiliser comme selecteur zustand.
+ *
+ * Un selecteur qui rend un tableau neuf a chaque appel fait re-rendre sans
+ * fin. Et quand seule une AUTRE scene a change, la meme reference est rendue,
+ * pour ne pas reconstruire le moteur de dessin de la scene affichee.
+ */
+export const selectSceneAnnotations = (state: UnifiedEngineState): Annotation[] => {
+  const source = state.animation.annotations;
+  const panelId = state.ui.activeScenePanelId;
+  if (source === sceneSource && panelId === scenePanelId) return sceneResult;
+
+  const next = filterScene(source, panelId);
+  const unchanged =
+    panelId === scenePanelId &&
+    next.length === sceneResult.length &&
+    next.every((a, i) => a === sceneResult[i]);
+
+  sceneSource = source;
+  scenePanelId = panelId;
+  if (!unchanged) sceneResult = next;
+  return sceneResult;
+};
 
 // Timeline Selectors
 export const selectCurrentTime = (state: UnifiedEngineState) => state.timeline.currentTime;

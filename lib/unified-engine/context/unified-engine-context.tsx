@@ -2,6 +2,16 @@
 
 import { create } from 'zustand';
 import type { UnifiedEngineStore, UnifiedEngineState, Annotation, InkplainerLayer } from '../types';
+import { belongsToScene } from '../hooks/selectors';
+
+/** Les positions, dans le tableau de toutes les scenes, des annotations d'une scene. */
+function indicesDeScene(annotations: Annotation[], panelId: string | null): number[] {
+  const out: number[] = [];
+  annotations.forEach((a, i) => {
+    if (belongsToScene(a, panelId)) out.push(i);
+  });
+  return out;
+}
 
 const DEFAULT_CANVAS_WIDTH = 1280;
 const DEFAULT_CANVAS_HEIGHT = 720;
@@ -49,6 +59,7 @@ const initialState: UnifiedEngineState = {
   ui: {
     selectedClipId: null,
     selectedAnnotationIndex: null,
+    activeScenePanelId: null,
     activePanel: 'timeline',
     isLoading: false,
     error: null,
@@ -140,40 +151,88 @@ export const useUnifiedEngineStore = create<UnifiedEngineStore>((set, get) => ({
   },
 
   // Annotations
+  //
+  // Le tableau porte TOUTES les scenes. Les index recus ici sont locaux a la
+  // scene active : ils sont traduits en positions du tableau complet.
   updateAnnotation: (index: number, data: Partial<Annotation>) => {
     set((state) => {
+      const panelId = state.ui.activeScenePanelId;
+      const flat = indicesDeScene(state.animation.annotations, panelId);
+      const target = flat[index];
+      if (target === undefined) return state;
       const annotations = [...state.animation.annotations];
-      if (annotations[index]) {
-        annotations[index] = { ...annotations[index], ...data };
-      }
+      annotations[target] = { ...annotations[target], ...data };
       return { animation: { ...state.animation, annotations } };
     });
   },
 
   addAnnotation: (annotation: Annotation) => {
-    set((state) => ({
-      animation: {
-        ...state.animation,
-        annotations: [...state.animation.annotations, annotation],
-      },
-    }));
+    set((state) => {
+      const panelId = state.ui.activeScenePanelId;
+      const tagged =
+        panelId !== null && annotation.panelId === undefined
+          ? { ...annotation, panelId }
+          : annotation;
+      const annotations = [...state.animation.annotations];
+      const flat = indicesDeScene(annotations, panelId);
+      const after = flat.length > 0 ? flat[flat.length - 1] + 1 : annotations.length;
+      annotations.splice(after, 0, tagged);
+      return { animation: { ...state.animation, annotations } };
+    });
   },
 
   removeAnnotation: (id: string) => {
-    set((state) => ({
-      animation: {
-        ...state.animation,
-        annotations: state.animation.annotations.filter((a) => a.id !== id),
-      },
-    }));
+    set((state) => {
+      const panelId = state.ui.activeScenePanelId;
+      const target = state.animation.annotations.findIndex(
+        (a) => a.id === id && belongsToScene(a, panelId),
+      );
+      if (target < 0) return state;
+      const annotations = [...state.animation.annotations];
+      annotations.splice(target, 1);
+      return { animation: { ...state.animation, annotations } };
+    });
   },
 
-  // Bulk write: the timeline editor replaces the whole sequence at once,
-  // since order carries the timing.
+  // Chargement unique : toutes les scenes d'un coup.
   setAnnotations: (annotations: Annotation[]) => {
     set((state) => ({
       animation: { ...state.animation, annotations },
     }));
+  },
+
+  setSceneAnnotations: (panelId: string | null, sceneAnnotations: Annotation[]) => {
+    set((state) => {
+      if (panelId === null) {
+        return { animation: { ...state.animation, annotations: sceneAnnotations } };
+      }
+      const current = state.animation.annotations;
+      const tagged = sceneAnnotations.map((a) =>
+        a.panelId === panelId ? a : { ...a, panelId },
+      );
+      // La scene reprend sa place dans l'ordre des scenes : l'ordre porte le
+      // minutage de la sequence globale.
+      const first = current.findIndex((a) => a.panelId === panelId);
+      const others = current.filter((a) => a.panelId !== panelId);
+      const insertAt =
+        first < 0
+          ? others.length
+          : current.slice(0, first).filter((a) => a.panelId !== panelId).length;
+      const annotations = [
+        ...others.slice(0, insertAt),
+        ...tagged,
+        ...others.slice(insertAt),
+      ];
+      return { animation: { ...state.animation, annotations } };
+    });
+  },
+
+  setActiveScenePanelId: (activeScenePanelId: string | null) => {
+    set((state) =>
+      state.ui.activeScenePanelId === activeScenePanelId
+        ? state
+        : { ui: { ...state.ui, activeScenePanelId } },
+    );
   },
 
   // Layers
