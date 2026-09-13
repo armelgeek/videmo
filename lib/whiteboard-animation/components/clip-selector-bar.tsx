@@ -32,7 +32,7 @@ function ClipSelectorBarImpl() {
   if (!storyboardPanels || storyboardPanels.length === 0) return null;
 
   return (
-    <div className="w-56 shrink-0 h-full border-r border-border/50 pr-2 flex flex-col gap-2 overflow-y-auto">
+    <div className="w-40 shrink-0 h-full border-r border-border/50 pr-2 flex flex-col gap-2 overflow-y-auto">
       <div className="px-2 py-1 flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Storyboard Clips ({storyboardPanels.length})

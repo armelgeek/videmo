@@ -4,9 +4,6 @@ import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { WhiteboardConfigPanel } from "./whiteboard-config-panel";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import * as selectors from "@/lib/unified-engine/hooks/selectors";
@@ -30,7 +27,6 @@ import { narrationEndMs } from '../audio/narration-schedule';
 import { DEMO_STORYBOARD } from "@/lib/demo-data";
 import { tailleCanvas, cssAspectRatio, type RatioProjet } from "../canvas-size";
 import { ClipSelectorBar } from "./clip-selector-bar";
-import { ClipTransitionPicker } from "./clip-transition-picker";
 
 
 /** Konva touche `window` des son chargement : pas d'evaluation au rendu serveur. */
@@ -76,36 +72,6 @@ export function WhiteboardEditorStep({
     derniereErreurRef.current = message;
     toast.error(message);
   }, []);
-
-  // Apercu = on regarde le dessin, sans les cadres ni les poignees.
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
-
-  // C'est le MODE qui pilote la lecture, et non l'inverse. Les deux sens sont
-  // volontairement DISSYMETRIQUES, car ce ne sont pas deux faces d'un meme
-  // interrupteur :
-  //
-  //  - vers l'apercu, on REJOUE le clip depuis son debut. « Montre-moi
-  //    l'animation » ne veut pas dire « reprends ou tu en etais » ; c'est ce
-  //    qui distingue le commutateur d'un simple play.
-  //  - vers l'edition, on met simplement en PAUSE. L'image revelee reste a
-  //    l'ecran, les cadres reviennent par-dessus, et le moteur garde son etat.
-  //    Sortir du visionnage ne doit rien effacer.
-  //
-  // Rien ne remonte du moteur vers le mode : pas de boucle, et le play/pause de
-  // la timeline reste utilisable a cote sans deplacer le commutateur.
-  useEffect(() => {
-    const store = useUnifiedEngineStore.getState();
-    if (!isPreviewMode) {
-      store.setIsPlaying(false);
-      return;
-    }
-    const window = panelBoundaries.find((b) => b.panelIdx === activeClipIndex);
-    store.setCurrentTime(window ? window.startMs : 0);
-    store.setIsPlaying(true);
-    // panelBoundaries et activeClipIndex sont lus au moment du basculement, pas
-    // suivis : changer de clip ne doit pas relancer une lecture en cours.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPreviewMode]);
 
   const { width: canvasWidth, height: canvasHeight } =
     tailleCanvas(aspectRatio);
@@ -438,11 +404,6 @@ export function WhiteboardEditorStep({
     setCanvasBg("white");
   }, [config]);
 
-  // Reset animation when needed
-  const resetAnimation = useCallback(() => {
-    setCurrentTime(0);
-  }, [setCurrentTime]);
-
   // Stable identity: as an inline closure this was rebuilt on every render of
   // the editor, which re-rendered the settings panel on every clip handover —
   // the single most expensive subtree here, for settings that had not moved.
@@ -496,7 +457,7 @@ export function WhiteboardEditorStep({
             <AnnotationOverlay
               canvasWidth={canvasWidth}
               canvasHeight={canvasHeight}
-              hidden={isOverlayHidden || isPreviewMode}
+              hidden={isOverlayHidden}
             />
 
         </div>
@@ -602,33 +563,6 @@ export function WhiteboardEditorStep({
           <TimelinePlayhead viewport={timelineViewport} />
         </div>
 
-        {/* Play/pause lives in the timeline toolbar; only reset is extra. */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={resetAnimation}
-            className="flex gap-2"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Reset
-          </Button>
-
-          <div className="ml-auto flex items-center gap-2">
-            <Label
-              htmlFor="annotation-preview-mode"
-              className="cursor-pointer text-xs text-muted-foreground"
-            >
-              {isPreviewMode ? "Aperçu" : "Édition"}
-            </Label>
-            <Switch
-              id="annotation-preview-mode"
-              checked={isPreviewMode}
-              onCheckedChange={setIsPreviewMode}
-              aria-label="Basculer entre édition et aperçu des annotations"
-            />
-          </div>
-        </div>
       </div>
 
       {/* Right: reglages, puis la sequence d'annotations. C'est cette liste qui
@@ -639,8 +573,6 @@ export function WhiteboardEditorStep({
           config={config}
           onChange={handleConfigChange}
         />
-
-        <ClipTransitionPicker clips={clipWindows} />
 
         <AnnotationListPanel className="flex-1" />
 

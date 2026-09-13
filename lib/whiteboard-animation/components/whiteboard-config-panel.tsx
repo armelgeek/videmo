@@ -8,7 +8,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 
 interface WhiteboardConfigPanelProps {
@@ -31,23 +30,6 @@ const ANIM_STYLES = [
   { value: "spec-text", label: "Spec Text" },
   { value: "specialized", label: "Specialized" },
   { value: "topanchor", label: "Top Anchor" },
-] as const;
-
-/**
- * Les mains sont un choix purement VISUEL : un menu "Hand 1 / Hand 2" ne dit
- * rien de ce qu'on choisit. On montre donc le sprite reel — le meme fichier que
- * charge use-whiteboard-renderer — sur une pastille blanche, miniature de la
- * page sur laquelle il dessinera.
- *
- * `ghost` n'est pas une main : le renderer sort avant de peindre le sprite. Elle
- * se presente donc comme une absence, pas comme une cinquieme main.
- */
-const HANDS = [
-  { value: "custom1", label: "Hand 1", src: "/images/hand1-720p.png" },
-  { value: "custom2", label: "Hand 2", src: "/images/hand2-720p.png" },
-  { value: "custom3", label: "Hand 3", src: "/images/hand3-720p.png" },
-  { value: "custom4", label: "Hand 4", src: "/images/hand4-720p.png" },
-  { value: "ghost", label: "No hand", src: null },
 ] as const;
 
 function GroupLabel({ children }: { children: React.ReactNode }) {
@@ -87,53 +69,6 @@ function WhiteboardConfigPanelImpl({
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <GroupLabel>Hand</GroupLabel>
-        <div
-          role="radiogroup"
-          aria-label="Hand"
-          className="flex items-center gap-1"
-        >
-          {HANDS.map((hand) => {
-            const selected = config.handStyle === hand.value;
-            return (
-              <button
-                key={hand.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={hand.label}
-                title={hand.label}
-                onClick={() => onChange({ handStyle: hand.value })}
-                className={cn(
-                  "relative h-8 w-8 shrink-0 overflow-hidden rounded bg-[#f6f6f4] transition-all",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  selected
-                    ? "ring-2 ring-primary"
-                    : "opacity-55 ring-1 ring-border hover:opacity-100",
-                )}
-              >
-                {hand.src ? (
-                  <img
-                    src={hand.src}
-                    alt=""
-                    aria-hidden
-                    className="absolute inset-0 h-full w-full object-contain p-0.5"
-                  />
-                ) : (
-                  <span
-                    aria-hidden
-                    className="absolute inset-0 flex items-center justify-center"
-                  >
-                    <span className="h-3 w-3 rounded-full border border-dashed border-neutral-400" />
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* Pas de curseur Reveal Speed : il ne changeait pas la façon de dessiner
