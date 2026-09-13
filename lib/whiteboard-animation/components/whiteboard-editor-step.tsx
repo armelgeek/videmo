@@ -53,6 +53,7 @@ export function WhiteboardEditorStep({
     | { scrollEl: HTMLElement | null; contentWidth: number; zoomLevel: number }
     | undefined
   >(undefined);
+  const [sideTab, setSideTab] = useState<"scene" | "annotations">("scene");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -572,8 +573,33 @@ export function WhiteboardEditorStep({
           deux controles seuls ne la remplissaient pas. */}
       <div className="w-80 shrink-0 min-h-0 flex flex-col gap-3">
 
-        <SceneDetailsPanel />
-        <AnnotationListPanel className="flex-1" />
+        <div role="tablist" aria-label="Side panel" className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-border bg-card p-1">
+          {(["scene", "annotations"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              aria-selected={sideTab === tab}
+              onClick={() => setSideTab(tab)}
+              className={`flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
+                sideTab === tab ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tab === "scene" ? "Scene" : "Annotations"}
+              {tab === "annotations" && (
+                <span className="rounded-full bg-background px-1.5 text-[10px] tabular-nums text-muted-foreground">
+                  {annotations.length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {sideTab === "scene" ? (
+          <SceneDetailsPanel className="flex-1 min-h-0 overflow-y-auto" />
+        ) : (
+          <AnnotationListPanel className="flex-1" />
+        )}
 
       </div>
     </div>
