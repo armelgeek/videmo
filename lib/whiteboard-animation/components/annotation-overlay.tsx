@@ -5,6 +5,7 @@ import { annotationColors } from "../schema";
 import { Stage, Layer, Rect, Group, Label, Tag, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
+import { selectSceneAnnotations } from '@/lib/unified-engine/hooks/selectors';
 
 /**
  * Calque d'edition SPATIALE des annotations.
@@ -41,7 +42,9 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
   canvasHeight,
   hidden = false,
 }) => {
-  const annotations = useUnifiedEngineStore((s) => s.animation.annotations);
+  // La scene active seulement : les index passes a updateAnnotation sont
+  // locaux a cette scene, le store les traduit dans le tableau complet.
+  const annotations = useUnifiedEngineStore(selectSceneAnnotations);
   const selectedIndex = useUnifiedEngineStore((s) => s.ui.selectedAnnotationIndex);
   const updateAnnotation = useUnifiedEngineStore((s) => s.updateAnnotation);
   const setSelectedAnnotation = useUnifiedEngineStore((s) => s.setSelectedAnnotation);

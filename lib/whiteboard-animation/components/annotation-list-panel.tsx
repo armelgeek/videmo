@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useMemo, useState } from 'react';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
+import { selectSceneAnnotations } from '@/lib/unified-engine/hooks/selectors';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { deriveTimeline } from '../timeline/derive-timeline';
 import { Check } from 'lucide-react';
@@ -40,7 +41,9 @@ function AnnotationListPanelImpl({
   /** Where the scene's drawing starts on the project clock; annotation times are local to it. */
   sceneOffsetMs?: number;
 }) {
-  const storeAnnotations = useUnifiedEngineStore((s) => s.animation.annotations);
+  // La scene active seulement : le store porte toutes les scenes a plat, et
+  // les index de cette liste restent locaux a la scene.
+  const storeAnnotations = useUnifiedEngineStore(selectSceneAnnotations);
   const updateAnnotation = useUnifiedEngineStore((s) => s.updateAnnotation);
   const annotations = annotationsProp ?? storeAnnotations;
   const selectedIndex = useUnifiedEngineStore(

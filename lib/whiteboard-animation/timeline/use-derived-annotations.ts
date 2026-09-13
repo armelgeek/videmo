@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
+import { selectSceneAnnotations } from "@/lib/unified-engine/hooks/selectors";
 import { deriveTimeline } from "./derive-timeline";
 import { sansAttenteInitiale } from "./sans-attente-initiale";
 
@@ -25,7 +26,8 @@ export interface UseDerivedAnnotationsOptions {
 export function useDerivedAnnotations(
   { governsDuration = true }: UseDerivedAnnotationsOptions = {}
 ) {
-  const annotations = useUnifiedEngineStore((s) => s.animation.annotations);
+  // La scene active seulement : le store porte toutes les scenes a plat.
+  const annotations = useUnifiedEngineStore(selectSceneAnnotations);
   const storeDuration = useUnifiedEngineStore((s) => s.timeline.duration);
   const setDuration = useUnifiedEngineStore((s) => s.setDuration);
 

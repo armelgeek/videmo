@@ -5,6 +5,7 @@ import type { Annotation } from "@/lib/unified-engine/types";
 import type { TimelineClip } from "@/lib/editor/types";
 import { poserPositionLecture } from "@/lib/editor/playback-clock";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
+import { selectSceneAnnotations } from "@/lib/unified-engine/hooks/selectors";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { applyEditorEdit, type TimelineEdit } from "./apply-editor-edit";
 import { toEngineAnnotations, toStoredAnnotations } from "./annotation-interop";
@@ -38,7 +39,8 @@ const READABLE_ZOOM = 60;
  * on the active-panel annotations in the store.
  */
 export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
-  const storeAnnotations = useUnifiedEngineStore((s) => s.animation.annotations);
+  // Scene active seulement : le store porte toutes les scenes a plat.
+  const storeAnnotations = useUnifiedEngineStore(selectSceneAnnotations);
   /** Source of truth for DISPLAY: global sequence when provided, active panel otherwise. */
   const annotations = globalAnnotations ?? storeAnnotations;
   const videoDuration = useUnifiedEngineStore((s) => s.timeline.duration);
@@ -73,6 +75,7 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
   const selectedClipId = useUnifiedEngineStore((s) => s.ui.selectedClipId);
 
   const setAnnotations = useUnifiedEngineStore((s) => s.setAnnotations);
+  const setSceneAnnotations = useUnifiedEngineStore((s) => s.setSceneAnnotations);
   const setCurrentTime = useUnifiedEngineStore((s) => s.setCurrentTime);
   const togglePlay = useUnifiedEngineStore((s) => s.togglePlay);
   const setSelectedClip = useUnifiedEngineStore((s) => s.setSelectedClip);
@@ -87,7 +90,6 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
   const derived = useMemo(() => deriveTimeline(annotations), [annotations]);
   const view = useMemo(() => toEditorTimeline(derived), [derived]);
 
-  const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
   const storyboardPanels = useStoryboardStore((s) => s.storyboardPanels);
   const aspectRatio = useStoryboardStore((s) => s.projectParams.aspectRatio);
 
@@ -154,14 +156,12 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
 
         useStoryboardStore.getState().updatePanel(panel.id, { annotations: stockees });
 
-        // Le store moteur ne represente que le panneau ACTIF : une edition
-        // ailleurs ne doit ni le lire ni l'ecraser.
-        if (panelIdx === activeClipIndex) {
-          setAnnotations(misesAJour);
-        }
+        // Le store moteur porte TOUTES les scenes a plat : on n'y remplace
+        // que la tranche de CE panneau, actif ou non.
+        setSceneAnnotations(panel.id, misesAJour);
       });
     },
-    [annotations, globalAnnotations, storyboardPanels, activeClipIndex, setAnnotations, narrationMs, aspectRatio],
+    [annotations, globalAnnotations, storyboardPanels, setAnnotations, setSceneAnnotations, narrationMs, aspectRatio],
   );
 
   const onClipUpdate = useCallback(

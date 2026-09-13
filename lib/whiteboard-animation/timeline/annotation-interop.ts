@@ -46,3 +46,39 @@ export function toStoredAnnotations(
     style: { ...DEFAULT_STYLE, ...(a.style ?? {}) },
   })) as StoredAnnotation[];
 }
+
+/**
+ * Cle stable d'une liste d'annotations, insensible a l'ordre des cles.
+ *
+ * `toStoredAnnotations` reconstruit `style` par un spread (`{...DEFAULT_STYLE,
+ * ...a.style}`) : l'objet obtenu porte les MEMES valeurs que celles lues en
+ * base, mais dans un ordre de cles fige par DEFAULT_STYLE — souvent different
+ * de celui enregistre a l'origine. Un JSON.stringify brut comparait alors deux
+ * annotations identiques comme differentes a chaque premiere visite d'une
+ * scene, et re-ecrivait le panneau juste pour reordonner ses cles : une
+ * ecriture parasite (store + PATCH debounce) a chaque passage de scene, tant
+ * que la scene n'etait pas encore "normalisee" en base.
+ */
+function triCles(valeur: unknown): unknown {
+  if (Array.isArray(valeur)) return valeur.map(triCles);
+  if (valeur && typeof valeur === 'object') {
+    return Object.fromEntries(
+      Object.keys(valeur as Record<string, unknown>)
+        .sort()
+        .map((k) => [k, triCles((valeur as Record<string, unknown>)[k])]),
+    );
+  }
+  return valeur;
+}
+
+/**
+ * Generique sur les deux formes (stockee, moteur) : la meme comparaison sert
+ * a eviter une ecriture parasite vers le stockage ET, en amont, un
+ * `setAnnotations` inutile vers le moteur quand le contenu n'a pas change.
+ */
+export function annotationsEqual<T>(
+  a: readonly T[] | undefined,
+  b: readonly T[] | undefined
+): boolean {
+  return JSON.stringify(triCles(a ?? [])) === JSON.stringify(triCles(b ?? []));
+}

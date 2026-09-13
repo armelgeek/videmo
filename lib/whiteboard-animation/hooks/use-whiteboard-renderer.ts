@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { annotationColors } from '../schema';
 import { useUnifiedEngine } from '@/lib/unified-engine/hooks/useUnifiedEngine';
 import * as selectors from '@/lib/unified-engine/hooks/selectors';
+import { filterScene } from '@/lib/unified-engine/hooks/selectors';
 import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import {
   SCENE_PREMIUM_BAG_ANNOTATIONS,
@@ -229,6 +230,13 @@ export interface UseWhiteboardRendererProps {
    */
   savedAnnotations?: Annotation[] | null;
   /**
+   * La scene dessinee : le store moteur porte toutes les scenes a plat, ce id
+   * dit laquelle lire/ecrire ici. `null` (par defaut) desactive le filtrage —
+   * comportement d'avant le passage au tableau plat, pour un usage standalone
+   * sans notion de scene.
+   */
+  scenePanelId?: string | null;
+  /**
    * Global start of this clip on the shared narration clock, in milliseconds.
    *
    * The engine always receives 0-based (clip-local) annotations. This value
@@ -269,6 +277,7 @@ export function useWhiteboardRenderer({
   audioMuted = false,
   audioDurationMs = null,
   savedAnnotations = null,
+  scenePanelId = null,
   clipOffsetMs = 0,
   clips = [],
   onError = NOOP_ON_ERROR,
@@ -328,9 +337,11 @@ export function useWhiteboardRenderer({
   // n'accumule pas indefiniment des HTMLImageElement decodes.
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const offscreenCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
-  // Rectangle ou l'artwork est dessine. Memorise pour pouvoir transporter les
-  // regions quand le canvas change de forme.
-  const rectRef = useRef<RectContenu | null>(null);
+  // Rectangle ou l'artwork est dessine, PAR SCENE (cle = scenePanelId, ou une
+  // cle fixe en mode standalone) : chaque scene a sa propre image, donc son
+  // propre rectangle, et le transport de regions au redimensionnement ne doit
+  // jamais melanger le rectangle d'une scene avec les regions d'une autre.
+  const rectParSceneRef = useRef<Map<string | null, RectContenu>>(new Map());
   const offscreenRef = useRef<HTMLCanvasElement | null>(null);
   const handImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const animRef = useRef<any>(null);
@@ -417,6 +428,13 @@ export function useWhiteboardRenderer({
   // clipOffsetMs that would tear down and restart the loop on every clip change.
   const clipOffsetMsRef = useRef(0);
   clipOffsetMsRef.current = clipOffsetMs;
+
+  // Meme raison que clipOffsetMsRef : la scene active change a chaque
+  // frontiere franchie en lecture continue, et buildEngine (appele depuis la
+  // boucle rAF persistante) doit toujours lire la bonne, pas celle du rendu
+  // qui a mis en place cette boucle.
+  const scenePanelIdRef = useRef<string | null>(null);
+  scenePanelIdRef.current = scenePanelId;
 
   // ---- assets -------------------------------------------------------------
 
@@ -556,18 +574,26 @@ export function useWhiteboardRenderer({
     return cleanup;
   }, [imageUrl]);
 
-  // Amorcage de la scene de demo, puis suivi de la forme du canvas.
-  const seededRef = useRef(false);
+  // Amorcage de la scene de demo, puis suivi de la forme du canvas — par
+  // scene : chacune a sa propre image, donc son propre rectangle d'artwork,
+  // et n'est amorcee qu'une fois (au lieu d'une fois pour tout le hook).
+  const seededScenesRef = useRef<Set<string | null>>(new Set());
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !imageLoaded) return;
 
     const rect = rectArtwork(canvas);
     const store = useUnifiedEngineStore.getState();
+    const sceneVide = filterScene(store.animation.annotations, scenePanelId).length === 0;
+    const dejaAmorcee = seededScenesRef.current.has(scenePanelId);
 
-    if (!seededRef.current && store.animation.annotations.length === 0) {
-      seededRef.current = true;
-      rectRef.current = rect;
+    // Mode standalone (pas de scene) : amorce la scene de demo, comme avant
+    // le passage au tableau plat. L'editeur multi-scenes, lui, charge toutes
+    // les scenes en un seul passage (voir whiteboard-editor-step.tsx) — ce
+    // n'est ici qu'un filet pour le tout premier montage, avant ce chargement.
+    if (!dejaAmorcee && sceneVide && scenePanelId === null) {
+      seededScenesRef.current.add(scenePanelId);
+      rectParSceneRef.current.set(scenePanelId, rect);
 
       // A saved project wins over the demo scene. Its regions are already in
       // canvas pixels from the session that wrote them, so they are taken as
@@ -595,10 +621,22 @@ export function useWhiteboardRenderer({
       );
       return;
     }
-    seededRef.current = true;
 
-    const precedent = rectRef.current;
-    rectRef.current = rect;
+    // Filet pour le mode multi-scenes : cette scene precise n'a encore rien
+    // dans le tableau plat (premier montage avant le chargement global, ou
+    // scene jamais visitee). On y verse juste ses propres annotations.
+    if (!dejaAmorcee && sceneVide && scenePanelId !== null) {
+      seededScenesRef.current.add(scenePanelId);
+      rectParSceneRef.current.set(scenePanelId, rect);
+      if (savedAnnotations && savedAnnotations.length > 0) {
+        store.setSceneAnnotations(scenePanelId, savedAnnotations);
+      }
+      return;
+    }
+    seededScenesRef.current.add(scenePanelId);
+
+    const precedent = rectParSceneRef.current.get(scenePanelId) ?? null;
+    rectParSceneRef.current.set(scenePanelId, rect);
     if (
       !precedent ||
       (precedent.x === rect.x &&
@@ -613,19 +651,20 @@ export function useWhiteboardRenderer({
     // canvas : sans cela elles resteraient aux coordonnees de l'ancienne
     // forme, a cote du dessin. On les TRANSPORTE plutot que de les regenerer
     // depuis la scene de demo, pour ne pas perdre les annotations editees.
-    const annots = store.animation.annotations;
+    // Uniquement la scene active : les autres n'ont pas ce canvas sous les yeux.
+    const annots = filterScene(store.animation.annotations, scenePanelId);
     if (annots.length) {
-      store.setAnnotations(
-        annots.map((a: any) =>
-          a.region
-            ? { ...a, region: { ...a.region, ...reprojeterRegion(a.region, precedent, rect) } }
-            : a
-        )
+      const reprojetees = annots.map((a: any) =>
+        a.region
+          ? { ...a, region: { ...a.region, ...reprojeterRegion(a.region, precedent, rect) } }
+          : a
       );
+      if (scenePanelId === null) store.setAnnotations(reprojetees);
+      else store.setSceneAnnotations(scenePanelId, reprojetees);
     }
     // L'instance a ete batie sur les anciennes bornes.
     animRef.current = null;
-  }, [canvasRef, imageLoaded, canvasWidth, canvasHeight]);
+  }, [canvasRef, imageLoaded, canvasWidth, canvasHeight, scenePanelId]);
 
   // ---- helpers ------------------------------------------------------------
 
@@ -934,7 +973,7 @@ export function useWhiteboardRenderer({
       // option. config.useAnnotation subsiste pour les projets enregistres
       // mais n'est plus lu.
       annotations: deriveTimeline(
-        sansAttenteInitiale(store.animation.annotations),
+        sansAttenteInitiale(filterScene(store.animation.annotations, scenePanelIdRef.current)),
       ).annotations,
     };
 

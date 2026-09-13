@@ -54,8 +54,17 @@ const panneau = (
 describe("useAnnotationTimeline — routage d'ecriture multi-panneaux", () => {
   beforeEach(() => {
     const glob = chaineGlobale();
+    // Le store moteur porte TOUTES les scenes a plat, chacune taguee de son
+    // panelId — comme le fait whiteboard-editor-step.tsx au chargement.
     useUnifiedEngineStore.setState((s) => ({
-      animation: { ...s.animation, annotations: glob.slice(0, 2) }, // panneau actif = panneau 0
+      animation: {
+        ...s.animation,
+        annotations: [
+          ...glob.slice(0, 2).map((a) => ({ ...a, panelId: "panel-0" })),
+          ...glob.slice(2, 4).map((a) => ({ ...a, panelId: "panel-1" })),
+        ],
+      },
+      ui: { ...s.ui, activeScenePanelId: "panel-0" },
     }));
     useStoryboardStore.setState({
       storyboardPanels: [
@@ -80,16 +89,26 @@ describe("useAnnotationTimeline — routage d'ecriture multi-panneaux", () => {
     expect(panels[1].annotations?.[0].reveal.gapBeforeMs).toBeGreaterThan(0);
   });
 
-  it("une edition sur le panneau NON actif ne touche pas le store moteur", () => {
+  it("une edition sur le panneau NON actif ne touche que sa propre tranche du store moteur", () => {
     const glob = chaineGlobale();
     const { result } = renderHook(() => useAnnotationTimeline(glob));
+
+    const avant = useUnifiedEngineStore.getState().animation.annotations;
+    const trancheAvant0 = avant.filter((a) => a.panelId === "panel-0");
 
     act(() => {
       result.current.onClipUpdate("p1-a", { start: 2.8, duration: 1, offset: 0 });
     });
 
-    // Le store moteur represente le panneau ACTIF (0) : il doit etre inchange.
-    expect(useUnifiedEngineStore.getState().animation.annotations).toEqual(glob.slice(0, 2));
+    const apres = useUnifiedEngineStore.getState().animation.annotations;
+    // Le tableau porte toutes les scenes : la tranche du panneau ACTIF (0)
+    // reste inchangee, seule celle du panneau edite (1) bouge.
+    expect(apres.filter((a) => a.panelId === "panel-0")).toEqual(trancheAvant0);
+    // Le tableau plat garde les ids LOCAUX au panneau (pas le prefixe pN-,
+    // propre a la chaine globale d'affichage) : "a" correspond a "p1-a".
+    expect(
+      apres.find((a) => a.panelId === "panel-1" && a.id === "a")?.reveal.gapBeforeMs,
+    ).toBeGreaterThan(0);
   });
 
   it("materialise le clip de repli d'une image sans annotation", () => {

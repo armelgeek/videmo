@@ -8,8 +8,10 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import * as selectors from "@/lib/unified-engine/hooks/selectors";
+import { selectSceneAnnotations } from "@/lib/unified-engine/hooks/selectors";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import {
+  annotationsEqual,
   toEngineAnnotations,
   toStoredAnnotations,
 } from "../timeline/annotation-interop";
@@ -110,7 +112,10 @@ export function WhiteboardEditorStep({
     chunks: number;
     setChunks: (v: number | undefined) => void;
     setCanvasBg: (v: string) => void;
-    annotations: ReturnType<typeof selectors.selectAnnotations>;
+    // Le compte affiche est celui de la SCENE ACTIVE, pas du projet entier :
+    // le store porte toutes les scenes a plat, selectSceneAnnotations en
+    // extrait la tranche courante.
+    annotations: ReturnType<typeof selectSceneAnnotations>;
     setCurrentTime: (v: number) => void;
   }>((state) => ({
     animStyle: selectors.selectAnimStyle(state),
@@ -124,7 +129,7 @@ export function WhiteboardEditorStep({
     chunks: selectors.selectChunks(state),
     setChunks: state.setChunks,
     setCanvasBg: state.setCanvasBg,
-    annotations: selectors.selectAnnotations(state),
+    annotations: selectSceneAnnotations(state),
     setCurrentTime: state.setCurrentTime,
   }));
 
@@ -279,6 +284,7 @@ export function WhiteboardEditorStep({
         activePanel?.imageUrl ||
         DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]
           ?.imageUrl,
+      scenePanelId: activePanel?.id ?? null,
       audioUrl: config.audio?.url ?? null,
       // La voix par temps prime sur la piste unique : c'est elle que la chaine
       // produit, et elle n'a pas a etre reconcatenee quand un temps change.
@@ -323,20 +329,47 @@ export function WhiteboardEditorStep({
   const isScrubbingRef = useRef(isScrubbing);
   isScrubbingRef.current = isScrubbing;
 
-  // ── Engine store = active panel, 0-based local annotations ──────────────
-  const activePanelAnnotations = useMemo(
-    () => annotationsDe(activePanel),
-    // panelBoundaries is intentionally excluded: the annotations themselves
-    // are local and do not depend on where the clip sits on the global ruler.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeClipIndex, storyboardPanels, annotationsDe],
+  // ── Engine store = TOUTES les scenes, a plat ─────────────────────────────
+  //
+  // Charge une seule fois (quand les panneaux changent reellement), pas a
+  // chaque bascule de scene : changer de scene active ne touche plus du tout
+  // ce tableau, seulement `ui.activeScenePanelId` (voir plus bas), qui ne
+  // fait pointer le moteur ailleurs dans les MEMES donnees sans rien
+  // recalculer ni republier. C'est ce qui evitait auparavant la reconstruction
+  // du moteur de dessin — jusqu'a l'ecriture parasite vers le stockage — a
+  // chaque passage d'une scene a l'autre.
+  const flatAnnotations = useMemo(
+    () =>
+      storyboardPanels.flatMap((panel) =>
+        annotationsDe(panel).map((a) => ({ ...a, panelId: panel.id })),
+      ),
+    [storyboardPanels, annotationsDe],
   );
 
   useEffect(() => {
-    useUnifiedEngineStore.getState().setAnnotations(activePanelAnnotations);
-  }, [activePanelAnnotations]);
+    const store = useUnifiedEngineStore.getState();
+    if (store.animation.annotations === flatAnnotations) return;
+    // Filet de securite : un recalcul au contenu identique (storyboardPanels
+    // a change pour une raison sans rapport, titre d'une image, etc.) ne doit
+    // pas republier — meme raison que pour l'ecriture retour plus bas.
+    if (!annotationsEqual(store.animation.annotations, flatAnnotations)) {
+      store.setAnnotations(flatAnnotations);
+    }
+  }, [flatAnnotations]);
+
+  // La scene DESSINEE/EDITEE se deduit de la position de lecture — c'est deja
+  // ce que fait activeClipIndex plus bas — et se contente de pointer dans le
+  // tableau plat ci-dessus, sans jamais le reecrire.
+  useEffect(() => {
+    useUnifiedEngineStore.getState().setActiveScenePanelId(activePanel?.id ?? null);
+  }, [activePanel?.id]);
 
   // ── Sync engine annotation edits back to persistent storyboard store ──────
+  //
+  // Une edition (overlay, liste, timeline) ne touche jamais que la scene
+  // active dans le store moteur (voir setSceneAnnotations/updateAnnotation) ;
+  // c'est donc sa seule tranche, extraite du tableau plat, qui est comparee
+  // et reecrite — jamais les autres scenes.
   useEffect(() => {
     let lastAnns = useUnifiedEngineStore.getState().animation.annotations;
     return useUnifiedEngineStore.subscribe((state) => {
@@ -344,15 +377,14 @@ export function WhiteboardEditorStep({
       if (anns === lastAnns) return;
       lastAnns = anns;
 
+      const panelId = state.ui.activeScenePanelId;
+      if (panelId === null) return;
       const storyboard = useStoryboardStore.getState();
-      const currentPanel =
-        storyboard.storyboardPanels[storyboard.activeClipIndex];
+      const currentPanel = storyboard.storyboardPanels.find((p) => p.id === panelId);
       if (currentPanel) {
-        const storedAnns = toStoredAnnotations(anns);
-        if (
-          JSON.stringify(currentPanel.annotations) !==
-          JSON.stringify(storedAnns)
-        ) {
+        const sceneAnns = anns.filter((a) => a.panelId === panelId);
+        const storedAnns = toStoredAnnotations(sceneAnns);
+        if (!annotationsEqual(currentPanel.annotations, storedAnns)) {
           storyboard.updatePanel(currentPanel.id, { annotations: storedAnns });
         }
       }
@@ -550,13 +582,9 @@ export function WhiteboardEditorStep({
                     useStoryboardStore.getState().updatePanel(entrantPanel.id, {
                       annotations: updatedStored,
                     });
-
-                    if (
-                      panelIdx + 1 ===
-                      useStoryboardStore.getState().activeClipIndex
-                    ) {
-                      useUnifiedEngineStore.getState().setAnnotations(anns);
-                    }
+                    // Toujours propage vers le tableau plat, active ou non :
+                    // il porte desormais toutes les scenes en permanence.
+                    useUnifiedEngineStore.getState().setSceneAnnotations(entrantPanel.id, anns);
                   }
                 }
               }
@@ -598,13 +626,7 @@ export function WhiteboardEditorStep({
                     useStoryboardStore.getState().updatePanel(entrantPanel.id, {
                       annotations: updatedStored,
                     });
-
-                    if (
-                      panelIdx + 1 ===
-                      useStoryboardStore.getState().activeClipIndex
-                    ) {
-                      useUnifiedEngineStore.getState().setAnnotations(anns);
-                    }
+                    useUnifiedEngineStore.getState().setSceneAnnotations(entrantPanel.id, anns);
                   }
                 }
               }
