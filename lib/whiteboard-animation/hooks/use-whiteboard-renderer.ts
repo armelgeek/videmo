@@ -27,7 +27,78 @@ const { CUSTOM_HANDS } = require('../lib/hands');
 const { handDrawRect } = require('../lib/handLayout');
 const { resoudreTransition } = require('../lib/transitions');
 const { blanchirFond } = require('../lib/fond-blanc');
-const { warmPresenceMap } = require('../lib/presence-map');
+const { warmPresenceMap, seedPresenceMap } = require('../lib/presence-map');
+
+type PreparedSheet = { sheet: ImageBitmap; map: Uint8Array };
+
+/** One worker for the page: preparing a sheet never needs to run in parallel. */
+let sheetWorker: Worker | null | undefined;
+/** Jobs by sheet key: a scene asked twice (effect re-run, fast skip) is prepared once. */
+const sheetJobs = new Map<string, { resolve: (r: PreparedSheet) => void; reject: (e: Error) => void; promise: Promise<PreparedSheet> }>();
+
+const failAllJobs = (reason: string) => {
+  for (const job of sheetJobs.values()) job.reject(new Error(reason));
+  sheetJobs.clear();
+};
+
+const getSheetWorker = (): Worker | null => {
+  if (sheetWorker !== undefined) return sheetWorker;
+  if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined' || typeof createImageBitmap === 'undefined') {
+    sheetWorker = null;
+    return null;
+  }
+  try {
+    const worker = new Worker(new URL('../lib/sheet-prep.worker.js', import.meta.url));
+    worker.addEventListener('message', (event: MessageEvent) => {
+      const { id, sheet, map, error } = event.data ?? {};
+      const job = sheetJobs.get(id);
+      if (!job) {
+        sheet?.close?.();
+        return;
+      }
+      sheetJobs.delete(id);
+      if (error || !sheet) job.reject(new Error(error || 'empty sheet'));
+      else job.resolve({ sheet, map });
+    });
+    // A worker that fails to load never answers: drop it so callers fall back.
+    worker.addEventListener('error', () => {
+      sheetWorker = null;
+      worker.terminate();
+      failAllJobs('sheet worker failed');
+    });
+    sheetWorker = worker;
+  } catch {
+    sheetWorker = null;
+  }
+  return sheetWorker;
+};
+
+const requestPreparedSheet = async (
+  worker: Worker,
+  key: string,
+  img: HTMLImageElement,
+  width: number,
+  height: number,
+  rect: { x: number; y: number; w: number; h: number },
+): Promise<PreparedSheet> => {
+  const existing = sheetJobs.get(key);
+  if (existing) return existing.promise;
+  let resolve!: (r: PreparedSheet) => void;
+  let reject!: (e: Error) => void;
+  const promise = new Promise<PreparedSheet>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  sheetJobs.set(key, { resolve, reject, promise });
+  try {
+    const bitmap = await createImageBitmap(img);
+    worker.postMessage({ id: key, bitmap, width, height, rect }, [bitmap]);
+  } catch (err) {
+    sheetJobs.delete(key);
+    reject(err instanceof Error ? err : new Error(String(err)));
+  }
+  return promise;
+};
 
 const SCENE_IMAGE = '/scene-premium-bag.png';
 
@@ -57,6 +128,8 @@ const BIG_GAP_MS = 1000;
 
 /** Nombre d'images decodees gardees en cache, au-dela duquel la plus vieille cede sa place. */
 const IMAGE_CACHE_MAX = 12;
+/** How long a new scene plays before the next one starts being prepared. */
+const NEXT_SCENE_PREP_DELAY_MS = 2000;
 
 /**
  * Minimum spacing between two corrections of the narration. Each one is a
@@ -687,7 +760,10 @@ export function useWhiteboardRenderer({
     offscreen.width = width;
     offscreen.height = height;
     const rect = rectContenu(width, height, img.naturalWidth || width, img.naturalHeight || height);
-    const octx = offscreen.getContext('2d');
+    // willReadFrequently: the sheet is read back (presence map, several styles).
+    // A GPU-backed canvas made the first getImageData a full readback — 141 ms
+    // measured on a 295×412 region.
+    const octx = offscreen.getContext('2d', { willReadFrequently: true });
     octx?.drawImage(img, rect.x, rect.y, rect.w, rect.h);
     // Meme normalisation qu'au rendu serveur : sans elle l'apercu montre des
     // rectangles gris la ou les regions ont ete revelees.
@@ -715,20 +791,83 @@ export function useWhiteboardRenderer({
     if (!nextImageUrl) return;
     let cancelled = false;
     let idleHandle: number | null = null;
+    let startTimer: number | null = null;
     const win = window as Window & {
       requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
       cancelIdleCallback?: (handle: number) => void;
     };
 
-    const prepare = (img: HTMLImageElement) => {
+    // Runs `work` when the browser has real idle time, never forced. A timeout
+    // made the browser run it as one block even while playing — 125 ms landed
+    // right after the handover it was meant to smooth.
+    const whenIdle = (work: () => void) => {
       if (cancelled) return;
-      const run = () => {
-        const canvas = canvasRef.current;
-        if (!cancelled && canvas) warmPresenceMap(prepareOffscreen(img, canvas.width, canvas.height));
+      if (!win.requestIdleCallback) {
+        idleHandle = window.setTimeout(work, 50);
+        return;
+      }
+      const attempt = (deadline: { timeRemaining: () => number }) => {
+        if (cancelled) return;
+        if (deadline.timeRemaining() < 20) {
+          idleHandle = win.requestIdleCallback!(attempt as () => void);
+          return;
+        }
+        work();
       };
-      idleHandle = win.requestIdleCallback
-        ? win.requestIdleCallback(run, { timeout: 2000 })
-        : window.setTimeout(run, 300);
+      idleHandle = win.requestIdleCallback(attempt as () => void);
+    };
+
+    const prepareOnMainThread = (img: HTMLImageElement) => {
+      whenIdle(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const sheet = prepareOffscreen(img, canvas.width, canvas.height);
+        whenIdle(() => warmPresenceMap(sheet));
+      });
+    };
+
+    // The sheet and its presence map are built in a worker: on the main thread
+    // they cost ~110 ms, a freeze wherever they land. Only copying the result
+    // back onto a canvas stays here.
+    const prepareInWorker = async (img: HTMLImageElement, worker: Worker) => {
+      const canvas = canvasRef.current;
+      if (!canvas || cancelled) return;
+      const width = canvas.width;
+      const height = canvas.height;
+      const key = `${img.src}@${width}x${height}`;
+      if (offscreenCacheRef.current.has(key)) return;
+
+      const rect = rectContenu(width, height, img.naturalWidth || width, img.naturalHeight || height);
+      const { sheet, map } = await requestPreparedSheet(worker, key, img, width, height, rect);
+      const cache = offscreenCacheRef.current;
+      // The handover may have built it on the main thread meanwhile; the engine
+      // already holds that one, so keep it. Otherwise cache the result even if
+      // this effect was cancelled: the scene is still likely to come back.
+      if (cache.has(key)) {
+        sheet.close();
+        return;
+      }
+      const offscreen = document.createElement('canvas');
+      offscreen.width = width;
+      offscreen.height = height;
+      offscreen.getContext('2d', { willReadFrequently: true })?.drawImage(sheet, 0, 0);
+      sheet.close();
+      (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable = true;
+      seedPresenceMap(offscreen, map);
+      cache.set(key, offscreen);
+      if (cache.size > IMAGE_CACHE_MAX) {
+        const oldest = cache.keys().next().value;
+        if (oldest !== undefined) cache.delete(oldest);
+      }
+    };
+
+    const prepare = (img: HTMLImageElement) => {
+      const worker = getSheetWorker();
+      if (worker) {
+        void prepareInWorker(img, worker).catch(() => prepareOnMainThread(img));
+        return;
+      }
+      startTimer = window.setTimeout(() => prepareOnMainThread(img), NEXT_SCENE_PREP_DELAY_MS);
     };
 
     const images = imageCacheRef.current;
@@ -751,6 +890,7 @@ export function useWhiteboardRenderer({
 
     return () => {
       cancelled = true;
+      if (startTimer !== null) window.clearTimeout(startTimer);
       if (idleHandle === null) return;
       if (win.cancelIdleCallback) win.cancelIdleCallback(idleHandle);
       else window.clearTimeout(idleHandle);
@@ -886,7 +1026,11 @@ export function useWhiteboardRenderer({
     });
 
     built = anim;
-    anim.setup?.();
+    // With annotations, each region runs its own setup on entry and discards
+    // whatever this one built: here it only traced the whole artwork for
+    // nothing (22 to 64 ms per replay). Nothing reads the stroke list or the
+    // reveal canvas before the first region is entered.
+    if (!anim.annotationManager) anim.setup?.();
     activeStyleRef.current = animStyle;
     return anim;
   };
