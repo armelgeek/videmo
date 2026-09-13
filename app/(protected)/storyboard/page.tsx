@@ -1644,7 +1644,7 @@ export default function StoryboardPage() {
                       >
                         <div className="relative sm:w-2/5 shrink-0 aspect-video sm:aspect-auto sm:min-h-full bg-muted/30 flex items-center justify-center">
                           {generatedImages[i] ? (
-                            <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-cover" />
+                            <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-contain bg-white" />
                           ) : isGeneratingImages ? (
                             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                           ) : (
@@ -1679,8 +1679,7 @@ export default function StoryboardPage() {
                               value={item.summary || item.narration || ""}
                               onChange={(e) => updateClipField(i, { summary: e.target.value, narration: e.target.value })}
                               placeholder="What is said during this scene..."
-                              rows={3}
-                              className="text-xs resize-none"
+                              className="field-sizing-fixed h-24 min-h-0 overflow-y-auto text-xs resize-none"
                             />
                           </div>
                           <div className="space-y-1">
@@ -1689,8 +1688,7 @@ export default function StoryboardPage() {
                               value={item.visualPrompt || ""}
                               onChange={(e) => updateClipField(i, { visualPrompt: e.target.value })}
                               placeholder="What the visual should show..."
-                              rows={2}
-                              className="text-xs resize-none"
+                              className="field-sizing-fixed h-16 min-h-0 overflow-y-auto text-xs resize-none"
                             />
                           </div>
                         </div>
