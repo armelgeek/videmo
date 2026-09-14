@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { db as prisma } from "@/lib/db";
 
 const updateOrganizationSchema = z.object({
   name: z.string().min(1).max(255),
