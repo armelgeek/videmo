@@ -1,0 +1,103 @@
+/* Sketch primitives shared by the app (landing, workspace, editor) */
+
+.sk-paper {
+  background-color: hsl(var(--background));
+  background-image: radial-gradient(hsl(var(--border)) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.sk-tape {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  width: 96px;
+  height: 22px;
+  transform: translateX(-50%) rotate(-3deg);
+  background: hsl(var(--highlight) / 0.72);
+  border-left: 2px dashed hsl(var(--highlight-foreground) / 0.18);
+  border-right: 2px dashed hsl(var(--highlight-foreground) / 0.18);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.sk-sheet {
+  position: relative;
+  background: hsl(var(--card));
+  border: 2px solid hsl(var(--ink));
+  border-radius: 8px;
+  box-shadow: 6px 6px 0 hsl(var(--offset));
+}
+
+.sk-scribble {
+  font-family: var(--font-sketch-hand), "Comic Sans MS", cursive;
+  font-weight: 400;
+  color: hsl(var(--accent-ink));
+  font-size: 1.3rem;
+  line-height: 1.15;
+}
+
+.sk-marker {
+  background: linear-gradient(transparent 55%, hsl(var(--highlight)) 55%, hsl(var(--highlight)) 92%, transparent 92%);
+  padding-inline: 0.08em;
+}
+
+.dark .sk-marker {
+  background: linear-gradient(
+    transparent 62%,
+    hsl(var(--highlight) / 0.55) 62%,
+    hsl(var(--highlight) / 0.55) 90%,
+    transparent 90%
+  );
+}
+
+.sk-sticker {
+  display: inline-block;
+  font-family: var(--font-sketch-hand), "Comic Sans MS", cursive;
+  font-size: 1.05rem;
+  line-height: 1.1;
+  padding: 5px 11px;
+  background: hsl(var(--highlight));
+  color: hsl(var(--highlight-foreground));
+  box-shadow: 2px 3px 0 hsl(0 0% 0% / 0.2);
+  transform: rotate(-2deg);
+  white-space: nowrap;
+}
+
+.sk-hand-arrow {
+  display: block;
+  color: hsl(var(--accent-ink));
+  overflow: visible;
+  pointer-events: none;
+}
+
+.sk-step-dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid hsl(var(--ink));
+  font-family: var(--font-sketch-hand), cursive;
+  font-size: 1.05rem;
+  line-height: 1;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+.sk-step-dot[data-state="active"] {
+  background: hsl(var(--highlight));
+  color: hsl(var(--highlight-foreground));
+  box-shadow: 2px 2px 0 hsl(var(--offset));
+}
+
+.sk-step-dot[data-state="done"] {
+  background: hsl(var(--ink));
+  color: hsl(var(--background));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk-sheet,
+  .sk-sticker {
+    transition: none !important;
+  }
+}

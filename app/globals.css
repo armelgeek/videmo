@@ -6,7 +6,13 @@
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
-  --font-sans: var(--font-outfit, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue"), sans-serif;
+  --font-sans: var(--font-sketch-body, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue"), sans-serif;
+  --font-display: var(--font-sketch-display, ui-sans-serif), sans-serif;
+  --font-hand: var(--font-sketch-hand, cursive), cursive;
+  --color-highlight: hsl(var(--highlight));
+  --color-highlight-foreground: hsl(var(--highlight-foreground));
+  --color-offset: hsl(var(--offset));
+  --color-ink: hsl(var(--ink));
   --font-mono: var(--font-dm-mono, "Menlo", "Monaco", "Courier New"), monospace;
   --color-sidebar-ring: hsl(var(--sidebar-ring));
   --color-sidebar-border: hsl(var(--sidebar-border));
@@ -46,132 +52,124 @@
   --radius-4xl: 2.5rem;
 }
 
-/* Premium Dark Theme */
+/* Sketch brand theme — dark (default) */
 :root {
-  /* Core spacing */
-  --radius: 0.75rem;
+  --radius: 0.625rem;
 
-  /* Base palette — dark modern theme */
-  --background: 230 10% 8%;
-  --foreground: 45 10% 95%;
+  --background: 60 3% 6%;
+  --foreground: 48 33% 94%;
 
-  /* Cards & surfaces — subtle elevation with depth */
-  --card: 230 8% 11%;
-  --card-foreground: 45 10% 95%;
-  --popover: 230 8% 11%;
-  --popover-foreground: 45 10% 95%;
+  --card: 60 4% 10%;
+  --card-foreground: 48 33% 94%;
+  --popover: 60 4% 10%;
+  --popover-foreground: 48 33% 94%;
 
-  /* Primary — refined light for buttons */
-  --primary: 45 10% 94%;
-  --primary-foreground: 230 10% 8%;
+  --primary: 50 100% 52%;
+  --primary-foreground: 0 0% 7%;
 
-  /* Secondary — warm sand, luminous in dark */
-  --secondary: 36 100% 72%;
-  --secondary-foreground: 230 10% 8%;
+  --secondary: 60 4% 15%;
+  --secondary-foreground: 48 33% 94%;
 
-  /* Muted — sophisticated dark grays */
-  --muted: 230 8% 18%;
-  --muted-foreground: 230 8% 65%;
+  --muted: 60 4% 15%;
+  --muted-foreground: 50 7% 63%;
 
-  /* Accent — subtle highlight for dark mode */
-  --accent: 230 8% 20%;
-  --accent-foreground: 45 10% 94%;
+  --accent: 50 100% 52% / 0.14;
+  --accent-foreground: 48 33% 94%;
 
-  /* Semantic */
-  --destructive: 0 84% 63%;
-  --destructive-foreground: 230 10% 8%;
+  --destructive: 10 80% 68%;
+  --destructive-foreground: 0 0% 7%;
 
-  /* Borders — subtle and refined for dark */
-  --border: 230 8% 18%;
-  --border-opacity: 0.4;
-  --input: 230 8% 16%;
-  --ring: 45 10% 70%;
+  --border: 48 6% 22%;
+  --border-opacity: 1;
+  --input: 48 6% 26%;
+  --ring: 50 100% 52%;
 
-  /* Chart colors — vibrant against dark */
-  --chart-1: 45 10% 94%;
-  --chart-2: 36 100% 72%;
-  --chart-3: 200 100% 60%;
-  --chart-4: 267 100% 68%;
-  --chart-5: 162 100% 58%;
+  --highlight: 50 100% 52%;
+  --highlight-foreground: 0 0% 7%;
+  --offset: 50 100% 52%;
+  --ink: 48 33% 94%;
+  --accent-ink: 50 100% 52%;
+  --success: 152 55% 60%;
 
-  /* Sidebar consistency */
-  --sidebar: 230 10% 8%;
-  --sidebar-foreground: 45 10% 95%;
-  --sidebar-primary: 45 10% 94%;
-  --sidebar-primary-foreground: 230 10% 8%;
-  --sidebar-accent: 36 100% 72%;
-  --sidebar-accent-foreground: 230 10% 8%;
-  --sidebar-border: 230 8% 18%;
-  --sidebar-ring: 45 10% 70%;
+  --chart-1: 50 100% 52%;
+  --chart-2: 48 33% 94%;
+  --chart-3: 152 55% 60%;
+  --chart-4: 10 80% 68%;
+  --chart-5: 50 7% 63%;
 
-  /* Premium shadows — more prominent in dark */
-  --shadow-xs: 0 0.5px 1px rgb(0 0 0 / 0.2);
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.2);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.25);
-  --shadow-lg: 0 10px 24px rgb(0 0 0 / 0.3);
-  --shadow-xl: 0 20px 48px rgb(0 0 0 / 0.35);
+  --sidebar: 60 3% 6%;
+  --sidebar-foreground: 48 33% 94%;
+  --sidebar-primary: 50 100% 52%;
+  --sidebar-primary-foreground: 0 0% 7%;
+  --sidebar-accent: 50 100% 52% / 0.14;
+  --sidebar-accent-foreground: 48 33% 94%;
+  --sidebar-border: 48 6% 22%;
+  --sidebar-ring: 50 100% 52%;
+
+  --shadow-xs: 2px 2px 0 hsl(var(--offset));
+  --shadow-sm: 3px 3px 0 hsl(var(--offset));
+  --shadow-md: 5px 5px 0 hsl(var(--offset));
+  --shadow-lg: 8px 8px 0 hsl(var(--offset));
+  --shadow-xl: 10px 10px 0 hsl(var(--offset));
 }
 
+/* Sketch brand theme — light */
 .light {
-  /* Light theme for opt-in light mode */
-  --background: 45 27% 96%;
-  --foreground: 230 8% 13%;
+  --background: 50 43% 97%;
+  --foreground: 0 0% 7%;
 
-  /* Cards & surfaces — subtle depth */
   --card: 0 0% 100%;
-  --card-foreground: 230 8% 13%;
+  --card-foreground: 0 0% 7%;
   --popover: 0 0% 100%;
-  --popover-foreground: 230 8% 13%;
+  --popover-foreground: 0 0% 7%;
 
-  /* Primary — deep charcoal with personality */
-  --primary: 240 6% 11%;
-  --primary-foreground: 45 27% 97%;
+  --primary: 0 0% 7%;
+  --primary-foreground: 50 43% 97%;
 
-  /* Secondary — warm sand accent */
-  --secondary: 36 100% 69%;
-  --secondary-foreground: 240 6% 11%;
+  --secondary: 50 100% 52%;
+  --secondary-foreground: 0 0% 7%;
 
-  /* Muted — sophisticated grays for secondary content */
-  --muted: 230 10% 88%;
-  --muted-foreground: 230 5% 45%;
+  --muted: 50 25% 92%;
+  --muted-foreground: 48 6% 31%;
 
-  /* Accent — soft, refined highlight */
-  --accent: 240 8% 93%;
-  --accent-foreground: 240 6% 11%;
+  --accent: 50 100% 52% / 0.22;
+  --accent-foreground: 0 0% 7%;
 
-  /* Semantic */
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive: 10 62% 47%;
+  --destructive-foreground: 0 0% 100%;
 
-  /* Borders & inputs — refined hairlines */
-  --border: 230 10% 88%;
-  --border-opacity: 0.4;
-  --input: 230 10% 90%;
-  --ring: 240 5% 75%;
+  --border: 48 18% 84%;
+  --border-opacity: 1;
+  --input: 48 10% 72%;
+  --ring: 0 0% 7%;
 
-  /* Chart colors — premium palette */
-  --chart-1: 240 6% 11%;
-  --chart-2: 36 100% 69%;
-  --chart-3: 200 100% 50%;
-  --chart-4: 267 100% 59%;
-  --chart-5: 162 100% 45%;
+  --highlight: 50 100% 52%;
+  --highlight-foreground: 0 0% 7%;
+  --offset: 0 0% 7%;
+  --ink: 0 0% 7%;
+  --accent-ink: 0 0% 7%;
+  --success: 152 64% 33%;
 
-  /* Sidebar consistency */
-  --sidebar: 45 27% 96%;
-  --sidebar-foreground: 230 8% 13%;
-  --sidebar-primary: 240 6% 11%;
-  --sidebar-primary-foreground: 45 27% 97%;
-  --sidebar-accent: 36 100% 69%;
-  --sidebar-accent-foreground: 240 6% 11%;
-  --sidebar-border: 230 10% 88%;
-  --sidebar-ring: 240 5% 75%;
+  --chart-1: 0 0% 7%;
+  --chart-2: 50 100% 52%;
+  --chart-3: 152 64% 33%;
+  --chart-4: 10 62% 47%;
+  --chart-5: 48 6% 31%;
 
-  /* Premium motion & depth */
-  --shadow-xs: 0 0.5px 1px rgb(0 0 0 / 0.05);
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.05);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.08);
-  --shadow-lg: 0 10px 24px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 48px rgb(0 0 0 / 0.12);
+  --sidebar: 50 43% 97%;
+  --sidebar-foreground: 0 0% 7%;
+  --sidebar-primary: 0 0% 7%;
+  --sidebar-primary-foreground: 50 43% 97%;
+  --sidebar-accent: 50 100% 52% / 0.22;
+  --sidebar-accent-foreground: 0 0% 7%;
+  --sidebar-border: 48 18% 84%;
+  --sidebar-ring: 0 0% 7%;
+
+  --shadow-xs: 2px 2px 0 hsl(var(--offset));
+  --shadow-sm: 3px 3px 0 hsl(var(--offset));
+  --shadow-md: 5px 5px 0 hsl(var(--offset));
+  --shadow-lg: 8px 8px 0 hsl(var(--offset));
+  --shadow-xl: 10px 10px 0 hsl(var(--offset));
 }
 
 @layer base {
@@ -185,8 +183,9 @@
 
   body {
     @apply bg-background text-foreground;
+    /* next/font declares the font variables on <body>, so <html> cannot resolve them */
+    font-family: var(--font-sketch-body), ui-sans-serif, system-ui, sans-serif;
     font-weight: 400;
-    letter-spacing: -0.3px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -473,7 +472,7 @@ select:focus {
 textarea {
   min-height: 120px;
   resize: none;
-  font-family: var(--font-dm-mono);
+  font-family: inherit;
 }
 
 /* CHECKBOXES & RADIOS */
@@ -1071,4 +1070,21 @@ tbody tr:hover {
 
 .dark .ProseMirror hr {
   border-top-color: #4b5563;
+}
+
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  [data-slot="card-title"],
+  [data-slot="dialog-title"] {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background: hsl(var(--highlight));
+    color: hsl(var(--highlight-foreground));
+  }
 }

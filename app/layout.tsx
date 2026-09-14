@@ -5,7 +5,9 @@ import { CookieConsent } from '@/components/molecules/dialogs/cookie-consent';
 import { PostHogConsent } from '@/components/providers/posthog-provider';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { appConfig } from "@/lib/config";
+import { sketchFontVariables } from "@/lib/fonts/sketch";
 import "./globals.css";
+import "./sketch-utils.css";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-outfit",
@@ -87,7 +89,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${jakarta.variable} ${ibmMono.variable} antialiased`}
+        className={`${jakarta.variable} ${ibmMono.variable} ${sketchFontVariables} antialiased`}
       >
         <ThemeProvider
           attribute="class"
