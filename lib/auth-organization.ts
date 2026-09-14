@@ -23,23 +23,26 @@ export function chooseActiveOrganization(
 export interface OrganizationRepository {
   listMemberships(userId: string): Promise<OrganizationMembership[]>;
   writeActiveOrganization(sessionId: string, organizationId: string): Promise<void>;
+  /** Must be idempotent: two first requests of a new user race to call it. */
+  ensurePersonalOrganization(userId: string): Promise<string>;
 }
 
 /**
  * A session's active organization, resolved on demand when it is missing.
  *
- * The migration adds activeOrganizationId as NULL on already-open sessions.
- * Resolving them here avoids having to sign everyone out.
+ * Every project belongs to an organization: a user without one gets a personal
+ * organization rather than a dead end on every project route.
  */
 export async function resolveActiveOrganization(
   session: { id: string; userId: string; activeOrganizationId: string | null },
   repository: OrganizationRepository,
-): Promise<string | null> {
+): Promise<string> {
   if (session.activeOrganizationId) return session.activeOrganizationId;
 
   const memberships = await repository.listMemberships(session.userId);
-  const chosen = chooseActiveOrganization(memberships);
-  if (!chosen) return null;
+  const chosen =
+    chooseActiveOrganization(memberships) ??
+    (await repository.ensurePersonalOrganization(session.userId));
 
   await repository.writeActiveOrganization(session.id, chosen);
   return chosen;

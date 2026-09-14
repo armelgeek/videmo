@@ -51,13 +51,18 @@ describe("chooseActiveOrganization", () => {
 describe("resolveActiveOrganization", () => {
   const fakeRepository = (memberships: OrganizationMembership[]) => {
     const writes: Array<[string, string]> = [];
+    const created: string[] = [];
     const repository: OrganizationRepository = {
       listMemberships: async () => memberships,
       writeActiveOrganization: async (sessionId, organizationId) => {
         writes.push([sessionId, organizationId]);
       },
+      ensurePersonalOrganization: async (userId) => {
+        created.push(userId);
+        return `personal-${userId}`;
+      },
     };
-    return { repository, writes };
+    return { repository, writes, created };
   };
 
   it("returns the already active organization without reading or writing", async () => {
@@ -68,6 +73,7 @@ describe("resolveActiveOrganization", () => {
         return [];
       },
       writeActiveOrganization: async () => {},
+      ensurePersonalOrganization: async () => "unused",
     };
 
     const active = await resolveActiveOrganization(
@@ -93,15 +99,24 @@ describe("resolveActiveOrganization", () => {
     expect(writes).toEqual([["s1", "org-1"]]);
   });
 
-  it("stays null and writes nothing when the user has no organization", async () => {
-    const { repository, writes } = fakeRepository([]);
+  it("creates a personal organization and activates it when the user has none", async () => {
+    const { repository, writes, created } = fakeRepository([]);
 
     const active = await resolveActiveOrganization(
       { id: "s1", userId: "u1", activeOrganizationId: null },
       repository,
     );
 
-    expect(active).toBeNull();
-    expect(writes).toEqual([]);
+    expect(active).toBe("personal-u1");
+    expect(created).toEqual(["u1"]);
+    expect(writes).toEqual([["s1", "personal-u1"]]);
+  });
+
+  it("does not create a personal organization when the user already has one", async () => {
+    const { repository, created } = fakeRepository([{ organizationId: "org-1", joinedAt: on(1) }]);
+
+    await resolveActiveOrganization({ id: "s1", userId: "u1", activeOrganizationId: null }, repository);
+
+    expect(created).toEqual([]);
   });
 });

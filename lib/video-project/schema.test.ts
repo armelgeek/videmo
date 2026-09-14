@@ -9,10 +9,16 @@ import {
 } from "./schema";
 
 describe("createVideoProjectSchema", () => {
-  it("accepts a plain title", () => {
+  it("accepts a plain title and defaults to landscape", () => {
     expect(createVideoProjectSchema.parse({ title: "Ma vidéo" })).toEqual({
       title: "Ma vidéo",
+      aspectRatio: "16:9",
     });
+  });
+
+  it("keeps the chosen format and rejects an unknown one", () => {
+    expect(createVideoProjectSchema.parse({ title: "Reel", aspectRatio: "9:16" }).aspectRatio).toBe("9:16");
+    expect(createVideoProjectSchema.safeParse({ title: "Reel", aspectRatio: "4:3" }).success).toBe(false);
   });
 
   it("rejects an empty title", () => {

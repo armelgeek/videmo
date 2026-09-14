@@ -1,6 +1,7 @@
 "use client";
 
 import type * as React from "react";
+import { Suspense } from "react";
 import { AppSidebar, type SidebarView } from "./app-sidebar";
 import { cn } from "@/lib/utils";
 
@@ -29,12 +30,14 @@ export function AppShell({
   return (
     <div className="flex min-h-screen bg-[var(--surface-0)]">
       {showSidebar && (
-        <AppSidebar
-          activeView={activeView}
-          isPanelOpen={isPanelOpen}
-          onViewChange={onViewChange}
-          onTogglePanel={onTogglePanel}
-        />
+        <Suspense fallback={<aside className="fixed bottom-0 left-0 top-0 z-50 w-64 bg-neutral-950" />}>
+          <AppSidebar
+            activeView={activeView}
+            isPanelOpen={isPanelOpen}
+            onViewChange={onViewChange}
+            onTogglePanel={onTogglePanel}
+          />
+        </Suspense>
       )}
       <main
         className={cn(

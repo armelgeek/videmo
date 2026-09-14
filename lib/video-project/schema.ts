@@ -127,6 +127,7 @@ export type VideoProjectDocument = z.infer<typeof videoProjectDocumentSchema>;
 
 export const createVideoProjectSchema = z.object({
   title: z.string().min(1).max(255),
+  aspectRatio: aspectRatioSchema.default("16:9"),
 });
 
 export const updateVideoProjectSchema = z

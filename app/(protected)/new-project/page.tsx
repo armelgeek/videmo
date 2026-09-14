@@ -1,119 +1,139 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { FolderPlus, ArrowLeft, Download, BookOpen } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { api } from '@/lib/client';
+import { cn } from '@/lib/utils';
+import { AppShell } from '@/lib/app-shell';
+
+const FORMATS = [
+  { value: '16:9', label: 'Landscape', hint: 'YouTube, slides', width: 56, height: 32 },
+  { value: '9:16', label: 'Portrait', hint: 'Reels, Shorts, TikTok', width: 22, height: 40 },
+  { value: '1:1', label: 'Square', hint: 'Feed posts', width: 36, height: 36 },
+] as const;
+
+type Format = (typeof FORMATS)[number]['value'];
 
 export default function NewProjectPage() {
   const router = useRouter();
-  const [projectName, setProjectName] = useState('');
-  const [description, setDescription] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [aspectRatio, setAspectRatio] = useState<Format>('16:9');
+  const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreate = async () => {
-    if (!projectName.trim()) return;
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!title.trim()) return;
 
-    setIsLoading(true);
-    // Simulate project creation
-    setTimeout(() => {
-      router.push('/storyboard');
-    }, 500);
+    setIsCreating(true);
+    const res = await api.post<{ id: string }>('/api/video-projects', {
+      title: title.trim(),
+      aspectRatio,
+    });
+    if (!res.ok) {
+      setIsCreating(false);
+      toast.error(res.error ?? 'Project could not be created.');
+      return;
+    }
+    router.push(`/storyboard?project=${res.data.id}`);
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
-      {/* Header */}
-      <div className="px-8 py-6 border-b border-white/10">
-        <div className="flex items-start justify-between mb-4">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back
-          </button>
-          <div className="flex gap-2">
-            <button
-              onClick={() => {}}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors text-sm font-medium"
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </button>
-            <button
-              onClick={() => {}}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors text-sm font-medium"
-            >
-              <BookOpen className="w-4 h-4" />
-              Learn
-            </button>
+    <AppShell contentClassName="bg-neutral-950">
+      <div className="px-4 py-6 sm:px-8">
+        <Link
+          href="/workspace"
+          className="inline-flex items-center gap-2 rounded-md text-sm text-gray-400 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-rose-500/70"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Projects
+        </Link>
+
+        <form onSubmit={handleCreate} className="mx-auto mt-10 max-w-2xl space-y-10">
+          <div>
+            <h1 className="text-3xl font-bold text-white">New project</h1>
+            <p className="mt-2 text-sm text-gray-400">
+              Name it and pick a format. You write the script next.
+            </p>
           </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold text-white">Create New Project</h1>
-            <span className="px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/30 text-sm font-medium text-rose-300">
-              Step 1 of 3
-            </span>
-          </div>
-          <div className="flex items-center gap-3 mt-3">
-            <label className="text-sm text-gray-400">Project:</label>
+
+          <div className="space-y-2">
+            <label htmlFor="project-title" className="block text-sm font-semibold text-white">
+              Project name
+            </label>
             <input
-              type="text"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              placeholder="Enter project name..."
-              className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500/50 focus:bg-white/10 transition-all text-sm"
+              id="project-title"
+              autoFocus
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              maxLength={255}
+              placeholder="How photosynthesis works"
+              className="h-12 w-full rounded-lg border border-white/10 bg-white/5 px-4 text-base text-white placeholder:text-gray-600 outline-none transition focus:border-rose-500/50 focus:bg-white/10"
             />
           </div>
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 px-8 py-8">
-        <div className="max-w-2xl">
-          <div className="space-y-8">
-            {/* Project Icon */}
-            <div className="flex justify-center">
-              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-rose-500/20 to-violet-500/20 border border-rose-500/30 flex items-center justify-center">
-                <FolderPlus className="w-10 h-10 text-rose-400" />
-              </div>
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-white">Format</legend>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {FORMATS.map((format) => {
+                const selected = aspectRatio === format.value;
+                return (
+                  <label
+                    key={format.value}
+                    className={cn(
+                      'relative flex cursor-pointer flex-col items-center rounded-xl border p-5 text-center transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-rose-500/70',
+                      selected
+                        ? 'border-rose-500/50 bg-gradient-to-br from-rose-500/15 to-violet-500/15'
+                        : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]',
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="aspect-ratio"
+                      value={format.value}
+                      checked={selected}
+                      onChange={() => setAspectRatio(format.value)}
+                      className="sr-only"
+                    />
+                    <span className="flex h-12 items-center justify-center">
+                      <span
+                        className={cn(
+                          'rounded-[3px] border-2 transition-colors',
+                          selected ? 'border-rose-400 bg-rose-400/15' : 'border-gray-500',
+                        )}
+                        style={{ width: format.width, height: format.height }}
+                      />
+                    </span>
+                    <span className="mt-3 text-sm font-semibold text-white">{format.label}</span>
+                    <span className="mt-0.5 text-xs text-gray-500">
+                      {format.value} · {format.hint}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
+          </fieldset>
 
-            {/* Form */}
-            <div className="space-y-6">
-              {/* Description */}
-              <div className="space-y-2">
-                <label className="block text-sm font-semibold text-white">Description (Optional)</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Add a description for your project..."
-                  rows={4}
-                  className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:border-rose-500/50 focus:bg-white/10 transition-all resize-none"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 justify-end pt-6">
-                <button
-                  onClick={() => router.back()}
-                  className="px-6 py-2.5 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreate}
-                  disabled={!projectName.trim() || isLoading}
-                  className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-rose-500 to-violet-500 text-white hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all font-medium"
-                >
-                  {isLoading ? 'Creating...' : 'Create Project'}
-                </button>
-              </div>
-            </div>
+          <div className="flex justify-end gap-3 border-t border-white/10 pt-6">
+            <Link
+              href="/workspace"
+              className="rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+            >
+              Cancel
+            </Link>
+            <button
+              type="submit"
+              disabled={!title.trim() || isCreating}
+              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-rose-500 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white outline-none transition hover:shadow-lg hover:shadow-rose-500/20 focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isCreating ? 'Creating…' : 'Create project'}
+            </button>
           </div>
-        </div>
+        </form>
       </div>
-    </div>
+    </AppShell>
   );
 }
