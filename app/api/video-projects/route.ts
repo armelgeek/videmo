@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       prisma.videoProject.count({ where }),
       prisma.organization.findUnique({
         where: { id: organizationId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, isPersonal: true },
       }),
     ]);
 

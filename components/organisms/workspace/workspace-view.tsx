@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { ORGANIZATION_CHANGED_EVENT } from "@/lib/app-shell/organization-events";
 import { VideoProjectDialog } from "@/components/molecules/forms/video-project-dialog";
+import { OrganizationNameEditor } from "@/components/molecules/workspace/organization-name-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,7 +91,7 @@ export function WorkspaceView() {
       );
       return;
     }
-    toast.success(`Deleted “${deleting.title}”`);
+    toast.success(`Deleted "${deleting.title}"`);
     setDeleting(null);
     load();
   };
@@ -104,9 +105,24 @@ export function WorkspaceView() {
       <header className="border-b border-white/10 px-4 py-6 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div className="min-w-0">
-            <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-rose-300/80">
-              {response?.organization?.name ?? " "}
-            </p>
+            {response?.organization ? (
+              <OrganizationNameEditor
+                organizationId={response.organization.id}
+                organizationName={response.organization.name}
+                isPersonal={response.organization.isPersonal}
+                onUpdated={(newName) => {
+                  setResponse((prev) =>
+                    prev
+                      ? { ...prev, organization: { ...prev.organization, name: newName } }
+                      : prev
+                  );
+                }}
+              />
+            ) : (
+              <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-rose-300/80">
+                {" "}
+              </p>
+            )}
             <h1 className="mt-1 text-3xl font-bold text-white">Projects</h1>
             <p className="mt-1 text-sm text-gray-400">
               {response
@@ -174,7 +190,7 @@ export function WorkspaceView() {
           ) : projects.length === 0 ? (
             search ? (
               <div className="rounded-xl border border-white/10 px-6 py-14 text-center">
-                <p className="font-medium text-white">No project matches “{search}”</p>
+                <p className="font-medium text-white">No project matches "{search}"</p>
                 <button
                   type="button"
                   onClick={() => setQuery("")}
@@ -239,7 +255,7 @@ export function WorkspaceView() {
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete “{deleting?.title}”?</AlertDialogTitle>
+            <AlertDialogTitle>Delete "{deleting?.title}"?</AlertDialogTitle>
             <AlertDialogDescription>
               The project and its storyboard leave this workspace for everyone in it.
             </AlertDialogDescription>
