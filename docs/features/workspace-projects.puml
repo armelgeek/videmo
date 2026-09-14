@@ -1,0 +1,102 @@
+@startuml docs/features/workspace-projects.puml
+title "Workspace — Liste de projets, aperçu SQL et organisation personnelle"
+
+actor User
+participant "Browser (/workspace)"
+participant "React Component"
+participant "API Route (GET /api/video-projects)"
+database "Database (Prisma)"
+
+== Nominal Case: Load Project List (200) ==
+User ->> Browser: Open /workspace
+Browser ->> "React Component": Load useVideoProjects()
+"React Component" ->> "API Route (GET /api/video-projects)": GET ?page=1&limit=20&search=&org=orgId
+note right of "API Route (GET /api/video-projects)": 1. Get current session\n2. Fetch org_id or create personal org\n3. SQL: videoProjects WHERE orgId=X\n4. Left join for lockedBy user name
+"API Route (GET /api/video-projects)" ->> "Database (Prisma)": findMany({\n  where: { organizationId },\n  include: { media, lockedByUser }\n})
+"Database (Prisma)" -->> "API Route (GET /api/video-projects)": [{id, title, format, media, lockedBy, lockedByUser.name}]
+"API Route (GET /api/video-projects)" -->> "React Component": 200 {data: [], total, page, limit}
+"React Component" ->> Browser: Render grid (16:9, 9:16 thumbnails) + search + pagination
+Browser -->> User: Workspace view with project thumbnails
+
+== Nominal Case: Search Projects (200) ==
+User ->> Browser: Type search "My Video"
+Browser ->> "React Component": onSearch(q)
+"React Component" ->> "API Route (GET /api/video-projects)": GET ?search=My%20Video&org=orgId
+"API Route (GET /api/video-projects)" ->> "Database (Prisma)": findMany({\n  where: { organizationId, title: { contains } }\n})
+"Database (Prisma)" -->> "API Route (GET /api/video-projects)": [{filtered projects}]
+"API Route (GET /api/video-projects)" -->> "React Component": 200 {data, total}
+"React Component" ->> Browser: Update grid with filtered results
+
+== Nominal Case: Rename Project (200) ==
+User ->> Browser: Click pencil icon on project
+Browser ->> "React Component": openRenameDialog(projectId)
+"React Component" ->> Browser: Show edit form
+User ->> Browser: Type "New Name", click Save
+Browser ->> "React Component": onRename(projectId, "New Name")
+"React Component" ->> "API Route (GET /api/video-projects)": PATCH /api/video-projects/[id] {title}
+note right of "API Route (GET /api/video-projects)": 1. Verify session + auth\n2. Check project ownership (orgId match)\n3. Validate title length
+"API Route (GET /api/video-projects)" ->> "Database (Prisma)": update({\n  where: { id },\n  data: { title }\n})
+"Database (Prisma)" -->> "API Route (GET /api/video-projects)": {id, title}
+"API Route (GET /api/video-projects)" -->> "React Component": 200 {success, data}
+"React Component" ->> Browser: Update grid, show toast
+Browser -->> User: "Renamed successfully"
+
+== Nominal Case: Delete Project (200) ==
+User ->> Browser: Click trash icon
+Browser ->> "React Component": onDelete(projectId)
+"React Component" ->> Browser: Confirm dialog
+User ->> Browser: Click "Delete"
+Browser ->> "React Component": confirmDelete(projectId)
+"React Component" ->> "API Route (GET /api/video-projects)": DELETE /api/video-projects/[id]
+note right of "API Route (GET /api/video-projects)": 1. Verify session + org owner\n2. Check project exists + ownership\n3. Cascade delete media
+"API Route (GET /api/video-projects)" ->> "Database (Prisma)": delete({ where: { id } })
+"Database (Prisma)" -->> "API Route (GET /api/video-projects)": {id}
+"API Route (GET /api/video-projects)" -->> "React Component": 200 {success}
+"React Component" ->> Browser: Remove from grid, show toast
+Browser -->> User: Project deleted
+
+== Nominal Case: New Project Creation (201) ==
+User ->> Browser: Click "New Project"
+Browser ->> "React Component": openNewProjectDialog()
+"React Component" ->> Browser: Show format selector (16:9, 9:16, square)
+User ->> Browser: Select 16:9, click "Create"
+Browser ->> "React Component": onCreate({format: '16:9'})
+"React Component" ->> "API Route (GET /api/video-projects)": POST /api/video-projects {format}
+note right of "API Route (GET /api/video-projects)": 1. Get session + org_id\n2. Validate format enum\n3. Create project + default storyboard
+"API Route (GET /api/video-projects)" ->> "Database (Prisma)": create({\n  data: { title, format, organizationId, userId }\n})
+"Database (Prisma)" -->> "API Route (GET /api/video-projects)": {id, title, format}
+"API Route (GET /api/video-projects)" -->> "React Component": 201 {success, data: {id}}
+"React Component" ->> Browser: navigate(/storyboard/[id])
+Browser -->> User: Storyboard editor opened
+
+== Nominal Case: Personal Organization Auto-Create ==
+User ->> Browser: First login, visit /workspace
+Browser ->> "React Component": useEffect -> checkOrganization()
+"React Component" ->> "API Route (GET /api/video-projects)": GET /api/video-projects?org=null
+note right of "API Route (GET /api/video-projects)": 1. Session exists, no org_id in query\n2. Check if personal org exists (WHERE userId, isPersonal)\n3. If not: create org "User's workspace"
+"API Route (GET /api/video-projects)" ->> "Database (Prisma)": findFirst({\n  where: { userId, isPersonal: true }\n}) OR create if missing
+"Database (Prisma)" -->> "API Route (GET /api/video-projects)": {id, name}
+"API Route (GET /api/video-projects)" -->> "React Component": 200 {orgId}
+"React Component" ->> Browser: Set orgId state, reload projects
+Browser -->> User: Workspace loaded with auto personal org
+
+== Edge Case: Unauthorized (401) ==
+note right of "API Route (GET /api/video-projects)": No session cookie
+"API Route (GET /api/video-projects)" -->> "React Component": 401 Unauthorized
+"React Component" ->> Browser: Redirect /auth/login
+
+== Edge Case: Forbidden (403) ==
+note right of "API Route (GET /api/video-projects)": User not in org (cross-org attempt)
+"API Route (GET /api/video-projects)" -->> "React Component": 403 Forbidden
+"React Component" ->> Browser: Show error, redirect /workspace
+
+== Edge Case: Invalid Input (400) ==
+note right of "React Component": Client-side validation (title length, format enum)
+"React Component" -->> Browser: Show inline error
+
+== Edge Case: Conflict (409) ==
+note right of "API Route (GET /api/video-projects)": Project not found OR org mismatch
+"API Route (GET /api/video-projects)" -->> "React Component": 409 Not Found
+"React Component" ->> Browser: Show error "Project deleted"
+
+@enduml

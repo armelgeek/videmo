@@ -1,0 +1,90 @@
+@startuml docs/organization/invitations.puml
+title "Organization Invitations — End-to-End Flow"
+
+actor Inviter
+participant "Browser (Members Page)"
+participant "Invite Form Component"
+participant "API Route (POST /api/invitations)"
+participant "Email Service (Resend)"
+database "Database (Prisma)"
+actor Invitee
+participant "Email Client"
+participant "Invite Link Browser"
+participant "Auth Login"
+
+== Nominal Case: Send Invitation ==
+Inviter ->> "Browser (Members Page)": Open Members page
+"Browser (Members Page)" ->> "Invite Form Component": Load members + invite form
+Inviter ->> "Browser (Members Page)": Enter invitee email, click "Invite"
+note right of "Invite Form Component": Client validation: email format
+"Browser (Members Page)" ->> "Invite Form Component": onInvite({email})
+"Invite Form Component" ->> "API Route (POST /api/invitations)": POST /api/invitations {email, organizationId}
+note right of "API Route (POST /api/invitations)": 1. Verify session + org member + org:invite permission\n2. Check email not already member (WHERE organizationId, email)\n3. Create token (6hr expiry)\n4. Insert OrganizationInvitation
+"API Route (POST /api/invitations)" ->> "Database (Prisma)": create({\n  organizationId,\n  email,\n  token,\n  expiresAt: now + 6hr\n})
+"Database (Prisma)" -->> "API Route (POST /api/invitations)": {id, token}
+"API Route (POST /api/invitations)" ->> "Email Service (Resend)": send({\n  to: email,\n  subject: "Invitation to [org]",\n  html: "Click here: /invite/[token]"\n})
+"Email Service (Resend)" -->> "API Route (POST /api/invitations)": OK
+"API Route (POST /api/invitations)" -->> "Invite Form Component": 201 {success}
+note right of "Invite Form Component": Show toast "Copied to clipboard" (fallback)\nor "Invitation sent + link copied"
+"Invite Form Component" ->> "Browser (Members Page)": Update members list
+Inviter -->> "Browser (Members Page)": See "Pending" status for email
+
+== Nominal Case: Invitee Opens Link (Logged Out) ==
+Invitee ->> "Email Client": Receive email
+Invitee ->> "Email Client": Click link /invite/[token]
+"Email Client" ->> "Invite Link Browser": Navigate to /invite/[token]
+note right of "Invite Link Browser": 1. GET /invite/[token] — no session\n2. Verify token exists, not expired\n3. Redirect to /auth/login?callbackUrl=/invite/[token]
+"Invite Link Browser" ->> "Auth Login": Show login form
+Invitee ->> "Auth Login": Enter email + password
+note right of "Auth Login": better-auth checks: email verified (enforced)\nPassword correct
+"Auth Login" ->> "Database (Prisma)": verify session
+"Database (Prisma)" -->> "Auth Login": {session}
+"Auth Login" ->> "Invite Link Browser": Redirect to callbackUrl=/invite/[token]
+"Invite Link Browser" ->> "Invite Link Browser": GET /invite/[token] with session
+note right of "Invite Link Browser": 1. Verify token still valid\n2. Check session.user.email == invitation.email\n3. Accept invitation: add to org, set role\n4. Delete token
+"Invite Link Browser" ->> "Database (Prisma)": delete token, create member
+"Database (Prisma)" -->> "Invite Link Browser": OK
+"Invite Link Browser" ->> "Invite Link Browser": Redirect to /workspace
+Invitee -->> "Invite Link Browser": In organization now
+
+== Nominal Case: Invitee Accepts (Already Logged In) ==
+Invitee ->> "Email Client": Click link (already logged in)
+"Email Client" ->> "Invite Link Browser": GET /invite/[token] with session
+note right of "Invite Link Browser": 1. Token valid, session exists\n2. Check session.user.email == invitation.email (MUST match)
+"Invite Link Browser" ->> "Database (Prisma)": Accept: delete token, add member
+"Database (Prisma)" -->> "Invite Link Browser": {org}
+"Invite Link Browser" ->> "Invite Link Browser": Redirect to /workspace
+Invitee -->> "Invite Link Browser": In organization
+
+== Edge Case: Unverified Email ==
+note right of "Auth Login": better-auth enforces email verified\nfor org membership
+"Auth Login" ->> Invitee: Error: "Verify email before joining"
+Invitee -->> "Auth Login": Click "Resend verification"
+
+== Edge Case: Wrong Email Account ==
+Invitee ->> "Email Client": Click link while logged in as bob@example.com
+"Invite Link Browser" ->> "Database (Prisma)": Check email mismatch
+note right of "Database (Prisma)": session.user.email (bob@example.com)\n!= invitation.email (alice@example.com)
+"Database (Prisma)" -->> "Invite Link Browser": 403 Email mismatch
+"Invite Link Browser" ->> "Invite Link Browser": Show "Wrong account — logout and retry"
+Invitee ->> Invitee: Logout, login with alice@example.com, retry link
+
+== Edge Case: Expired Token ==
+note right of "Invite Link Browser": 6+ hours past creation, now > expiresAt
+"Invite Link Browser" ->> "Database (Prisma)": SELECT WHERE token AND expiresAt > now
+"Database (Prisma)" -->> "Invite Link Browser": NULL (not found)
+"Invite Link Browser" ->> "Invite Link Browser": Show "Link expired, ask inviter to resend"
+Invitee -->> "Invite Link Browser": No access
+
+== Edge Case: Already Member ==
+note right of "API Route (POST /api/invitations)": Check WHERE organizationId, email
+"API Route (POST /api/invitations)" -->> "Invite Form Component": 409 Already member
+"Invite Form Component" ->> "Browser (Members Page)": Show error "Already member"
+Inviter -->> "Browser (Members Page)": See warning
+
+== Edge Case: No Permission to Invite (403) ==
+note right of "API Route (POST /api/invitations)": Verify org:invite permission from RBAC
+"API Route (POST /api/invitations)" -->> "Invite Form Component": 403 Forbidden
+"Invite Form Component" ->> "Browser (Members Page)": Show error "No permission"
+
+@enduml

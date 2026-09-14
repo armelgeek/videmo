@@ -1,0 +1,68 @@
+@startuml docs/auth/rbac-role-assignment.puml
+title "RBAC — Role Assignment & Permission Checks"
+
+actor Admin
+participant "Browser (Admin Users Page)"
+participant "Role Selector Component"
+participant "API Route (PATCH /api/users/[id])"
+database "Database (Prisma)"
+
+== Nominal Case: Assign Role to User (200) ==
+Admin ->> "Browser (Admin Users Page)": Open /users/[userId]
+"Browser (Admin Users Page)" ->> "Role Selector Component": Load user + role dropdown
+note right of "Role Selector Component": Fetch roles WHERE isGlobal=true
+"Role Selector Component" ->> "Browser (Admin Users Page)": Show role options (Owner, Editor, Viewer, Custom)
+Admin ->> "Browser (Admin Users Page)": Select "Editor" role
+"Browser (Admin Users Page)" ->> "Role Selector Component": onRoleChange("editor")
+"Role Selector Component" ->> "API Route (PATCH /api/users/[id])": PATCH /api/users/[targetId] {roleId: "editor"}
+note right of "API Route (PATCH /api/users/[id])": 1. Verify session + admin\n2. Check caller has role:update permission\n3. Check target != self (rule: no self-assignment)\n4. Check role exists (WHERE isGlobal)\n5. Verify caller role >= target role (hierarchy)
+"API Route (PATCH /api/users/[id])" ->> "Database (Prisma)": update({\n  where: { id: targetId },\n  data: { globalRoleId: "editor" }\n})
+"Database (Prisma)" -->> "API Route (PATCH /api/users/[id])": {id, globalRoleId}
+"API Route (PATCH /api/users/[id])" -->> "Role Selector Component": 200 {success, data}
+"Role Selector Component" ->> "Browser (Admin Users Page)": Update user role, show toast
+Admin -->> "Browser (Admin Users Page)": "Role updated"
+
+== Nominal Case: Super Admin Can Do Everything ==
+note right of "API Route (PATCH /api/users/[id])": isAdmin=true checks\nSuper Admin (role="super_admin")\nHas all permissions implicitly
+Admin ->> "Browser (Admin Users Page)": Edit Super Admin's details
+"API Route (PATCH /api/users/[id])" ->> "API Route (PATCH /api/users/[id])": Check isAdmin=true -> allow all
+
+== Edge Case: Cannot Assign to Self (403) ==
+Admin ->> "Browser (Admin Users Page)": Try to change own role
+note right of "Role Selector Component": Disable field if userId == session.userId
+"Role Selector Component" ->> "Browser (Admin Users Page)": Field disabled
+note right of "API Route (PATCH /api/users/[id])": Guard: if targetId == session.userId -> 403
+"API Route (PATCH /api/users/[id])" -->> "Role Selector Component": 403 Cannot modify own role
+"Role Selector Component" ->> "Browser (Admin Users Page)": Show error "Cannot change your own role"
+
+== Edge Case: No Permission role:update (403) ==
+note right of "API Route (PATCH /api/users/[id])": Verify permission via RBAC:\ncheckPermission(session.user.role, "role:update")\nLooks up in lib/rbac.ts
+"API Route (PATCH /api/users/[id])" -->> "Role Selector Component": 403 Forbidden
+"Role Selector Component" ->> "Browser (Admin Users Page)": Show error "No permission"
+Admin -->> "Browser (Admin Users Page)": Grayed out or error
+
+== Edge Case: Try to Promote Above Self (403) ==
+note right of "API Route (PATCH /api/users/[id])": Guard: hierarchy check\nif roleHierarchy[newRole] > roleHierarchy[callerRole]\n  -> 403 Cannot assign higher role
+"API Route (PATCH /api/users/[id])": Cannot promote user above own role
+"API Route (PATCH /api/users/[id])" -->> "Role Selector Component": 403 Hierarchy violation
+"Role Selector Component" ->> "Browser (Admin Users Page)": Show error "Cannot assign role above yours"
+
+== Edge Case: Role Not Found (404) ==
+note right of "API Route (PATCH /api/users/[id])": Verify roleId exists\nWHERE id=roleId AND isGlobal=true
+"API Route (PATCH /api/users/[id])" -->> "Role Selector Component": 404 Role not found
+
+== Nominal Case: Super Admin View Only ==
+Admin ->> "Browser (Admin Users Page)": Open Super Admin user
+note right of "Role Selector Component": isAdmin=true\n-> Disable role field (read-only)
+"Role Selector Component" ->> "Browser (Admin Users Page)": Show role as read-only, description editable
+Admin ->> "Browser (Admin Users Page)": Edit description only
+"API Route (PATCH /api/users/[id])" ->> "Database (Prisma)": update({ data: { globalRoleId: unchanged } })
+"Database (Prisma)" -->> "API Route (PATCH /api/users/[id])": 200 OK
+Admin -->> "Browser (Admin Users Page)": Description updated, role unchanged
+
+== Nominal Case: Permission Verification in lib/rbac.ts ==
+note right of "API Route (PATCH /api/users/[id])": Centralized permission check:\nconst permissions = getRolePermissions(role)\nif (!permissions.includes("role:update")) -> deny
+"API Route (PATCH /api/users/[id])" ->> "API Route (PATCH /api/users/[id])": lib/rbac.ts verified
+note right of "API Route (PATCH /api/users/[id])": See lib/PERMISSIONS.md for all permissions\nrole:update, role:read, role:delete, etc.
+
+@enduml
