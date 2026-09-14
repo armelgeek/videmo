@@ -66,7 +66,7 @@ export function OrganizationNameEditor({
 
   if (!isPersonal) {
     return (
-      <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-rose-300/80">
+      <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-foreground">
         {organizationName}
       </p>
     );
@@ -75,7 +75,7 @@ export function OrganizationNameEditor({
   return (
     <>
       <div className="group flex items-center gap-2">
-        <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-rose-300/80">
+        <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-foreground">
           {organizationName}
         </p>
         <button
@@ -86,7 +86,7 @@ export function OrganizationNameEditor({
           className="opacity-0 transition-opacity group-hover:opacity-100"
           aria-label="Edit organization name"
         >
-          <Edit2 className="h-3.5 w-3.5 text-rose-300/60 hover:text-rose-300" />
+          <Edit2 className="h-3.5 w-3.5 text-foreground hover:text-foreground" />
         </button>
       </div>
 
@@ -105,7 +105,7 @@ export function OrganizationNameEditor({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter workspace name"
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-gray-500 outline-none transition focus:border-rose-500/50 focus:bg-white/10"
+              className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:border-ink focus:bg-accent"
               disabled={isLoading}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSave();

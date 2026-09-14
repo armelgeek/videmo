@@ -23,7 +23,7 @@ export function ProjectThumbnail({
   const isLandscape = aspectRatio === "16:9";
 
   return (
-    <div className={cn("relative aspect-video overflow-hidden bg-neutral-900", className)}>
+    <div className={cn("relative aspect-video overflow-hidden bg-card", className)}>
       {showImage ? (
         isLandscape ? (
           <img
@@ -70,7 +70,7 @@ function BlankBoard({ compact }: { compact: boolean }) {
     >
       <svg
         viewBox="0 0 64 28"
-        className={cn("text-neutral-400", compact ? "w-6" : "w-16")}
+        className={cn("text-muted-foreground", compact ? "w-6" : "w-16")}
         fill="none"
         stroke="currentColor"
         strokeWidth={compact ? 3 : 2}
@@ -81,7 +81,7 @@ function BlankBoard({ compact }: { compact: boolean }) {
         <path d="M10 24h40" strokeDasharray="2 5" />
       </svg>
       {!compact && (
-        <span className="text-[11px] font-medium tracking-wide text-neutral-500">
+        <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
           Blank board
         </span>
       )}

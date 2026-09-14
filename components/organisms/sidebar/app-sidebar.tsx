@@ -133,14 +133,14 @@ export function AppSidebar({
   };
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col border-r border-white/10 bg-background/80 backdrop-blur-sm">
+    <aside className="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col border-r border-border bg-background/80 backdrop-blur-sm">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/5">
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
         <Link href="/" className="flex items-center gap-3 flex-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 hover:bg-white/15 transition-colors">
-            <LogoIcon className="h-4 w-4 text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent hover:bg-accent transition-colors">
+            <LogoIcon className="h-4 w-4 text-foreground" />
           </div>
-          <span className="text-sm font-semibold text-white">Studio</span>
+          <span className="text-sm font-semibold text-foreground">Studio</span>
         </Link>
         <UserMenu />
       </div>
@@ -159,8 +159,8 @@ export function AppSidebar({
                 className={cn(
                   "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
                   isActive
-                    ? "bg-white/10 text-white"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-white",
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -172,7 +172,7 @@ export function AppSidebar({
 
         {adminItems.length > 0 && (
           <>
-            <div className="my-4 h-px bg-white/5" />
+            <div className="my-4 h-px bg-card" />
             <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               Administration
             </p>
@@ -188,8 +188,8 @@ export function AppSidebar({
                     className={cn(
                       "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
                       isActive
-                        ? "bg-white/10 text-white"
-                        : "text-muted-foreground hover:bg-white/5 hover:text-white",
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
                     )}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -204,7 +204,7 @@ export function AppSidebar({
         {/* Studio-specific items */}
         {isStudioPage && onViewChange && onTogglePanel && (
           <>
-            <div className="my-4 h-px bg-white/5" />
+            <div className="my-4 h-px bg-card" />
             <div className="space-y-1">
               {STUDIO_ITEMS.map((item) => {
                 const isActive = activeView === item.id && isPanelOpen;
@@ -223,8 +223,8 @@ export function AppSidebar({
                     className={cn(
                       "w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
                       isActive
-                        ? "bg-white/10 text-white"
-                        : "text-muted-foreground hover:bg-white/5 hover:text-white",
+                        ? "bg-accent text-foreground"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
                     )}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -238,7 +238,7 @@ export function AppSidebar({
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-white/5 px-3 py-4">
+      <div className="border-t border-border px-3 py-4">
         <div className="text-center">
           <p className="text-xs text-muted-foreground">v1.0</p>
         </div>

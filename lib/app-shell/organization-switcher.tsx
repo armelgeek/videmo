@@ -26,7 +26,7 @@ import { notifyOrganizationChanged } from "./organization-events";
 
 function OrganizationMark({ name }: { name: string }) {
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-violet-500 text-xs font-bold text-white">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-highlight text-highlight-foreground border-2 border-ink text-xs font-bold ">
       {(name.trim()[0] ?? "?").toUpperCase()}
     </span>
   );
@@ -86,25 +86,25 @@ export function OrganizationSwitcher() {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg p-2 text-left outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-rose-500/70 data-[state=open]:bg-white/5">
+        <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg p-2 text-left outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-highlight data-[state=open]:bg-accent">
           {current ? (
             <OrganizationMark name={current.name} />
           ) : (
-            <span className="h-8 w-8 shrink-0 rounded-lg bg-white/10 motion-safe:animate-pulse" />
+            <span className="h-8 w-8 shrink-0 rounded-lg bg-accent motion-safe:animate-pulse" />
           )}
           <span className="min-w-0 flex-1">
-            <span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-gray-500">
+            <span className="block text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
               Organization
             </span>
-            <span className="block truncate text-sm font-semibold text-gray-100">
+            <span className="block truncate text-sm font-semibold text-foreground">
               {current?.name ?? "Loading…"}
             </span>
           </span>
-          <ChevronsUpDown className="h-4 w-4 shrink-0 text-gray-500" />
+          <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent align="start" className="w-60 border-white/10 bg-neutral-900 text-gray-100">
-          <DropdownMenuLabel className="text-xs font-medium text-gray-500">
+        <DropdownMenuContent align="start" className="w-60 border-border bg-background text-foreground">
+          <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
             Switch organization
           </DropdownMenuLabel>
           {organizations?.map((organization) => (
@@ -113,18 +113,18 @@ export function OrganizationSwitcher() {
               onSelect={() => switchTo(organization.id)}
               className="gap-2"
             >
-              <span className="flex h-5 w-5 items-center justify-center rounded bg-white/10 text-[10px] font-bold">
+              <span className="flex h-5 w-5 items-center justify-center rounded bg-accent text-[10px] font-bold">
                 {(organization.name.trim()[0] ?? "?").toUpperCase()}
               </span>
               <span className="flex-1 truncate">{organization.name}</span>
               {switchingTo === organization.id ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin text-gray-400" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
               ) : (
-                organization.id === current?.id && <Check className="h-3.5 w-3.5 text-rose-400" />
+                organization.id === current?.id && <Check className="h-3.5 w-3.5 text-foreground" />
               )}
             </DropdownMenuItem>
           ))}
-          <DropdownMenuSeparator className="bg-white/10" />
+          <DropdownMenuSeparator className="bg-accent" />
           <DropdownMenuItem onSelect={() => setIsCreateOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
             Create organization
@@ -152,14 +152,14 @@ export function OrganizationSwitcher() {
                 onChange={(event) => setName(event.target.value)}
                 maxLength={80}
                 placeholder="Acme Studio"
-                className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60"
+                className="h-10 rounded-md border border-input bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-highlight"
               />
             </div>
             <DialogFooter>
               <button
                 type="submit"
                 disabled={isCreating || !name.trim()}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-gradient-to-r from-rose-500 to-violet-500 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-highlight text-highlight-foreground border-2 border-ink px-4 text-sm font-semibold disabled:opacity-50"
               >
                 {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
                 Create organization

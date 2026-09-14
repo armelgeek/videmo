@@ -30,7 +30,7 @@ export function AppShell({
   return (
     <div className="flex min-h-screen bg-[var(--surface-0)]">
       {showSidebar && (
-        <Suspense fallback={<aside className="fixed bottom-0 left-0 top-0 z-50 w-64 bg-neutral-950" />}>
+        <Suspense fallback={<aside className="fixed bottom-0 left-0 top-0 z-50 w-64 bg-background" />}>
           <AppSidebar
             activeView={activeView}
             isPanelOpen={isPanelOpen}

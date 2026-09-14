@@ -60,7 +60,7 @@ const ROLE_HINTS: Record<Role, string> = {
 };
 
 const inputClass =
-  "h-10 rounded-lg border border-white/10 bg-white/5 px-3 text-sm text-white placeholder:text-gray-500 outline-none transition focus:border-rose-500/50 focus:bg-white/10";
+  "h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:border-ink focus:bg-accent";
 
 export function MembersView() {
   const router = useRouter();
@@ -158,13 +158,13 @@ export function MembersView() {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="text-center">
-          <AlertCircle className="mx-auto h-6 w-6 text-rose-400" />
-          <p className="mt-3 font-medium text-white">Members could not be loaded</p>
-          <p className="mt-1 text-sm text-gray-400">{loadError}</p>
+          <AlertCircle className="mx-auto h-6 w-6 text-foreground" />
+          <p className="mt-3 font-medium text-foreground">Members could not be loaded</p>
+          <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
           <button
             type="button"
             onClick={load}
-            className="mt-5 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white hover:bg-white/10"
+            className="mt-5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
           >
             Try again
           </button>
@@ -175,13 +175,13 @@ export function MembersView() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-white/10 px-4 py-6 sm:px-8">
+      <header className="border-b border-border px-4 py-6 sm:px-8">
         <div className="mx-auto max-w-4xl">
-          <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-rose-300/80">
+          <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-foreground">
             {organization?.name ?? " "}
           </p>
-          <h1 className="mt-1 text-3xl font-bold text-white">Members</h1>
-          <p className="mt-1 text-sm text-gray-400">
+          <h1 className="mt-1 text-3xl font-bold text-foreground">Members</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             {organization
               ? `${organization.members.length} ${organization.members.length === 1 ? "person" : "people"} can open this organization's projects`
               : "Loading members…"}
@@ -192,16 +192,16 @@ export function MembersView() {
       <div className="flex-1 px-4 py-8 sm:px-8">
         <div className="mx-auto max-w-4xl space-y-6">
           {canManage && (
-            <section className="space-y-4 rounded-xl border border-white/10 bg-white/[0.03] p-6">
+            <section className="space-y-4 rounded-xl border border-border bg-card p-6">
               <div>
-                <h2 className="text-lg font-semibold text-white">Invite people</h2>
-                <p className="mt-1 text-xs text-gray-500">
+                <h2 className="text-lg font-semibold text-foreground">Invite people</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
                   They get an email with a link that works for 48 hours.
                 </p>
               </div>
               <form onSubmit={invite} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_11rem_auto]">
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-gray-400">Email</span>
+                  <span className="text-xs font-medium text-muted-foreground">Email</span>
                   <input
                     type="email"
                     required
@@ -212,14 +212,14 @@ export function MembersView() {
                   />
                 </label>
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-gray-400">Role</span>
+                  <span className="text-xs font-medium text-muted-foreground">Role</span>
                   <select
                     value={inviteRole}
                     onChange={(event) => setInviteRole(event.target.value as Role)}
                     className={cn(inputClass, "capitalize")}
                   >
                     {assignableRoles.map((role) => (
-                      <option key={role} value={role} className="bg-neutral-900 capitalize">
+                      <option key={role} value={role} className="bg-card capitalize">
                         {role}
                       </option>
                     ))}
@@ -228,31 +228,31 @@ export function MembersView() {
                 <button
                   type="submit"
                   disabled={isInviting || !email.trim()}
-                  className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg bg-gradient-to-r from-rose-500 to-violet-500 px-5 text-sm font-semibold text-white outline-none transition hover:shadow-lg hover:shadow-rose-500/20 focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-full border-2 border-ink bg-highlight px-5 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition hover:shadow-lg hover:shadow-[4px_4px_0_hsl(var(--offset))] focus-visible:ring-2 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
                   Send invite
                 </button>
               </form>
-              <p className="text-xs text-gray-500">{ROLE_HINTS[inviteRole]}.</p>
+              <p className="text-xs text-muted-foreground">{ROLE_HINTS[inviteRole]}.</p>
             </section>
           )}
 
           {canManage && pendingInvitations.length > 0 && (
-            <section className="rounded-xl border border-white/10 bg-white/[0.03]">
-              <h2 className="border-b border-white/10 px-6 py-4 text-sm font-semibold text-white">
+            <section className="rounded-xl border border-border bg-card">
+              <h2 className="border-b border-border px-6 py-4 text-sm font-semibold text-foreground">
                 Pending invitations
-                <span className="ml-2 text-gray-500">{pendingInvitations.length}</span>
+                <span className="ml-2 text-muted-foreground">{pendingInvitations.length}</span>
               </h2>
-              <ul className="divide-y divide-white/5">
+              <ul className="divide-y divide-border">
                 {pendingInvitations.map((invitation) => (
                   <li key={invitation.id} className="flex flex-wrap items-center gap-3 px-6 py-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-white/20 text-gray-500">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground">
                       <Mail className="h-3.5 w-3.5" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-gray-100">{invitation.email}</p>
-                      <p className="text-xs text-gray-500">
+                      <p className="truncate text-sm text-foreground">{invitation.email}</p>
+                      <p className="text-xs text-muted-foreground">
                         <span className="capitalize">{invitation.role}</span> · expires{" "}
                         {formatDistanceToNowStrict(new Date(invitation.expiresAt), { addSuffix: true })}
                       </p>
@@ -304,22 +304,22 @@ export function MembersView() {
             </section>
           )}
 
-          <section className="rounded-xl border border-white/10 bg-white/[0.03]">
-            <h2 className="border-b border-white/10 px-6 py-4 text-sm font-semibold text-white">People</h2>
+          <section className="rounded-xl border border-border bg-card">
+            <h2 className="border-b border-border px-6 py-4 text-sm font-semibold text-foreground">People</h2>
             {!organization ? (
-              <ul className="divide-y divide-white/5" aria-busy="true">
+              <ul className="divide-y divide-border" aria-busy="true">
                 {[0, 1, 2].map((i) => (
                   <li key={i} className="flex items-center gap-3 px-6 py-4">
-                    <div className="h-9 w-9 rounded-full bg-white/5 motion-safe:animate-pulse" />
+                    <div className="h-9 w-9 rounded-full bg-card motion-safe:animate-pulse" />
                     <div className="flex-1 space-y-2">
-                      <div className="h-3 w-1/3 rounded bg-white/10 motion-safe:animate-pulse" />
-                      <div className="h-3 w-1/2 rounded bg-white/5 motion-safe:animate-pulse" />
+                      <div className="h-3 w-1/3 rounded bg-accent motion-safe:animate-pulse" />
+                      <div className="h-3 w-1/2 rounded bg-card motion-safe:animate-pulse" />
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
-              <ul className="divide-y divide-white/5">
+              <ul className="divide-y divide-border">
                 {organization.members.map((member) => {
                   const isMe = member.userId === session?.user.id;
                   const isLastOwner = member.role === "owner" && ownerCount === 1;
@@ -332,16 +332,16 @@ export function MembersView() {
                       {member.user.image ? (
                         <img src={member.user.image} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
                       ) : (
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-sm font-semibold text-gray-300">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-foreground">
                           {displayName[0]?.toUpperCase()}
                         </span>
                       )}
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-gray-100">
+                        <p className="truncate text-sm font-medium text-foreground">
                           {displayName}
-                          {isMe && <span className="ml-2 text-xs font-normal text-gray-500">You</span>}
+                          {isMe && <span className="ml-2 text-xs font-normal text-muted-foreground">You</span>}
                         </p>
-                        <p className="truncate text-xs text-gray-500">{member.user.email}</p>
+                        <p className="truncate text-xs text-muted-foreground">{member.user.email}</p>
                       </div>
 
                       {canEditRole ? (
@@ -366,7 +366,7 @@ export function MembersView() {
                             className={cn(inputClass, "h-8 capitalize")}
                           >
                             {assignableRoles.map((role) => (
-                              <option key={role} value={role} className="bg-neutral-900 capitalize">
+                              <option key={role} value={role} className="bg-card capitalize">
                                 {role}
                               </option>
                             ))}
@@ -377,8 +377,8 @@ export function MembersView() {
                           className={cn(
                             "rounded-full px-2.5 py-1 text-xs font-medium capitalize",
                             member.role === "owner"
-                              ? "bg-gradient-to-r from-rose-500/20 to-violet-500/20 text-rose-200"
-                              : "bg-white/5 text-gray-400",
+                              ? "bg-gradient-to-r from-highlight/25 to-highlight/10 text-foreground"
+                              : "bg-card text-muted-foreground",
                           )}
                         >
                           {member.role}
@@ -417,10 +417,10 @@ export function MembersView() {
           </section>
 
           {organization && me && (
-            <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/10 px-6 py-4">
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border px-6 py-4">
               <div>
-                <h2 className="text-sm font-semibold text-white">Leave organization</h2>
-                <p className="mt-0.5 text-xs text-gray-500">
+                <h2 className="text-sm font-semibold text-foreground">Leave organization</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   {myRole === "owner" && ownerCount === 1
                     ? "You're the only owner. Make someone else owner before leaving."
                     : "You lose access to its projects until someone invites you again."}
@@ -448,7 +448,7 @@ export function MembersView() {
                     },
                   })
                 }
-                className="rounded-lg border border-rose-500/30 px-4 py-2 text-sm font-medium text-rose-300 transition-colors hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-ink px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-highlight/20 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Leave
               </button>
@@ -471,7 +471,7 @@ export function MembersView() {
                 event.preventDefault();
                 runConfirmation();
               }}
-              className="bg-rose-600 text-white hover:bg-rose-500"
+              className="border-2 border-ink bg-highlight text-highlight-foreground hover:bg-highlight"
             >
               {isConfirming ? "Working…" : confirmation?.action}
             </AlertDialogAction>
@@ -493,7 +493,7 @@ function IconButton({
       aria-label={label}
       title={label}
       {...props}
-      className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 outline-none transition hover:bg-white/10 hover:text-white focus-visible:ring-2 focus-visible:ring-rose-500/70 disabled:opacity-40"
+      className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground outline-none transition hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-highlight disabled:opacity-40"
     >
       {children}
     </button>

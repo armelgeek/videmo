@@ -87,17 +87,17 @@ export function AppSidebar(_props: AppSidebarProps) {
   const pendingInvitations = usePendingInvitations(pathname);
 
   return (
-    <aside className="fixed bottom-0 left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r border-white/5 bg-neutral-950">
-      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4">
+    <aside className="fixed bottom-0 left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r border-border bg-background">
+      <div className="flex items-center gap-3 border-b border-border px-4 py-4">
         <Link href="/" className="flex flex-1 items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
-            <LogoIcon className="h-4 w-4 text-white" />
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent">
+            <LogoIcon className="h-4 w-4 text-foreground" />
           </div>
-          <span className="text-sm font-bold text-gray-100">Studio</span>
+          <span className="text-sm font-bold text-foreground">Studio</span>
         </Link>
       </div>
 
-      <div className="border-b border-white/10 px-2 py-2">
+      <div className="border-b border-border px-2 py-2">
         <OrganizationSwitcher />
       </div>
 
@@ -111,10 +111,10 @@ export function AppSidebar(_props: AppSidebarProps) {
                 href={href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-rose-500/70",
+                  "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-highlight",
                   isActive
-                    ? "border-rose-500/30 bg-gradient-to-r from-rose-500/20 to-violet-500/20 text-white"
-                    : "border-transparent text-gray-400 hover:bg-white/5 hover:text-white",
+                    ? "border-ink bg-gradient-to-r from-highlight/25 to-highlight/10 text-foreground"
+                    : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -128,7 +128,7 @@ export function AppSidebar(_props: AppSidebarProps) {
           <section aria-labelledby="pending-invitations">
             <h2
               id="pending-invitations"
-              className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500"
+              className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
             >
               Invitations
             </h2>
@@ -137,16 +137,16 @@ export function AppSidebar(_props: AppSidebarProps) {
                 <li key={invitation.id}>
                   <Link
                     href={`/invite/${invitation.id}`}
-                    className="flex items-center gap-3 rounded-lg border border-rose-500/20 bg-rose-500/5 p-2 outline-none transition-colors hover:bg-rose-500/10 focus-visible:ring-2 focus-visible:ring-rose-500/70"
+                    className="flex items-center gap-3 rounded-lg border border-ink bg-highlight/15 p-2 outline-none transition-colors hover:bg-highlight/15 focus-visible:ring-2 focus-visible:ring-highlight"
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-rose-500/15 text-rose-300">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-highlight/20 text-foreground">
                       <Mail className="h-3.5 w-3.5" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm text-gray-100">
+                      <span className="block truncate text-sm text-foreground">
                         {invitation.organizationName ?? "An organization"}
                       </span>
-                      <span className="block text-xs text-rose-300/80">Review invitation</span>
+                      <span className="block text-xs text-foreground">Review invitation</span>
                     </span>
                   </Link>
                 </li>
@@ -158,7 +158,7 @@ export function AppSidebar(_props: AppSidebarProps) {
         <section aria-labelledby="recent-projects">
           <h2
             id="recent-projects"
-            className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500"
+            className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
           >
             Recent
           </h2>
@@ -166,13 +166,13 @@ export function AppSidebar(_props: AppSidebarProps) {
             <div className="space-y-1 px-1">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex items-center gap-3 p-2">
-                  <div className="h-7 w-12 rounded bg-white/5 motion-safe:animate-pulse" />
-                  <div className="h-3 flex-1 rounded bg-white/5 motion-safe:animate-pulse" />
+                  <div className="h-7 w-12 rounded bg-card motion-safe:animate-pulse" />
+                  <div className="h-3 flex-1 rounded bg-card motion-safe:animate-pulse" />
                 </div>
               ))}
             </div>
           ) : recentProjects.length === 0 ? (
-            <p className="px-3 text-xs text-gray-600">Projects you open show up here.</p>
+            <p className="px-3 text-xs text-muted-foreground">Projects you open show up here.</p>
           ) : (
             <ul className="space-y-0.5">
               {recentProjects.map((project) => {
@@ -183,17 +183,17 @@ export function AppSidebar(_props: AppSidebarProps) {
                       href={`/storyboard?project=${project.id}`}
                       aria-current={isOpen ? "page" : undefined}
                       className={cn(
-                        "group flex items-center gap-3 rounded-lg p-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-rose-500/70",
-                        isOpen ? "bg-white/10" : "hover:bg-white/5",
+                        "group flex items-center gap-3 rounded-lg p-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-highlight",
+                        isOpen ? "bg-accent" : "hover:bg-accent",
                       )}
                     >
                       <ProjectThumbnail
                         compact
                         previewUrl={project.previewUrl}
                         aspectRatio={project.aspectRatio}
-                        className="w-12 shrink-0 rounded ring-1 ring-white/10"
+                        className="w-12 shrink-0 rounded ring-1 ring-border"
                       />
-                      <span className="min-w-0 truncate text-sm text-gray-300 group-hover:text-white">
+                      <span className="min-w-0 truncate text-sm text-foreground group-hover:text-foreground">
                         {project.title}
                       </span>
                     </Link>
@@ -206,7 +206,7 @@ export function AppSidebar(_props: AppSidebarProps) {
       </nav>
 
       {session?.user && (
-        <div className="flex items-center gap-2 border-t border-white/10 px-3 py-3">
+        <div className="flex items-center gap-2 border-t border-border px-3 py-3">
           {session.user.image ? (
             <img
               src={session.user.image}
@@ -214,17 +214,17 @@ export function AppSidebar(_props: AppSidebarProps) {
               className="h-7 w-7 shrink-0 rounded-full object-cover"
             />
           ) : (
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-700">
-              <span className="text-xs font-bold text-gray-300">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
+              <span className="text-xs font-bold text-foreground">
                 {(session.user.name?.[0] || session.user.email?.[0] || "U").toUpperCase()}
               </span>
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-gray-100">
+            <p className="truncate text-sm font-semibold text-foreground">
               {session.user.name || session.user.email}
             </p>
-            <p className="truncate text-xs text-gray-400">{session.user.email}</p>
+            <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ import { MembersView } from '@/components/organisms/workspace/members-view';
 
 export default function MembersPage() {
   return (
-    <AppShell contentClassName="bg-neutral-950">
+    <AppShell contentClassName="bg-background">
       <MembersView />
     </AppShell>
   );

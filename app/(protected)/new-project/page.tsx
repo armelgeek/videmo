@@ -41,11 +41,11 @@ export default function NewProjectPage() {
   };
 
   return (
-    <AppShell contentClassName="bg-neutral-950">
+    <AppShell contentClassName="bg-background">
       <div className="px-4 py-6 sm:px-8">
         <Link
           href="/workspace"
-          className="inline-flex items-center gap-2 rounded-md text-sm text-gray-400 outline-none transition-colors hover:text-white focus-visible:ring-2 focus-visible:ring-rose-500/70"
+          className="inline-flex items-center gap-2 rounded-md text-sm text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-highlight"
         >
           <ArrowLeft className="h-4 w-4" />
           Projects
@@ -53,14 +53,14 @@ export default function NewProjectPage() {
 
         <form onSubmit={handleCreate} className="mx-auto mt-10 max-w-2xl space-y-10">
           <div>
-            <h1 className="text-3xl font-bold text-white">New project</h1>
-            <p className="mt-2 text-sm text-gray-400">
+            <h1 className="text-3xl font-bold text-foreground">New project</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
               Name it and pick a format. You write the script next.
             </p>
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="project-title" className="block text-sm font-semibold text-white">
+            <label htmlFor="project-title" className="block text-sm font-semibold text-foreground">
               Project name
             </label>
             <input
@@ -70,12 +70,12 @@ export default function NewProjectPage() {
               onChange={(event) => setTitle(event.target.value)}
               maxLength={255}
               placeholder="How photosynthesis works"
-              className="h-12 w-full rounded-lg border border-white/10 bg-white/5 px-4 text-base text-white placeholder:text-gray-600 outline-none transition focus:border-rose-500/50 focus:bg-white/10"
+              className="h-12 w-full rounded-lg border border-border bg-card px-4 text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-ink focus:bg-accent"
             />
           </div>
 
           <fieldset className="space-y-3">
-            <legend className="text-sm font-semibold text-white">Format</legend>
+            <legend className="text-sm font-semibold text-foreground">Format</legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {FORMATS.map((format) => {
                 const selected = aspectRatio === format.value;
@@ -83,10 +83,10 @@ export default function NewProjectPage() {
                   <label
                     key={format.value}
                     className={cn(
-                      'relative flex cursor-pointer flex-col items-center rounded-xl border p-5 text-center transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-rose-500/70',
+                      'relative flex cursor-pointer flex-col items-center rounded-xl border p-5 text-center transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-highlight',
                       selected
-                        ? 'border-rose-500/50 bg-gradient-to-br from-rose-500/15 to-violet-500/15'
-                        : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]',
+                        ? 'border-ink bg-gradient-to-br from-highlight/15 to-highlight/15'
+                        : 'border-border bg-card hover:border-ink hover:bg-accent',
                     )}
                   >
                     <input
@@ -101,13 +101,13 @@ export default function NewProjectPage() {
                       <span
                         className={cn(
                           'rounded-[3px] border-2 transition-colors',
-                          selected ? 'border-rose-400 bg-rose-400/15' : 'border-gray-500',
+                          selected ? 'border-ink bg-highlight/20' : 'border-border',
                         )}
                         style={{ width: format.width, height: format.height }}
                       />
                     </span>
-                    <span className="mt-3 text-sm font-semibold text-white">{format.label}</span>
-                    <span className="mt-0.5 text-xs text-gray-500">
+                    <span className="mt-3 text-sm font-semibold text-foreground">{format.label}</span>
+                    <span className="mt-0.5 text-xs text-muted-foreground">
                       {format.value} · {format.hint}
                     </span>
                   </label>
@@ -116,17 +116,17 @@ export default function NewProjectPage() {
             </div>
           </fieldset>
 
-          <div className="flex justify-end gap-3 border-t border-white/10 pt-6">
+          <div className="flex justify-end gap-3 border-t border-border pt-6">
             <Link
               href="/workspace"
-              className="rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/10"
+              className="rounded-lg border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
               Cancel
             </Link>
             <button
               type="submit"
               disabled={!title.trim() || isCreating}
-              className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-rose-500 to-violet-500 px-5 py-2.5 text-sm font-semibold text-white outline-none transition hover:shadow-lg hover:shadow-rose-500/20 focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-lg bg-highlight text-highlight-foreground border-2 border-ink px-5 py-2.5 text-sm font-semibold outline-none transition hover:shadow-lg hover:shadow-rose-500/20 focus-visible:ring-2 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
               {isCreating ? 'Creating…' : 'Create project'}

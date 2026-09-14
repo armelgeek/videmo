@@ -118,14 +118,14 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
 
   if (state === "loading") {
     return (
-      <Card className="border-white/10 bg-white/[0.03]">
+      <Card className="border-border bg-card">
         <CardHeader>
           <div className="flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-rose-400" />
+            <Loader2 className="h-6 w-6 animate-spin text-foreground" />
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-sm text-gray-400">Loading invitation details...</p>
+          <p className="text-center text-sm text-muted-foreground">Loading invitation details...</p>
         </CardContent>
       </Card>
     );
@@ -141,7 +141,7 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-gray-300">
+          <p className="text-sm text-foreground">
             Welcome to <strong>{invitationDetails?.organizationName}</strong>! Redirecting you to the workspace...
           </p>
         </CardContent>
@@ -150,7 +150,7 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
   }
 
   return (
-    <Card className="border-white/10 bg-white/[0.03]">
+    <Card className="border-border bg-card">
       <CardHeader>
         <CardTitle>You've been invited to an organization</CardTitle>
         <CardDescription>
@@ -199,7 +199,7 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
         {/* Ready State */}
         {state === "ready" && (
           <div className="space-y-4">
-            <p className="text-sm text-gray-300">
+            <p className="text-sm text-foreground">
               You're signed in as <strong>{signedInEmail}</strong>. Click below to accept this invitation.
             </p>
 
@@ -207,7 +207,7 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
               <Button
                 onClick={handleAcceptInvitation}
                 disabled={state === "processing"}
-                className="w-full bg-gradient-to-r from-rose-500 to-violet-500 hover:shadow-lg hover:shadow-rose-500/20"
+                className="w-full bg-gradient-to-r from-highlight to-highlight hover:shadow-lg hover:shadow-[4px_4px_0_hsl(var(--offset))]"
               >
                 {state === "processing" ? (
                   <>
@@ -229,9 +229,9 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
               </Button>
             </div>
 
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-muted-foreground">
               Not the right account?{" "}
-              <a href="/logout" className="text-rose-300 hover:text-rose-200">
+              <a href="/logout" className="text-foreground hover:text-foreground">
                 Sign out
               </a>{" "}
               and sign in with a different email.
