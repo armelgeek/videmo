@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Logo } from "@/components/atoms/icons/logo";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { toast } from "sonner";
+import { User, CreditCard, LogOut, LayoutDashboard, Menu, X } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,13 +13,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { signOut } from "@/lib/auth-client";
-import { toast } from "sonner";
-import { User, CreditCard, LogOut, LayoutDashboard, Menu, X } from "lucide-react";
 import { ThemeToggle } from "@/components/atoms/buttons/theme-toggle";
+import { signOut } from "@/lib/auth-client";
+import { appConfig } from "@/lib/config";
+import "./header.css";
 
 interface HeaderProps {
   user?: {
@@ -28,236 +27,179 @@ interface HeaderProps {
   isAdmin?: boolean;
 }
 
+const NAV_LINKS = [
+  { href: "/#how-it-works", label: "How it works" },
+  { href: "/#pricing", label: "Pricing" },
+  { href: "/blog", label: "Blog" },
+  { href: "/contact", label: "Contact" },
+];
+
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+function Underline() {
+  return (
+    <svg viewBox="0 0 100 8" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M2 5 C 25 1, 55 8, 98 3" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function Header({ user, isAdmin }: HeaderProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   async function handleSignOut() {
     try {
       await signOut();
-      toast.success("Logged out successfully!");
+      toast.success("You're signed out.");
       router.push("/login");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to logout");
+      toast.error(error instanceof Error ? error.message : "Sign out failed.");
     }
   }
 
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const navLinkClass = (path: string) =>
-    `text-sm font-medium transition-colors hover:text-primary ${
-      pathname === path ? "text-primary" : "text-muted-foreground"
-    }`;
+  const close = () => setOpen(false);
 
   return (
-    <header className="sticky top-0 z-50 bg-background border-b border-border">
-      <div className="container mx-auto flex h-14 items-center justify-between px-4">
-        <Logo />
+    <header className="sk-header">
+      <div className="sk-header-inner">
+        <Link href="/" className="sk-header-logo">
+          <i aria-hidden="true" />
+          {appConfig.name}
+        </Link>
 
-        {}
-        {user ? (
-          <>
-            <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
-              <Link href="/blog" className={navLinkClass("/blog")}>Blog</Link>
-              <Link href="/#pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Pricing</Link>
-              <Link href="/contact" className={navLinkClass("/contact")}>Contact</Link>
-            </nav>
-            <div className="hidden md:flex items-center gap-3">
-            <ThemeToggle />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full ring-1 ring-border transition-all">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.image || undefined} alt={user.name} />
-                    <AvatarFallback className="bg-secondary text-sm">{getInitials(user.name)}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {isAdmin && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="cursor-pointer">
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                  </>
-                )}
-                <DropdownMenuItem asChild>
-                  <Link href="/profile" className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/billing" className="cursor-pointer">
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Billing
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-400 focus:text-red-400">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          </>
-        ) : (
-          <nav className="hidden md:flex items-center gap-6" aria-label="Main navigation">
-            <Link href="/blog" className={navLinkClass("/blog")}>Blog</Link>
-            <Link href="/#pricing" className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary">Pricing</Link>
-            <Link href="/contact" className={navLinkClass("/contact")}>Contact</Link>
-            <div className="w-px h-5 bg-border mx-1" aria-hidden="true" />
-            <ThemeToggle />
-            <Link href="/login" className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-              Login
+        <nav className="sk-header-nav" aria-label="Main navigation">
+          {NAV_LINKS.map((l) => (
+            <Link key={l.href} href={l.href} className="sk-header-link" aria-current={pathname === l.href ? "page" : undefined}>
+              {l.label}
+              <Underline />
             </Link>
-            <Button size="sm" asChild>
-              <Link href="/signup">Get Started</Link>
-            </Button>
-          </nav>
-        )}
+          ))}
+        </nav>
 
-        {}
-        <button
-          className="md:hidden p-2 rounded-md hover:bg-muted transition-colors"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-          aria-expanded={isMobileMenuOpen}
-        >
-          {isMobileMenuOpen ? (
-            <X className="h-5 w-5" />
-          ) : (
-            <Menu className="h-5 w-5" />
-          )}
-        </button>
-      </div>
-
-      {}
-      {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-background">
-          <nav className="container mx-auto px-4 py-4 flex flex-col gap-3" aria-label="Mobile navigation">
-            <Link
-              href="/blog"
-              className={navLinkClass("/blog") + " py-2"}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Blog
-            </Link>
-            <Link
-              href="/#pricing"
-              className="text-sm font-medium py-2 text-muted-foreground transition-colors hover:text-primary"
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/contact"
-              className={navLinkClass("/contact") + " py-2"}
-              onClick={() => setIsMobileMenuOpen(false)}
-            >
-              Contact
-            </Link>
-            <div className="border-t border-border pt-3 pb-1 flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Theme</span>
-              <ThemeToggle />
-            </div>
-            <div className="border-t border-border pt-3 flex flex-col gap-2">
-              {user ? (
-                <>
-                  <p className="text-sm font-medium">{user.name}</p>
-                  <p className="text-xs text-muted-foreground mb-2">{user.email}</p>
+        <div className="sk-header-actions">
+          <ThemeToggle />
+          {user ? (
+            <>
+              <Link href="/workspace" className="sk-header-btn is-ghost">My workspace</Link>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" className="sk-header-avatar" aria-label="Account menu">
+                    {user.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.image} alt="" />
+                    ) : (
+                      initials(user.name)
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{user.name}</p>
+                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   {isAdmin && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <Link href="/dashboard">
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Link>
-                    </Button>
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard" className="cursor-pointer">
+                          <LayoutDashboard className="mr-2 h-4 w-4" />
+                          Admin
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Link href="/profile">
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       Profile
                     </Link>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Link href="/billing">
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/billing" className="cursor-pointer">
                       <CreditCard className="mr-2 h-4 w-4" />
                       Billing
                     </Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      handleSignOut();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="text-red-400 justify-start"
-                  >
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-red-400 focus:text-red-400">
                     <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    asChild
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Link href="/login">Login</Link>
-                  </Button>
-                  <Button
-                    size="sm"
-                    asChild
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <Link href="/signup">Get Started</Link>
-                  </Button>
-                </>
-              )}
-            </div>
-          </nav>
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className="sk-header-icon" aria-label="Sign in" title="Sign in">
+                <User className="h-4 w-4" />
+              </Link>
+              <Link href="/contact" className="sk-header-btn is-ghost">Book a demo</Link>
+              <Link href="/signup" className="sk-header-btn">Create a video →</Link>
+            </>
+          )}
         </div>
+
+        <button
+          type="button"
+          className="sk-header-burger"
+          onClick={() => setOpen(!open)}
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+          aria-controls="sk-header-mobile"
+        >
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
+
+      {open && (
+        <nav id="sk-header-mobile" className="sk-header-mobile" aria-label="Mobile navigation">
+          {NAV_LINKS.map((l) => (
+            <Link key={l.href} href={l.href} onClick={close}>{l.label}</Link>
+          ))}
+          <hr />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px" }}>
+            <span>Theme</span>
+            <ThemeToggle />
+          </div>
+          <hr />
+          {user ? (
+            <>
+              <Link href="/workspace" onClick={close}>My workspace</Link>
+              {isAdmin && (
+                <Link href="/dashboard" onClick={close}><LayoutDashboard className="h-4 w-4" />Admin</Link>
+              )}
+              <Link href="/profile" onClick={close}><User className="h-4 w-4" />Profile</Link>
+              <Link href="/billing" onClick={close}><CreditCard className="h-4 w-4" />Billing</Link>
+              <button
+                type="button"
+                className="sk-header-mobile-item sk-header-danger"
+                onClick={() => {
+                  close();
+                  handleSignOut();
+                }}
+              >
+                <LogOut className="h-4 w-4" />Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/contact" onClick={close} className="sk-header-btn is-ghost">Book a demo</Link>
+              <Link href="/signup" onClick={close} className="sk-header-btn">Create a video →</Link>
+              <Link href="/login" onClick={close}><User className="h-4 w-4" />Sign in</Link>
+            </>
+          )}
+        </nav>
       )}
     </header>
   );
