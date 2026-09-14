@@ -36,7 +36,7 @@ async function createBlogPermissions() {
       } else {
         await prisma.permission.create({
           data: {
-            name: `${permission.resource}.${permission.action}`,
+            name: `${permission.resource}:${permission.action}`,
             description: permission.description,
             resource: permission.resource,
             action: permission.action,

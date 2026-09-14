@@ -13,7 +13,7 @@ export async function getAdmin(id: string) {
     return { error: 'Admin ID is required' };
   }
 
-  const permitted = await canAccessUser(session.user.id, id);
+  const permitted = await canAccessUser(session.user.id, id, "read");
   if (!permitted) {
     auditLogger.logSecurity(
       AuditEventType.USER_DATA_ACCESS_ATTEMPT,

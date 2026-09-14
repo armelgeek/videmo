@@ -32,7 +32,7 @@ export async function updateSettings(settings: Record<string, string> | { [key: 
 }
 
 export async function updateSetting(key: string, value: string) {
-  await requirePermission("settings", "update");
+  await requirePermission("setting", "update");
 
   try {
     if (!key) {

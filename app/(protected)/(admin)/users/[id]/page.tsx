@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { useSession } from '@/lib/auth-client';
 import { getAdmin } from '@/actions/users/get-user';
 import { updateAdmin } from '@/actions/users/update-user';
 import { listRoles } from '@/actions/roles/list-roles';
@@ -29,6 +30,8 @@ export default function EditAdminPage() {
   const params = useParams();
   const adminId = params.id as string;
   const { isLoading: checkingPermission, hasPermission } = usePermission('user', 'update');
+  const { data: session } = useSession();
+  const isSelf = session?.user.id === adminId;
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -220,21 +223,23 @@ export default function EditAdminPage() {
                         <Label htmlFor="role">
                           Role <span className="text-red-500">*</span>
                         </Label>
-                        <Select value={role} onValueChange={setRole}>
+                        <Select value={role} onValueChange={setRole} disabled={isSelf}>
                           <SelectTrigger>
                             <SelectValue placeholder="Select a role" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="user">User (Website Access)</SelectItem>
                             {roles.map((r) => (
-                              <SelectItem key={r.id} value={r.name}>
+                              <SelectItem key={r.id} value={r.id}>
                                 {r.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         <p className="text-xs text-muted-foreground">
-                          Assign a role that defines this user's permissions
+                          {isSelf
+                            ? "You can't change your own role. Ask another admin with role management access."
+                            : "Roles apply only while Admin Access is on."}
                         </p>
                       </div>
 
@@ -263,6 +268,7 @@ export default function EditAdminPage() {
                           id="isAdmin"
                           checked={isAdmin}
                           onCheckedChange={setIsAdmin}
+                          disabled={isSelf}
                         />
                       </div>
                     </div>

@@ -23,17 +23,17 @@ export async function deleteRole(id: string) {
 
     if (role.isSystem) {
       return {
-        error: "Cannot delete system roles (user, admin, super_admin).",
+        error: "System roles can't be deleted.",
       };
     }
 
-    const adminsWithRole = await prisma.user.count({
+    const usersWithRole = await prisma.user.count({
       where: { roleId: id },
     });
 
-    if (adminsWithRole > 0) {
+    if (usersWithRole > 0) {
       return {
-        error: `Cannot delete role. It is currently assigned to ${adminsWithRole} admin(s).`,
+        error: `This role is assigned to ${usersWithRole} ${usersWithRole === 1 ? "user" : "users"}. Give them another role first.`,
       };
     }
 

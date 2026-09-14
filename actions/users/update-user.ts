@@ -3,7 +3,8 @@
 import { db } from '@/lib/db';
 import { requirePermission } from '@/lib/auth-helpers';
 import { hashPassword } from 'better-auth/crypto';
-import { canAccessUser } from '@/lib/permissions';
+import { canAccessUser, getAccess } from '@/lib/permissions';
+import { checkRoleAssignment, isSuperAdminRole } from '@/lib/rbac';
 import { auditLogger, AuditEventType } from '@/lib/security/audit-logger';
 
 interface UpdateAdminInput {
@@ -67,12 +68,40 @@ export async function updateAdmin(data: UpdateAdminInput) {
       emailVerified: emailVerified ?? existingAdmin.emailVerified,
     };
 
-    if (role !== undefined) {
-      updateData.roleId = role && role !== 'user' ? role : null;
-    }
+    const nextRoleId = role === undefined ? existingAdmin.roleId : role && role !== 'user' ? role : null;
+    const nextIsAdmin = isAdmin ?? existingAdmin.isAdmin;
 
-    if (isAdmin !== undefined) {
-      updateData.isAdmin = isAdmin;
+    if (nextRoleId !== existingAdmin.roleId || nextIsAdmin !== existingAdmin.isAdmin) {
+      const [actor, currentRole, nextRole] = await Promise.all([
+        getAccess(session.user.id),
+        existingAdmin.roleId ? db.role.findUnique({ where: { id: existingAdmin.roleId } }) : null,
+        nextRoleId ? db.role.findUnique({ where: { id: nextRoleId } }) : null,
+      ]);
+
+      if (nextRoleId && !nextRole) {
+        return { error: 'The selected role no longer exists' };
+      }
+
+      const wasSuperAdmin = existingAdmin.isAdmin && isSuperAdminRole(currentRole);
+      const willBeSuperAdmin = nextIsAdmin && isSuperAdminRole(nextRole);
+      const denied = checkRoleAssignment({
+        actorId: session.user.id,
+        targetId: id,
+        actor,
+        touchesSuperAdmin: wasSuperAdmin !== willBeSuperAdmin,
+      });
+
+      if (denied) {
+        auditLogger.logSecurity(
+          AuditEventType.USER_DATA_ACCESS_ATTEMPT,
+          `User ${session.user.id} was refused a role change on user ${id}`,
+          { userId: session.user.id, metadata: { targetUserId: id, nextRoleId, nextIsAdmin } }
+        );
+        return { error: denied };
+      }
+
+      updateData.roleId = nextRoleId;
+      updateData.isAdmin = nextIsAdmin;
     }
 
     const admin = await db.user.update({

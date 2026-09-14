@@ -14,6 +14,12 @@ import {
   Layers,
   SlidersHorizontal,
   Info,
+  Gauge,
+  Users,
+  Shield,
+  KeyRound,
+  Building2,
+  FileText,
 } from "lucide-react";
 import { LogoIcon } from "@/lib/editor/components/icons";
 import { UserMenu } from "@/lib/editor/components/user-menu";
@@ -31,7 +37,18 @@ interface AppSidebarProps {
   isPanelOpen?: boolean;
   onViewChange?: (view: SidebarView) => void;
   onTogglePanel?: () => void;
+  grantedPermissions?: string[];
 }
+
+const ADMIN_ITEMS = [
+  { href: "/dashboard", icon: Gauge, label: "Dashboard", permission: null },
+  { href: "/users", icon: Users, label: "Users", permission: "user:read" },
+  { href: "/roles", icon: Shield, label: "Roles", permission: "role:read" },
+  { href: "/permissions", icon: KeyRound, label: "Permissions", permission: "permission:read" },
+  { href: "/organizations", icon: Building2, label: "Organizations", permission: null },
+  { href: "/blogs", icon: FileText, label: "Blog", permission: "blog:read" },
+  { href: "/settings", icon: Settings, label: "Settings", permission: "setting:read" },
+] as const;
 
 const NAV_ITEMS = [
   {
@@ -102,8 +119,12 @@ export function AppSidebar({
   isPanelOpen,
   onViewChange,
   onTogglePanel,
+  grantedPermissions,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const adminItems = grantedPermissions
+    ? ADMIN_ITEMS.filter((item) => !item.permission || grantedPermissions.includes(item.permission))
+    : [];
   const isStudioPage = pathname === "/timeline";
 
   const getNavItemActive = (href: string) => {
@@ -148,6 +169,37 @@ export function AppSidebar({
             );
           })}
         </div>
+
+        {adminItems.length > 0 && (
+          <>
+            <div className="my-4 h-px bg-white/5" />
+            <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Administration
+            </p>
+            <div className="space-y-1">
+              {adminItems.map((item) => {
+                const isActive = getNavItemActive(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2 rounded-lg transition-all",
+                      isActive
+                        ? "bg-white/10 text-white"
+                        : "text-muted-foreground hover:bg-white/5 hover:text-white",
+                    )}
+                  >
+                    <Icon className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* Studio-specific items */}
         {isStudioPage && onViewChange && onTogglePanel && (

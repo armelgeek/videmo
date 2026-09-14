@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { hasPermission } from "@/lib/permissions";
 
 export async function requireAuth() {
   const session = await auth.api.getSession({
@@ -48,26 +49,7 @@ export async function requireRole(roleName: string) {
 export async function requirePermission(resource: string, action: string) {
   const session = await requireAuth();
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    include: {
-      role: {
-        include: {
-          rolePermissions: {
-            include: {
-              permission: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  const hasPermission = user?.role?.rolePermissions.some(
-    (rp) => rp.permission.resource === resource && rp.permission.action === action
-  );
-
-  if (!hasPermission) {
+  if (!(await hasPermission(session.user.id, resource, action))) {
     redirect("/");
   }
 

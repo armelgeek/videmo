@@ -1,50 +1,36 @@
 # Permissions & RBAC
 
-Role-based access control (RBAC) system for managing user permissions and roles.
+Platform-wide access control for the admin area. Organization roles (owner/admin/member on video projects) are separate: see `lib/video-project/access.ts`.
 
-## File
+## Files
 
-- **permissions.ts** - Permission definitions, role mappings, and RBAC logic
+- `rbac.ts` — pure rules: permission catalog, `resolveAccess`, `checkRoleAssignment`, `checkRoleUpdate` (tested in `rbac.test.ts`)
+- `permissions.ts` — loads a user's role from the database: `getAccess`, `hasPermission`, `canAccessUser`
+- `auth-helpers.ts` / `auth-utils.ts` — `requirePermission(resource, action)` guards for server actions and pages
 
-## Concepts
+## Rules
 
-- **Roles** - High-level access levels (admin, user, guest)
-- **Permissions** - Granular actions (create:post, delete:user, etc.)
-- **Role-Permission Mapping** - Which permissions belong to each role
+- A role only applies while the user has **Admin Access** (`User.isAdmin`).
+- Permissions are `resource:action`, actions being `create`, `read`, `update`, `delete`.
+- The system **Super Admin** role has every permission implicitly, including resources added later. It can't be renamed, deleted, or have permissions removed.
+- Nobody can change their own role or admin access.
+- Assigning a role or admin access needs `role:update`. Granting or removing Super Admin needs a Super Admin.
 
-## Features
+## Resources
 
-- Hierarchical role system
-- Fine-grained permissions
-- Permission checking utilities
-- Role inheritance
+`user`, `role`, `permission`, `setting`, `blog`, `organization` — add new ones to `PERMISSION_RESOURCES` in `rbac.ts`, then run:
+
+```bash
+npm run setup:permissions   # idempotent: creates missing permissions, keeps Super Admin complete
+```
 
 ## Usage
 
 ```typescript
-import { checkPermission, hasRole } from '@/lib/permissions'
+import { requirePermission } from '@/lib/auth-helpers'
 
-// Check if user has specific permission
-if (!checkPermission(user.role, 'delete:post')) {
-  throw new Error('Unauthorized')
-}
-
-// Check role
-if (!hasRole(user.role, 'admin')) {
-  return Response.json({ error: 'Admin only' }, { status: 403 })
+export async function deleteBlog(id: string) {
+  await requirePermission('blog', 'delete')
+  // ...
 }
 ```
-
-## Common Permissions
-
-- `create:*` - Create resources
-- `read:*` - View resources
-- `update:*` - Modify resources
-- `delete:*` - Remove resources
-- `manage:*` - Full control
-
-## Default Roles
-
-- **admin** - Full system access
-- **user** - Basic user permissions
-- **guest** - Limited public access

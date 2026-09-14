@@ -51,7 +51,7 @@ export async function listAdmins(params?: ListAdminsParams) {
     }
 
     if (filters.role && filters.role !== 'all') {
-      where.role = filters.role;
+      where.roleId = filters.role === 'none' ? null : filters.role;
     }
 
     const total = await db.user.count({ where });

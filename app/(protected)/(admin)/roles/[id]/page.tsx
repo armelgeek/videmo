@@ -255,7 +255,11 @@ export default function EditRolePage() {
                     <Card>
                       <CardHeader>
                         <CardTitle>Permissions</CardTitle>
-                        <CardDescription>Select permissions for this role</CardDescription>
+                        <CardDescription>
+                          {role?.isSystem
+                            ? 'This system role always has every permission, including ones added later. Only its description can change.'
+                            : 'Select permissions for this role'}
+                        </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <div className="grid gap-6">
@@ -268,6 +272,7 @@ export default function EditRolePage() {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => toggleAllForResource(resource)}
+                                  disabled={role?.isSystem}
                                 >
                                   {perms.every((p) => selectedPermissions.includes(p.id)) ? 'Deselect All' : 'Select All'}
                                 </Button>
@@ -279,6 +284,7 @@ export default function EditRolePage() {
                                       id={permission.id}
                                       checked={selectedPermissions.includes(permission.id)}
                                       onCheckedChange={() => togglePermission(permission.id)}
+                                      disabled={role?.isSystem}
                                     />
                                     <div className="grid gap-1.5 leading-none">
                                       <label

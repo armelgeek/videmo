@@ -3,6 +3,7 @@
 import { db as prisma } from "@/lib/db";
 import { requirePermission } from "@/lib/auth-helpers";
 import { revalidatePath } from "next/cache";
+import { checkRoleUpdate } from "@/lib/rbac";
 
 interface UpdateRoleInput {
   id: string;
@@ -25,10 +26,24 @@ export async function updateRole(data: UpdateRoleInput) {
     
     const existingRole = await prisma.role.findUnique({
       where: { id },
+      include: { rolePermissions: { select: { permissionId: true } } },
     });
 
     if (!existingRole) {
       return { error: "Role not found" };
+    }
+
+    const currentIds = new Set(existingRole.rolePermissions.map((rp) => rp.permissionId));
+    const nextIds = new Set(permissionIds);
+    const denied = checkRoleUpdate({
+      isSystem: existingRole.isSystem,
+      renamed: existingRole.name !== name.trim(),
+      permissionsChanged:
+        currentIds.size !== nextIds.size || [...nextIds].some((permissionId) => !currentIds.has(permissionId)),
+    });
+
+    if (denied) {
+      return { error: denied };
     }
 
     const nameConflict = await prisma.role.findFirst({

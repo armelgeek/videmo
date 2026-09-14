@@ -215,7 +215,7 @@ export default function NewAdminPage() {
                           <SelectContent>
                             <SelectItem value="user">User (Website Access)</SelectItem>
                             {roles.map((r) => (
-                              <SelectItem key={r.id} value={r.name}>
+                              <SelectItem key={r.id} value={r.id}>
                                 {r.name}
                               </SelectItem>
                             ))}

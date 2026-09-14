@@ -129,7 +129,7 @@ async function createAdminUser() {
 
 async function getOrCreateSuperAdminRole() {
   
-  const resources = ['user', 'role', 'permission', 'setting'];
+  const resources = ['user', 'role', 'permission', 'setting', 'blog', 'organization'];
   const actions = ['create', 'read', 'update', 'delete'];
 
   let role = await prisma.role.findUnique({

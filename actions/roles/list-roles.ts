@@ -13,6 +13,7 @@ export async function listRoles() {
         name: "asc",
       },
       include: {
+        _count: { select: { users: true } },
         rolePermissions: {
           include: {
             permission: true,

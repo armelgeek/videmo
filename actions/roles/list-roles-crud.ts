@@ -32,7 +32,15 @@ export async function listRolesCrud(
   );
 
   return {
-    data: filtered.slice(start, end) as Role[],
+    data: filtered.slice(start, end).map((r) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description ?? undefined,
+      permissionsCount: r.rolePermissions.length,
+      usersCount: r._count.users,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    })),
     total: filtered.length,
     page,
     pageSize,
