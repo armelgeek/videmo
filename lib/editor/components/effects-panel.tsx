@@ -145,7 +145,7 @@ export const EffectsPanel = memo<EffectsPanelProps>(function EffectsPanel({
               <TooltipTrigger asChild>
                 <button
                   onClick={resetEffects}
-                  className="p-1.5 rounded hover:bg-[var(--hover-overlay)] text-[var(--text-secondary)] hover:text-white transition-colors"
+                  className="p-1.5 rounded hover:bg-[var(--hover-overlay)] text-[var(--text-secondary)] hover:text-foreground transition-colors"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
@@ -253,7 +253,7 @@ export const EffectsPanel = memo<EffectsPanelProps>(function EffectsPanel({
                     },
                   });
                 }}
-                className="py-2 px-3 rounded-lg bg-[var(--hover-overlay)] border border-[var(--border-default)] text-[10px] font-medium text-[var(--text-tertiary)] hover:text-white hover:bg-[var(--active-overlay)] hover:border-[var(--border-strong)] transition-all"
+                className="py-2 px-3 rounded-lg bg-[var(--hover-overlay)] border border-[var(--border-default)] text-[10px] font-medium text-[var(--text-tertiary)] hover:text-foreground hover:bg-[var(--active-overlay)] hover:border-[var(--border-strong)] transition-all"
               >
                 {preset.name}
               </button>

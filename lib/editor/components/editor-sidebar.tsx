@@ -122,7 +122,7 @@ export const EditorSidebar = memo(function EditorSidebar({
         {/* Footer */}
         <div className="w-full border-t border-[var(--border-default)] p-2 text-center">
           <span className="text-[10px] text-[var(--text-muted)]">
-            <span className="font-semibold text-white">∞</span>
+            <span className="font-semibold text-foreground">∞</span>
           </span>
         </div>
       </nav>

@@ -71,7 +71,7 @@ export function AddMarkerDialog({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[400px] bg-[var(--surface-1)] border-[var(--border-default)]">
         <DialogHeader>
-          <DialogTitle className="text-white">Add Marker</DialogTitle>
+          <DialogTitle className="text-foreground">Add Marker</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
@@ -86,7 +86,7 @@ export function AddMarkerDialog({
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Enter marker label..."
-              className="bg-[var(--surface-2)] border-[var(--border-default)] text-white"
+              className="bg-[var(--surface-2)] border-[var(--border-default)] text-foreground"
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             />
           </div>

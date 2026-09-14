@@ -57,9 +57,9 @@ const StepIndicator = memo(function StepIndicator({
                 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all
                 ${
                   isComplete
-                    ? "bg-[var(--success)] text-white"
+                    ? "bg-[var(--success)] text-foreground"
                     : isActive
-                      ? "bg-[var(--tertiary)] text-white ring-4 ring-[var(--tertiary)]/30"
+                      ? "bg-[var(--tertiary)] text-foreground ring-4 ring-[var(--tertiary)]/30"
                       : "bg-[var(--surface-2)] text-[var(--text-secondary)]"
                 }
               `}
@@ -179,10 +179,10 @@ export const ExportModal = memo(function ExportModal({
       <div className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-xl shadow-2xl w-[500px] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="h-14 px-6 flex items-center justify-between border-b border-[var(--border-default)] bg-[var(--surface-0)]">
-          <h3 className="text-sm font-bold text-white uppercase tracking-wider">Export Video</h3>
+          <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Export Video</h3>
           <button
             onClick={onClose}
-            className="text-[var(--text-secondary)] hover:text-white transition-colors"
+            className="text-[var(--text-secondary)] hover:text-foreground transition-colors"
             disabled={isExporting}
           >
             <svg
@@ -213,12 +213,12 @@ export const ExportModal = memo(function ExportModal({
                   <path d="M12 16h.01" />
                 </svg>
               </div>
-              <h4 className="text-lg font-semibold text-white">Export Unavailable</h4>
+              <h4 className="text-lg font-semibold text-foreground">Export Unavailable</h4>
               <p className="text-sm text-[var(--text-tertiary)] text-center max-w-sm">{ffmpegError}</p>
               <div className="flex gap-3 mt-2">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-white rounded-lg text-sm transition-colors"
+                  className="px-4 py-2 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-foreground rounded-lg text-sm transition-colors"
                 >
                   Close
                 </button>
@@ -227,7 +227,7 @@ export const ExportModal = memo(function ExportModal({
                     setIsInitializing(true)
                     onStartExport(resolution)
                   }}
-                  className="px-4 py-2 bg-[var(--tertiary)] hover:bg-[var(--tertiary-hover)] text-white rounded-lg text-sm transition-colors"
+                  className="px-4 py-2 bg-[var(--tertiary)] hover:bg-[var(--tertiary-hover)] text-foreground rounded-lg text-sm transition-colors"
                 >
                   Try Again
                 </button>
@@ -238,17 +238,17 @@ export const ExportModal = memo(function ExportModal({
               <div className="w-16 h-16 rounded-full bg-[var(--success-muted)] text-[var(--success)] flex items-center justify-center mb-2">
                 <CheckCircleIcon className="w-8 h-8" />
               </div>
-              <h4 className="text-lg font-semibold text-white">Export Complete!</h4>
+              <h4 className="text-lg font-semibold text-foreground">Export Complete!</h4>
 
               <a
                 href={downloadUrl}
                 download="project_export.mp4"
-                className="mt-2 w-full flex items-center justify-center gap-2 px-6 py-3 bg-[var(--tertiary)] hover:bg-[var(--tertiary-hover)] text-white rounded-lg font-medium transition-all shadow-lg"
+                className="mt-2 w-full flex items-center justify-center gap-2 px-6 py-3 bg-[var(--tertiary)] hover:bg-[var(--tertiary-hover)] text-foreground rounded-lg font-medium transition-all shadow-lg"
               >
                 <DownloadIcon className="w-4 h-4" />
                 Download MP4
               </a>
-              <button onClick={onClose} className="text-sm text-[var(--text-secondary)] hover:text-white">
+              <button onClick={onClose} className="text-sm text-[var(--text-secondary)] hover:text-foreground">
                 Close
               </button>
             </div>
@@ -258,7 +258,7 @@ export const ExportModal = memo(function ExportModal({
 
               {/* Current phase info */}
               <div className="text-center">
-                <p className="text-sm font-medium text-white">{phaseInfo.label}</p>
+                <p className="text-sm font-medium text-foreground">{phaseInfo.label}</p>
                 <p className="text-xs text-[var(--text-secondary)] mt-1">{phaseInfo.detail}</p>
               </div>
 
@@ -359,7 +359,7 @@ export const ExportModal = memo(function ExportModal({
 
               <button
                 onClick={handleStartClick}
-                className="w-full py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition-colors shadow-lg mt-2 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-card text-foreground font-bold rounded-lg hover:bg-gray-200 transition-colors shadow-lg mt-2 flex items-center justify-center gap-2"
               >
                 {willReusePreview ? "Export Now" : "Start Export"}
               </button>

@@ -833,7 +833,7 @@ function TimelineTransitionCard({
     >
       <span
         ref={labelRef}
-        className="text-[10px] font-bold text-white uppercase tracking-tighter truncate px-1 select-none pointer-events-none drop-shadow"
+        className="text-[10px] font-bold text-foreground uppercase tracking-tighter truncate px-1 select-none pointer-events-none drop-shadow"
       >
         {type} {initialDurationMs}ms
       </span>
@@ -843,15 +843,15 @@ function TimelineTransitionCard({
         onMouseDown={startDrag}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-1.5 h-6 bg-white rounded-full shadow-md ring-1 ring-black/20 group-hover/trans-handle:scale-125 group-hover/trans-handle:bg-white transition-transform" />
+        <div className="w-1.5 h-6 bg-card rounded-full shadow-md ring-1 ring-black/20 group-hover/trans-handle:scale-125 group-hover/trans-handle:bg-white transition-transform" />
       </div>
 
       {showMenu && (
         <div
-          className="absolute top-full mt-1.5 left-0 z-[100] w-48 bg-[#18181c] border border-white/20 rounded-md shadow-2xl py-1 text-xs animate-in fade-in zoom-in-95 duration-75"
+          className="absolute top-full mt-1.5 left-0 z-[100] w-48 bg-[#18181c] border border-border rounded-md shadow-2xl py-1 text-xs animate-in fade-in zoom-in-95 duration-75"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-2.5 py-1 text-[10px] font-bold text-neutral-400 uppercase tracking-wider border-b border-white/10 mb-1">
+          <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1">
             Change transition
           </div>
           {LIBELLES_TRANSITIONS.map((t) => (
@@ -863,12 +863,12 @@ function TimelineTransitionCard({
               }}
               className={`w-full text-left px-2.5 py-1.5 hover:bg-blue-600/30 flex items-center justify-between transition-colors ${
                 t.value === type
-                  ? "font-bold text-blue-400 bg-blue-500/10"
-                  : "text-neutral-200"
+                  ? "font-bold text-foreground bg-blue-500/10"
+                  : "text-foreground"
               }`}
             >
               <span>{t.label}</span>
-              {t.value === type && <span className="text-blue-400">✓</span>}
+              {t.value === type && <span className="text-foreground">✓</span>}
             </button>
           ))}
         </div>

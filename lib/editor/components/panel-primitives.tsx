@@ -183,13 +183,13 @@ export const Toggle = memo(function Toggle({
           className={`w-9 h-5 rounded-full transition-colors ${checked ? "bg-[var(--accent-primary)]" : "bg-[var(--surface-3)]"}`}
         />
         <div
-          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+          className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-card shadow transition-transform ${
             checked ? "translate-x-4" : "translate-x-0"
           }`}
         />
       </div>
       <div className="flex-1">
-        <div className="text-sm text-[var(--text-primary)] group-hover:text-accent-text-white transition-colors">
+        <div className="text-sm text-[var(--text-primary)] group-hover:text-accent-text-foreground transition-colors">
           {label}
         </div>
         {description && <div className="text-xs text-[var(--text-secondary)] mt-0.5">{description}</div>}
@@ -301,7 +301,7 @@ export const ActionButton = memo(function ActionButton({
           ? "opacity-40 cursor-not-allowed border-[var(--border-default)] bg-[var(--hover-overlay)]"
           : variant === "danger"
             ? "border-[var(--border-default)] hover:border-red-500/30 hover:bg-red-500/10 text-[var(--text-tertiary)] hover:text-red-400"
-            : "border-[var(--border-default)] hover:border-[var(--border-emphasis)] hover:bg-[var(--hover-overlay)] text-[var(--text-tertiary)] hover:text-white"
+            : "border-[var(--border-default)] hover:border-[var(--border-emphasis)] hover:bg-[var(--hover-overlay)] text-[var(--text-tertiary)] hover:text-foreground"
       }`}
     >
       {icon}

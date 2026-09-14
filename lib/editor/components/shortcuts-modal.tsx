@@ -198,13 +198,13 @@ export const ShortcutsModal = memo(function ShortcutsModal({ isOpen, onClose }: 
                 <KeyboardIcon className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-white">Keyboard Shortcuts</h3>
+                <h3 className="text-base font-bold text-foreground">Keyboard Shortcuts</h3>
                 <p className="text-xs text-[var(--text-muted)]">Master the editor with these shortcuts</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-[var(--hover-overlay)] rounded-lg text-[var(--text-muted)] hover:text-white transition-colors"
+              className="p-2 hover:bg-[var(--hover-overlay)] rounded-lg text-[var(--text-muted)] hover:text-foreground transition-colors"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M18 6 6 18" />

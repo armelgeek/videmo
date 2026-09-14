@@ -331,8 +331,8 @@ export const PreviewPlayer = memo(function PreviewPlayer({
             className="absolute z-40 inset-0 pointer-events-none flex items-center justify-center"
             style={{ transform: `scale(${playerZoom})` }}
           >
-            <div className="w-[90%] h-[90%] border border-white/20 border-dashed absolute aspect-video"></div>
-            <div className="w-[80%] h-[80%] border border-cyan-500/30 absolute aspect-video"></div>
+            <div className="w-[90%] h-[90%] border border-border border-dashed absolute aspect-video"></div>
+            <div className="w-[80%] h-[80%] border border-ink absolute aspect-video"></div>
           </div>
         )}
 
@@ -424,7 +424,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
 
               <div
                 ref={whiteOverlayRef as React.RefObject<HTMLDivElement>}
-                className={`absolute inset-0 bg-white pointer-events-none z-20 ${isPreviewPlayback ? "hidden" : ""}`}
+                className={`absolute inset-0 bg-card pointer-events-none z-20 ${isPreviewPlayback ? "hidden" : ""}`}
                 style={{ opacity: 0 }}
               />
 
@@ -443,10 +443,10 @@ export const PreviewPlayer = memo(function PreviewPlayer({
                 !isWhiteboardView && (
                   <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
                     <div
-                      className="w-14 h-14 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center cursor-pointer pointer-events-auto hover:scale-105 hover:bg-white/15 transition-all border border-white/10"
+                      className="w-14 h-14 bg-accent backdrop-blur-sm rounded-full flex items-center justify-center cursor-pointer pointer-events-auto hover:scale-105 hover:bg-accent transition-all border border-border"
                       onClick={onPlay}
                     >
-                      <PlayIcon className="w-5 h-5 text-white ml-0.5" />
+                      <PlayIcon className="w-5 h-5 text-foreground ml-0.5" />
                     </div>
                   </div>
                 )}
@@ -454,7 +454,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
           )}
 
           {isPreviewPlayback && (
-            <div className="absolute top-3 left-3 z-40 flex items-center gap-2 bg-cyan-500/20 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-cyan-500/30">
+            <div className="absolute top-3 left-3 z-40 flex items-center gap-2 bg-cyan-500/20 backdrop-blur-sm rounded-lg px-3 py-1.5 border border-ink">
               <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></div>
               <span className="text-[10px] font-bold text-cyan-300 uppercase tracking-wider">
                 Rendered Preview
@@ -466,7 +466,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
             <div className="absolute inset-0 flex flex-col items-center justify-center z-30 pointer-events-none bg-black/80 backdrop-blur-sm">
               <div className="w-10 h-10 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin mb-3"></div>
               <p className="text-sm font-medium">Rendering Preview...</p>
-              <p className="text-xs text-neutral-400 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 {Math.round(renderProgress)}%
               </p>
             </div>

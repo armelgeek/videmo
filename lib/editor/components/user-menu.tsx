@@ -40,7 +40,7 @@ export function UserMenu({ user }: UserMenuProps) {
               src={defaultUser.avatar || "/placeholder.svg"}
               alt={defaultUser.name}
             />
-            <AvatarFallback className="bg-gradient-to-br from-orange-400 via-purple-500 to-blue-500 text-white text-xs font-semibold">
+            <AvatarFallback className="bg-gradient-to-br from-orange-400 via-highlight to-highlight text-foreground text-xs font-semibold">
               {defaultUser.name
                 .split(" ")
                 .map((n) => n[0])
@@ -71,7 +71,7 @@ export function UserMenu({ user }: UserMenuProps) {
                 src={defaultUser.avatar || "/placeholder.svg"}
                 alt={defaultUser.name}
               />
-              <AvatarFallback className="bg-gradient-to-br from-orange-400 via-purple-500 to-blue-500 text-white text-xs font-semibold">
+              <AvatarFallback className="bg-gradient-to-br from-orange-400 via-highlight to-highlight text-foreground text-xs font-semibold">
                 {defaultUser.name
                   .split(" ")
                   .map((n) => n[0])
@@ -80,10 +80,10 @@ export function UserMenu({ user }: UserMenuProps) {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-semibold text-sm truncate">
+              <p className="text-foreground font-semibold text-sm truncate">
                 {defaultUser.name}
               </p>
-              <p className="text-neutral-400 text-xs truncate">
+              <p className="text-muted-foreground text-xs truncate">
                 {defaultUser.email}
               </p>
             </div>
@@ -99,10 +99,10 @@ export function UserMenu({ user }: UserMenuProps) {
             </MenuItem>
 
             <div className="relative">
-              <button className="flex items-center gap-3 px-3 py-2.5 text-neutral-400 hover:text-white hover:bg-[var(--hover-overlay)] rounded-lg cursor-pointer transition-colors outline-none w-full">
+              <button className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-[var(--hover-overlay)] rounded-lg cursor-pointer transition-colors outline-none w-full">
                 <Palette className="size-4" />
                 <span className="text-sm flex-1 text-left">Theme</span>
-                <ChevronRight className="size-4 text-neutral-500" />
+                <ChevronRight className="size-4 text-muted-foreground" />
               </button>
             </div>
 
@@ -112,10 +112,10 @@ export function UserMenu({ user }: UserMenuProps) {
           </div>
 
           <div className="flex items-center justify-center gap-4 px-3 py-3 border-t border-[var(--border-default)]">
-            <button className="text-neutral-500 hover:text-neutral-300 text-xs transition-colors">
+            <button className="text-muted-foreground hover:text-foreground/80 text-xs transition-colors">
               Terms of Service
             </button>
-            <button className="text-neutral-500 hover:text-neutral-300 text-xs transition-colors">
+            <button className="text-muted-foreground hover:text-foreground/80 text-xs transition-colors">
               Privacy
             </button>
           </div>
@@ -133,7 +133,7 @@ function MenuItem({
   children: React.ReactNode;
 }) {
   return (
-    <button className="flex items-center gap-3 px-3 py-2.5 text-neutral-400 hover:text-white hover:bg-[var(--hover-overlay)] rounded-lg cursor-pointer transition-colors outline-none w-full">
+    <button className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-[var(--hover-overlay)] rounded-lg cursor-pointer transition-colors outline-none w-full">
       {icon}
       <span className="text-sm">{children}</span>
     </button>

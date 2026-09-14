@@ -184,7 +184,7 @@ const ModelCard = memo(function ModelCard({
             : "border-[var(--text-muted)]"
         }`}
       >
-        {selected && <Check className="w-2.5 h-2.5 text-white" />}
+        {selected && <Check className="w-2.5 h-2.5 text-foreground" />}
       </div>
     </button>
   );
@@ -244,7 +244,7 @@ const GenerationHistoryItem = memo(function GenerationHistoryItem({
             />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          <span className="absolute bottom-0.5 left-1 text-[8px] font-bold text-white/80 uppercase">
+          <span className="absolute bottom-0.5 left-1 text-[8px] font-bold text-muted-foreground uppercase">
             {item.aspectRatio}
           </span>
         </div>
@@ -266,7 +266,7 @@ const GenerationHistoryItem = memo(function GenerationHistoryItem({
         <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             onClick={handleCopyPrompt}
-            className="p-1.5 rounded bg-[var(--hover-overlay)] hover:bg-[var(--active-overlay)] text-[var(--text-secondary)] hover:text-white transition-colors"
+            className="p-1.5 rounded bg-[var(--hover-overlay)] hover:bg-[var(--active-overlay)] text-[var(--text-secondary)] hover:text-foreground transition-colors"
             title="Copy prompt"
           >
             {showCopied ? (
@@ -288,7 +288,7 @@ const GenerationHistoryItem = memo(function GenerationHistoryItem({
       {/* Use Button - visible on hover */}
       <button
         onClick={onUse}
-        className="absolute inset-x-0 bottom-0 py-1.5 bg-[var(--tertiary)] text-white text-[10px] font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity rounded-b-lg hover:bg-[var(--tertiary-hover)]"
+        className="absolute inset-x-0 bottom-0 py-1.5 bg-[var(--tertiary)] text-foreground text-[10px] font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity rounded-b-lg hover:bg-[var(--tertiary-hover)]"
       >
         Add to Timeline
       </button>
@@ -506,7 +506,7 @@ export const CreatePanel = memo(function CreatePanel({
             className={`w-full py-3 rounded-lg flex items-center justify-center gap-2 font-semibold text-sm transition-all ${
               !prompt.trim() || isGenerating
                 ? "bg-[var(--surface-3)] text-[var(--text-tertiary)] cursor-not-allowed"
-                : "bg-[var(--tertiary)] text-white hover:bg-[var(--tertiary-hover)] shadow-lg shadow-[var(--tertiary)]/25"
+                : "bg-[var(--tertiary)] text-foreground hover:bg-[var(--tertiary-hover)] shadow-lg shadow-[var(--tertiary)]/25"
             }`}
           >
             {isGenerating ? (

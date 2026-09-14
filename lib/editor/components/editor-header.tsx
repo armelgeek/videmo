@@ -157,7 +157,7 @@ export const EditorHeader = memo(function EditorHeader({
               <TooltipTrigger asChild>
                 <button
                   onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-white hover:bg-[var(--hover-overlay)] rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-foreground hover:bg-[var(--hover-overlay)] rounded-lg transition-colors"
                 >
                   <FolderOpenIcon className="w-4 h-4" />
                   <span className="text-xs">File</span>
@@ -187,7 +187,7 @@ export const EditorHeader = memo(function EditorHeader({
                     setIsFileMenuOpen(false);
                   }}
                   disabled={isSaving}
-                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--hover-overlay)] hover:text-white flex items-center gap-2 disabled:opacity-50"
+                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--hover-overlay)] hover:text-foreground flex items-center gap-2 disabled:opacity-50"
                 >
                   <SaveIcon
                     className={`w-4 h-4 ${isSaving ? "animate-pulse" : ""}`}
@@ -202,7 +202,7 @@ export const EditorHeader = memo(function EditorHeader({
                     onLoad();
                     setIsFileMenuOpen(false);
                   }}
-                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--hover-overlay)] hover:text-white flex items-center gap-2"
+                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-secondary)] hover:bg-[var(--hover-overlay)] hover:text-foreground flex items-center gap-2"
                 >
                   <FolderOpenIcon className="w-4 h-4" />
                   Open Project
@@ -221,7 +221,7 @@ export const EditorHeader = memo(function EditorHeader({
                 <button
                   onClick={onUndo}
                   disabled={!canUndo}
-                  className="p-2 text-[var(--text-tertiary)] hover:text-white hover:bg-[var(--hover-overlay)] rounded-lg disabled:opacity-30 transition-colors"
+                  className="p-2 text-[var(--text-tertiary)] hover:text-foreground hover:bg-[var(--hover-overlay)] rounded-lg disabled:opacity-30 transition-colors"
                 >
                   <UndoIcon className="w-4 h-4" />
                 </button>
@@ -236,7 +236,7 @@ export const EditorHeader = memo(function EditorHeader({
                 <button
                   onClick={onRedo}
                   disabled={!canRedo}
-                  className="p-2 text-[var(--text-tertiary)] hover:text-white hover:bg-[var(--hover-overlay)] rounded-lg disabled:opacity-30 transition-colors"
+                  className="p-2 text-[var(--text-tertiary)] hover:text-foreground hover:bg-[var(--hover-overlay)] rounded-lg disabled:opacity-30 transition-colors"
                 >
                   <RedoIcon className="w-4 h-4" />
                 </button>
@@ -254,7 +254,7 @@ export const EditorHeader = memo(function EditorHeader({
             <TooltipTrigger asChild>
               <button
                 onClick={onShowShortcuts}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[var(--text-secondary)] hover:text-white border border-[var(--border-emphasis)] hover:border-[var(--border-strong)] rounded-full text-xs transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[var(--text-secondary)] hover:text-foreground border border-[var(--border-emphasis)] hover:border-[var(--border-strong)] rounded-full text-xs transition-colors"
               >
                 <svg
                   width="14"
@@ -280,7 +280,7 @@ export const EditorHeader = memo(function EditorHeader({
             <TooltipTrigger asChild>
               <button
                 onClick={onExport}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-white bg-[var(--active-overlay)] hover:bg-[var(--hover-overlay)] border border-[var(--border-emphasis)] rounded-full text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-foreground bg-[var(--active-overlay)] hover:bg-[var(--hover-overlay)] border border-[var(--border-emphasis)] rounded-full text-xs font-medium transition-colors"
               >
                 <DownloadIcon className="w-3.5 h-3.5" />
                 Export

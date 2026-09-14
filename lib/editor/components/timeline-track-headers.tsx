@@ -219,7 +219,7 @@ function TrackVisual({
   if (track.type === "text") {
     return (
       <div
-        className={`text-[10px] text-purple-400/60 ${track.isMuted ? "opacity-30" : ""}`}
+        className={`text-[10px] text-foreground/60 ${track.isMuted ? "opacity-30" : ""}`}
       >
         Text Layer
       </div>

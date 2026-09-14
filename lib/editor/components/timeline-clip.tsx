@@ -131,11 +131,11 @@ export const TimelineClipItem = memo(
 
         {clip.transition && clip.transition.type !== "none" && (
           <div
-            className="absolute left-0 top-0 bottom-0 z-30 bg-gradient-to-r from-white/30 to-transparent pointer-events-none border-r border-white/20 flex items-center justify-start pl-1"
+            className="absolute left-0 top-0 bottom-0 z-30 bg-gradient-to-r from-white/30 to-transparent pointer-events-none border-r border-border flex items-center justify-start pl-1"
             style={{ width: `${clip.transition.duration * zoomLevel}px` }}
             aria-hidden="true"
           >
-            <div className="text-[9px] text-white/80 font-bold -rotate-90 origin-left translate-y-4 truncate w-full">
+            <div className="text-[9px] text-muted-foreground font-bold -rotate-90 origin-left translate-y-4 truncate w-full">
               {clip.transition.type.replace("-", " ")}
             </div>
           </div>
@@ -152,7 +152,7 @@ export const TimelineClipItem = memo(
               className={`absolute -left-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle opacity-0 group-hover/item:opacity-100 ${isSelected && "opacity-100"}`}
               onMouseDown={(e) => handleClipMouseDown(e, "trim-start")}
             >
-              <div className="w-1 h-6 bg-white rounded-full shadow-sm group-hover/handle:scale-110 transition-transform"></div>
+              <div className="w-1 h-6 bg-card rounded-full shadow-sm group-hover/handle:scale-110 transition-transform"></div>
             </div>
 
             <div
@@ -164,7 +164,7 @@ export const TimelineClipItem = memo(
               className={`absolute -right-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle opacity-0 group-hover/item:opacity-100 ${isSelected && "opacity-100"}`}
               onMouseDown={(e) => handleClipMouseDown(e, "trim-end")}
             >
-              <div className="w-1 h-6 bg-white rounded-full shadow-sm group-hover/handle:scale-110 transition-transform"></div>
+              <div className="w-1 h-6 bg-card rounded-full shadow-sm group-hover/handle:scale-110 transition-transform"></div>
             </div>
           </>
         )}

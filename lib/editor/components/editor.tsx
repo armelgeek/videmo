@@ -1561,7 +1561,7 @@ const EditorInner: React.FC<EditorProps> = ({
 
   return (
     <SidebarProvider defaultOpen={true}>
-        <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--surface-0)] text-neutral-200 font-sans selection:bg-[var(--accent-muted)]">
+        <div className="flex flex-col h-screen w-screen overflow-hidden bg-[var(--surface-0)] text-foreground font-sans selection:bg-[var(--accent-muted)]">
           {/* Main editor row */}
           <div className="flex flex-1 min-h-0">
           {/* Modals */}
@@ -1672,7 +1672,7 @@ const EditorInner: React.FC<EditorProps> = ({
                 {!isCinemaMode && (
                   <PanelErrorBoundary fallbackTitle="Timeline Error">
                     <div
-                      className="border-t border-neutral-800 flex flex-col shrink-0 relative"
+                      className="border-t border-border flex flex-col shrink-0 relative"
                       style={{ height: timelineHeight }}
                     >
                       <div

@@ -23,15 +23,15 @@ export const TimelineStoryboard = memo(function TimelineStoryboard({
   if (panels.length === 0) {
     return (
       <div className="flex flex-col h-full p-4 gap-3">
-        <h3 className="text-sm font-semibold text-white">Storyboard Steps</h3>
-        <p className="text-xs text-neutral-400">No storyboard steps yet</p>
+        <h3 className="text-sm font-semibold text-foreground">Storyboard Steps</h3>
+        <p className="text-xs text-muted-foreground">No storyboard steps yet</p>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col h-full p-3 gap-3 overflow-y-auto custom-scrollbar">
-      <h3 className="text-sm font-semibold text-white sticky top-0 bg-[var(--surface-0)]">Storyboard Steps</h3>
+      <h3 className="text-sm font-semibold text-foreground sticky top-0 bg-[var(--surface-0)]">Storyboard Steps</h3>
       <div className="flex flex-col gap-2">
         {panels.map((panel, idx) => (
           <div
@@ -40,7 +40,7 @@ export const TimelineStoryboard = memo(function TimelineStoryboard({
             className="group cursor-pointer rounded-lg overflow-hidden border border-[var(--border-default)] hover:border-[var(--accent-primary)] transition-all hover:shadow-lg hover:shadow-[var(--accent-primary)]/20"
           >
             {panel.imageUrl && (
-              <div className="relative w-full aspect-video bg-neutral-900 overflow-hidden">
+              <div className="relative w-full aspect-video bg-background overflow-hidden">
                 <img
                   src={panel.imageUrl}
                   alt={`Step ${idx + 1}`}
@@ -51,12 +51,12 @@ export const TimelineStoryboard = memo(function TimelineStoryboard({
                 </div>
               </div>
             )}
-            <div className="p-2 bg-neutral-900 border-t border-[var(--border-default)]">
-              <p className="text-[11px] text-neutral-300 line-clamp-2">
+            <div className="p-2 bg-background border-t border-[var(--border-default)]">
+              <p className="text-[11px] text-foreground/80 line-clamp-2">
                 {panel.prompt || `Step ${idx + 1}`}
               </p>
               {panel.type && (
-                <p className="text-[9px] text-neutral-500 mt-1">
+                <p className="text-[9px] text-muted-foreground mt-1">
                   {panel.type === "transition" ? "🔄 Transition" : "📸 Scene"}
                 </p>
               )}

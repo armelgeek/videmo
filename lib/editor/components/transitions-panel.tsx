@@ -43,7 +43,7 @@ const TRANSITIONS: TransitionDef[] = [
     type: "fade-white",
     label: "Dip to White",
     description: "Fade through white",
-    icon: <div className="w-5 h-5 bg-white rounded" />,
+    icon: <div className="w-5 h-5 bg-card rounded" />,
     preview: <DipToWhitePreview />,
   },
   {
@@ -87,7 +87,7 @@ function DipToWhitePreview() {
   return (
     <div className="relative w-full h-full overflow-hidden">
       <div className="absolute inset-0 bg-[var(--accent-primary)]" />
-      <div className="absolute inset-0 bg-white animate-[fadeInOut_2s_ease-in-out_infinite]" />
+      <div className="absolute inset-0 bg-card animate-[fadeInOut_2s_ease-in-out_infinite]" />
     </div>
   )
 }
@@ -137,17 +137,17 @@ const TransitionCard = memo(function TransitionCard({
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Preview Area */}
-      <div className="aspect-video bg-neutral-900 relative overflow-hidden">
+      <div className="aspect-video bg-background relative overflow-hidden">
         {isHovered && !isDisabled ? (
           transition.preview
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-neutral-600">{transition.icon}</div>
+            <div className="text-muted-foreground">{transition.icon}</div>
           </div>
         )}
         {isSelected && (
           <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[var(--accent-primary)] flex items-center justify-center">
-            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <svg className="w-3 h-3 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
@@ -156,10 +156,10 @@ const TransitionCard = memo(function TransitionCard({
 
       {/* Label */}
       <div className="p-2.5">
-        <h4 className={`text-xs font-medium ${isSelected ? "text-[var(--accent-text)]" : "text-neutral-300"}`}>
+        <h4 className={`text-xs font-medium ${isSelected ? "text-[var(--accent-text)]" : "text-foreground/80"}`}>
           {transition.label}
         </h4>
-        <p className="text-[10px] text-neutral-500 mt-0.5">{transition.description}</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5">{transition.description}</p>
       </div>
     </div>
   )
@@ -177,7 +177,7 @@ const DurationSlider = memo(function DurationSlider({
   return (
     <div className="flex flex-col gap-3 p-4 bg-[var(--hover-overlay)] rounded-lg border border-[var(--border-default)]">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-neutral-400">Duration</span>
+        <span className="text-xs font-medium text-muted-foreground">Duration</span>
         <span className="text-sm font-mono text-[var(--accent-text)]">{value.toFixed(1)}s</span>
       </div>
 
@@ -188,7 +188,7 @@ const DurationSlider = memo(function DurationSlider({
         step="0.1"
         value={value}
         onChange={(e) => onChange(Number.parseFloat(e.target.value))}
-        className="w-full h-1.5 bg-neutral-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-[var(--accent-primary)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-[var(--accent-shadow)]"
+        className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-[var(--accent-primary)] [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg [&::-webkit-slider-thumb]:shadow-[var(--accent-shadow)]"
       />
 
       <div className="flex gap-1.5">
@@ -199,8 +199,8 @@ const DurationSlider = memo(function DurationSlider({
             onClick={() => onChange(preset)}
             className={`flex-1 py-1.5 rounded text-xs font-medium transition-all ${
               value === preset
-                ? "bg-[var(--accent-primary)] text-accent-text-white"
-                : "bg-[var(--hover-overlay)] text-neutral-400 hover:bg-[var(--active-overlay)] hover:text-accent-text-white"
+                ? "bg-[var(--accent-primary)] text-accent-text-foreground"
+                : "bg-[var(--hover-overlay)] text-muted-foreground hover:bg-[var(--active-overlay)] hover:text-accent-text-foreground"
             }`}
           >
             {preset}s
@@ -297,8 +297,8 @@ export const TransitionsPanel = memo(function TransitionsPanel({
                 disabled={!selectedType || selectedType === "none"}
                 className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all ${
                   selectedType && selectedType !== "none"
-                    ? "bg-[var(--accent-primary)] text-accent-text-white hover:bg-[var(--accent-hover)]"
-                    : "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                    ? "bg-[var(--accent-primary)] text-accent-text-foreground hover:bg-[var(--accent-hover)]"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
                 Apply Transition

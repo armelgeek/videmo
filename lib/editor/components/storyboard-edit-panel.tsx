@@ -36,10 +36,10 @@ export const StoryboardEditPanel = memo(function StoryboardEditPanel({
     <div className="flex flex-col h-full bg-[var(--surface-0)]">
       {/* Header */}
       <div className="p-4 border-b border-[var(--border-default)] flex items-center justify-between shrink-0">
-        <h2 className="text-sm font-semibold text-white">Edit Storyboard Step</h2>
+        <h2 className="text-sm font-semibold text-foreground">Edit Storyboard Step</h2>
         <button
           onClick={onClose}
-          className="p-1.5 hover:bg-[var(--hover-overlay)] rounded-lg text-neutral-500 hover:text-white transition-colors"
+          className="p-1.5 hover:bg-[var(--hover-overlay)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
         >
           <PanelLeftClose className="w-4 h-4" />
         </button>
@@ -50,8 +50,8 @@ export const StoryboardEditPanel = memo(function StoryboardEditPanel({
         {/* Preview */}
         {panel.imageUrl && (
           <div className="space-y-2">
-            <label className="text-xs font-medium text-neutral-400 uppercase">Preview</label>
-            <div className="relative w-full aspect-video bg-neutral-900 rounded-lg overflow-hidden border border-[var(--border-default)]">
+            <label className="text-xs font-medium text-muted-foreground uppercase">Preview</label>
+            <div className="relative w-full aspect-video bg-background rounded-lg overflow-hidden border border-[var(--border-default)]">
               <img
                 src={panel.imageUrl}
                 alt="Preview"
@@ -66,22 +66,22 @@ export const StoryboardEditPanel = memo(function StoryboardEditPanel({
 
         {/* Prompt */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-neutral-400 uppercase">Prompt</label>
+          <label className="text-xs font-medium text-muted-foreground uppercase">Prompt</label>
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            className="w-full h-24 p-3 rounded-lg bg-neutral-900 border border-[var(--border-default)] text-white text-sm resize-none focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
+            className="w-full h-24 p-3 rounded-lg bg-background border border-[var(--border-default)] text-foreground text-sm resize-none focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
             placeholder="Enter prompt..."
           />
         </div>
 
         {/* Duration */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-neutral-400 uppercase">Duration (seconds)</label>
+          <label className="text-xs font-medium text-muted-foreground uppercase">Duration (seconds)</label>
           <select
             value={duration}
             onChange={(e) => setDuration(Number(e.target.value))}
-            className="w-full p-2 rounded-lg bg-neutral-900 border border-[var(--border-default)] text-white text-sm focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
+            className="w-full p-2 rounded-lg bg-background border border-[var(--border-default)] text-foreground text-sm focus:outline-none focus:border-[var(--accent-primary)] transition-colors"
           >
             <option value={2}>2s</option>
             <option value={3}>3s</option>
@@ -94,9 +94,9 @@ export const StoryboardEditPanel = memo(function StoryboardEditPanel({
 
         {/* Status */}
         <div className="space-y-2">
-          <label className="text-xs font-medium text-neutral-400 uppercase">Status</label>
-          <div className="p-3 rounded-lg bg-neutral-900 border border-[var(--border-default)]">
-            <span className="text-xs text-neutral-400 capitalize">{panel.status}</span>
+          <label className="text-xs font-medium text-muted-foreground uppercase">Status</label>
+          <div className="p-3 rounded-lg bg-background border border-[var(--border-default)]">
+            <span className="text-xs text-muted-foreground capitalize">{panel.status}</span>
           </div>
         </div>
       </div>
@@ -105,13 +105,13 @@ export const StoryboardEditPanel = memo(function StoryboardEditPanel({
       <div className="p-4 border-t border-[var(--border-default)] flex gap-2 shrink-0">
         <button
           onClick={onClose}
-          className="flex-1 px-3 py-2 rounded-lg bg-neutral-900 border border-[var(--border-default)] text-white text-sm font-medium hover:bg-neutral-800 transition-colors"
+          className="flex-1 px-3 py-2 rounded-lg bg-background border border-[var(--border-default)] text-foreground text-sm font-medium hover:bg-accent transition-colors"
         >
           Cancel
         </button>
         <button
           onClick={handleSave}
-          className="flex-1 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+          className="flex-1 px-3 py-2 rounded-lg bg-[var(--accent-primary)] text-foreground text-sm font-medium hover:opacity-90 transition-opacity"
         >
           Save
         </button>

@@ -130,12 +130,12 @@ export const SettingsPanel = memo(function SettingsPanel({
         {/* Project Info Section */}
         <PanelSectionBordered title="Project" icon={<SettingsIcon className="w-4 h-4 text-[var(--accent-text)]" />}>
           <div className="space-y-1.5">
-            <label className="text-xs text-neutral-400">Project Name</label>
+            <label className="text-xs text-muted-foreground">Project Name</label>
             <input
               type="text"
               value={settings.projectName}
               onChange={(e) => updateSetting("projectName", e.target.value)}
-              className="w-full bg-[var(--surface-0)] border border-[var(--border-default)] rounded-lg px-3 py-2 text-sm text-neutral-200 focus:outline-none focus:border-[var(--accent-primary)]"
+              className="w-full bg-[var(--surface-0)] border border-[var(--border-default)] rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-[var(--accent-primary)]"
               placeholder="Enter project name..."
             />
           </div>
@@ -254,7 +254,7 @@ export const SettingsPanel = memo(function SettingsPanel({
           title="Keyboard Shortcuts"
           icon={
             <svg
-              className="w-4 h-4 text-purple-400"
+              className="w-4 h-4 text-foreground"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -287,8 +287,8 @@ export const SettingsPanel = memo(function SettingsPanel({
               { keys: "J / K / L", action: "Rewind / Pause / Forward" },
             ].map((shortcut) => (
               <div key={shortcut.action} className="flex items-center justify-between py-1">
-                <span className="text-xs text-neutral-400">{shortcut.action}</span>
-                <kbd className="px-2 py-0.5 bg-[var(--hover-overlay)] border border-[var(--border-default)] rounded text-[10px] text-neutral-300 font-mono">
+                <span className="text-xs text-muted-foreground">{shortcut.action}</span>
+                <kbd className="px-2 py-0.5 bg-[var(--hover-overlay)] border border-[var(--border-default)] rounded text-[10px] text-foreground/80 font-mono">
                   {shortcut.keys}
                 </kbd>
               </div>
@@ -342,7 +342,7 @@ export const SettingsPanel = memo(function SettingsPanel({
 
               <button
                 onClick={handleResetSettings}
-                className="w-full py-2.5 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--hover-overlay)] text-neutral-400 hover:bg-[var(--active-overlay)] text-xs font-medium transition-colors"
+                className="w-full py-2.5 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--hover-overlay)] text-muted-foreground hover:bg-[var(--active-overlay)] text-xs font-medium transition-colors"
               >
                 Reset All Settings
               </button>
@@ -352,8 +352,8 @@ export const SettingsPanel = memo(function SettingsPanel({
 
         {/* Footer */}
         <div className="mt-auto pt-4 text-center border-t border-[var(--border-default)]">
-          <p className="text-[10px] text-neutral-600">Seq Video Editor v1.0.2</p>
-          <p className="text-[10px] text-neutral-700 mt-1">Built with Next.js & FFmpeg</p>
+          <p className="text-[10px] text-muted-foreground">Seq Video Editor v1.0.2</p>
+          <p className="text-[10px] text-muted-foreground mt-1">Built with Next.js & FFmpeg</p>
         </div>
       </PanelContent>
     </PanelContainer>

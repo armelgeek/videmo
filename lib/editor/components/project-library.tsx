@@ -58,7 +58,7 @@ const LibraryItem = memo(function LibraryItem({
     <div
       className={`flex gap-3 p-2 rounded-lg group transition-all border relative cursor-pointer select-none ${
         isSelected
-          ? "bg-[var(--surface-2)] border-neutral-700 ring-1 ring-inset ring-neutral-700"
+          ? "bg-[var(--surface-2)] border-border ring-1 ring-inset ring-neutral-700"
           : "bg-transparent border-transparent hover:bg-[var(--surface-2)] hover:border-[var(--border-default)]"
       }`}
       onClick={onSelect}
@@ -76,7 +76,7 @@ const LibraryItem = memo(function LibraryItem({
       <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
         <p
           className={`text-[11px] font-medium leading-tight truncate ${
-            isSelected ? "text-white" : "text-neutral-400 group-hover:text-neutral-200"
+            isSelected ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
           }`}
         >
           {item.prompt || (item.type === "audio" ? "Audio Track" : "Untitled Media")}
@@ -84,22 +84,22 @@ const LibraryItem = memo(function LibraryItem({
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-[9px] font-mono text-neutral-600">{item.duration.toFixed(1)}s</span>
-            <span className="text-[9px] text-neutral-600 border border-[var(--border-default)] px-1 rounded bg-neutral-900 uppercase">
+            <span className="text-[9px] font-mono text-muted-foreground">{item.duration.toFixed(1)}s</span>
+            <span className="text-[9px] text-muted-foreground border border-[var(--border-default)] px-1 rounded bg-background uppercase">
               {item.type}
             </span>
           </div>
 
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              className="p-1.5 hover:bg-red-900/30 rounded text-neutral-600 hover:text-red-400 transition-all transform hover:scale-110"
+              className="p-1.5 hover:bg-red-900/30 rounded text-muted-foreground hover:text-red-400 transition-all transform hover:scale-110"
               title="Remove from Library"
               onClick={handleRemove}
             >
               <TrashIcon className="w-3 h-3" />
             </button>
             <button
-              className="p-1.5 bg-neutral-800 hover:bg-[var(--accent-primary)] hover:text-accent-text-white rounded text-neutral-500 transition-all transform hover:scale-110"
+              className="p-1.5 bg-muted hover:bg-[var(--accent-primary)] hover:text-accent-text-foreground rounded text-muted-foreground transition-all transform hover:scale-110"
               title="Add to Timeline"
               onClick={handleAddToTimeline}
             >
@@ -179,10 +179,10 @@ export const ProjectLibrary = memo(function ProjectLibrary({
       onDragLeave={handleDragLeave}
     >
       <div className="p-3 border-b border-[var(--border-default)] flex items-center justify-between shrink-0">
-        <span className="text-sm font-medium text-white">Project Media</span>
+        <span className="text-sm font-medium text-foreground">Project Media</span>
         <button
           onClick={onClose}
-          className="p-1.5 hover:bg-[var(--hover-overlay)] rounded-lg text-neutral-500 hover:text-white transition-colors"
+          className="p-1.5 hover:bg-[var(--hover-overlay)] rounded-lg text-muted-foreground hover:text-foreground transition-colors"
         >
           <PanelLeftClose className="w-4 h-4" />
         </button>
@@ -194,7 +194,7 @@ export const ProjectLibrary = memo(function ProjectLibrary({
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 text-[11px] rounded-full font-medium transition-all ${
-              filter === f ? "bg-white text-black" : "text-neutral-500 hover:text-white hover:bg-[var(--hover-overlay)]"
+              filter === f ? "bg-card text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-[var(--hover-overlay)]"
             }`}
           >
             {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -204,11 +204,11 @@ export const ProjectLibrary = memo(function ProjectLibrary({
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
         {filteredMedia.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-neutral-500 text-xs gap-3 p-4">
-            <p className="text-neutral-400">No media yet</p>
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs gap-3 p-4">
+            <p className="text-muted-foreground">No media yet</p>
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="px-4 py-2 bg-[var(--hover-overlay)] hover:bg-[var(--active-overlay)] rounded-lg text-neutral-300 hover:text-accent-text-white transition-colors font-medium"
+              className="px-4 py-2 bg-[var(--hover-overlay)] hover:bg-[var(--active-overlay)] rounded-lg text-foreground/80 hover:text-accent-text-foreground transition-colors font-medium"
             >
               Import Media
             </button>
@@ -250,7 +250,7 @@ export const ProjectLibrary = memo(function ProjectLibrary({
         />
       ) : storyboardPanels && storyboardPanels.length > 0 ? (
         <div className="border-t border-[var(--border-default)] p-2">
-          <p className="text-[11px] font-medium text-neutral-400 px-2 py-1">
+          <p className="text-[11px] font-medium text-muted-foreground px-2 py-1">
             Generation Storyboard
           </p>
           <div className="grid grid-cols-2 gap-1 mt-2">
@@ -261,7 +261,7 @@ export const ProjectLibrary = memo(function ProjectLibrary({
                 className="group cursor-pointer rounded overflow-hidden border border-[var(--border-default)] hover:border-[var(--accent-primary)] transition-all"
               >
                 {panel.imageUrl && (
-                  <div className="relative w-full aspect-video bg-neutral-900 overflow-hidden">
+                  <div className="relative w-full aspect-video bg-background overflow-hidden">
                     <img
                       src={panel.imageUrl}
                       alt={`Step ${idx + 1}`}
@@ -279,7 +279,7 @@ export const ProjectLibrary = memo(function ProjectLibrary({
         <input type="file" ref={fileInputRef} accept="video/*,audio/*,image/*" onChange={handleFileChange} hidden />
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="text-[11px] text-neutral-400 hover:text-white px-3 py-1.5 bg-[var(--hover-overlay)] hover:bg-[var(--active-overlay)] rounded-lg transition-colors font-medium"
+          className="text-[11px] text-muted-foreground hover:text-foreground px-3 py-1.5 bg-[var(--hover-overlay)] hover:bg-[var(--active-overlay)] rounded-lg transition-colors font-medium"
         >
           + Import
         </button>
@@ -289,13 +289,13 @@ export const ProjectLibrary = memo(function ProjectLibrary({
           max="120"
           value={thumbnailSize}
           onChange={(e) => setThumbnailSize(Number.parseInt(e.target.value))}
-          className="w-20 h-1 bg-neutral-700 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--accent-primary)] [&::-webkit-slider-thumb]:cursor-pointer"
+          className="w-20 h-1 bg-muted rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[var(--accent-primary)] [&::-webkit-slider-thumb]:cursor-pointer"
         />
       </div>
 
       {isDragOver && (
         <div className="absolute inset-0 bg-[var(--accent-primary)]/20 flex items-center justify-center pointer-events-none z-50 backdrop-blur-sm">
-          <p className="text-white font-medium">Drop to import</p>
+          <p className="text-foreground font-medium">Drop to import</p>
         </div>
       )}
     </div>

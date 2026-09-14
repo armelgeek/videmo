@@ -132,7 +132,7 @@ export const TimelineToolbar = memo(function TimelineToolbar({
                 <Button
                 variant="ghost"
                 size="icon"
-                className={`h-6 w-6 hover:bg-[var(--hover-overlay)] ${historyCount > 0 ? "text-[var(--text-primary)] hover:text-white" : "text-[var(--text-muted)] cursor-not-allowed"}`}
+                className={`h-6 w-6 hover:bg-[var(--hover-overlay)] ${historyCount > 0 ? "text-[var(--text-primary)] hover:text-foreground" : "text-[var(--text-muted)] cursor-not-allowed"}`}
                 onClick={onUndo}
                 disabled={historyCount === 0}
               >
@@ -142,7 +142,7 @@ export const TimelineToolbar = memo(function TimelineToolbar({
               <Button
                 variant="ghost"
                 size="icon"
-                className={`h-6 w-6 hover:bg-[var(--hover-overlay)] ${futureCount > 0 ? "text-[var(--text-primary)] hover:text-white" : "text-[var(--text-muted)] cursor-not-allowed"}`}
+                className={`h-6 w-6 hover:bg-[var(--hover-overlay)] ${futureCount > 0 ? "text-[var(--text-primary)] hover:text-foreground" : "text-[var(--text-muted)] cursor-not-allowed"}`}
                 onClick={onRedo}
                 disabled={futureCount === 0}
               >
@@ -159,7 +159,7 @@ export const TimelineToolbar = memo(function TimelineToolbar({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 text-white hover:bg-[var(--accent-bg-subtle)] hover:text-[var(--accent-text)]"
+              className="h-7 w-7 text-foreground hover:bg-[var(--accent-bg-subtle)] hover:text-[var(--accent-text)]"
               onClick={onPlayPause}
             >
               {isPlaying ? (
@@ -196,9 +196,9 @@ export const TimelineToolbar = memo(function TimelineToolbar({
           {onShowShortcuts && (
             <button
               onClick={onShowShortcuts}
-              className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.06] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-white/[0.06] transition-colors"
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.06] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-accent transition-colors"
             >
-              <kbd className="text-[10px] font-mono bg-white/[0.06] px-1 rounded">
+              <kbd className="text-[10px] font-mono bg-card px-1 rounded">
                 ?
               </kbd>
               <span className="text-[10px] font-medium">Shortcuts</span>
@@ -208,21 +208,21 @@ export const TimelineToolbar = memo(function TimelineToolbar({
           <div className="flex items-center gap-2 bg-[var(--hover-overlay)] rounded-md p-1 border border-[var(--border-default)]">
             <button
               onClick={() => onZoomChange(getPrevZoom(zoomLevel))}
-              className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-white/[0.06] rounded"
+              className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-accent rounded"
             >
               <ZoomOutIcon className="w-3.5 h-3.5" />
             </button>
             {onZoomToFit && (
               <button
                 onClick={onZoomToFit}
-                className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-white/[0.06] rounded"
+                className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-accent rounded"
               >
                 <MaximizeIcon className="w-3.5 h-3.5" />
               </button>
             )}
             <button
               onClick={() => onZoomChange(getNextZoom(zoomLevel))}
-              className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-white/[0.06] rounded"
+              className="p-1 hover:text-[var(--text-primary)] text-[var(--text-tertiary)] hover:bg-accent rounded"
             >
               <ZoomInIcon className="w-3.5 h-3.5" />
             </button>

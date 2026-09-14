@@ -76,7 +76,7 @@ export const InspectorPanel = memo(function InspectorPanel({
             onClick={() => setActiveTab("properties")}
             className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
               activeTab === "properties"
-                ? "text-white border-b-2 border-[var(--tertiary)]"
+                ? "text-foreground border-b-2 border-[var(--tertiary)]"
                 : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             }`}
           >
@@ -86,7 +86,7 @@ export const InspectorPanel = memo(function InspectorPanel({
             onClick={() => setActiveTab("effects")}
             className={`flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 ${
               activeTab === "effects"
-                ? "text-white border-b-2 border-[var(--tertiary)]"
+                ? "text-foreground border-b-2 border-[var(--tertiary)]"
                 : "text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]"
             }`}
           >
@@ -229,9 +229,9 @@ export const InspectorPanel = memo(function InspectorPanel({
                       className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       {isPreviewPlaying ? (
-                        <PauseIcon className="w-10 h-10 text-white/80" />
+                        <PauseIcon className="w-10 h-10 text-muted-foreground" />
                       ) : (
-                        <PlayIcon className="w-10 h-10 text-white/80" />
+                        <PlayIcon className="w-10 h-10 text-muted-foreground" />
                       )}
                     </button>
                   </>
@@ -315,8 +315,8 @@ export const InspectorPanel = memo(function InspectorPanel({
                     onClick={() => handleSpeedChange(speed)}
                     className={`px-3 py-1.5 rounded text-xs font-medium transition-all ${
                       (clip.speed ?? 1) === speed
-                        ? "bg-[var(--tertiary)] text-white"
-                        : "bg-[var(--hover-overlay)] text-[var(--text-tertiary)] hover:bg-[var(--active-overlay)] hover:text-white"
+                        ? "bg-[var(--tertiary)] text-foreground"
+                        : "bg-[var(--hover-overlay)] text-[var(--text-tertiary)] hover:bg-[var(--active-overlay)] hover:text-foreground"
                     }`}
                   >
                     {speed}x
@@ -371,8 +371,8 @@ export const InspectorPanel = memo(function InspectorPanel({
                       onClick={() => onUpdateClip(clip.id, { volume: vol })}
                       className={`flex-1 py-1 rounded text-[10px] font-medium transition-all ${
                         (clip.volume ?? 1) === vol
-                          ? "bg-white text-black"
-                          : "bg-[var(--hover-overlay)] text-[var(--text-tertiary)] hover:bg-[var(--active-overlay)] hover:text-white"
+                          ? "bg-card text-foreground"
+                          : "bg-[var(--hover-overlay)] text-[var(--text-tertiary)] hover:bg-[var(--active-overlay)] hover:text-foreground"
                       }`}
                     >
                       {vol === 0 ? "Mute" : `${Math.round(vol * 100)}%`}
@@ -424,8 +424,8 @@ export const InspectorPanel = memo(function InspectorPanel({
                         onClick={() => onUpdateClip(clip.id, { fadeIn: val, fadeOut: val })}
                         className={`flex-1 py-1 rounded text-[9px] font-medium transition-all ${
                           (clip.fadeIn ?? 0) === val && (clip.fadeOut ?? 0) === val
-                            ? "bg-white text-black"
-                            : "bg-[var(--hover-overlay)] text-[var(--text-tertiary)] hover:bg-[var(--active-overlay)] hover:text-white"
+                            ? "bg-card text-foreground"
+                            : "bg-[var(--hover-overlay)] text-[var(--text-tertiary)] hover:bg-[var(--active-overlay)] hover:text-foreground"
                         }`}
                       >
                         {val === 0 ? "None" : `${val}s`}

@@ -93,14 +93,14 @@ export function StoryboardPanel({
         <div className="flex items-center gap-2">
           <Badge
             variant="outline"
-            className="text-xs bg-white/5 border-white/10 text-white/70"
+            className="text-xs bg-card border-border text-muted-foreground"
           >
             Panel {index + 1}
           </Badge>
           {isTransitionPanel && (
             <Badge
               variant="secondary"
-              className="text-xs bg-white/5 border-white/10 text-white/70"
+              className="text-xs bg-card border-border text-muted-foreground"
             >
               <Link2 className="w-3 h-3 mr-1" />
               Transition
@@ -110,7 +110,7 @@ export function StoryboardPanel({
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-white/40 hover:text-red-400 hover:bg-white/5"
+          className="h-6 w-6 text-muted-foreground hover:text-red-400 hover:bg-accent"
           onClick={() => onRemove(panel.id)}
         >
           <Trash2 className="h-3.5 w-3.5" />
@@ -138,13 +138,13 @@ export function StoryboardPanel({
               <Button
                 size="icon"
                 variant="secondary"
-                className="rounded-full h-12 w-12 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20"
+                className="rounded-full h-12 w-12 bg-accent hover:bg-accent backdrop-blur-sm border border-border"
                 onClick={() => setIsPlaying(!isPlaying)}
               >
                 {isPlaying ? (
-                  <div className="h-4 w-4 bg-white rounded-sm" />
+                  <div className="h-4 w-4 bg-card rounded-sm" />
                 ) : (
-                  <Play className="h-5 w-5 ml-0.5 text-white" />
+                  <Play className="h-5 w-5 ml-0.5 text-foreground" />
                 )}
               </Button>
             </div>
@@ -208,8 +208,8 @@ export function StoryboardPanel({
         {/* Loading Overlay */}
         {panel.isGenerating && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[1px]">
-            <Loader2 className="h-8 w-8 text-white/80 animate-spin mb-2" />
-            <span className="text-xs text-white/80 font-medium animate-pulse">
+            <Loader2 className="h-8 w-8 text-muted-foreground animate-spin mb-2" />
+            <span className="text-xs text-muted-foreground font-medium animate-pulse">
               Generating Video...
             </span>
           </div>
@@ -219,7 +219,7 @@ export function StoryboardPanel({
       {/* Controls */}
       <div className="p-3 flex flex-col gap-3 bg-black/20 flex-1">
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
             Video Model
           </label>
           <Select
@@ -227,10 +227,10 @@ export function StoryboardPanel({
             onValueChange={(val) => onUpdate(panel.id, { model: val as any })}
             value={panel.model || "veo3.1-fast"}
           >
-            <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-white">
+            <SelectTrigger className="h-7 text-xs bg-card border-border text-foreground">
               <SelectValue placeholder="veo3.1-fast" />
             </SelectTrigger>
-            <SelectContent className="bg-zinc-900 border-zinc-800">
+            <SelectContent className="bg-background border-border">
               {isTransitionPanel ? (
                 <>
                   <SelectItem value="veo3.1-fast">Veo 3.1 Fast</SelectItem>
@@ -256,7 +256,7 @@ export function StoryboardPanel({
 
         <div className="space-y-1.5 flex-1 min-h-0 flex flex-col">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
               Video Prompt
             </label>
             <div className="flex items-center gap-2">
@@ -288,12 +288,12 @@ export function StoryboardPanel({
                 ? "Describe the transition effect (e.g. 'Smooth zoom out')"
                 : "Describe the motion for this shot..."
             }
-            className="flex-1 min-h-[60px] text-xs resize-none bg-white/5 border-white/10 focus:border-white/20 text-white/90 placeholder:text-white/20 font-mono"
+            className="flex-1 min-h-[60px] text-xs resize-none bg-card border-border focus:border-border text-muted-foreground placeholder:text-muted-foreground/50 font-mono"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
             Duration
           </label>
           <Select
@@ -304,10 +304,10 @@ export function StoryboardPanel({
               })
             }
           >
-            <SelectTrigger className="h-7 text-xs bg-white/5 border-white/10 text-white">
+            <SelectTrigger className="h-7 text-xs bg-card border-border text-foreground">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-zinc-900 border-zinc-800">
+            <SelectContent className="bg-background border-border">
               <SelectItem value="3">3 seconds</SelectItem>
               <SelectItem value="5">5 seconds</SelectItem>
               <SelectItem value="8">8 seconds</SelectItem>
@@ -318,7 +318,7 @@ export function StoryboardPanel({
         <div className="mt-auto pt-2">
           {panel.videoUrl ? (
             <Button
-              className="w-full text-xs h-8 bg-white/10 hover:bg-white/20 text-white border border-white/10"
+              className="w-full text-xs h-8 bg-accent hover:bg-accent text-foreground border border-border"
               onClick={() => onGenerate(panel.id)}
               disabled={panel.isGenerating}
             >
@@ -327,7 +327,7 @@ export function StoryboardPanel({
             </Button>
           ) : (
             <Button
-              className="w-full text-xs h-8 bg-accent-gradient hover:opacity-90 text-accent-text-white border-0"
+              className="w-full text-xs h-8 bg-accent-gradient hover:opacity-90 text-accent-text-foreground border-0"
               onClick={() => onGenerate(panel.id)}
               disabled={panel.isGenerating || !panel.prompt.trim()}
             >

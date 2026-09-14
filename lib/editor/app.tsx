@@ -130,7 +130,7 @@ function App() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center h-screen bg-[var(--surface-0)] text-white">
+        <div className="flex items-center justify-center h-screen bg-[var(--surface-0)] text-foreground">
           Loading editor...
         </div>
       }

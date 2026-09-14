@@ -257,13 +257,13 @@ export function StoryboardContainer({
   if (panels.length === 0) {
     return (
       <div className="w-full p-8 border border-dashed border-white/10 rounded-lg bg-black/20 flex flex-col items-center justify-center text-center">
-        <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mb-4">
-          <Layers className="h-6 w-6 text-white/20" />
+        <div className="h-12 w-12 rounded-full bg-card flex items-center justify-center mb-4">
+          <Layers className="h-6 w-6 text-muted-foreground/50" />
         </div>
-        <h3 className="text-sm font-medium text-white/80 mb-1">
+        <h3 className="text-sm font-medium text-muted-foreground mb-1">
           Empty Storyboard
         </h3>
-        <p className="text-xs text-white/40 max-w-xs mb-4">
+        <p className="text-xs text-muted-foreground max-w-xs mb-4">
           Add generated images from above to create a video storyboard powered
           by Veo.
         </p>
@@ -275,11 +275,11 @@ export function StoryboardContainer({
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
-          <Film className="h-4 w-4 text-white/60" />
-          <h2 className="text-sm font-semibold text-white/80">
+          <Film className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-muted-foreground">
             Video Storyboard
           </h2>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/50 border border-white/5">
+          <span className="text-xs px-2 py-0.5 rounded-full bg-accent text-muted-foreground border border-border">
             {panels.length} Panels
           </span>
         </div>
@@ -297,14 +297,14 @@ export function StoryboardContainer({
           <Button
             size="sm"
             variant="outline"
-            className="h-7 text-xs bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white"
+            className="h-7 text-xs bg-card border-border text-muted-foreground hover:bg-accent hover:text-foreground"
             onClick={() => setPanels([])}
           >
             Clear All
           </Button>
           <Button
             size="sm"
-            className="h-7 text-xs bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white border-0"
+            className="h-7 text-xs bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-foreground border-0"
             onClick={generateAll}
           >
             <Wand2 className="mr-1.5 h-3 w-3" />
@@ -313,7 +313,7 @@ export function StoryboardContainer({
           {panels.length > 0 && panels.every((p) => p.videoUrl) && (
             <Button
               size="sm"
-              className="h-7 text-xs bg-green-600/80 hover:bg-green-600 text-white border-0"
+              className="h-7 text-xs bg-green-600/80 hover:bg-green-600 text-foreground border-0"
               onClick={() => (window.location.href = "/timeline")}
             >
               <Film className="mr-1.5 h-3 w-3" />
@@ -325,10 +325,10 @@ export function StoryboardContainer({
 
       {panels.length > 0 && panels.every((p) => !p.prompt) && (
         <div className="px-1">
-          <div className="text-xs text-white/40 bg-white/5 border border-white/10 rounded-lg p-3 flex items-start gap-2">
-            <Layers className="h-3.5 w-3.5 text-white/40 mt-0.5 shrink-0" />
+          <div className="text-xs text-muted-foreground bg-card border border-border rounded-lg p-3 flex items-start gap-2">
+            <Layers className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
             <div>
-              <p className="font-medium text-white/60 mb-1">
+              <p className="font-medium text-muted-foreground mb-1">
                 Your Storyboard is Ready
               </p>
               <p>
@@ -344,7 +344,7 @@ export function StoryboardContainer({
       <div className="px-1 space-y-3">
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] uppercase tracking-wider text-white/40 font-semibold">
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
               Master Clip Description / Story Context
             </label>
             <Button
@@ -366,20 +366,20 @@ export function StoryboardContainer({
             value={masterDescription}
             onChange={(e) => setMasterDescription(e.target.value)}
             placeholder="Describe the overall scene, style, or story context (e.g. 'A flashback scene in Ratatouille, warm cinematic lighting, emotional tone'). This will be used to enhance individual shot prompts."
-            className="min-h-[60px] text-xs resize-none bg-white/5 border-white/10 focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] text-white/90 placeholder:text-white/20"
+            className="min-h-[60px] text-xs resize-none bg-card border-border focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] text-muted-foreground placeholder:text-muted-foreground/50"
           />
         </div>
 
-        <div className="border border-white/10 bg-white/5 rounded-lg p-3">
+        <div className="border border-border bg-card rounded-lg p-3">
           <div className="flex items-center gap-2 mb-3">
-            <Settings2 className="h-3.5 w-3.5 text-white/60" />
-            <label className="text-[10px] uppercase tracking-wider text-white/60 font-semibold">
+            <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
               Video Configuration (Applied to All Panels)
             </label>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <label className="text-[10px] text-white/50 font-medium">
+              <label className="text-[10px] text-muted-foreground font-medium">
                 Aspect Ratio
               </label>
               <Select
@@ -391,7 +391,7 @@ export function StoryboardContainer({
                   })
                 }
               >
-                <SelectTrigger className="h-8 text-xs bg-white/5 border-white/10 text-white">
+                <SelectTrigger className="h-8 text-xs bg-card border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -401,7 +401,7 @@ export function StoryboardContainer({
               </Select>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] text-white/50 font-medium">
+              <label className="text-[10px] text-muted-foreground font-medium">
                 Quality
               </label>
               <Select
@@ -413,7 +413,7 @@ export function StoryboardContainer({
                   })
                 }
               >
-                <SelectTrigger className="h-8 text-xs bg-white/5 border-white/10 text-white">
+                <SelectTrigger className="h-8 text-xs bg-card border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -423,7 +423,7 @@ export function StoryboardContainer({
               </Select>
             </div>
           </div>
-          <p className="text-[10px] text-white/30 mt-2">
+          <p className="text-[10px] text-foreground/30 mt-2">
             Total sequence duration: ~
             {panels.reduce((sum, p) => sum + (p.duration || 5), 0)}s
           </p>
@@ -447,14 +447,14 @@ export function StoryboardContainer({
           ))}
 
           {panels.length < 6 && (
-            <div className="w-[300px] h-[360px] flex-none border border-dashed border-white/10 rounded-lg bg-white/5 flex flex-col items-center justify-center text-center p-6 opacity-50 hover:opacity-100 transition-opacity cursor-help">
-              <p className="text-xs text-white/40">
+            <div className="w-[300px] h-[360px] flex-none border border-dashed border-border rounded-lg bg-card flex flex-col items-center justify-center text-center p-6 opacity-50 hover:opacity-100 transition-opacity cursor-help">
+              <p className="text-xs text-muted-foreground">
                 Select an image above and click "Add to Storyboard"
               </p>
             </div>
           )}
         </div>
-        <ScrollBar orientation="horizontal" className="bg-white/5" />
+        <ScrollBar orientation="horizontal" className="bg-card" />
       </ScrollArea>
     </div>
   );

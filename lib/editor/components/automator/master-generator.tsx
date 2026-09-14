@@ -54,7 +54,7 @@ const PreviewOverlay = memo(function PreviewOverlay({
                 type="number"
                 min={1}
                 max={12}
-                className="h-6 w-16 text-xs bg-zinc-800 border-zinc-600"
+                className="h-6 w-16 text-xs bg-muted border-border"
                 value={analyzedCount || 6}
                 onChange={(e) =>
                   onCountChange(Number.parseInt(e.target.value) || 6)
@@ -64,7 +64,7 @@ const PreviewOverlay = memo(function PreviewOverlay({
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-6 w-6 hover:bg-zinc-700"
+                className="h-6 w-6 hover:bg-accent"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEditToggle(false);
@@ -75,7 +75,7 @@ const PreviewOverlay = memo(function PreviewOverlay({
             </div>
           ) : (
             <div
-              className="flex items-center gap-2 cursor-pointer hover:text-zinc-300"
+              className="flex items-center gap-2 cursor-pointer hover:text-foreground/80"
               onClick={() => onEditToggle(true)}
             >
               <span>
@@ -277,14 +277,14 @@ export const MasterGenerator = memo(function MasterGenerator({
         </div>
       )}
 
-      <Card className="p-6 bg-zinc-900 border-zinc-800 space-y-6">
+      <Card className="p-6 bg-background border-border space-y-6">
         {!generatedUrl ? (
           <Tabs
             defaultValue="generate"
             className="w-full"
             onValueChange={handleModeChange}
           >
-            <TabsList className="grid w-full grid-cols-2 mb-6 bg-zinc-800">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-muted">
               <TabsTrigger value="generate">Generate New</TabsTrigger>
               <TabsTrigger value="upload">Upload Existing</TabsTrigger>
             </TabsList>
@@ -337,7 +337,7 @@ export const MasterGenerator = memo(function MasterGenerator({
 
             <TabsContent value="upload" className="space-y-6">
               <div
-                className="border-2 border-dashed border-zinc-700 rounded-lg p-10 text-center hover:border-zinc-500 hover:bg-zinc-800/50 transition cursor-pointer"
+                className="border-2 border-dashed border-border rounded-lg p-10 text-center hover:border-zinc-500 hover:bg-zinc-800/50 transition cursor-pointer"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <input
@@ -348,8 +348,8 @@ export const MasterGenerator = memo(function MasterGenerator({
                   onChange={handleFileUpload}
                 />
                 <div className="flex flex-col items-center gap-2">
-                  <div className="p-4 bg-zinc-800 rounded-full mb-2">
-                    <Upload className="h-8 w-8 text-zinc-400" />
+                  <div className="p-4 bg-muted rounded-full mb-2">
+                    <Upload className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <h3 className="font-medium text-lg">
                     Click to upload master storyboard
@@ -373,7 +373,7 @@ export const MasterGenerator = memo(function MasterGenerator({
           </Tabs>
         ) : (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="relative aspect-[3/2] rounded-lg overflow-hidden border border-zinc-700">
+            <div className="relative aspect-[3/2] rounded-lg overflow-hidden border border-border">
               <Image
                 src={generatedUrl || "/placeholder.svg"}
                 alt="Storyboard Master"
@@ -394,7 +394,7 @@ export const MasterGenerator = memo(function MasterGenerator({
                 variant="outline"
                 onClick={handleReset}
                 disabled={isGenerating || isAnalyzing}
-                className="flex-1 h-12 text-lg border-zinc-700 hover:bg-zinc-800 bg-transparent"
+                className="flex-1 h-12 text-lg border-border hover:bg-accent bg-transparent"
               >
                 {mode === "generate" ? (
                   <>
@@ -412,13 +412,13 @@ export const MasterGenerator = memo(function MasterGenerator({
               <Button
                 onClick={handleApprove}
                 disabled={isAnalyzing}
-                className="flex-1 h-12 text-lg bg-white text-black hover:bg-zinc-200"
+                className="flex-1 h-12 text-lg bg-card text-foreground hover:bg-zinc-200"
               >
                 <Check className="mr-2 h-5 w-5" />
                 Approve & Process
               </Button>
             </div>
-            <p className="text-xs text-center text-zinc-500">
+            <p className="text-xs text-center text-muted-foreground">
               {analyzedCount
                 ? `Approving will slice this master into ${analyzedCount} individual panels based on AI analysis.`
                 : "Approving will automatically slice this master into panels and upscale them."}

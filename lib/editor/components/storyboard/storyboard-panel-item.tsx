@@ -79,13 +79,13 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
           <div className="flex items-center gap-2">
             <div
               className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-bold ${
-                isTransition ? "bg-[var(--accent-bg-subtle)] text-[var(--accent-text)]" : "bg-white/10 text-white"
+                isTransition ? "bg-[var(--accent-bg-subtle)] text-[var(--accent-text)]" : "bg-accent text-foreground"
               }`}
             >
               {index + 1}
             </div>
             <span
-              className={`text-[10px] font-bold uppercase ${isTransition ? "text-[var(--accent-text)]" : "text-neutral-500"}`}
+              className={`text-[10px] font-bold uppercase ${isTransition ? "text-[var(--accent-text)]" : "text-muted-foreground"}`}
             >
               {isTransition ? `Keyframes` : `Shot`}
             </span>
@@ -95,7 +95,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
               <button
                 onClick={() => onUpdatePanel(panel.id, { type: "scene", linkedImageUrl: undefined })}
                 className={`px-1.5 py-0.5 text-[8px] rounded ${
-                  !isTransition ? "bg-neutral-600 text-white" : "text-neutral-500 hover:text-neutral-300"
+                  !isTransition ? "bg-neutral-600 text-foreground" : "text-muted-foreground hover:text-foreground/80"
                 }`}
               >
                 Shot
@@ -109,7 +109,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                   })
                 }}
                 className={`px-1.5 py-0.5 text-[8px] rounded ${
-                  isTransition ? "bg-[var(--accent-primary)] text-accent-text-white" : "text-neutral-500 hover:text-neutral-300"
+                  isTransition ? "bg-[var(--accent-primary)] text-accent-text-foreground" : "text-muted-foreground hover:text-foreground/80"
                 }`}
               >
                 Keyframes
@@ -131,7 +131,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
           </div>
           <button
             onClick={() => onDeletePanel(panel.id)}
-            className="text-neutral-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="text-muted-foreground hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <TrashIcon className="w-3 h-3" />
           </button>
@@ -148,7 +148,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                   ? "Describe the motion between keyframes (e.g. 'Morph smoothly')..."
                   : "Describe the shot..."
               }
-              className="w-full bg-[var(--surface-1)] border border-neutral-700 rounded p-2 text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-[var(--accent-muted)] min-h-[60px] resize-y pr-6"
+              className="w-full bg-[var(--surface-1)] border border-border rounded p-2 text-xs text-foreground placeholder-neutral-600 focus:outline-none focus:border-[var(--accent-muted)] min-h-[60px] resize-y pr-6"
               disabled={isGeneratingImage || isGeneratingVideo || isEnhancing}
             />
             <button
@@ -173,8 +173,8 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                 onClick={() => onUpdatePanel(panel.id, { duration: d as 5 | 8 })}
                 className={`px-2 py-0.5 text-[9px] rounded border ${
                   panel.duration === d
-                    ? "bg-neutral-700 border-neutral-600 text-white"
-                    : "bg-transparent border-transparent text-neutral-600 hover:text-neutral-400"
+                    ? "bg-muted border-border text-foreground"
+                    : "bg-transparent border-transparent text-muted-foreground hover:text-muted-foreground"
                 }`}
               >
                 {d}s
@@ -199,7 +199,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                     </button>
                   </>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-neutral-700 gap-1">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1">
                     <span className="text-[9px]">Start Frame</span>
                     {prevImage && (
                       <button
@@ -209,7 +209,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                         Use Previous
                       </button>
                     )}
-                    <label className="text-[8px] text-neutral-500 hover:text-neutral-300 cursor-pointer flex items-center gap-1">
+                    <label className="text-[8px] text-muted-foreground hover:text-foreground/80 cursor-pointer flex items-center gap-1">
                       <UploadIcon className="w-3 h-3" />
                       Upload
                       <input
@@ -226,7 +226,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                 )}
               </div>
 
-              <div className="text-neutral-600 text-lg">→</div>
+              <div className="text-muted-foreground text-lg">→</div>
 
               {/* End Frame */}
               <div className="relative flex-1 aspect-video bg-[var(--surface-1)] rounded border border-[var(--border-default)] overflow-hidden group/media">
@@ -241,7 +241,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                     </button>
                   </>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-neutral-700 gap-1">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground gap-1">
                     <span className="text-[9px]">End Frame</span>
                     {nextImage && (
                       <button
@@ -251,7 +251,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                         Use Next
                       </button>
                     )}
-                    <label className="text-[8px] text-neutral-500 hover:text-neutral-300 cursor-pointer flex items-center gap-1">
+                    <label className="text-[8px] text-muted-foreground hover:text-foreground/80 cursor-pointer flex items-center gap-1">
                       <UploadIcon className="w-3 h-3" />
                       Upload
                       <input
@@ -288,7 +288,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                   <>
                     <img src={panel.imageUrl || "/placeholder.svg"} className="w-full h-full object-cover" />
                     <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
-                      <CheckIcon className="w-2.5 h-2.5 text-white" />
+                      <CheckIcon className="w-2.5 h-2.5 text-foreground" />
                     </div>
                     <button
                       onClick={() => onUpdatePanel(panel.id, { imageUrl: undefined })}
@@ -309,11 +309,11 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                   <div className="w-full h-full flex items-center justify-center">
                     {isGeneratingImage ? (
                       <div className="flex flex-col items-center gap-1">
-                        <div className="animate-spin w-4 h-4 border-2 border-neutral-600 border-t-neutral-400 rounded-full" />
-                        <span className="text-[8px] text-neutral-500">Generating...</span>
+                        <div className="animate-spin w-4 h-4 border-2 border-border border-t-neutral-400 rounded-full" />
+                        <span className="text-[8px] text-muted-foreground">Generating...</span>
                       </div>
                     ) : (
-                      <span className="text-[9px] text-neutral-700">No Image</span>
+                      <span className="text-[9px] text-muted-foreground">No Image</span>
                     )}
                   </div>
                 )}
@@ -324,7 +324,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                       {panel.prompt && (
                         <button
                           onClick={() => onGenerateImage(panel.id, panel.prompt)}
-                          className="flex flex-col items-center gap-1 text-neutral-300 hover:text-white p-2"
+                          className="flex flex-col items-center gap-1 text-foreground/80 hover:text-foreground p-2"
                         >
                           <MagicIcon className="w-4 h-4" />
                           <span className="text-[8px] font-medium">Generate</span>
@@ -332,7 +332,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                       )}
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="flex flex-col items-center gap-1 text-neutral-300 hover:text-white p-2"
+                        className="flex flex-col items-center gap-1 text-foreground/80 hover:text-foreground p-2"
                       >
                         <UploadIcon className="w-4 h-4" />
                         <span className="text-[8px] font-medium">Upload</span>
@@ -348,7 +348,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                   <>
                     <video src={panel.videoUrl} className="w-full h-full object-cover" controls muted />
                     <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-green-500 flex items-center justify-center">
-                      <CheckIcon className="w-2.5 h-2.5 text-white" />
+                      <CheckIcon className="w-2.5 h-2.5 text-foreground" />
                     </div>
                   </>
                 ) : (
@@ -359,7 +359,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                         <span className="text-[8px] text-[var(--accent-text)]">Generating...</span>
                       </div>
                     ) : (
-                      <span className="text-[9px] text-neutral-700">No Video</span>
+                      <span className="text-[9px] text-muted-foreground">No Video</span>
                     )}
                   </div>
                 )}
@@ -369,7 +369,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
 
           {/* Action Bar */}
           <div className="flex justify-between items-center pt-1">
-            <div className="text-[9px] text-neutral-600 font-mono">
+            <div className="text-[9px] text-muted-foreground font-mono">
               {videoConfig.useFastModel ? "Veo Fast" : "Veo Quality"}
             </div>
 
@@ -386,7 +386,7 @@ export const StoryboardPanelItem = memo<StoryboardPanelItemProps>(
                     )
                   }
                   disabled={!panel.prompt || (isTransition && (!panel.imageUrl || !panel.linkedImageUrl))}
-                  className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-[10px] font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-foreground text-[10px] font-medium rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FilmIcon className="w-3 h-3" />
                   {isTransition ? "Interpolate" : "Animate"}

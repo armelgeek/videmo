@@ -28,9 +28,9 @@ export const StoryboardHeader = memo<StoryboardHeaderProps>(
       <>
         {/* Header */}
         <div className="h-14 flex items-center px-4 justify-between shrink-0 border-b border-[var(--border-default)] bg-[var(--surface-0)] z-10">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-neutral-400">Storyboard</h2>
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Storyboard</h2>
           <div
-            className="p-1.5 rounded hover:bg-neutral-800 cursor-pointer text-neutral-500 transition-colors"
+            className="p-1.5 rounded hover:bg-accent cursor-pointer text-muted-foreground transition-colors"
             onClick={onClose}
           >
             <PanelLeftClose className="w-4 h-4" />
@@ -41,7 +41,7 @@ export const StoryboardHeader = memo<StoryboardHeaderProps>(
           {/* Master Context */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Master Context</label>
+              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Master Context</label>
               <button
                 onClick={onEnhanceMaster}
                 disabled={isEnhancingMaster || !masterDescription.trim()}
@@ -59,19 +59,19 @@ export const StoryboardHeader = memo<StoryboardHeaderProps>(
               value={masterDescription}
               onChange={(e) => setMasterDescription(e.target.value)}
               placeholder="Describe the overall story, style, and atmosphere..."
-              className="w-full bg-[var(--surface-1)] border border-[var(--border-default)] rounded p-2 text-xs text-neutral-200 placeholder-neutral-600 focus:outline-none focus:border-[var(--accent-muted)] min-h-[60px] resize-y"
+              className="w-full bg-[var(--surface-1)] border border-[var(--border-default)] rounded p-2 text-xs text-foreground placeholder-neutral-600 focus:outline-none focus:border-[var(--accent-muted)] min-h-[60px] resize-y"
             />
           </div>
 
           {/* Global Settings */}
           <div className="flex flex-col gap-2 bg-[var(--surface-1)] p-3 rounded-lg border border-[var(--border-default)]">
-            <div className="flex items-center gap-2 mb-2 text-neutral-400">
+            <div className="flex items-center gap-2 mb-2 text-muted-foreground">
               <SettingsIcon className="w-3.5 h-3.5" />
               <span className="text-[10px] uppercase font-bold tracking-wider">Video Settings</span>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] text-neutral-500">Aspect Ratio</span>
+                <span className="text-[9px] text-muted-foreground">Aspect Ratio</span>
                 <div className="flex gap-1 bg-black/20 rounded p-0.5">
                   {["16:9", "9:16"].map((ratio) => (
                     <button
@@ -79,8 +79,8 @@ export const StoryboardHeader = memo<StoryboardHeaderProps>(
                       onClick={() => setVideoConfig({ ...videoConfig, aspectRatio: ratio as "16:9" | "9:16" })}
                       className={`flex-1 py-1 text-[9px] rounded ${
                         videoConfig.aspectRatio === ratio
-                          ? "bg-neutral-700 text-white"
-                          : "text-neutral-500 hover:text-neutral-300"
+                          ? "bg-muted text-foreground"
+                          : "text-muted-foreground hover:text-foreground/80"
                       }`}
                     >
                       {ratio}
@@ -89,14 +89,14 @@ export const StoryboardHeader = memo<StoryboardHeaderProps>(
                 </div>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="text-[9px] text-neutral-500">Model Quality</span>
+                <span className="text-[9px] text-muted-foreground">Model Quality</span>
                 <div className="flex gap-1 bg-black/20 rounded p-0.5">
                   <button
                     onClick={() => setVideoConfig({ ...videoConfig, useFastModel: true })}
                     className={`flex-1 py-1 text-[9px] rounded ${
                       videoConfig.useFastModel
-                        ? "bg-[var(--accent-primary)] text-accent-text-white"
-                        : "text-neutral-500 hover:text-neutral-300"
+                        ? "bg-[var(--accent-primary)] text-accent-text-foreground"
+                        : "text-muted-foreground hover:text-foreground/80"
                     }`}
                   >
                     Fast
@@ -105,8 +105,8 @@ export const StoryboardHeader = memo<StoryboardHeaderProps>(
                     onClick={() => setVideoConfig({ ...videoConfig, useFastModel: false })}
                     className={`flex-1 py-1 text-[9px] rounded ${
                       !videoConfig.useFastModel
-                        ? "bg-[var(--accent-secondary)] text-white"
-                        : "text-neutral-500 hover:text-neutral-300"
+                        ? "bg-[var(--accent-secondary)] text-foreground"
+                        : "text-muted-foreground hover:text-foreground/80"
                     }`}
                   >
                     High

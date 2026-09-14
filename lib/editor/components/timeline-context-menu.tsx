@@ -63,11 +63,11 @@ export const TimelineContextMenu = memo(function TimelineContextMenu({
 
   return (
     <div
-      className="fixed z-[100] bg-[var(--surface-2)] border border-neutral-700 rounded-lg shadow-2xl py-1 w-48 animate-in fade-in zoom-in-95 duration-75"
+      className="fixed z-[100] bg-[var(--surface-2)] border border-border rounded-lg shadow-2xl py-1 w-48 animate-in fade-in zoom-in-95 duration-75"
       style={{ left: x, top: y }}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="px-3 py-1.5 border-b border-[var(--border-default)] text-[10px] font-bold text-neutral-500 uppercase tracking-wider mb-1">
+      <div className="px-3 py-1.5 border-b border-[var(--border-default)] text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
         Clip Actions
       </div>
 
@@ -76,9 +76,9 @@ export const TimelineContextMenu = memo(function TimelineContextMenu({
           onSplitClip(clipId, currentTime)
           onClose()
         }}
-        className="w-full px-3 py-1.5 text-left text-xs text-neutral-200 hover:bg-neutral-800 flex items-center gap-2"
+        className="w-full px-3 py-1.5 text-left text-xs text-foreground hover:bg-accent flex items-center gap-2"
       >
-        <SplitIcon className="w-3.5 h-3.5 text-neutral-500" /> Split at Playhead
+        <SplitIcon className="w-3.5 h-3.5 text-muted-foreground" /> Split at Playhead
       </button>
 
       <button
@@ -86,9 +86,9 @@ export const TimelineContextMenu = memo(function TimelineContextMenu({
           onDuplicateClip([clipId])
           onClose()
         }}
-        className="w-full px-3 py-1.5 text-left text-xs text-neutral-200 hover:bg-neutral-800 flex items-center gap-2"
+        className="w-full px-3 py-1.5 text-left text-xs text-foreground hover:bg-accent flex items-center gap-2"
       >
-        <CopyIcon className="w-3.5 h-3.5 text-neutral-500" /> Duplicate
+        <CopyIcon className="w-3.5 h-3.5 text-muted-foreground" /> Duplicate
       </button>
 
       {canDetachAudio && (
@@ -97,9 +97,9 @@ export const TimelineContextMenu = memo(function TimelineContextMenu({
             onDetachAudio(clipId)
             onClose()
           }}
-          className="w-full px-3 py-1.5 text-left text-xs text-neutral-200 hover:bg-neutral-800 flex items-center gap-2"
+          className="w-full px-3 py-1.5 text-left text-xs text-foreground hover:bg-accent flex items-center gap-2"
         >
-          <MusicIcon className="w-3.5 h-3.5 text-neutral-500" /> Detach Audio
+          <MusicIcon className="w-3.5 h-3.5 text-muted-foreground" /> Detach Audio
         </button>
       )}
 
@@ -109,9 +109,9 @@ export const TimelineContextMenu = memo(function TimelineContextMenu({
             onExportAudio(audioClipsToExport)
             onClose()
           }}
-          className="w-full px-3 py-1.5 text-left text-xs text-neutral-200 hover:bg-neutral-800 flex items-center gap-2"
+          className="w-full px-3 py-1.5 text-left text-xs text-foreground hover:bg-accent flex items-center gap-2"
         >
-          <DownloadIcon className="w-3.5 h-3.5 text-neutral-500" />
+          <DownloadIcon className="w-3.5 h-3.5 text-muted-foreground" />
           {hasMultipleAudioClips ? `Export ${audioClipsToExport.length} Audio Clips` : "Export Audio"}
         </button>
       )}
@@ -123,7 +123,7 @@ export const TimelineContextMenu = memo(function TimelineContextMenu({
           onRippleDeleteClip([clipId])
           onClose()
         }}
-        className="w-full px-3 py-1.5 text-left text-xs text-amber-400 hover:bg-neutral-800 flex items-center gap-2"
+        className="w-full px-3 py-1.5 text-left text-xs text-amber-400 hover:bg-accent flex items-center gap-2"
       >
         <LayoutIcon className="w-3.5 h-3.5 text-amber-600" /> Ripple Delete
       </button>
@@ -133,7 +133,7 @@ export const TimelineContextMenu = memo(function TimelineContextMenu({
           onDeleteClip([clipId])
           onClose()
         }}
-        className="w-full px-3 py-1.5 text-left text-xs text-red-400 hover:bg-neutral-800 flex items-center gap-2"
+        className="w-full px-3 py-1.5 text-left text-xs text-red-400 hover:bg-accent flex items-center gap-2"
       >
         <TrashIcon className="w-3.5 h-3.5 text-red-500" /> Delete
       </button>

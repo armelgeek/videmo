@@ -211,7 +211,7 @@ export const StoryboardPanel = memo<StoryboardPanelProps>(
           {/* Panels */}
           <div className="flex flex-col gap-4 p-4 pb-20">
             {panels.length === 0 && (
-              <div className="text-center py-8 opacity-50 text-xs text-neutral-500">
+              <div className="text-center py-8 opacity-50 text-xs text-muted-foreground">
                 Add panels to start your sequence.
               </div>
             )}
@@ -239,7 +239,7 @@ export const StoryboardPanel = memo<StoryboardPanelProps>(
 
             <button
               onClick={onAddPanel}
-              className="w-full py-3 rounded-lg border border-dashed border-neutral-700 hover:border-neutral-500 text-neutral-500 hover:text-neutral-300 transition-all flex items-center justify-center gap-2 text-xs font-medium"
+              className="w-full py-3 rounded-lg border border-dashed border-border hover:border-neutral-500 text-muted-foreground hover:text-foreground/80 transition-all flex items-center justify-center gap-2 text-xs font-medium"
             >
               <PlusIcon className="w-4 h-4" /> Add Panel
             </button>
