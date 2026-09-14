@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const previews = await loadPreviews(rows.map((row) => row.id));
+    const previews = new Map(); // const previews_disabled = await loadPreviews(rows.map((row) => row.id));
 
     const now = new Date();
     const data = rows.map(({ lockedById, lockExpiresAt, lockedBy, ...rest }) => ({
