@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { usePermission } from '@/hooks/use-permission';
+import { PermissionsViewToggle } from '@/components/molecules/admin/permissions-view-toggle';
+import { PermissionsMatrix } from '@/components/molecules/admin/permissions-matrix';
 import { Button } from '@/components/ui/button';
 import {
   Breadcrumb,
@@ -55,6 +57,7 @@ export default function EditRolePage() {
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [permissionsView, setPermissionsView] = useState<'list' | 'matrix'>('matrix');
   const [role, setRole] = useState<Role | null>(null);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
@@ -254,7 +257,7 @@ export default function EditRolePage() {
 
                     <Card>
                       <CardHeader>
-                        <CardTitle>Permissions</CardTitle>
+<CardTitle>Permissions</CardTitle>
                         <CardDescription>
                           {role?.isSystem
                             ? 'This system role always has every permission, including ones added later. Only its description can change.'
@@ -262,46 +265,59 @@ export default function EditRolePage() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="grid gap-6">
-                          {Object.entries(groupedPermissions).map(([resource, perms]) => (
-                            <div key={resource} className="grid gap-3">
-                              <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-medium capitalize">{resource}</h3>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => toggleAllForResource(resource)}
-                                  disabled={role?.isSystem}
-                                >
-                                  {perms.every((p) => selectedPermissions.includes(p.id)) ? 'Deselect All' : 'Select All'}
-                                </Button>
-                              </div>
-                              <div className="grid gap-2 rounded-md border p-4">
-                                {perms.map((permission) => (
-                                  <div key={permission.id} className="flex items-start space-x-3">
-                                    <Checkbox
-                                      id={permission.id}
-                                      checked={selectedPermissions.includes(permission.id)}
-                                      onCheckedChange={() => togglePermission(permission.id)}
+                        <div className="space-y-4">
+                          <PermissionsViewToggle onViewChange={setPermissionsView} />
+                          
+                          {permissionsView === 'matrix' ? (
+                            <PermissionsMatrix
+                              permissions={permissions}
+                              selectedPermissionIds={selectedPermissions}
+                              onPermissionToggle={togglePermission}
+                              disabled={role?.isSystem}
+                            />
+                          ) : (
+                            <div className="grid gap-6">
+                              {Object.entries(groupedPermissions).map(([resource, perms]) => (
+                                <div key={resource} className="grid gap-3">
+                                  <div className="flex items-center justify-between">
+                                    <h3 className="text-sm font-medium capitalize">{resource}</h3>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => toggleAllForResource(resource)}
                                       disabled={role?.isSystem}
-                                    />
-                                    <div className="grid gap-1.5 leading-none">
-                                      <label
-                                        htmlFor={permission.id}
-                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                                      >
-                                        {permission.name}
-                                      </label>
-                                      {permission.description && (
-                                        <p className="text-sm text-muted-foreground">{permission.description}</p>
-                                      )}
-                                    </div>
+                                    >
+                                      {perms.every((p) => selectedPermissions.includes(p.id)) ? 'Deselect All' : 'Select All'}
+                                    </Button>
                                   </div>
-                                ))}
-                              </div>
+                                  <div className="grid gap-2 rounded-md border p-4">
+                                    {perms.map((permission) => (
+                                      <div key={permission.id} className="flex items-start space-x-3">
+                                        <Checkbox
+                                          id={permission.id}
+                                          checked={selectedPermissions.includes(permission.id)}
+                                          onCheckedChange={() => togglePermission(permission.id)}
+                                          disabled={role?.isSystem}
+                                        />
+                                        <div className="grid gap-1.5 leading-none">
+                                          <label
+                                            htmlFor={permission.id}
+                                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                          >
+                                            {permission.name}
+                                          </label>
+                                          {permission.description && (
+                                            <p className="text-sm text-muted-foreground">{permission.description}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                          )}
                         </div>
                       </CardContent>
                     </Card>
