@@ -1,14 +1,17 @@
 "use client";
 
-import type * as React from "react";
-import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { Folder, FolderPlus, Mail, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
-import { LayoutGrid, Film, Plus, X, FolderPlus, Folder } from "lucide-react";
+import { api } from "@/lib/client";
 import { LogoIcon } from "@/lib/editor/components/icons";
-import { UserMenu } from "@/lib/editor/components/user-menu";
-import { useSession } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
+import { ProjectThumbnail } from "@/components/organisms/workspace/project-thumbnail";
+import type { ProjectListResponse } from "@/components/organisms/workspace/types";
+import { OrganizationSwitcher } from "./organization-switcher";
+import { ORGANIZATION_CHANGED_EVENT } from "./organization-events";
 
 export type SidebarView =
   | "library"
@@ -26,178 +29,205 @@ interface AppSidebarProps {
 }
 
 const NAV_ITEMS = [
-  {
-    id: "storyboard",
-    href: "/storyboard",
-    icon: LayoutGrid,
-    label: "Storyboard",
-  },
-  {
-    id: "studio",
-    href: "/timeline",
-    icon: Film,
-    label: "Video Timeline",
-  },
+  { href: "/new-project", icon: FolderPlus, label: "New project" },
+  { href: "/workspace", icon: Folder, label: "Projects" },
+  { href: "/workspace/members", icon: Users, label: "Members" },
 ] as const;
 
-const RECENT_PROJECTS = [
-  { id: 1, name: "Summer Campaign", updated: "1m", status: "Created" },
-  { id: 2, name: "Product Launch", updated: "2h", status: "In Progress" },
-  { id: 3, name: "Brand Refresh", updated: "5h", status: "In Review" },
-];
+interface PendingInvitation {
+  id: string;
+  status: string;
+  expiresAt: string | Date;
+  organizationName?: string;
+}
 
-export function AppSidebar({
-  activeView,
-  isPanelOpen,
-  onViewChange,
-  onTogglePanel,
-}: AppSidebarProps) {
-  const pathname = usePathname();
-  const isStudioPage = pathname === "/timeline";
-  const { data: session } = useSession();
-  const [mounted, setMounted] = useState(false);
-  const [issuesCount, setIssuesCount] = useState(2);
-  const [showIssues, setShowIssues] = useState(true);
-  const [activeMenu, setActiveMenu] = useState<"new-project" | "workspace">(
-    "new-project",
-  );
+function usePendingInvitations(pathname: string) {
+  const [invitations, setInvitations] = useState<PendingInvitation[]>([]);
 
   useEffect(() => {
-    setMounted(true);
+    authClient.organization.listUserInvitations().then(({ data }) => {
+      const now = new Date();
+      setInvitations(
+        ((data ?? []) as unknown as PendingInvitation[]).filter(
+          (invitation) => invitation.status === "pending" && new Date(invitation.expiresAt) > now,
+        ),
+      );
+    });
+  }, [pathname]);
+
+  return invitations;
+}
+
+function useRecentProjects(pathname: string) {
+  const [projects, setProjects] = useState<ProjectListResponse["data"] | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await api.get<ProjectListResponse>("/api/video-projects?limit=5");
+    setProjects(res.ok ? res.data.data : []);
   }, []);
 
-  const getNavItemActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  };
+  useEffect(() => {
+    load();
+  }, [load, pathname]);
+
+  useEffect(() => {
+    window.addEventListener(ORGANIZATION_CHANGED_EVENT, load);
+    return () => window.removeEventListener(ORGANIZATION_CHANGED_EVENT, load);
+  }, [load]);
+
+  return projects;
+}
+
+export function AppSidebar(_props: AppSidebarProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const openProjectId = searchParams.get("project");
+  const { data: session } = useSession();
+  const recentProjects = useRecentProjects(pathname);
+  const pendingInvitations = usePendingInvitations(pathname);
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 z-50 w-64 flex flex-col bg-neutral-950 h-screen overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-white/10">
-        <Link href="/" className="flex items-center gap-3 flex-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 flex-shrink-0">
+    <aside className="fixed bottom-0 left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r border-white/5 bg-neutral-950">
+      <div className="flex items-center gap-3 border-b border-white/10 px-4 py-4">
+        <Link href="/" className="flex flex-1 items-center gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
             <LogoIcon className="h-4 w-4 text-white" />
           </div>
           <span className="text-sm font-bold text-gray-100">Studio</span>
         </Link>
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-rose-500 to-violet-500 flex-shrink-0" />
       </div>
 
-      {/* Main Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-2">
-        {/* Menu Items */}
-        <div className="space-y-2 mb-6">
-          {/* New Project */}
-          <Link
-            href="/storyboard"
-            className={cn(
-              "w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors border",
-              pathname === "/storyboard"
-                ? "bg-gradient-to-r from-rose-500/20 to-violet-500/20 border-rose-500/30 text-white"
-                : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white",
-            )}
-          >
-            <FolderPlus className="w-4 h-4" />
-            New Project
-          </Link>
+      <div className="border-b border-white/10 px-2 py-2">
+        <OrganizationSwitcher />
+      </div>
 
-          {/* Workspace */}
-          <Link
-            href="/workspace"
-            className={cn(
-              "w-full flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors",
-              pathname === "/workspace"
-                ? "bg-gradient-to-r from-rose-500/20 to-violet-500/20 border-rose-500/30 text-white"
-                : "",
-            )}
-          >
-            <Folder className="w-4 h-4" />
-            Workspace
-          </Link>
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
+        <div className="space-y-1">
+          {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
+            const isActive = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={isActive ? "page" : undefined}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-rose-500/70",
+                  isActive
+                    ? "border-rose-500/30 bg-gradient-to-r from-rose-500/20 to-violet-500/20 text-white"
+                    : "border-transparent text-gray-400 hover:bg-white/5 hover:text-white",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </Link>
+            );
+          })}
         </div>
 
-        {/* Recent Projects Section */}
-        {/* <div className="mt-6 pt-4 border-t border-white/10">
-          <div className="flex items-center justify-between px-3 mb-3">
-            <span className="text-xs font-semibold text-gray-500 uppercase">
-              Recent Projects
-            </span>
-            <span className="text-xs text-gray-600">
-              {RECENT_PROJECTS.length}
-            </span>
-          </div>
-          <div className="space-y-1">
-            {RECENT_PROJECTS.map((project) => (
-              <div
-                key={project.id}
-                className="px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-              >
-                <p className="text-sm font-semibold text-gray-100">
-                  {project.name}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {project.updated} · {project.status}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>*/}
+        {pendingInvitations.length > 0 && (
+          <section aria-labelledby="pending-invitations">
+            <h2
+              id="pending-invitations"
+              className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500"
+            >
+              Invitations
+            </h2>
+            <ul className="space-y-1">
+              {pendingInvitations.map((invitation) => (
+                <li key={invitation.id}>
+                  <Link
+                    href={`/invite/${invitation.id}`}
+                    className="flex items-center gap-3 rounded-lg border border-rose-500/20 bg-rose-500/5 p-2 outline-none transition-colors hover:bg-rose-500/10 focus-visible:ring-2 focus-visible:ring-rose-500/70"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-rose-500/15 text-rose-300">
+                      <Mail className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm text-gray-100">
+                        {invitation.organizationName ?? "An organization"}
+                      </span>
+                      <span className="block text-xs text-rose-300/80">Review invitation</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section aria-labelledby="recent-projects">
+          <h2
+            id="recent-projects"
+            className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500"
+          >
+            Recent
+          </h2>
+          {recentProjects === null ? (
+            <div className="space-y-1 px-1">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-3 p-2">
+                  <div className="h-7 w-12 rounded bg-white/5 motion-safe:animate-pulse" />
+                  <div className="h-3 flex-1 rounded bg-white/5 motion-safe:animate-pulse" />
+                </div>
+              ))}
+            </div>
+          ) : recentProjects.length === 0 ? (
+            <p className="px-3 text-xs text-gray-600">Projects you open show up here.</p>
+          ) : (
+            <ul className="space-y-0.5">
+              {recentProjects.map((project) => {
+                const isOpen = openProjectId === project.id;
+                return (
+                  <li key={project.id}>
+                    <Link
+                      href={`/storyboard?project=${project.id}`}
+                      aria-current={isOpen ? "page" : undefined}
+                      className={cn(
+                        "group flex items-center gap-3 rounded-lg p-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-rose-500/70",
+                        isOpen ? "bg-white/10" : "hover:bg-white/5",
+                      )}
+                    >
+                      <ProjectThumbnail
+                        compact
+                        previewUrl={project.previewUrl}
+                        aspectRatio={project.aspectRatio}
+                        className="w-12 shrink-0 rounded ring-1 ring-white/10"
+                      />
+                      <span className="min-w-0 truncate text-sm text-gray-300 group-hover:text-white">
+                        {project.title}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       </nav>
 
-      {/* Footer */}
-      <div className="border-t border-white/10 px-3 py-3 space-y-3">
-        {/* Issues Badge */}
-        {showIssues && issuesCount > 0 && (
-          <div className="flex items-center justify-between bg-white/5 rounded-full px-3 py-2">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-white">N</span>
-              </div>
-              <span className="text-xs font-medium text-red-400">
-                {issuesCount} Issues
+      {session?.user && (
+        <div className="flex items-center gap-2 border-t border-white/10 px-3 py-3">
+          {session.user.image ? (
+            <img
+              src={session.user.image}
+              alt=""
+              className="h-7 w-7 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gray-700">
+              <span className="text-xs font-bold text-gray-300">
+                {(session.user.name?.[0] || session.user.email?.[0] || "U").toUpperCase()}
               </span>
             </div>
-            <button
-              onClick={() => setShowIssues(false)}
-              className="text-gray-500 hover:text-gray-300 transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </button>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-gray-100">
+              {session.user.name || session.user.email}
+            </p>
+            <p className="truncate text-xs text-gray-400">{session.user.email}</p>
           </div>
-        )}
-
-        {/* User Profile */}
-        {mounted && session?.user && (
-          <div className="flex items-center gap-2">
-            {session.user.image ? (
-              <img
-                src={session.user.image}
-                alt={session.user.name || "User"}
-                className="w-7 h-7 rounded-full object-cover flex-shrink-0"
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-                <span className="text-xs font-bold text-gray-300">
-                  {(
-                    session.user.name?.[0] ||
-                    session.user.email?.[0] ||
-                    "U"
-                  ).toUpperCase()}
-                </span>
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-100 truncate">
-                {session.user.name || session.user.email}
-              </p>
-              <p className="text-xs text-gray-400 truncate">
-                {session.user.email}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </aside>
   );
 }

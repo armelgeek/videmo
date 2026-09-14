@@ -6,6 +6,7 @@ import { Header } from '@/components/organisms/header/header'
 import { Footer } from '@/components/organisms/footer/footer'
 import { LoginForm } from '@/components/molecules/forms/login-form'
 import { buildMetadata } from "@/lib/seo"
+import { safeRedirectPath } from "@/lib/utils/safe-redirect"
 
 export const metadata = buildMetadata({
   title: "Sign In",
@@ -15,13 +16,18 @@ export const metadata = buildMetadata({
   noIndex: true,
 });
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect?: string }>
+}) {
+  const redirectTo = safeRedirectPath((await searchParams).redirect) ?? undefined
   const session = await auth.api.getSession({
     headers: await headers(),
   })
 
   if (session) {
-    redirect("/dashboard")
+    redirect(redirectTo ?? "/dashboard")
   }
 
   return (
@@ -31,7 +37,7 @@ export default async function LoginPage() {
         <div className="flex w-full max-w-sm flex-col gap-6">
           <h1 className="sr-only">Sign in to your account</h1>
           <Logo className="self-center" />
-          <LoginForm />
+          <LoginForm redirectTo={redirectTo} />
         </div>
       </div>
       <Footer />

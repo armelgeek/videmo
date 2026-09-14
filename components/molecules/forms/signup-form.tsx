@@ -63,8 +63,10 @@ const getPasswordStrength = (password: string): { label: string; color: string; 
 
 export function SignupForm({
   className,
+  redirectTo,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { redirectTo?: string }) {
+  const loginHref = redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : "/login"
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -159,7 +161,7 @@ export function SignupForm({
       }
 
       toast.success("Email verified successfully!")
-      router.push("/login")
+      router.push(loginHref)
     } catch (error: any) {
       toast.error(error.message || "Failed to verify email")
       setIsLoading(false)
@@ -414,7 +416,7 @@ export function SignupForm({
                   {isLoading ? "Creating account..." : "Create Account"}
                 </Button>
                 <FieldDescription className="text-center">
-                  Already have an account? <a href="/login">Sign in</a>
+                  Already have an account? <a href={loginHref}>Sign in</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

@@ -31,8 +31,9 @@ const loginSchema = z.object({
 
 export function LoginForm({
   className,
+  redirectTo,
   ...props
-}: React.ComponentProps<"div">) {
+}: React.ComponentProps<"div"> & { redirectTo?: string }) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -99,7 +100,7 @@ export function LoginForm({
       }
 
       toast.success("Logged in successfully!")
-      const redirectUrl = await getRedirectUrl()
+      const redirectUrl = await getRedirectUrl(redirectTo)
       router.push(redirectUrl)
     } catch (error: any) {
       toast.error(error.message || "Failed to login")
@@ -177,7 +178,7 @@ export function LoginForm({
         return
       }
       toast.success("Logged in successfully!")
-      const redirectUrl = await getRedirectUrl()
+      const redirectUrl = await getRedirectUrl(redirectTo)
       router.push(redirectUrl)
     } catch (error: any) {
       toast.error(error.message || "Failed to verify code")
@@ -380,7 +381,10 @@ export function LoginForm({
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="/signup">Sign up</a>
+                  Don&apos;t have an account?{" "}
+                  <a href={redirectTo ? `/signup?redirect=${encodeURIComponent(redirectTo)}` : "/signup"}>
+                    Sign up
+                  </a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

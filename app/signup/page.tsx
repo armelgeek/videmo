@@ -6,6 +6,7 @@ import { Header } from '@/components/organisms/header/header'
 import { Footer } from '@/components/organisms/footer/footer'
 import { SignupForm } from '@/components/molecules/forms/signup-form'
 import { buildMetadata } from "@/lib/seo"
+import { safeRedirectPath } from "@/lib/utils/safe-redirect"
 
 export const metadata = buildMetadata({
   title: "Create an Account",
@@ -14,13 +15,18 @@ export const metadata = buildMetadata({
   keywords: ["sign up", "register", "create account", "free trial"],
 });
 
-export default async function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect?: string }>
+}) {
+  const redirectTo = safeRedirectPath((await searchParams).redirect) ?? undefined
   const session = await auth.api.getSession({
     headers: await headers(),
   })
 
   if (session) {
-    redirect("/dashboard")
+    redirect(redirectTo ?? "/dashboard")
   }
 
   return (
@@ -30,7 +36,7 @@ export default async function SignupPage() {
         <div className="flex w-full max-w-sm flex-col gap-6">
           <h1 className="sr-only">Create your account</h1>
           <Logo className="self-center" />
-          <SignupForm />
+          <SignupForm redirectTo={redirectTo} />
         </div>
       </div>
       <Footer />

@@ -6,7 +6,8 @@ export type EmailType =
   | 'subscription_created'
   | 'subscription_cancelled'
   | 'email_change_verification'
-  | 'email_change_notification';
+  | 'email_change_notification'
+  | 'organization_invitation';
 
 export interface BaseEmailData {
   recipientEmail: string;
@@ -52,6 +53,14 @@ export interface EmailChangeNotificationData extends BaseEmailData {
   newEmail: string;
 }
 
+export interface OrganizationInvitationEmailData extends BaseEmailData {
+  organizationName: string;
+  inviterName: string;
+  role: string;
+  acceptUrl: string;
+  expiryHours: number;
+}
+
 export interface BookingUpdateEmailData {
   recipientName?: string;
   bookingId: string;
@@ -86,7 +95,8 @@ export type EmailData =
   | WelcomeEmailData
   | SubscriptionEmailData
   | EmailChangeVerificationData
-  | EmailChangeNotificationData;
+  | EmailChangeNotificationData
+  | OrganizationInvitationEmailData;
 
 export interface SendEmailRequest {
   type: EmailType;

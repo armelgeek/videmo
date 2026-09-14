@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
-import type { SendEmailRequest, OTPEmailData, ResetPasswordEmailData, PaymentReceiptEmailData, WelcomeEmailData, SubscriptionEmailData, EmailChangeVerificationData, EmailChangeNotificationData } from '@/types/email';
+import type { SendEmailRequest, OTPEmailData, ResetPasswordEmailData, PaymentReceiptEmailData, WelcomeEmailData, SubscriptionEmailData, EmailChangeVerificationData, EmailChangeNotificationData, OrganizationInvitationEmailData } from '@/types/email';
+import { getOrganizationInvitationTemplate } from './email-templates/organization-invitation-template';
 import { getOTPEmailTemplate } from './email-templates/otp-template';
 import { getResetPasswordTemplate } from './email-templates/reset-password-template';
 import { getPaymentReceiptTemplate } from './email-templates/payment-receipt-template';
@@ -67,6 +68,10 @@ export class EmailService {
       case 'email_change_notification':
         htmlContent = getEmailChangeNotificationTemplate(data as EmailChangeNotificationData);
         emailSubject = subject || 'Email Change Requested';
+        break;
+      case 'organization_invitation':
+        htmlContent = getOrganizationInvitationTemplate(data as OrganizationInvitationEmailData);
+        emailSubject = subject || 'You have been invited to an organization';
         break;
       default:
         throw new Error(`Unsupported email type: ${type}`);

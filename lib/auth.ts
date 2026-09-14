@@ -19,6 +19,8 @@ const isEmailVerificationEnabled = process.env.NEXT_PUBLIC_ENABLE_EMAIL_VERIFICA
 
 const pendingWelcomeEmails = new Set<string>();
 
+const INVITATION_EXPIRY_HOURS = 48;
+
 const statement = { ...defaultStatements, ...PROJECT_STATEMENTS } as const;
 const ac = createAccessControl(statement);
 
@@ -151,6 +153,25 @@ export const auth = betterAuth({
     organization({
       ac,
       roles: organizationRoles,
+      invitationExpiresIn: INVITATION_EXPIRY_HOURS * 60 * 60,
+      sendInvitationEmail: async ({ id, email, role, organization: invitedTo, inviter }) => {
+        const acceptUrl = `${appConfig.url}/invite/${id}`;
+        const inviterName = inviter.user.name || inviter.user.email;
+        console.log('📧 [Auth] Sending organization invitation', { email, acceptUrl });
+        await new EmailService().sendEmail({
+          type: 'organization_invitation',
+          recipients: [email],
+          subject: `${inviterName} invited you to ${invitedTo.name}`,
+          data: {
+            recipientEmail: email,
+            organizationName: invitedTo.name,
+            inviterName,
+            role,
+            acceptUrl,
+            expiryHours: INVITATION_EXPIRY_HOURS,
+          },
+        });
+      },
       schema: {
         // The plugin expects 'member' and 'invitation' tables; ours are already
         // named, and renaming a table in production costs more than this

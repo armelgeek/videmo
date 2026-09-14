@@ -7,5 +7,6 @@ export { getWelcomeEmailTemplate } from './welcome-template';
 export { getSubscriptionEmailTemplate } from './subscription-template';
 export { getEmailChangeVerificationTemplate } from './email-change-verification-template';
 export { getEmailChangeNotificationTemplate } from './email-change-notification-template';
+export { getOrganizationInvitationTemplate } from './organization-invitation-template';
 
 export * from './types';
