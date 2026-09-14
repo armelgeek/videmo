@@ -24,12 +24,10 @@ import {
   Wand2,
   Layers,
   Settings,
-  LayoutGrid,
   Film,
   Loader2,
   RefreshCw,
   Globe,
-  Clock,
   Volume2,
   Users,
   Download,
@@ -43,6 +41,8 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
+import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
+import { PromptWizard } from "@/components/organisms/storyboard/prompt-wizard";
 import Link from "next/link";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
 import { VOICES, normalizeVoice } from "@/lib/speech/speech-generator";
@@ -118,8 +118,14 @@ const LANGUAGE_LABELS: Record<string, string> = {
  * une phrase qui n'etait pas dans la langue qu'elle lira.
  */
 const PREVIEW_FALLBACK: Record<string, string> = {
-  en: "Here is a preview of this narration voice.",
-  fr: "Voici un apercu de cette voix de narration.",
+  en: "Hi! This is how I'll narrate your video.",
+  fr: "Bonjour ! Voici comment je vais raconter votre vidéo.",
+  es: "¡Hola! Así es como narraré tu vídeo.",
+  de: "Hallo! So werde ich dein Video erzählen.",
+  it: "Ciao! Ecco come racconterò il tuo video.",
+  pt: "Olá! É assim que vou narrar o seu vídeo.",
+  zh: "你好！我会这样为你的视频配音。",
+  ja: "こんにちは！この声であなたの動画をナレーションします。",
 };
 
 /**
@@ -583,10 +589,7 @@ export default function StoryboardPage() {
           projectId: projectSync.projectId,
           sceneIndex: 0,
           voice,
-          text:
-            scriptText.trim().slice(0, 200) ||
-            PREVIEW_FALLBACK[projectParams.language] ||
-            PREVIEW_FALLBACK.en,
+          text: PREVIEW_FALLBACK[projectParams.language] ?? PREVIEW_FALLBACK.en,
         }),
       });
       const body = await response.json();
@@ -1076,7 +1079,7 @@ export default function StoryboardPage() {
 
   return (
     <AppShell showSidebar={false} contentClassName="h-screen overflow-hidden">
-      <div className="h-full bg-background text-foreground flex flex-col overflow-hidden">
+      <div className="sk-paper h-full text-foreground flex flex-col overflow-hidden">
         <DevPanel currentStep={step} />
 
         {projectSync.status === "read-only" && (
@@ -1094,7 +1097,7 @@ export default function StoryboardPage() {
           </div>
         )}
 
-        <header className="sticky top-0 z-40 border-b border-border/50 bg-background/80 backdrop-blur-sm">
+        <header className="sticky top-0 z-40 mb-1 border-b-2 border-ink bg-background/90 shadow-[0_4px_0_hsl(var(--highlight))] backdrop-blur-sm">
           <div className="px-6 py-3 flex items-center justify-center gap-8 relative">
             {/* Project Title + Actions - Left */}
             <div className="absolute left-6 flex items-center gap-3">
@@ -1110,7 +1113,7 @@ export default function StoryboardPage() {
                 type="text"
                 value={projectTitle}
                 onChange={(e) => setProjectTitle(e.target.value)}
-                className="text-xl font-semibold bg-transparent border-0 border-b border-border/50 focus:border-primary focus:outline-none text-foreground placeholder-muted-foreground w-full max-w-xs px-0 py-1 transition-colors"
+                className="text-xl font-semibold bg-transparent border-0 border-b border-border/50 focus:border-ink focus:outline-none text-foreground placeholder-muted-foreground w-full max-w-xs px-0 py-1 transition-colors"
                 placeholder="Project title..."
               />
               <div className="flex items-center gap-1.5">
@@ -1158,29 +1161,20 @@ export default function StoryboardPage() {
                           : "cursor-not-allowed opacity-40",
                       )}
                     >
-                      <div
-                        className={cn(
-                          "w-6 h-6 rounded-full flex items-center justify-center transition-all",
-                          isActive
-                            ? "bg-primary text-primary-foreground"
-                            : isCompleted
-                              ? "bg-primary/10 text-primary"
-                              : "bg-muted text-muted-foreground group-hover:bg-muted/70",
-                        )}
+                      <span
+                        className="sk-step-dot"
+                        data-state={isActive ? "active" : isCompleted ? "done" : "todo"}
+                        aria-hidden="true"
                       >
-                        {isCompleted ? (
-                          <Check className="w-3 h-3" />
-                        ) : (
-                          <Icon className="w-3 h-3" />
-                        )}
-                      </div>
+                        {isCompleted ? <Check className="w-3.5 h-3.5" /> : isActive ? <Icon className="w-3.5 h-3.5" /> : i + 1}
+                      </span>
                       <span
                         className={cn(
                           "text-[11px] font-medium transition-colors whitespace-nowrap",
                           isActive
                             ? "text-foreground"
                             : isCompleted
-                              ? "text-primary"
+                              ? "text-foreground"
                               : "text-muted-foreground",
                         )}
                       >
@@ -1189,11 +1183,10 @@ export default function StoryboardPage() {
                     </button>
                     {i < STEPS.length - 1 && (
                       <div
+                        aria-hidden="true"
                         className={cn(
-                          "w-10 h-px transition-colors",
-                          i < currentStepIndex
-                            ? "bg-primary/50"
-                            : "bg-border/30",
+                          "w-12 border-t-2 border-dashed transition-colors -mt-4",
+                          i < currentStepIndex ? "border-ink" : "border-border",
                         )}
                       />
                     )}
@@ -1207,7 +1200,7 @@ export default function StoryboardPage() {
               <div className="absolute right-6 flex items-center justify-center gap-2">
                 <button
                   onClick={() => setIsShortcutsOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-primary bg-primary/10 hover:bg-primary/20 border border-primary/30 hover:border-primary/60 rounded-full text-xs font-medium transition-all hover:scale-105 hover:shadow-md"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-foreground bg-card hover:bg-accent border-2 border-ink rounded-full text-xs font-semibold transition-all shadow-[2px_2px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px"
                   title="Learn keyboard shortcuts"
                 >
                   <Wand2 className="w-3.5 h-3.5" />
@@ -1215,7 +1208,7 @@ export default function StoryboardPage() {
                 </button>
                 <button
                   onClick={() => setIsExportModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-white bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 border border-primary/50 rounded-full text-xs font-medium transition-all hover:scale-105 hover:shadow-lg"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-highlight-foreground bg-highlight border-2 border-ink rounded-full text-xs font-semibold transition-all shadow-[3px_3px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px"
                   title="Export video project (⌘E)"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -1236,282 +1229,24 @@ export default function StoryboardPage() {
           {step === "prompt" && (
             <div className="flex items-stretch px-4 py-8 gap-8 justify-center">
               <div className="flex-1 max-w-2xl space-y-6">
-                {/* Header */}
-                <div className="text-center space-y-2">
-                  <h1 className="text-4xl font-bold">Create Your Video</h1>
-                  <p className="text-sm text-muted-foreground">
-                    Describe your project idea
-                  </p>
-                </div>
-
-                {/* Secondary Pills Row */}
-                <div className="flex flex-wrap gap-3 justify-center items-center">
-                  {/* Style */}
-                  <Select
-                    value={projectParams.style}
-                    onValueChange={(val) =>
-                      setProjectParams({ ...projectParams, style: val })
-                    }
-                  >
-                    <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
-                      <Settings className="w-4 h-4" />
-                      <SelectValue className="text-sm" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cinematic">Cinematic</SelectItem>
-                      <SelectItem value="anime">Anime</SelectItem>
-                      <SelectItem value="retro">Retro</SelectItem>
-                      <SelectItem value="whiteboard">Whiteboard</SelectItem>
-                      <SelectItem value="isometric">Isometric</SelectItem>
-                      <SelectItem value="flat">Flat</SelectItem>
-                      <SelectItem value="documentary">Documentary</SelectItem>
-                      <SelectItem value="minimalist">Minimalist</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {/* Type/Format */}
-                  <Select
-                    value={projectParams.format}
-                    onValueChange={(val: any) =>
-                      setProjectParams({ ...projectParams, format: val })
-                    }
-                  >
-                    <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
-                      <Layers className="w-4 h-4" />
-                      <SelectValue className="text-sm" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="brief">Brief</SelectItem>
-                      <SelectItem value="explainer">Explainer</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {/* Tone */}
-                  <Select
-                    value={projectParams.tone}
-                    onValueChange={(val) =>
-                      setProjectParams({ ...projectParams, tone: val })
-                    }
-                  >
-                    <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
-                      <Volume2 className="w-4 h-4" />
-                      <SelectValue className="text-sm" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="professional">Professional</SelectItem>
-                      <SelectItem value="casual">Casual</SelectItem>
-                      <SelectItem value="humorous">Humorous</SelectItem>
-                      <SelectItem value="formal">Formal</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {/* Audience */}
-                  <Select
-                    value={projectParams.targetAudience}
-                    onValueChange={(val) =>
-                      setProjectParams({
-                        ...projectParams,
-                        targetAudience: val,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
-                      <Users className="w-4 h-4" />
-                      <SelectValue className="text-sm" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="professionals">
-                        Professionals
-                      </SelectItem>
-                      <SelectItem value="students">Students</SelectItem>
-                      <SelectItem value="kids">Kids</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {/* Narrative Voice */}
-                  <Select
-                    value={selectedVoice}
-                    onValueChange={setSelectedVoice}
-                  >
-                    <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
-                      <Volume2 className="w-4 h-4" />
-                      <SelectValue className="text-sm" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="alloy">Alloy</SelectItem>
-                      <SelectItem value="ash">Ash</SelectItem>
-                      <SelectItem value="ballad">Ballad</SelectItem>
-                      <SelectItem value="coral">Coral</SelectItem>
-                      <SelectItem value="echo">Echo</SelectItem>
-                      <SelectItem value="fable">Fable</SelectItem>
-                      <SelectItem value="nova">Nova</SelectItem>
-                      <SelectItem value="onyx">Onyx</SelectItem>
-                      <SelectItem value="sage">Sage</SelectItem>
-                      <SelectItem value="shimmer">Shimmer</SelectItem>
-                      <SelectItem value="verse">Verse</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {/* Hand Style */}
-                  <Select
-                    value={whiteboardConfig.handStyle}
-                    onValueChange={(val) => setWhiteboardConfig({ handStyle: val })}
-                  >
-                    <SelectTrigger className="bg-white/5 border border-white/10 rounded-full text-sm px-3 py-1.5 hover:bg-white/10 transition-colors inline-flex items-center gap-1.5">
-                      <Settings className="w-4 h-4" />
-                      <SelectValue className="text-sm" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="custom1">Hand 1</SelectItem>
-                      <SelectItem value="custom2">Hand 2</SelectItem>
-                      <SelectItem value="custom3">Hand 3</SelectItem>
-                      <SelectItem value="custom4">Hand 4</SelectItem>
-                      <SelectItem value="ghost">No Hand</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Whiteboard Config Panel & Preview */}
-                {projectParams.style === "whiteboard" && (
-                  <div className="space-y-4">
-
-                    {/* Whiteboard Preview */}
-                    <div className="rounded-lg border border-white/10 bg-white/5 p-4 space-y-2">
-                      <h4 className="text-sm font-semibold text-muted-foreground">Preview</h4>
-                      <div className="relative rounded-lg bg-black w-full overflow-hidden"
-                        style={{
-                          aspectRatio: projectParams.aspectRatio === "16:9" ? "16/9" :
-                                      projectParams.aspectRatio === "9:16" ? "9/16" : "1/1"
-                        }}>
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="text-center space-y-2">
-                            <div className="text-xs text-muted-foreground">
-                              {whiteboardConfig.animStyle} • {whiteboardConfig.handStyle}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {projectParams.aspectRatio}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Main Input Card */}
-                <div className="relative rounded-2xl border border-transparent bg-transparent transition-all duration-300 focus-within:border-white/20 focus-within:bg-white/[0.02] focus-within:shadow-lg focus-within:shadow-primary/5">
-                  {/* Textarea */}
-                  <textarea
-                    value={promptContent}
-                    onChange={(e) => {
-                      setPromptContent(e.target.value);
-                      e.target.style.height = "auto";
-                      e.target.style.height =
-                        Math.min(e.target.scrollHeight, 400) + "px";
-                    }}
-                    placeholder="Describe your video concept, main message, key points, and specific requirements..."
-                    className="w-full bg-transparent border-0 resize-none rounded-t-2xl px-5 py-4 text-base placeholder-muted-foreground/40 focus:outline-none focus:ring-0 focus-visible:ring-0 min-h-20 max-h-96 overflow-y-auto"
-                    rows={3}
-                  />
-
-                  {/* Separator */}
-                  <div className="border-t border-white/5" />
-
-                  {/* Bottom Bar */}
-                  <div className="px-5 py-3 flex items-center justify-between rounded-b-2xl">
-                    {/* Left: Format & Duration Pills */}
-                    <div className="flex gap-2 items-center">
-                      {/* Aspect Ratio */}
-                      <Select
-                        value={projectParams.aspectRatio}
-                        onValueChange={(val: any) =>
-                          setProjectParams({
-                            ...projectParams,
-                            aspectRatio: val,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="bg-white/[0.06] border border-white/10 rounded-full text-xs px-3 py-1 hover:bg-white/10 transition-colors inline-flex items-center gap-1">
-                          <LayoutGrid className="w-3 h-3" />
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="16:9">16:9</SelectItem>
-                          <SelectItem value="9:16">9:16</SelectItem>
-                          <SelectItem value="1:1">1:1</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      {/* Duration */}
-                      <Select
-                        value={projectParams.duration}
-                        onValueChange={(val) =>
-                          setProjectParams({ ...projectParams, duration: val })
-                        }
-                      >
-                        <SelectTrigger className="bg-white/[0.06] border border-white/10 rounded-full text-xs px-3 py-1 hover:bg-white/10 transition-colors inline-flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1-2 minutes">1-2m</SelectItem>
-                          <SelectItem value="2-3 minutes">2-3m</SelectItem>
-                          <SelectItem value="3-5 minutes">3-5m</SelectItem>
-                          <SelectItem value="5-10 minutes">5-10m</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      {/* Language */}
-                      <Select
-                        value={projectParams.language}
-                        onValueChange={(val) =>
-                          setProjectParams({ ...projectParams, language: val })
-                        }
-                      >
-                        <SelectTrigger className="bg-white/[0.06] border border-white/10 rounded-full text-xs px-3 py-1 hover:bg-white/10 transition-colors inline-flex items-center gap-1">
-                          <Globe className="w-3 h-3" />
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="en">English</SelectItem>
-                          <SelectItem value="fr">French</SelectItem>
-                          <SelectItem value="es">Spanish</SelectItem>
-                          <SelectItem value="de">German</SelectItem>
-                          <SelectItem value="it">Italian</SelectItem>
-                          <SelectItem value="pt">Portuguese</SelectItem>
-                          <SelectItem value="zh">Chinese</SelectItem>
-                          <SelectItem value="ja">Japanese</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Right: Send Button */}
-                    <button
-                      onClick={() => handlePromptSubmit(promptContent)}
-                      disabled={!promptContent.trim()}
-                      className={cn(
-                        "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 flex-shrink-0",
-                        promptContent.trim()
-                          ? "bg-white text-background hover:scale-110 active:scale-95 cursor-pointer"
-                          : "opacity-40 cursor-not-allowed",
-                      )}
-                      title="Generate"
-                    >
-                      <svg
-                        className="w-5 h-5"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path d="M16.6915026,12.4744748 L3.50612381,13.2599618 C3.19218622,13.2599618 3.03521743,13.4170592 3.03521743,13.5741566 L1.15159189,20.0151496 C0.8376543,20.8006365 0.99,21.89 1.77946707,22.52 C2.41,22.99 3.50612381,23.1 4.13399899,22.8429026 L21.714504,14.0454487 C22.6563168,13.5741566 23.1272231,12.6315722 22.9702544,11.6889879 L4.13399899,1.16107318 C3.34915502,0.9 2.40734225,1.00636533 1.77946707,1.4776575 C0.994623095,2.10604706 0.837654326,3.0486314 1.15159189,3.99021575 L3.03521743,10.4312088 C3.03521743,10.5883061 3.19218622,10.7454035 3.50612381,10.7454035 L16.6915026,11.5308905 C16.6915026,11.5308905 17.1624089,11.5308905 17.1624089,12.0021827 C17.1624089,12.4744748 16.6915026,12.4744748 16.6915026,12.4744748 Z" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+                <PromptWizard
+                  brief={promptContent}
+                  onBriefChange={setPromptContent}
+                  params={projectParams}
+                  onParamsChange={setProjectParams}
+                  voice={selectedVoice}
+                  onVoiceChange={setSelectedVoice}
+                  onPreviewVoice={(v) => void playVoicePreview(v)}
+                  previewingVoice={previewingVoice}
+                  onGenerate={handlePromptSubmit}
+                  isGenerating={isGeneratingScript}
+                />
               </div>
 
               {(scriptText || isGeneratingScript || scriptError) && (
-                <aside className="w-full max-w-md shrink-0 self-start sticky top-4">
-                  <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
+                <aside className="relative w-full max-w-md shrink-0 self-start sticky top-6">
+                  <span className="sk-tape" aria-hidden="true" />
+                  <div className="sk-sheet overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
                     <div className="border-b border-border bg-muted/50 px-4 py-3 flex items-center justify-between">
                       <span className="font-medium text-sm">
                         {isGeneratingScript ? "Writing script..." : `Script · ${scriptWordCount} words`}
@@ -1550,7 +1285,8 @@ export default function StoryboardPage() {
                       <Button
                         onClick={() => void handleScriptValidated()}
                         disabled={!scriptText.trim() || isGeneratingScript || isBreakingDown}
-                        className="w-full bg-primary hover:bg-primary/90"
+                        variant="secondary"
+                        className="w-full"
                       >
                         {isBreakingDown ? (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1571,16 +1307,26 @@ export default function StoryboardPage() {
             <div className="max-w-7xl mx-auto px-4 pt-4 pb-12">
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold">Storyboard</h2>
-                    <p className="text-sm text-muted-foreground">
-                      {editableClips.filter((c) => !c.isSection).length} scenes
-                    </p>
+                  <div className="flex items-end gap-4">
+                    <div>
+                      <h2 className="text-3xl font-extrabold">
+                        <span className="sk-marker">Storyboard</span>
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {editableClips.filter((c) => !c.isSection).length} scenes
+                      </p>
+                    </div>
+                    <div className="hidden md:flex items-end gap-1 pb-1" aria-hidden="true">
+                      <span className="w-14 -rotate-6">
+                        <HandArrow variant="right" className="sk-hand-arrow" />
+                      </span>
+                      <span className="sk-scribble -rotate-2">click a scene to edit it</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {isGeneratingNarration && (
                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground" />
                         Recording voice · {Math.round(narrationProgress)}%
                       </span>
                     )}
@@ -1602,7 +1348,7 @@ export default function StoryboardPage() {
                         void handleVoiceSelected(selectedVoice);
                       }}
                       disabled={isGeneratingImages || isGeneratingNarration}
-                      className="bg-primary hover:bg-primary/90"
+                      variant="secondary"
                     >
                       Next: Whiteboard
                       <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
@@ -1612,11 +1358,11 @@ export default function StoryboardPage() {
 
                 {isGeneratingImages && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground" />
                     Drawing visuals {generatingProgress.current}/{generatingProgress.total}
                     <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-primary transition-all"
+                        className="h-full bg-highlight transition-all text-highlight-foreground"
                         style={{ width: `${(generatingProgress.current / Math.max(1, generatingProgress.total)) * 100}%` }}
                       />
                     </div>
@@ -1633,8 +1379,8 @@ export default function StoryboardPage() {
                           type="button"
                           onClick={() => setSelectedClipIndex(i)}
                           className={cn(
-                            "col-span-full text-left text-xs font-semibold uppercase tracking-wider border-b pt-2 pb-1",
-                            selected ? "text-primary border-primary" : "text-muted-foreground border-border/50",
+                            "col-span-full text-left sk-scribble border-b-2 border-dashed pt-3 pb-1",
+                            selected ? "border-ink" : "border-border opacity-80",
                           )}
                         >
                           {item.title || "Untitled section"}
@@ -1645,11 +1391,13 @@ export default function StoryboardPage() {
                           type="button"
                           onClick={() => setSelectedClipIndex(i)}
                           className={cn(
-                            "text-left rounded-lg border bg-card overflow-hidden transition-all",
-                            selected ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/50",
+                            "text-left rounded-md border-2 bg-card overflow-hidden transition-all",
+                            selected
+                              ? "border-ink shadow-[5px_5px_0_hsl(var(--offset))] -rotate-[0.6deg]"
+                              : "border-border hover:border-ink hover:shadow-[3px_3px_0_hsl(var(--offset))]",
                           )}
                         >
-                          <div className="relative aspect-video bg-white flex items-center justify-center">
+                          <div className="relative aspect-video bg-card flex items-center justify-center">
                             {generatedImages[i] ? (
                               <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-contain" />
                             ) : isGeneratingImages ? (
@@ -1657,7 +1405,7 @@ export default function StoryboardPage() {
                             ) : (
                               <Film className="w-5 h-5 text-muted-foreground/40" />
                             )}
-                            <span className="absolute top-1.5 left-1.5 rounded bg-black/70 px-1.5 text-[10px] font-bold text-white">
+                            <span className="absolute top-1.5 left-1.5 rounded-full border-2 border-ink bg-highlight px-2 text-[11px] font-bold leading-4 text-highlight-foreground">
                               {i + 1}
                             </span>
                           </div>
@@ -1670,10 +1418,10 @@ export default function StoryboardPage() {
                     <button
                       type="button"
                       onClick={() => { addClip(); setSelectedClipIndex(editableClips.length); }}
-                      className="aspect-video rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-xs"
+                      className="aspect-video rounded-md border-2 border-dashed border-border text-muted-foreground hover:text-foreground hover:border-ink hover:bg-highlight/10 flex flex-col items-center justify-center gap-1 transition-colors"
                     >
                       <Plus className="w-5 h-5" />
-                      Add scene
+                      <span className="sk-scribble text-base">add a scene</span>
                     </button>
                   </div>
 
@@ -1681,7 +1429,7 @@ export default function StoryboardPage() {
                     const i = selectedClipIndex;
                     const item = editableClips[i];
                     return (
-                      <aside className="w-96 shrink-0 sticky top-0 max-h-[calc(100vh-9rem)] overflow-y-auto rounded-xl border border-border bg-card p-4 space-y-3">
+                      <aside className="sk-sheet w-96 shrink-0 sticky top-2 max-h-[calc(100vh-9rem)] overflow-y-auto p-4 space-y-3">
                         <div className="flex items-center gap-1">
                           <span className="flex-1 truncate text-sm font-semibold">
                             {item.isSection ? "Section" : `${i + 1}. ${item.title || `Clip ${i + 1}`}`}
@@ -1698,11 +1446,11 @@ export default function StoryboardPage() {
                             value={item.title || ""}
                             onChange={(e) => updateClipField(i, { title: e.target.value })}
                             placeholder="Section title..."
-                            className="w-full text-sm bg-muted/40 border border-border/50 rounded-lg p-2.5 outline-none focus:border-primary"
+                            className="w-full text-sm bg-muted/40 border border-border/50 rounded-lg p-2.5 outline-none focus:border-ink"
                           />
                         ) : (
                           <>
-                            <div className="relative aspect-video rounded-lg overflow-hidden border bg-white">
+                            <div className="relative aspect-video rounded-lg overflow-hidden border bg-card">
                               {generatedImages[i] && (
                                 <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-contain" />
                               )}
@@ -1739,7 +1487,7 @@ export default function StoryboardPage() {
                                   <div className="flex items-center justify-between">
                                     {isPrompt ? (
                                       <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground">
-                                        <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                                        <ImageIcon className="w-3.5 h-3.5 text-foreground" />
                                         {field.label}
                                       </span>
                                     ) : (
@@ -1757,7 +1505,7 @@ export default function StoryboardPage() {
                                       <button
                                         type="button"
                                         onClick={() => setEditingField(null)}
-                                        className="flex items-center gap-1 text-[11px] text-primary"
+                                        className="flex items-center gap-1 text-[11px] text-foreground"
                                       >
                                         <Check className="w-3 h-3" />
                                         Done
@@ -1800,7 +1548,7 @@ export default function StoryboardPage() {
                                       className={cn(
                                         "w-full text-left rounded-md transition-colors",
                                         isPrompt
-                                          ? "border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm leading-relaxed text-foreground hover:border-primary/60"
+                                          ? "border border-ink bg-highlight/15 px-3 py-2.5 text-sm leading-relaxed text-foreground hover:border-ink"
                                           : "px-1 py-0.5 text-xs leading-relaxed text-muted-foreground hover:bg-muted/30",
                                       )}
                                     >
