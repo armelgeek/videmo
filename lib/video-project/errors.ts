@@ -15,6 +15,7 @@ export class ProjectForbiddenError extends Error {
 export class ProjectLockedError extends Error {
   constructor(
     readonly lockedById: string | null,
+    readonly lockedByName: string | null,
     readonly lockExpiresAt: Date | null,
   ) {
     super("Project is locked by another member");

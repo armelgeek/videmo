@@ -1,6 +1,7 @@
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { hasPermission } from "@/lib/permissions"
 import { OrganizationManager } from '@/components/templates/organization-manager'
 
 export const metadata = {
@@ -12,6 +13,9 @@ export default async function OrganizationsPage() {
   const headersList = await headers()
   const session = await auth.api.getSession({ headers: headersList })
   if (!session) redirect("/login")
+
+  const canRead = await hasPermission(session.user.id, "organization", "read")
+  if (!canRead) redirect("/unauthorized")
 
   return (
     <div className="flex flex-1 flex-col">

@@ -128,7 +128,15 @@ const ENGINE_DEFAULT_SPEED = 40;
 const BIG_GAP_MS = 1000;
 
 /** Nombre d'images decodees gardees en cache, au-dela duquel la plus vieille cede sa place. */
-const IMAGE_CACHE_MAX = 12;
+const IMAGE_CACHE_MAX = 32;
+
+/**
+ * Caches au niveau du module : persistent d'un rendu/montage à l'autre.
+ * Revenir sur une scène déjà visitée ou switcher de tab ne refait aucun fetch,
+ * aucun décodage CPU/GPU ni calcul Web Worker.
+ */
+const globalImageCache = new Map<string, HTMLImageElement>();
+const globalOffscreenCache = new Map<string, HTMLCanvasElement>();
 
 /** While scrubbing, a scene is only prepared once the cursor settles on it. */
 const SCRUB_PREP_DELAY_MS = 120;
@@ -207,6 +215,8 @@ export interface UseWhiteboardRendererProps {
   imageUrl?: string | null;
   /** Image URL of the upcoming scene for look-ahead pre-caching */
   nextImageUrl?: string | null;
+  /** Image URLs of upcoming scenes (N+1, N+2) for multi-scene look-ahead pre-caching */
+  upcomingImageUrls?: (string | null | undefined)[];
   /** Narration URL. When set, the audio clock drives engine timing instead
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
@@ -277,6 +287,7 @@ export function useWhiteboardRenderer({
   annotationCanvasRef,
   imageUrl = null,
   nextImageUrl = null,
+  upcomingImageUrls,
   audioUrl = null,
   narrationParts = AUCUNE_PART as NarrationPart[],
   audioVolume = 1,
@@ -342,10 +353,9 @@ export function useWhiteboardRenderer({
 
   const imageRef = useRef<HTMLImageElement | null>(null);
   // Une image deja decodee, par URL : revenir sur un clip deja vu ne doit ni
-  // la retelecharger ni la redecoder. Borne pour qu'une session tres longue
-  // n'accumule pas indefiniment des HTMLImageElement decodes.
-  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
-  const offscreenCacheRef = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  // la retelecharger ni la redecoder. Partage au niveau du module (globalImageCache).
+  const imageCacheRef = useRef<Map<string, HTMLImageElement>>(globalImageCache);
+  const offscreenCacheRef = useRef<Map<string, HTMLCanvasElement>>(globalOffscreenCache);
   // Rectangle ou l'artwork est dessine, PAR SCENE (cle = scenePanelId, ou une
   // cle fixe en mode standalone) : chaque scene a sa propre image, donc son
   // propre rectangle, et le transport de regions au redimensionnement ne doit
@@ -491,7 +501,17 @@ export function useWhiteboardRenderer({
     // it, while the loop and the narration carry on untouched.
     const isFirstArtwork = !imageRef.current;
     if (isFirstArtwork) setImageLoaded(false);
-    markArtworkPending(!isFirstArtwork);
+
+    // Si la ressource (sheet dans offscreenCache ou image décodée en mémoire)
+    // est déjà présente, ne jamais activer le verrou artworkPending pour éviter
+    // de figer le rendu et faire disparaître la main.
+    const canvas = canvasRef.current;
+    const key = canvas ? `${targetSrc}@${canvas.width}x${canvas.height}` : '';
+    const isAlreadyCached = Boolean(
+      (key && offscreenCacheRef.current.has(key)) ||
+      (imageCacheRef.current.get(targetSrc)?.complete)
+    );
+    markArtworkPending(!isFirstArtwork && !isAlreadyCached);
 
     let cancelled = false;
 
@@ -566,10 +586,17 @@ export function useWhiteboardRenderer({
       remember(img);
       applyImage(img);
     } else {
-      img.onload = () => {
+      const handleLoad = () => {
         remember(img);
-        applyImage(img);
+        if (typeof img.decode === 'function') {
+          img.decode()
+            .then(() => applyImage(img))
+            .catch(() => applyImage(img));
+        } else {
+          applyImage(img);
+        }
       };
+      img.onload = handleLoad;
       img.onerror = () => {
         // Unfrozen on failure, or the picture would stay held for good.
         if (!cancelled) markArtworkPending(false);
@@ -587,48 +614,66 @@ export function useWhiteboardRenderer({
   // Quand la lecture arrive sur cette scène, tout est déjà prêt en cache mémoire :
   // l'enchaînement est instantané, sans freeze de rendu ni disparition de la main.
   useEffect(() => {
-    if (!nextImageUrl) return;
-    const targetSrc = nextImageUrl;
+    const targets = (upcomingImageUrls && upcomingImageUrls.length > 0)
+      ? upcomingImageUrls.filter((u): u is string => Boolean(u))
+      : nextImageUrl
+        ? [nextImageUrl]
+        : [];
+    if (targets.length === 0) return;
+
     const canvas = canvasRef.current;
     const width = canvas ? canvas.width : canvasWidth;
     const height = canvas ? canvas.height : canvasHeight;
-    const key = `${targetSrc}@${width}x${height}`;
-
-    if (offscreenCacheRef.current.has(key)) return;
-
     let cancelled = false;
 
-    const prep = (img: HTMLImageElement) => {
-      if (cancelled) return;
-      void prepareSheetInWorker(img, width, height);
-    };
+    const prefetchTarget = (targetSrc: string) => {
+      const key = `${targetSrc}@${width}x${height}`;
+      if (offscreenCacheRef.current.has(key)) return;
 
-    const cached = imageCacheRef.current.get(targetSrc);
-    if (cached && cached.complete && cached.naturalWidth > 0) {
-      prep(cached);
-      return () => {
-        cancelled = true;
+      const prep = (img: HTMLImageElement) => {
+        if (cancelled) return;
+        void prepareSheetInWorker(img, width, height);
       };
-    }
 
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = targetSrc;
-    if (img.complete && img.naturalWidth > 0) {
-      imageCacheRef.current.set(targetSrc, img);
-      prep(img);
-    } else {
-      img.onload = () => {
+      const cached = imageCacheRef.current.get(targetSrc);
+      if (cached && cached.complete && cached.naturalWidth > 0) {
+        prep(cached);
+        return;
+      }
+
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = targetSrc;
+
+      const onImageAvailable = () => {
         if (cancelled) return;
         imageCacheRef.current.set(targetSrc, img);
-        prep(img);
+        // Décodage asynchrone pour éviter tout freeze GPU sur le thread principal
+        if (typeof img.decode === 'function') {
+          img.decode()
+            .then(() => prep(img))
+            .catch(() => prep(img));
+        } else {
+          prep(img);
+        }
       };
-    }
+
+      if (img.complete && img.naturalWidth > 0) {
+        onImageAvailable();
+      } else {
+        img.onload = onImageAvailable;
+        img.onerror = () => {
+          // Ignore prefetch error silently to avoid unhandled rejections
+        };
+      }
+    };
+
+    targets.forEach((src) => prefetchTarget(src));
 
     return () => {
       cancelled = true;
     };
-  }, [nextImageUrl, canvasWidth, canvasHeight]);
+  }, [nextImageUrl, upcomingImageUrls, canvasWidth, canvasHeight]);
 
   // Amorcage de la scene de demo, puis suivi de la forme du canvas — par
   // scene : chacune a sa propre image, donc son propre rectangle d'artwork,
@@ -1446,8 +1491,6 @@ export function useWhiteboardRenderer({
       if (pendingClipResyncRef.current) {
         pendingClipResyncRef.current = false;
         repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
-        if (!stoppedRef.current) frame = requestAnimationFrame(step);
-        return;
       }
 
       // The playhead can be moved WHILE playing — clicking the ruler, say.

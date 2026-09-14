@@ -133,6 +133,8 @@ const ClipThumb = memo(function ClipThumb({
                   alt={title}
                   fill
                   sizes="224px"
+                  priority={idx === 0 || isActive}
+                  loading={idx === 0 || isActive ? "eager" : "lazy"}
                   className="object-contain"
                 />
                 <span className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded">

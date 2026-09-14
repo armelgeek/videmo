@@ -194,8 +194,6 @@ export function WhiteboardEditorStep({
   // ── Global timeline sequence ─────────────────────────────────────────────
   // All panels' annotations chained end-to-end for the timeline display.
   // Each id is prefixed with its panel index to stay unique across panels.
-  // Assure un blanc par defaut (300ms) pour les panneaux secondaires afin
-  // de reserver l'espace necessaire a l'affichage de la carte de transition.
   //
   // Un cache ref stabilise les références par panel : tant que les annotations
   // et l'index d'un panel ne bougent pas, ses objets sont réutilisés verbatim,
@@ -234,12 +232,8 @@ export function WhiteboardEditorStep({
 
       anyChanged = true;
       const anns = annotationsDe(panel);
-      const transformed = anns.map((a, aIdx) => {
-        let gapBeforeMs = a.reveal.gapBeforeMs ?? 0;
-        const pleineImage = a.id === PLEINE_IMAGE_ID;
-        if (panelIdx > 0 && aIdx === 0 && gapBeforeMs === 0 && !pleineImage) {
-          gapBeforeMs = 300;
-        }
+      const transformed = anns.map((a) => {
+        const gapBeforeMs = a.reveal.gapBeforeMs ?? 0;
         return {
           ...a,
           id: `p${panelIdx}-${a.id}`,
@@ -363,6 +357,38 @@ export function WhiteboardEditorStep({
     };
   }, []);
 
+  // Préchargement proactif de toutes les images du storyboard, en priorisant
+  // la scène suivante puis le reste des scènes pour éviter les freezes lors des sauts.
+  const upcomingImageUrls = useMemo(() => {
+    const nextIdx = activeClipIndex + 1;
+    const urls: string[] = [];
+    // Priorité 1 : scène N+1
+    const nextUrl =
+      storyboardPanels[nextIdx]?.imageUrl ||
+      DEMO_STORYBOARD.panels[nextIdx % DEMO_STORYBOARD.panels.length]?.imageUrl;
+    if (nextUrl) urls.push(nextUrl);
+
+    // Priorité 2 : scène N+2
+    const n2Url =
+      storyboardPanels[nextIdx + 1]?.imageUrl ||
+      DEMO_STORYBOARD.panels[(nextIdx + 1) % DEMO_STORYBOARD.panels.length]?.imageUrl;
+    if (n2Url && !urls.includes(n2Url)) urls.push(n2Url);
+
+    // Priorité 3 : reste des scènes du storyboard
+    storyboardPanels.forEach((p, idx) => {
+      const url = p.imageUrl || DEMO_STORYBOARD.panels[idx % DEMO_STORYBOARD.panels.length]?.imageUrl;
+      if (url && !urls.includes(url)) urls.push(url);
+    });
+
+    return urls;
+  }, [storyboardPanels, activeClipIndex]);
+
+  const activeSavedAnnotations = useMemo(() => {
+    if (activePanel) return annotationsDe(activePanel);
+    if (config.annotations) return toEngineAnnotations(config.annotations);
+    return null;
+  }, [activePanel, annotationsDe, config.annotations]);
+
   // Enable canvas rendering.
   const { isOverlayHidden, isScrubbing } =
     useWhiteboardRenderer({
@@ -379,6 +405,7 @@ export function WhiteboardEditorStep({
         DEMO_STORYBOARD.panels[(activeClipIndex + 1) % DEMO_STORYBOARD.panels.length]
           ?.imageUrl ||
         null,
+      upcomingImageUrls,
       scenePanelId: activePanel?.id ?? null,
       audioUrl: config.audio?.url ?? null,
       // La voix par temps prime sur la piste unique : c'est elle que la chaine
@@ -389,11 +416,7 @@ export function WhiteboardEditorStep({
       audioDurationMs: config.narration?.length
         ? narrationEndMs(config.narration)
         : (config.audio?.durationMs ?? null),
-      savedAnnotations: activePanel
-        ? annotationsDe(activePanel)
-        : config.annotations
-          ? toEngineAnnotations(config.annotations)
-          : null,
+      savedAnnotations: activeSavedAnnotations,
       // Global offset of the active clip on the shared narration clock. The
       // engine always receives 0-based annotations; the renderer translates.
       // L'origine du clip pour le moteur est le debut de son TRACE, pas celui du
@@ -669,7 +692,23 @@ export function WhiteboardEditorStep({
         },
       });
 
-      if (newType !== "none" && entrantPanel) {
+      if (newType === "none" && entrantPanel) {
+        const anns = annotationsDe(entrantPanel);
+        if (anns.length > 0 && (anns[0].reveal.gapBeforeMs ?? 0) > 0) {
+          anns[0] = {
+            ...anns[0],
+            reveal: {
+              ...anns[0].reveal,
+              gapBeforeMs: 0,
+            },
+          };
+          const updatedStored = toStoredAnnotations(anns);
+          storyboard.updatePanel(entrantPanel.id, {
+            annotations: updatedStored,
+          });
+          useUnifiedEngineStore.getState().setSceneAnnotations(entrantPanel.id, anns);
+        }
+      } else if (newType !== "none" && entrantPanel) {
         const sortantWindow = clipWindows[panelIdx];
         const entrantWindow = clipWindows[panelIdx + 1];
         const currentBlanc =

@@ -53,7 +53,7 @@ export function toErrorResponse(error: unknown): NextResponse {
     return NextResponse.json(
       {
         error: "Project is being edited",
-        lockedBy: error.lockedById,
+        lockedBy: error.lockedByName || error.lockedById,
         expiresAt: error.lockExpiresAt,
       },
       { status: 409 },
