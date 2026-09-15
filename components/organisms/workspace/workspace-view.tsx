@@ -6,7 +6,6 @@ import { AlertCircle, Loader2, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { ORGANIZATION_CHANGED_EVENT } from "@/lib/app-shell/organization-events";
-import { OrganizationSwitcher } from "@/lib/app-shell/organization-switcher";
 import { VideoProjectDialog } from "@/components/molecules/forms/video-project-dialog";
 import { OrganizationNameEditor } from "@/components/molecules/workspace/organization-name-editor";
 import {
@@ -105,14 +104,10 @@ export function WorkspaceView() {
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-border/50 h-16">
         <div className="h-full px-4 sm:px-6 flex items-center justify-between">
-          {/* Left: Org selector */}
-          <div className="flex items-center gap-3 min-w-0">
-            <OrganizationSwitcher />
-            <div className="hidden sm:block w-px h-6 bg-border" />
-            <h1 className="text-2xl font-extrabold text-foreground whitespace-nowrap">
-              <span className="sk-marker">Projects</span>
-            </h1>
-          </div>
+          {/* Left: Title */}
+          <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
+            <span className="sk-marker">Projects</span>
+          </h1>
 
           {/* Right: Search and actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
