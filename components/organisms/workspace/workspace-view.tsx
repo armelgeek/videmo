@@ -6,6 +6,7 @@ import { AlertCircle, Loader2, Plus, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { ORGANIZATION_CHANGED_EVENT } from "@/lib/app-shell/organization-events";
+import { OrganizationSwitcher } from "@/lib/app-shell/organization-switcher";
 import { VideoProjectDialog } from "@/components/molecules/forms/video-project-dialog";
 import { OrganizationNameEditor } from "@/components/molecules/workspace/organization-name-editor";
 import {
@@ -102,8 +103,20 @@ export function WorkspaceView() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      {/* Top bar with org switcher */}
+      <div className="border-b border-border/50 bg-background/50 backdrop-blur-sm">
+        <div className="flex h-16 items-center justify-between px-4 sm:px-6">
+          <Link href="/" className="flex items-center gap-2 font-display text-sm font-extrabold">
+            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border-2 border-ink bg-highlight" />
+            Projects
+          </Link>
+          <OrganizationSwitcher />
+        </div>
+      </div>
+
+      {/* Main header */}
       <header className="border-b border-border/50">
-        <div className="px-4 pb-5 pt-8 sm:px-6">
+        <div className="px-4 pb-5 pt-6 sm:px-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               {response?.organization ? (
