@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
+import { createBillingPortalSession } from "@/actions/payments/create-billing-portal-session";
 import { createCheckoutSession } from "@/actions/payments/create-checkout-session";
 import { toast } from "sonner";
 
@@ -24,6 +26,7 @@ interface Plan {
   amount: number;
   currency: string;
   interval: string;
+  tier: string;
   features: string[];
   isPopular: boolean;
   stripePriceId: string;
@@ -32,25 +35,34 @@ interface Plan {
 interface PricingCardsProps {
   plans: Plan[];
   isLoggedIn: boolean;
+  currentPlanId?: string | null;
+  hasSubscription?: boolean;
 }
 
-export const PricingCards = ({ plans, isLoggedIn }: PricingCardsProps) => {
+export const PricingCards = ({
+  plans,
+  isLoggedIn,
+  currentPlanId = null,
+  hasSubscription = false,
+}: PricingCardsProps) => {
   const [interval, setInterval] = useState<PricingInterval>("monthly");
   const [isPending, startTransition] = useTransition();
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
 
+  // Free has a single monthly row; it belongs in both views.
   const filteredPlans = plans.filter(
-    (plan) => plan.interval === (interval === "monthly" ? "month" : "year")
+    (plan) =>
+      plan.tier === "free" || plan.interval === (interval === "monthly" ? "month" : "year"),
   );
 
   const handleBuyNow = (planId: string) => {
     if (!isLoggedIn) {
       toast.error("Please login to purchase a plan");
-      window.location.href = "/login";
+      window.location.assign("/login");
       return;
     }
 
-    const plan = filteredPlans.find(p => p.id === planId);
+    const plan = filteredPlans.find((p) => p.id === planId);
     if (plan?.stripePriceId.startsWith("price_") && !plan.stripePriceId.includes("_1")) {
       toast.error("Payment system is being configured. Please try again later.");
       console.error("Placeholder Stripe Price ID detected:", plan.stripePriceId);
@@ -60,7 +72,7 @@ export const PricingCards = ({ plans, isLoggedIn }: PricingCardsProps) => {
     setLoadingPlanId(planId);
     startTransition(async () => {
       const result = await createCheckoutSession(planId);
-      
+
       if (result.error) {
         toast.error(result.error);
         setLoadingPlanId(null);
@@ -68,8 +80,22 @@ export const PricingCards = ({ plans, isLoggedIn }: PricingCardsProps) => {
       }
 
       if (result.url) {
-        window.location.href = result.url;
+        window.location.assign(result.url);
       }
+    });
+  };
+
+  // Plan changes on an existing subscription go through Stripe's portal, which prorates them.
+  const handleSwitchPlan = (planId: string) => {
+    setLoadingPlanId(planId);
+    startTransition(async () => {
+      const result = await createBillingPortalSession();
+      if (result.error || !result.url) {
+        toast.error(result.error ?? "Could not open the billing portal");
+        setLoadingPlanId(null);
+        return;
+      }
+      window.location.assign(result.url);
     });
   };
 
@@ -77,9 +103,59 @@ export const PricingCards = ({ plans, isLoggedIn }: PricingCardsProps) => {
     return (amount / 100).toFixed(2);
   };
 
+  const renderAction = (plan: Plan) => {
+    const isFree = plan.tier === "free";
+    const isLoading = isPending && loadingPlanId === plan.id;
+    const isCurrent = isLoggedIn && (isFree ? !hasSubscription : plan.id === currentPlanId);
+    const variant = plan.isPopular ? "default" : "outline";
+
+    if (isCurrent) {
+      return (
+        <Button className="w-full" size="lg" variant="outline" disabled>
+          Current plan
+        </Button>
+      );
+    }
+
+    if (isFree) {
+      return (
+        <Button asChild className="w-full" size="lg" variant="outline">
+          <Link href={isLoggedIn ? "/billing" : "/login"}>
+            {isLoggedIn ? "Manage in billing" : "Start free"}
+          </Link>
+        </Button>
+      );
+    }
+
+    if (hasSubscription) {
+      return (
+        <Button
+          className="w-full"
+          size="lg"
+          variant={variant}
+          onClick={() => handleSwitchPlan(plan.id)}
+          disabled={isLoading}
+        >
+          {isLoading ? "Loading..." : "Switch plan"}
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        className="w-full"
+        size="lg"
+        variant={variant}
+        onClick={() => handleBuyNow(plan.id)}
+        disabled={isLoading}
+      >
+        {isLoading ? "Loading..." : "Buy Now"}
+      </Button>
+    );
+  };
+
   return (
     <div className="space-y-10">
-      {}
       <div className="flex items-center justify-center">
         <div className="inline-flex items-center rounded-full border bg-muted/50 p-1">
           <button
@@ -110,8 +186,7 @@ export const PricingCards = ({ plans, isLoggedIn }: PricingCardsProps) => {
         </div>
       </div>
 
-      {}
-      <div className="grid gap-8 md:grid-cols-3">
+      <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
         {filteredPlans.map((plan) => (
           <Card
             key={plan.id}
@@ -139,14 +214,14 @@ export const PricingCards = ({ plans, isLoggedIn }: PricingCardsProps) => {
                     ${formatPrice(plan.amount)}
                   </span>
                   <span className="text-muted-foreground">
-                    /{interval === "monthly" ? "mo" : "yr"}
+                    {plan.tier === "free" ? "forever" : `/${interval === "monthly" ? "mo" : "yr"}`}
                   </span>
                 </div>
               </div>
 
               <ul className="space-y-3">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-2">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-2">
                     <Check className="h-5 w-5 shrink-0 text-primary" />
                     <span className="text-sm text-foreground">{feature}</span>
                   </li>
@@ -154,19 +229,7 @@ export const PricingCards = ({ plans, isLoggedIn }: PricingCardsProps) => {
               </ul>
             </CardContent>
 
-            <CardFooter>
-              <Button
-                className="w-full"
-                size="lg"
-                variant={plan.isPopular ? "default" : "outline"}
-                onClick={() => handleBuyNow(plan.id)}
-                disabled={isPending && loadingPlanId === plan.id}
-              >
-                {isPending && loadingPlanId === plan.id
-                  ? "Loading..."
-                  : "Buy Now"}
-              </Button>
-            </CardFooter>
+            <CardFooter>{renderAction(plan)}</CardFooter>
           </Card>
         ))}
       </div>

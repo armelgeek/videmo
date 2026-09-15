@@ -1,4 +1,5 @@
 import { getActivePlans } from "@/actions/payments/get-plans";
+import { getUserSubscription } from "@/actions/payments/get-user-subscription";
 import { PricingCards } from '@/components/molecules/cards/pricing-cards';
 
 interface PricingSectionProps {
@@ -12,6 +13,14 @@ export const PricingSection = async ({ isLoggedIn }: PricingSectionProps) => {
     return null;
   }
 
+  let currentPlanId: string | null = null;
+  if (isLoggedIn) {
+    const result = await getUserSubscription();
+    if ("subscription" in result && result.subscription) {
+      currentPlanId = result.subscription.planId;
+    }
+  }
+
   return (
     <section id="pricing" className="w-full py-20 border-t">
       <div className="container mx-auto px-4">
@@ -20,12 +29,17 @@ export const PricingSection = async ({ isLoggedIn }: PricingSectionProps) => {
             Choose Your Plan
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Select the perfect plan for your needs. All plans include a 14-day free trial.
+            Start free with 50 credits a month. Upgrade when your team needs more.
           </p>
         </div>
 
         <div className="mt-12">
-          <PricingCards plans={plans} isLoggedIn={isLoggedIn} />
+          <PricingCards
+            plans={plans}
+            isLoggedIn={isLoggedIn}
+            currentPlanId={currentPlanId}
+            hasSubscription={currentPlanId !== null}
+          />
         </div>
       </div>
     </section>
