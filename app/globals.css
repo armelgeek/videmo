@@ -697,6 +697,17 @@ tbody tr:hover {
   height: 8px;
 }
 
+/* Unlayered on purpose: a Tailwind utility would lose to the global rule above. */
+.no-scrollbars,
+.no-scrollbars * {
+  scrollbar-width: none;
+}
+
+.no-scrollbars::-webkit-scrollbar,
+.no-scrollbars *::-webkit-scrollbar {
+  display: none;
+}
+
 ::-webkit-scrollbar-track,
 ::-webkit-scrollbar-corner {
   background: transparent;
