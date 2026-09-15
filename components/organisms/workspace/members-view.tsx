@@ -71,6 +71,7 @@ export function MembersView() {
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Role>("member");
   const [isInviting, setIsInviting] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
@@ -193,57 +194,27 @@ export function MembersView() {
       </header>
 
       <div className="flex-1 px-6 py-4 sm:px-8">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Organization</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{organization?.members.length || 0} members</p>
+          </div>
           {canManage && (
-            <section className={cn(PANEL, "space-y-4 lg:col-span-1")}>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">Invite people</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  They get an email with a link that works for 48 hours.
-                </p>
-              </div>
-              <form onSubmit={invite} className="grid grid-cols-1 gap-3">
-                <div className="grid gap-1.5">
-                  <label htmlFor="invite-email" className="text-xs font-medium text-muted-foreground">Email</label>
-                  <Input
-                    id="invite-email"
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="teammate@company.com"
-                  />
-                </div>
-                <div className="grid gap-1.5">
-                  <label htmlFor="invite-role" className="text-xs font-medium text-muted-foreground">Role</label>
-                  <select
-                    id="invite-role"
-                    value={inviteRole}
-                    onChange={(event) => setInviteRole(event.target.value as Role)}
-                    className="h-10 rounded-lg border-2 border-ink bg-card px-3 text-sm capitalize shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition focus-visible:shadow-[3px_3px_0_hsl(var(--highlight))]"
-                  >
-                    {assignableRoles.map((role) => (
-                      <option key={role} value={role} className="bg-card capitalize">
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  type="submit"
-                  disabled={isInviting || !email.trim()}
-                  className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight disabled:opacity-50"
-                >
-                  {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                  Invite
-                </button>
-              </form>
-              <p className="text-xs text-muted-foreground">{ROLE_HINTS[inviteRole]}.</p>
-            </section>
+            <button
+              type="button"
+              onClick={() => setIsInviteOpen(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight"
+            >
+              <Mail className="h-4 w-4" />
+              Invite member
+            </button>
           )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
           {canManage && pendingInvitations.length > 0 && (
-            <section className={cn(PANEL, "p-0 overflow-hidden lg:col-span-1")}>
+            <section className={cn(PANEL, "p-0 overflow-hidden")}>
               <h2 className="border-b border-border px-6 py-4 text-sm font-semibold text-foreground">
                 Pending invitations
                 <span className="ml-2 text-muted-foreground">{pendingInvitations.length}</span>
@@ -308,7 +279,7 @@ export function MembersView() {
             </section>
           )}
 
-          <section className={cn(PANEL, "p-0 overflow-hidden lg:col-span-3")}>
+          <section className={cn(PANEL, "p-0 overflow-hidden lg:col-span-2")}>
             <h2 className="border-b border-border px-6 py-4 text-sm font-semibold text-foreground">People</h2>
             {!organization ? (
               <ul className="divide-y divide-border" aria-busy="true">
@@ -421,7 +392,7 @@ export function MembersView() {
           </section>
 
           {organization && me && (
-            <section className={cn(PANEL, "flex flex-wrap items-center justify-between gap-4 lg:col-span-3")}>
+            <section className={cn(PANEL, "flex flex-wrap items-center justify-between gap-4 lg:col-span-2")}>
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Leave organization</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -482,6 +453,60 @@ export function MembersView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {canManage && (
+        <AlertDialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Invite member</AlertDialogTitle>
+              <AlertDialogDescription>
+                Send an invitation to join your organization. They'll get an email with a link that works for 48 hours.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <form onSubmit={(e) => { invite(e); setIsInviteOpen(false); }} className="space-y-4">
+              <div className="grid gap-1.5">
+                <label htmlFor="invite-email" className="text-sm font-medium text-foreground">Email</label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="teammate@company.com"
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <label htmlFor="invite-role" className="text-sm font-medium text-foreground">Role</label>
+                <select
+                  id="invite-role"
+                  value={inviteRole}
+                  onChange={(event) => setInviteRole(event.target.value as Role)}
+                  className="h-10 rounded-lg border-2 border-ink bg-card px-3 text-sm capitalize shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition focus-visible:shadow-[3px_3px_0_hsl(var(--highlight))]"
+                >
+                  {assignableRoles.map((role) => (
+                    <option key={role} value={role} className="bg-card capitalize">
+                      {role}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-muted-foreground">{ROLE_HINTS[inviteRole]}.</p>
+              </div>
+            </form>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isInviting}>Cancel</AlertDialogCancel>
+              <button
+                type="submit"
+                onClick={() => invite({ preventDefault: () => {} } as React.FormEvent)}
+                disabled={isInviting || !email.trim()}
+                className="inline-flex items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 py-2 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
+              >
+                {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                Send invite
+              </button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
