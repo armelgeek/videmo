@@ -104,24 +104,18 @@ export function WorkspaceView() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-border/50">
-        <div className="px-4 py-3 sm:px-6">
-          {/* Org Switcher Row */}
-          <div className="mb-2 flex items-center gap-2">
-            <OrganizationSwitcher />
-          </div>
-
-          {/* Main content row */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0">
-              <h1 className="text-4xl font-extrabold text-foreground">
+        <div className="px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            {/* Left: Org selector */}
+            <div className="flex items-center gap-3">
+              <OrganizationSwitcher />
+              <div className="hidden sm:block w-px h-6 bg-border" />
+              <h1 className="text-3xl font-extrabold text-foreground">
                 <span className="sk-marker">Projects</span>
               </h1>
-              <p className="sk-scribble mt-1 -rotate-1 text-sm text-muted-foreground">
-                {response
-                  ? `${response.total} ${response.total === 1 ? "project" : "projects"} in this workspace`
-                  : "loading projects…"}
-              </p>
             </div>
+
+            {/* Right: Search and actions */}
 
             <div className="flex items-center gap-2">
               <label className="relative w-full sm:w-64">
