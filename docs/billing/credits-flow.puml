@@ -1,0 +1,72 @@
+@startuml docs/billing/credits-flow.puml
+title "Organization Credits — Debit, Refund, Stripe Sync, Monthly Reset"
+
+actor User
+participant "Browser"
+participant "React Component"
+participant "API Route (/api/generate-*)"
+participant "Credit Service"
+database "Database (Prisma)"
+participant "External" as Stripe
+participant "API Route (/api/webhooks/stripe)" as Webhook
+participant "Scheduler" as Cron
+participant "API Route (/api/cron/credits)" as CronRoute
+
+== Nominal Case: AI generation is charged (200) ==
+User ->> Browser: Click "Generate image"
+Browser ->> "React Component": generate()
+"React Component" ->> "API Route (/api/generate-*)": POST {projectId, prompt}
+note right of "API Route (/api/generate-*)": requireViewer() → active org\naiGenerationRateLimit\nZod parse\nrequireProjectAccess(update)\nprovider + storage configured
+"API Route (/api/generate-*)" ->> "Credit Service": consume(org, user, "generate_image")
+"Credit Service" ->> "Database (Prisma)": SELECT CreditWallet WHERE organizationId FOR UPDATE
+note right of "Credit Service": plan credits first,\nthen purchases closest to expiry
+"Credit Service" ->> "Database (Prisma)": decrement wallet + purchases,\nledger "consumption" {fromPlan, fromPurchases}
+"Credit Service" -->> "API Route (/api/generate-*)": consumption id
+"API Route (/api/generate-*)" ->> Stripe: (provider call — image model)
+"API Route (/api/generate-*)" -->> "React Component": 200 {url}
+
+== Edge Case: Insufficient credits (402) ==
+"Credit Service" -->> "API Route (/api/generate-*)": InsufficientCreditsError(balance, required)
+"API Route (/api/generate-*)" -->> "React Component": 402 {code: insufficient_credits}
+note right of "React Component": provider never called
+
+== Edge Case: Provider fails (502) → refund ==
+"API Route (/api/generate-*)" ->> "Credit Service": refund(consumption id)
+"Credit Service" ->> "Database (Prisma)": lock wallet, skip if refund exists,\nrestore same pools, ledger "refund"
+"API Route (/api/generate-*)" -->> "React Component": 502 {error}
+
+== Edge Case: Unauthorized (401) / Forbidden (403) ==
+"API Route (/api/generate-*)" -->> "React Component": 401 no session / 403 quota_exceeded
+
+== Stripe: subscription checkout completed ==
+Stripe ->> Webhook: checkout.session.completed (signed)
+note right of Webhook: signature + ProcessedWebhookEvent guard\nvalidate plan, tier ≠ free, amount, currency,\ncustomer = org customer, price = plan price, interval
+Webhook ->> "Database (Prisma)": upsert Subscription {organizationId, raw status}
+Webhook ->> "Credit Service": planTransition = grant → switchPlan(org)
+"Credit Service" ->> "Database (Prisma)": ledger "expiration" + "plan_grant", resetAt = +1 month
+
+== Stripe: credit top-up paid ==
+Stripe ->> Webhook: checkout.session.completed (mode payment)
+note right of Webhook: pack from catalog, credits + amount match,\npayment_status = paid
+Webhook ->> "Credit Service": grantPurchasedCredits (unique stripePaymentId)
+
+== Edge Case: Validation fails (500 → Stripe retries) ==
+Webhook -->> Stripe: 500, guard released, audit PAYMENT_VALIDATION_FAILED
+
+== Stripe: payment failed / recovered / canceled ==
+Stripe ->> Webhook: invoice.payment_failed
+Webhook ->> "Database (Prisma)": status past_due (credits kept, cache invalidated)
+Stripe ->> Webhook: customer.subscription.deleted
+Webhook ->> "Credit Service": switchPlan(org) → Free allowance
+
+== Daily job: monthly resets and purchase expiry ==
+Cron ->> CronRoute: POST Authorization: Bearer CRON_SECRET
+note right of CronRoute: constant-time compare,\nrefuses when secret unset or < 32 chars
+CronRoute ->> "Credit Service": runDueResets(now)
+"Credit Service" ->> "Database (Prisma)": WHERE resetAt <= now, lock, re-check, reset
+CronRoute ->> "Credit Service": expirePurchases(now)
+CronRoute -->> Cron: 200 {resets, expiredPurchases}
+
+== Edge Case: Bad cron secret (401) ==
+CronRoute -->> Cron: 401 Unauthorized
+@enduml

@@ -47,6 +47,9 @@ Verify for every task unless stated: `npx tsc --noEmit && npm test && npx biome 
 **T3.4 — Checkout actions**: `actions/payments/create-checkout-session.ts` takes the active org, requires owner/admin, rejects Free, customer on the org, `metadata.organizationId`; new `create-credit-purchase.ts` (packs from spec 4.2); billing portal action uses the org customer.
 
 **T3.5 — Cron** `app/api/cron/credits/route.ts`: Bearer `CRON_SECRET` (constant-time compare), runs `runDueResets` + `expirePurchases`, returns counts. Add `CRON_SECRET` to env docs and the deploy scheduler note.
+- The job refuses every call when `CRON_SECRET` is unset or shorter than 32 characters. Generate one with `openssl rand -hex 32`.
+- The app runs from the `Dockerfile`, so nothing schedules the job by itself. Call it daily from the host or any scheduler, for example crontab: `0 2 * * * curl -fsS -X POST -H "Authorization: Bearer $CRON_SECRET" https://<app-host>/api/cron/credits`.
+- Each run processes up to 500 wallets and 500 purchases; a backlog drains over consecutive runs, and reruns are no-ops.
 
 ## Phase 4 — Frontend (`lib/billing/`)
 
