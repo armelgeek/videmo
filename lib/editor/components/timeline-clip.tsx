@@ -206,7 +206,8 @@ export const TimelineClipItem = memo(
           {!isText && (
             <div className="relative z-10 flex items-center justify-center gap-2 text-center">
               <span
-                className={`truncate text-[10px] font-semibold uppercase tracking-wide ${clip.color ? "text-[var(--text-secondary)]" : isAudio ? "text-emerald-100 drop-shadow-md" : "text-[var(--text-primary)] drop-shadow-md"}`}
+                className={`truncate text-[10px] font-semibold uppercase tracking-wide ${clip.color ? "" : isAudio ? "text-emerald-100 drop-shadow-md" : "text-[var(--text-primary)] drop-shadow-md"}`}
+                style={clip.color ? { color: clip.color } : undefined}
               >
                 {media?.prompt || "Media"}
               </span>
