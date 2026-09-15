@@ -73,24 +73,24 @@ export function CreditHistory() {
           <p className="text-sm text-muted-foreground">No credit activity yet.</p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
+        <div className="overflow-x-auto -mx-6 px-6">
+          <Table className="border-collapse">
             <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Activity</TableHead>
-                <TableHead>By</TableHead>
-                <TableHead className="text-right">Credits</TableHead>
-                <TableHead className="text-right">Balance</TableHead>
+              <TableRow className="border-b-2 border-border hover:bg-transparent">
+                <TableHead className="border-b-2 border-border text-foreground font-semibold">Date</TableHead>
+                <TableHead className="border-b-2 border-border text-foreground font-semibold">Activity</TableHead>
+                <TableHead className="border-b-2 border-border text-foreground font-semibold">By</TableHead>
+                <TableHead className="border-b-2 border-border text-right text-foreground font-semibold">Credits</TableHead>
+                <TableHead className="border-b-2 border-border text-right text-foreground font-semibold">Balance</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {result.data.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell className="whitespace-nowrap">
+                <TableRow key={transaction.id} className="border-b border-border hover:bg-accent/30 transition-colors">
+                  <TableCell className="whitespace-nowrap py-3">
                     {format(new Date(transaction.createdAt), "MMM d, yyyy HH:mm")}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-3">
                     <span className="font-medium">
                       {TYPE_LABELS[transaction.type] ?? transaction.type}
                     </span>
@@ -100,18 +100,18 @@ export function CreditHistory() {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground py-3">
                     {transaction.userName ?? "—"}
                   </TableCell>
                   <TableCell
                     className={cn(
-                      "text-right font-semibold tabular-nums",
+                      "text-right font-semibold tabular-nums py-3",
                       transaction.amount < 0 ? "text-muted-foreground" : "text-foreground",
                     )}
                   >
                     {transaction.amount > 0 ? `+${transaction.amount}` : transaction.amount}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{transaction.balance}</TableCell>
+                  <TableCell className="text-right tabular-nums py-3">{transaction.balance}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
