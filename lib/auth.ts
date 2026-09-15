@@ -136,6 +136,43 @@ export const auth = betterAuth({
     autoSignInAfterVerification: !isEmailVerificationEnabled,
   },
   user: {
+    deleteUser: {
+      enabled: true,
+      beforeDelete: async (user) => {
+        const activeSubscription = await prisma.subscription.findFirst({
+          where: {
+            userId: user.id,
+            status: { in: ["active", "trialing", "past_due"] },
+            cancelAtPeriodEnd: false,
+          },
+          select: { id: true },
+        });
+        if (activeSubscription) {
+          throw new APIError("BAD_REQUEST", {
+            message: "Cancel your active subscription before deleting your account.",
+          });
+        }
+
+        const ownedOrganizations = await prisma.organizationMember.findMany({
+          where: { userId: user.id, role: "owner" },
+          select: { organizationId: true },
+        });
+        for (const { organizationId } of ownedOrganizations) {
+          const otherOwners = await prisma.organizationMember.count({
+            where: { organizationId, role: "owner", userId: { not: user.id } },
+          });
+          const otherMembers = await prisma.organizationMember.count({
+            where: { organizationId, userId: { not: user.id } },
+          });
+          // An owner leaving members behind would orphan the organization and its credits.
+          if (otherOwners === 0 && otherMembers > 0) {
+            throw new APIError("BAD_REQUEST", {
+              message: "Transfer ownership of your organizations before deleting your account.",
+            });
+          }
+        }
+      },
+    },
     additionalFields: {
       phone: {
         type: 'string',

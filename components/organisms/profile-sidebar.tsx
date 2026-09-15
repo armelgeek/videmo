@@ -12,6 +12,7 @@ import {
 import { ProfileForm } from '@/components/molecules/forms/profile-form';
 import { PasswordChangeForm } from '@/components/molecules/forms/password-change-form';
 import { TwoFactorSettings } from '@/components/templates/two-factor-settings';
+import { DeleteAccountPanel } from '@/components/templates/delete-account-panel';
 
 interface ProfileSidebarProps {
   userData: any;
@@ -65,6 +66,10 @@ export function ProfileSidebar({ userData }: ProfileSidebarProps) {
             <TwoFactorSettings />
           </div>
         )}
+
+        <section className={PANEL}>
+          <DeleteAccountPanel />
+        </section>
       </div>
     </div>
   );
