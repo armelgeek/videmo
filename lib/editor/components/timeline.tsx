@@ -99,6 +99,8 @@ interface TimelineProps {
    */
   showPlayhead?: boolean;
   hideTrackHeaders?: boolean;
+  /** For hosts that put transport controls elsewhere. */
+  hideToolbar?: boolean;
   videoTrackHeight?: string;
   /**
    * Reports the horizontal viewport so a lane rendered OUTSIDE this component
@@ -175,6 +177,7 @@ export const Timeline = memo(function Timeline({
   onTransitionResize,
   onTransitionTypeChange,
   hideTrackHeaders = false,
+  hideToolbar = false,
   videoTrackHeight = "h-11",
   showPlayhead = true,
   hideScrollbar = false,
@@ -431,6 +434,7 @@ export const Timeline = memo(function Timeline({
       aria-description="Multi-track timeline for video, audio, and text editing"
     >
       {/* Toolbar */}
+      {!hideToolbar && (
       <TimelineToolbar
         duration={duration}
         isPlaying={isPlaying}
@@ -483,6 +487,7 @@ export const Timeline = memo(function Timeline({
         onAddMarker={onAddMarker}
         onZoomToFit={onZoomToFit}
       />
+      )}
 
       <div
         className={`flex-1 flex overflow-hidden relative ${tool === "razor" ? "cursor-crosshair" : ""}`}

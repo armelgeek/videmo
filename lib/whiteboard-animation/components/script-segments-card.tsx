@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import type { StoryboardPanel } from "@/lib/storyboard/schema";
@@ -54,6 +54,14 @@ export function segmentWindows(
   return windows;
 }
 
+function formatClock(ms: number): string {
+  const safe = Number.isFinite(ms) ? Math.max(0, ms) / 1000 : 0;
+  const m = Math.floor(safe / 60);
+  const s = Math.floor(safe % 60);
+  const c = Math.floor((safe % 1) * 100);
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(c).padStart(2, "0")}`;
+}
+
 /** The segment heard at `t`, or the last one started when `t` falls in a gap. */
 function segmentAt(segments: SegmentWindow[], t: number): number {
   let lastStarted = 0;
@@ -77,15 +85,21 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
     [panel, parts, sceneStartMs],
   );
 
+  const isPlaying = useUnifiedEngineStore((s) => s.timeline.isPlaying);
+  const durationMs = useUnifiedEngineStore((s) => s.timeline.duration);
+  const togglePlay = useUnifiedEngineStore((s) => s.togglePlay);
+
   // Follows the clock outside React; only a change of segment re-renders.
   const [current, setCurrent] = useState(0);
   const lastRef = useRef(-1);
   const progressRef = useRef<HTMLDivElement>(null);
+  const timeRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     lastRef.current = -1;
     const place = () => {
-      if (segments.length === 0) return;
       const t = useUnifiedEngineStore.getState().timeline.currentTime;
+      if (timeRef.current) timeRef.current.textContent = formatClock(t);
+      if (segments.length === 0) return;
       const idx = segmentAt(segments, t);
       const segment = segments[idx];
       if (progressRef.current) {
@@ -100,7 +114,30 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
     return useUnifiedEngineStore.subscribe(place);
   }, [segments]);
 
-  if (segments.length === 0) return null;
+  const transport = (
+    <div className="flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        onClick={togglePlay}
+        aria-label={isPlaying ? "Pause" : "Play"}
+        className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:opacity-80"
+      >
+        {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="ml-0.5 h-3.5 w-3.5" />}
+      </button>
+      <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+        <span ref={timeRef} className="text-foreground">
+          {formatClock(0)}
+        </span>{" "}
+        / {formatClock(durationMs)}
+      </span>
+    </div>
+  );
+
+  if (segments.length === 0) {
+    return (
+      <div className="flex shrink-0 items-center border-b border-border px-4 py-2.5">{transport}</div>
+    );
+  }
 
   const idx = Math.min(current, segments.length - 1);
   // The segment shares the colour of the annotation at the same rank.
@@ -112,6 +149,7 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
 
   return (
     <div className="relative flex shrink-0 items-center gap-3 overflow-hidden border-b border-border px-4 py-2.5 text-foreground">
+      {transport}
       <p
         key={idx}
         className="line-clamp-2 min-w-0 flex-1 text-center animate-in fade-in duration-300"
@@ -181,8 +219,9 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
         <span className="px-1 text-foreground">
+          <span className="text-muted-foreground">Phrase </span>
           {idx + 1}
-          <span className="opacity-40"> / {segments.length}</span>
+          <span className="text-muted-foreground"> / {segments.length}</span>
         </span>
         <button
           type="button"
