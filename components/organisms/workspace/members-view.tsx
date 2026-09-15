@@ -3,12 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNowStrict } from "date-fns";
-import { AlertCircle, Check, Copy, Loader2, Mail, RotateCw, UserMinus, X } from "lucide-react";
+import { AlertCircle, Check, Copy, Loader2, Mail, MoreVertical, RotateCw, UserMinus, X } from "lucide-react";
 import { toast } from "sonner";
 import { authClient, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   ORGANIZATION_CHANGED_EVENT,
   notifyOrganizationChanged,
@@ -199,16 +205,63 @@ export function MembersView() {
             <h2 className="text-2xl font-bold text-foreground">Organization</h2>
             <p className="mt-1 text-sm text-muted-foreground">{organization?.members.length || 0} members</p>
           </div>
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => setIsInviteOpen(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight"
-            >
-              <Mail className="h-4 w-4" />
-              Invite member
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setIsInviteOpen(true)}
+                className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight"
+              >
+                <Mail className="h-4 w-4" />
+                Invite member
+              </button>
+            )}
+            {organization && me && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border-2 border-border text-muted-foreground outline-none transition hover:border-ink hover:text-foreground focus-visible:ring-2 focus-visible:ring-highlight"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {myRole === "owner" && ownerCount === 1 ? (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      Make someone else owner first
+                    </div>
+                  ) : (
+                    <DropdownMenuItem
+                      onClick={() =>
+                        setConfirmation({
+                          title: `Leave ${organization.name}?`,
+                          description: "You lose access to its projects until someone invites you again.",
+                          action: "Leave organization",
+                          run: async () => {
+                            const { error } = await authClient.organization.leave({ organizationId: organization.id });
+                            if (error) {
+                              toast.error(error.message ?? "Could not leave the organization.");
+                              return false;
+                            }
+                            toast.success(`Left ${organization.name}`);
+                            notifyOrganizationChanged();
+                            router.push("/workspace");
+                            router.refresh();
+                            return true;
+                          },
+                        })
+                      }
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <UserMinus className="mr-2 h-4 w-4" />
+                      Leave organization
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -391,44 +444,6 @@ export function MembersView() {
             )}
           </section>
 
-          {organization && me && (
-            <section className={cn(PANEL, "flex flex-wrap items-center justify-between gap-4 lg:col-span-2")}>
-              <div>
-                <h2 className="text-sm font-semibold text-foreground">Leave organization</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {myRole === "owner" && ownerCount === 1
-                    ? "You're the only owner. Make someone else owner before leaving."
-                    : "You lose access to its projects until someone invites you again."}
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={myRole === "owner" && ownerCount === 1}
-                onClick={() =>
-                  setConfirmation({
-                    title: `Leave ${organization.name}?`,
-                    description: "You lose access to its projects until someone invites you again.",
-                    action: "Leave organization",
-                    run: async () => {
-                      const { error } = await authClient.organization.leave({ organizationId: organization.id });
-                      if (error) {
-                        toast.error(error.message ?? "Could not leave the organization.");
-                        return false;
-                      }
-                      toast.success(`Left ${organization.name}`);
-                      notifyOrganizationChanged();
-                      router.push("/workspace");
-                      router.refresh();
-                      return true;
-                    },
-                  })
-                }
-                className="rounded-lg border-2 border-ink px-4 py-2 text-sm font-semibold text-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
-              >
-                Leave
-              </button>
-            </section>
-          )}
         </div>
       </div>
 
