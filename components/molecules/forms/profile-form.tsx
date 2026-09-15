@@ -267,7 +267,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
         </Dialog>
       </div>
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-end pt-6 border-t border-border mt-4">
         <button
           type="submit"
           disabled={isLoading}
