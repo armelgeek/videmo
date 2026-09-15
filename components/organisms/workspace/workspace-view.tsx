@@ -36,7 +36,9 @@ export function WorkspaceView() {
   const [deleting, setDeleting] = useState<ProjectListItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "a-z" | "z-a">("recent");
+  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "a-z" | "z-a">(
+    "recent",
+  );
   const [timeFilter, setTimeFilter] = useState<"all" | "week" | "month">("all");
   const requestSeq = useRef(0);
 
@@ -54,7 +56,9 @@ export function WorkspaceView() {
     const params = new URLSearchParams({ page: String(page) });
     if (search) params.set("search", search);
 
-    const res = await api.get<ProjectListResponse>(`/api/video-projects?${params}`);
+    const res = await api.get<ProjectListResponse>(
+      `/api/video-projects?${params}`,
+    );
     if (seq !== requestSeq.current) return;
 
     setIsFetching(false);
@@ -82,7 +86,8 @@ export function WorkspaceView() {
       load();
     };
     window.addEventListener(ORGANIZATION_CHANGED_EVENT, onChange);
-    return () => window.removeEventListener(ORGANIZATION_CHANGED_EVENT, onChange);
+    return () =>
+      window.removeEventListener(ORGANIZATION_CHANGED_EVENT, onChange);
   }, [load]);
 
   const confirmDelete = async () => {
@@ -94,7 +99,7 @@ export function WorkspaceView() {
       toast.error(
         res.error === "Project is being edited"
           ? "Someone is editing this project. Try again once they close it."
-          : res.error ?? "Project could not be deleted.",
+          : (res.error ?? "Project could not be deleted."),
       );
       return;
     }
@@ -108,7 +113,7 @@ export function WorkspaceView() {
   const isInitialLoad = !response && isFetching;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col" style={{ fontFamily: "var(--font-sketch-hand)" }}>
       <header className="border-b border-border/50">
         <div className="px-4 sm:px-6 py-3">
           {/* Org name */}
@@ -121,10 +126,12 @@ export function WorkspaceView() {
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
               <span className="sk-marker">Workspace</span>
-            <p className="mt-2 text-sm text-muted-foreground">Manage your projects</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Manage your projects
+              </p>
             </h1>
 
-{/* Will be moved to toolbar below */}
+            {/* Will be moved to toolbar below */}
           </div>
         </div>
       </header>
@@ -134,7 +141,9 @@ export function WorkspaceView() {
           {error && !response ? (
             <div className="flex flex-col items-center rounded-lg border-2 border-dashed border-border bg-card px-6 py-14 text-center">
               <AlertCircle className="h-6 w-6 text-foreground" />
-              <p className="mt-3 font-medium text-foreground">Projects could not be loaded</p>
+              <p className="mt-3 font-medium text-foreground">
+                Projects could not be loaded
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
               <button
                 type="button"
@@ -149,7 +158,9 @@ export function WorkspaceView() {
           ) : projects.length === 0 ? (
             search ? (
               <div className="rounded-lg border-2 border-dashed border-border bg-card px-6 py-14 text-center">
-                <p className="font-medium text-foreground">No project matches "{search}"</p>
+                <p className="font-medium text-foreground">
+                  No project matches "{search}"
+                </p>
                 <button
                   type="button"
                   onClick={() => setQuery("")}
@@ -169,7 +180,7 @@ export function WorkspaceView() {
                 teamMembers={response?.teamMembersCount ?? 0}
               />
 
-              <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 border-b border-border">
+              <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 mb-5 border-b border-border">
                 <h2 className="text-lg font-semibold">Projects</h2>
                 <WorkspaceControls
                   viewMode={viewMode}
@@ -186,16 +197,16 @@ export function WorkspaceView() {
                   <div
                     className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
                   >
-                  {projects.map((project) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      canUpdate={viewer?.canUpdate ?? false}
-                      canDelete={viewer?.canDelete ?? false}
-                      onRename={setRenaming}
-                      onDelete={setDeleting}
-                    />
-                  ))}
+                    {projects.map((project) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        canUpdate={viewer?.canUpdate ?? false}
+                        canDelete={viewer?.canDelete ?? false}
+                        onRename={setRenaming}
+                        onDelete={setDeleting}
+                      />
+                    ))}
                   </div>
                 </div>
               ) : (
@@ -209,12 +220,18 @@ export function WorkspaceView() {
               )}
 
               {response && response.totalPages > 1 && (
-                <nav className="mt-8 flex items-center justify-between gap-3" aria-label="Pagination">
+                <nav
+                  className="mt-8 flex items-center justify-between gap-3"
+                  aria-label="Pagination"
+                >
                   <p className="text-xs text-muted-foreground">
                     Page {response.page} of {response.totalPages}
                   </p>
                   <div className="flex gap-2">
-                    <PageButton disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                    <PageButton
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => p - 1)}
+                    >
                       Previous
                     </PageButton>
                     <PageButton
@@ -241,16 +258,22 @@ export function WorkspaceView() {
         />
       )}
 
-      <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
+      <AlertDialog
+        open={Boolean(deleting)}
+        onOpenChange={(open) => !open && setDeleting(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete "{deleting?.title}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              The project and its storyboard leave this workspace for everyone in it.
+              The project and its storyboard leave this workspace for everyone
+              in it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Keep project</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>
+              Keep project
+            </AlertDialogCancel>
             <AlertDialogAction
               disabled={isDeleting}
               onClick={(event) => {
@@ -285,9 +308,12 @@ function EmptyWorkspace({ canCreate }: { canCreate: boolean }) {
         <span className="sk-tape" aria-hidden="true" />
         <Plus className="h-6 w-6 text-neutral-400" />
       </div>
-      <p className="mt-6 font-display text-xl font-extrabold text-foreground">Your workspace is empty</p>
+      <p className="mt-6 font-display text-xl font-extrabold text-foreground">
+        Your workspace is empty
+      </p>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-        Start from an idea: write a prompt, get a storyboard, then animate it on the whiteboard.
+        Start from an idea: write a prompt, get a storyboard, then animate it on
+        the whiteboard.
       </p>
       {canCreate && (
         <Link
@@ -304,9 +330,15 @@ function EmptyWorkspace({ canCreate }: { canCreate: boolean }) {
 
 function ProjectGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" aria-busy="true">
+    <div
+      className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4"
+      aria-busy="true"
+    >
       {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="overflow-hidden rounded-lg border border-border bg-card">
+        <div
+          key={index}
+          className="overflow-hidden rounded-lg border border-border bg-card"
+        >
           <div className="aspect-video bg-accent motion-safe:animate-pulse" />
           <div className="flex flex-col gap-3 p-5">
             <div className="h-4 w-2/3 rounded bg-accent motion-safe:animate-pulse" />
