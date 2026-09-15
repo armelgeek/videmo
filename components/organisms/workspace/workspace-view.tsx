@@ -302,12 +302,12 @@ function EmptyWorkspace({ canCreate }: { canCreate: boolean }) {
 
 function ProjectGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5" aria-busy="true">
+    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4" aria-busy="true">
       {Array.from({ length: 8 }).map((_, index) => (
         <div key={index} className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="aspect-video bg-accent motion-safe:animate-pulse" />
-          <div className="space-y-2 p-3">
-            <div className="h-3 w-2/3 rounded bg-accent motion-safe:animate-pulse" />
+          <div className="flex flex-col gap-3 p-5">
+            <div className="h-4 w-2/3 rounded bg-accent motion-safe:animate-pulse" />
             <div className="h-2 w-1/3 rounded bg-accent/50 motion-safe:animate-pulse" />
             <div className="flex gap-2 pt-1">
               <div className="h-1.5 w-1/3 rounded-full bg-accent/40 motion-safe:animate-pulse" />
