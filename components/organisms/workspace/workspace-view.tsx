@@ -191,9 +191,10 @@ export function WorkspaceView() {
             )
           ) : (
             <>
-              <div
-                className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
-              >
+              <div className="rounded-lg border border-border/50 bg-card/50 p-6 sm:p-8">
+                <div
+                  className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
+                >
                 {projects.map((project) => (
                   <ProjectCard
                     key={project.id}
@@ -204,6 +205,7 @@ export function WorkspaceView() {
                     onDelete={setDeleting}
                   />
                 ))}
+                </div>
               </div>
 
               {response && response.totalPages > 1 && (
