@@ -38,18 +38,20 @@ export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete 
         href={`/storyboard?project=${project.id}`}
         className="flex flex-col outline-none focus-visible:ring-2 focus-visible:ring-highlight"
       >
-        <ProjectThumbnail
-          previewUrl={project.previewUrl}
-          aspectRatio={project.aspectRatio}
-          className="border-b border-border bg-white"
-        >
-          {editedBy && (
-            <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-highlight px-2 py-1 text-xs font-semibold text-highlight-foreground">
-              <span className="h-1 w-1 rounded-full bg-ink motion-safe:animate-pulse" />
-              {editedBy}
-            </span>
-          )}
-        </ProjectThumbnail>
+        <div className="aspect-square overflow-hidden border-b border-border bg-white">
+          <ProjectThumbnail
+            previewUrl={project.previewUrl}
+            aspectRatio={project.aspectRatio}
+            className="h-full w-full"
+          >
+            {editedBy && (
+              <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded bg-highlight px-2 py-1 text-xs font-semibold text-highlight-foreground">
+                <span className="h-1 w-1 rounded-full bg-ink motion-safe:animate-pulse" />
+                {editedBy}
+              </span>
+            )}
+          </ProjectThumbnail>
+        </div>
 
         <div className="flex flex-col gap-3 p-5">
           <div className="min-w-0 flex-1">
