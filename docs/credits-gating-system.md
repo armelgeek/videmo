@@ -6,6 +6,80 @@
 
 ---
 
+## ⚠️ Revision 2 (2026-09-15) — Corrections after code verification
+
+**This section overrides Sections 1–5 wherever they conflict.** Decisions validated: billing scoped to the organization, daily cron for resets, `/api/seq/*` out of scope.
+
+### R1 — Billing belongs to the Organization, not the User
+
+`VideoProject.organizationId` is required and every user gets a personal org via `ensurePersonalOrganization` (`lib/auth-organization-prisma.ts`). Credits and quotas follow the org.
+
+- `CreditWallet.organizationId @unique` (replaces `userId`).
+- `CreditTransaction`: `organizationId` (owner of the balance) + `userId?` (actor who triggered it).
+- `CreditPurchase`: `organizationId` + `userId` (buyer).
+- `Subscription.organizationId` added (nullable in migration, backfilled from the subscriber's personal org, then required). `Subscription.userId` kept as "who paid".
+- `Organization.stripeCustomerId String? @unique` — one Stripe customer per org.
+- Only `owner`/`admin` members can checkout, top-up, or open the billing portal.
+- No subscription row = Free plan. Resolution: active subscription of the org ?? plan where `tier = "free"`.
+- `organization_access` gate **removed** (every user already has an org). `max_org_members`: Free 1, Starter 1, Pro 5, Enterprise -1 — counts members + pending invitations.
+- `max_projects` counts `VideoProject` rows of the org.
+- New orgs get their wallet lazily on first `getWallet`/`consume` (upsert), not in the better-auth user hook — this covers personal orgs and orgs created from the switcher.
+
+### R2 — Plans are one row per interval
+
+`Plan` has `interval` and a unique `stripePriceId` per row; there is no `amountYearly`. `tier` is set on every row; the seed creates monthly + yearly rows for Starter/Pro/Enterprise and a single Free row (`stripePriceId = "free_forever"`, `amount = 0`, `interval = "month"`). `createCheckoutSession` must reject `tier = "free"`. Quotas/features are defined per tier in the seed and written to both interval rows.
+
+### R3 — Monthly reset is a daily cron, for all plans
+
+`invoice.paid` fires once a year for yearly plans, so it cannot drive resets.
+
+- `POST /api/cron/credits`, authorized by `Authorization: Bearer ${CRON_SECRET}`, triggered externally (app runs from `Dockerfile`, no Vercel cron) — e.g. host crontab or a scheduled GitHub Action calling the URL daily.
+- For each wallet with `resetAt <= now`, in **one** transaction: expire remaining `planCredits` (ledger `expiration`), grant the plan's `monthly_credits` (ledger `plan_grant`), set `resetAt` to +1 calendar month. The row update is conditional on `resetAt <= now` so a double run is a no-op.
+- Same job expires `CreditPurchase` rows past `expiresAt`.
+- `invoice.paid` no longer touches credits.
+
+### R4 — Plan changes
+
+- `checkout.session.completed` (subscription) and `customer.subscription.updated` with a changed price → expire plan credits, grant the new tier's allowance, `resetAt = now + 1 month`, invalidate plan cache. One transaction.
+- `customer.subscription.deleted` → same, with the Free tier.
+- Existing handler bugs to fix while enriching `lib/webhooks/stripe/handlers/index.ts` (the one the route imports; `handlers/invoice.ts` is an unused duplicate and gets deleted):
+  - create sets `currentPeriodEnd: new Date()` → read the real period from the Stripe subscription;
+  - `handleSubscriptionUpdated` collapses every non-`active` status to `"inactive"` → store the Stripe status as-is (`trialing`, `past_due`, …); gating treats `active | trialing` as paid;
+  - `session.subscription` is required, which throws on `mode: "payment"` top-ups → branch on `session.mode` first.
+- The plan's `planId` is resolved from the Stripe price id, not trusted from metadata alone.
+
+### R5 — Debit points are the real API routes
+
+There are no `generate-*.ts` server actions. Credits are debited in route handlers, after authorization and before calling the paid provider, and **refunded** if generation fails (ledger `refund`, `referenceId` = consumption transaction id):
+
+`requireViewer()` → `aiGenerationRateLimit` → Zod parse → `requireProjectAccess` → `consume` → provider call → on error `refund`.
+
+| Route | Action key | Note |
+|---|---|---|
+| `app/api/generate-script` | `generate_script` | switch from `getSession` to `requireViewer()` to get the org |
+| `app/api/generate-storyboard` | `generate_storyboard` | same |
+| `app/api/generate-narration` | `generate_narration` | already uses `requireViewer()` |
+| `app/api/generate-images` | `generate_image` | already uses `requireViewer()` |
+| `app/api/video/generate` | — | **currently unauthenticated** (no session, no rate limit) and starts a paid Mastra workflow; secured first (Phase 0), metered later |
+
+`/api/seq/*` has no route in this repo — out of scope. `storage_per_gb` and `max_storage_gb` are deferred (no storage accounting exists yet).
+
+### R6 — Purchased credits are debited per purchase
+
+Decrementing only `CreditWallet.purchasedCredits` makes expiry wrong (an expiring purchase would remove credits already spent). When `consume` takes from purchased credits it also decrements `CreditPurchase.remainingCredits` on unexpired purchases ordered by `expiresAt asc`. Expiry then removes only `remainingCredits`. Refunds of purchased credits add to a new `CreditTransaction` and to `purchasedCredits` (not to the original purchase).
+
+### R7 — Frontend without React Query
+
+The project has no `@tanstack/react-query`. Hooks use the `api` client + `useState`; after a credit-consuming call the UI dispatches a `credits:changed` window event that `useCredits` listens to. Paths follow the repo layout: hooks and components under `lib/billing/`, page under `app/(protected)/settings/billing/` (confirm the existing billing page route before adding a new one).
+
+### R8 — Corrected consume() details
+
+- `$queryRaw` returns an array: `const [wallet] = await tx.$queryRaw<...>`; missing wallet → upsert then retry the lock.
+- Unknown action cost → throw, never default to 0.
+- Ledger `source` records `"plan" | "purchased" | "mixed"`.
+
+---
+
 ## 📊 Executive Summary
 
 A comprehensive system for managing user credits, plan quotas, and feature access in the Hayzar video creation platform. Replaces the simple plan features array with:
