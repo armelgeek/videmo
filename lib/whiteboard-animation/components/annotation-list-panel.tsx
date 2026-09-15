@@ -110,81 +110,64 @@ function AnnotationListPanelImpl({
           No annotations yet. Draw a region on the canvas to add one.
         </p>
       ) : (
-        <ul className="min-h-0 flex-1 overflow-y-auto py-1.5">
+        <ul className="min-h-0 flex-1 overflow-y-auto p-2 space-y-1">
           {derived.map((annotation, i) => {
             const selected = selectedIndex === i;
             const playing = playingIndex === i;
             const color = annotationColors(annotation, i).stroke;
             const currentAnimStyle = annotation.animStyle ?? DEFAULT_ANIM_STYLE;
+            const seconds = (annotation.reveal.to - annotation.reveal.from) / 1000;
 
             return (
-              <li key={annotation.id ?? i} className="px-2 py-1">
-                <div
+              <li
+                key={annotation.id ?? i}
+                className={cn(
+                  'rounded-md transition-colors',
+                  selected ? 'bg-muted ring-1 ring-border' : playing ? 'bg-muted/60' : 'hover:bg-muted/40',
+                )}
+              >
+                <button
+                  type="button"
                   onClick={() => selectAndSeek(i, selected)}
-                  className={cn(
-                    'flex w-full cursor-pointer items-center gap-2.5 rounded-lg border border-l-[3px] px-2.5 py-2 transition-colors',
-                    selected ? 'bg-muted' : playing ? 'border-transparent bg-muted/60' : 'border-transparent hover:bg-muted/40',
-                  )}
-                  style={{
-                    borderLeftColor: color,
-                    ...(selected && { borderColor: `color-mix(in srgb, ${color} 55%, transparent)`, borderLeftColor: color }),
-                  }}
+                  aria-pressed={selected}
+                  className="flex w-full items-center gap-2.5 px-2.5 py-2 text-left"
                 >
                   <span
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold tabular-nums"
-                    style={{ color, backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)` }}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold tabular-nums"
+                    style={{ color, borderColor: color }}
                   >
                     {i + 1}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <span className={cn('line-clamp-2 text-[13px] leading-snug', selected || playing ? 'font-medium text-foreground' : 'text-foreground/90')}>
-                      {annotation.text || `Region ${i + 1}`}
-                    </span>
-                    <span className="mt-0.5 block font-mono text-[10px] tabular-nums text-muted-foreground">
-                      {formatMs(annotation.reveal.from)} → {formatMs(annotation.reveal.to)}
-                    </span>
-                  </div>
+                  <span className={cn('min-w-0 flex-1 truncate text-xs', selected ? 'font-medium text-foreground' : 'text-foreground/90')}>
+                    {annotation.text || `Region ${i + 1}`}
+                  </span>
                   {playing && (
-                    <span aria-label="Playing" className="relative flex h-2 w-2 shrink-0">
-                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-60" style={{ backgroundColor: color }} />
-                      <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-                    </span>
+                    <span aria-label="Playing" className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
                   )}
-                  {!selected && currentAnimStyle !== DEFAULT_ANIM_STYLE && (
-                    <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
-                      {ANIM_STYLES.find((st) => st.value === currentAnimStyle)?.label ?? currentAnimStyle}
-                    </span>
-                  )}
-                </div>
+                  <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                    {seconds.toFixed(1)}s
+                  </span>
+                </button>
 
                 {selected && (
-                  <div
-                    role="radiogroup"
-                    aria-label="Animation style"
-                    className="grid grid-cols-2 gap-1.5 px-2 pb-3 pt-2"
-                  >
-                    {ANIM_STYLES.map((st) => {
-                      const active = currentAnimStyle === st.value;
-                      return (
-                        <button
-                          key={st.value}
-                          type="button"
-                          role="radio"
-                          aria-checked={active}
-                          onClick={() => handleStyleChange(i, st.value)}
-                          style={active ? { borderColor: color, color } : undefined}
-                          className={cn(
-                            'flex items-center justify-between gap-1 truncate rounded-lg border px-2.5 py-2 text-left text-xs font-medium transition-colors',
-                            active
-                              ? 'bg-muted'
-                              : 'border-border/60 bg-background/40 text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground',
-                          )}
-                        >
-                          <span className="truncate">{st.label}</span>
-                          {active && <Check className="h-3.5 w-3.5 shrink-0" />}
-                        </button>
-                      );
-                    })}
+                  <div className="flex items-center justify-between gap-2 border-t border-border px-2.5 py-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      {formatMs(annotation.reveal.from)} → {formatMs(annotation.reveal.to)}
+                    </span>
+                    <label className="mb-0 flex items-center gap-1.5 text-[11px] font-normal text-muted-foreground">
+                      Style
+                      <select
+                        value={currentAnimStyle}
+                        onChange={(e) => handleStyleChange(i, e.target.value)}
+                        className="h-7 w-auto rounded-md border border-border bg-card px-2 py-0 text-[11px] font-medium text-foreground"
+                      >
+                        {ANIM_STYLES.map((st) => (
+                          <option key={st.value} value={st.value}>
+                            {st.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                 )}
               </li>
