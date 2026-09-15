@@ -1,10 +1,8 @@
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { Logo } from '@/components/atoms/icons/logo'
-import { Header } from '@/components/organisms/header/header'
-import { Footer } from '@/components/organisms/footer/footer'
 import { SignupForm } from '@/components/molecules/forms/signup-form'
+import { AuthLayout } from "@/components/templates/auth-layout"
 import { buildMetadata } from "@/lib/seo"
 import { safeRedirectPath } from "@/lib/utils/safe-redirect"
 
@@ -30,16 +28,11 @@ export default async function SignupPage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <div className="bg-muted flex flex-1 flex-col items-center justify-center gap-6 p-6 md:p-10">
-        <div className="flex w-full max-w-sm flex-col gap-6">
-          <h1 className="sr-only">Create your account</h1>
-          <Logo className="self-center" />
-          <SignupForm redirectTo={redirectTo} />
-        </div>
-      </div>
-      <Footer />
-    </div>
+    <AuthLayout
+      title="Get Started"
+      description="Create your account to begin your journey"
+    >
+      <SignupForm redirectTo={redirectTo} />
+    </AuthLayout>
   )
 }

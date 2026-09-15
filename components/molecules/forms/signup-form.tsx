@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { z } from "zod"
 import { isValidPhoneNumber, type Value } from "react-phone-number-input"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, User, Phone, AlertCircle, CheckCircle2 } from "lucide-react"
 
 const signupSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -201,47 +201,57 @@ export function SignupForm({
   if (showOtpVerification) {
     return (
       <div className={cn("flex flex-col gap-6", className)} {...props}>
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl">Verify Your Email</CardTitle>
-            <CardDescription>
-              We&apos;ve sent a 6-digit code to {email}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleOtpVerification}>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="otp">Verification Code</FieldLabel>
-                  <Input
-                    id="otp"
-                    type="text"
-                    placeholder="000000"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setOtp(e.target.value.replace(/\D/g, ''))}
-                    required
-                    disabled={isLoading}
-                    className="text-center text-2xl tracking-widest"
-                  />
-                  <FieldDescription>
-                    Enter the 6-digit code sent to your email
-                  </FieldDescription>
-                </Field>
-                <Field>
-                  <Button type="submit" disabled={isLoading || otp.length !== 6}>
-                    {isLoading ? "Verifying..." : "Verify Email"}
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    onClick={handleResendOtp}
-                    disabled={isLoading}
-                  >
-                    Resend Code
-                  </Button>
-                </Field>
-              </FieldGroup>
+        <Card className="border-0 shadow-lg">
+          <CardContent className="p-6 sm:p-8">
+            <form onSubmit={handleOtpVerification} className="space-y-6">
+              <div className="space-y-2">
+                <CardTitle className="text-2xl">Verify Your Email</CardTitle>
+                <CardDescription>
+                  We sent a 6-digit code to{" "}
+                  <span className="font-medium text-foreground">{email}</span>
+                </CardDescription>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="otp">Verification Code</FieldLabel>
+                <Input
+                  id="otp"
+                  type="text"
+                  placeholder="000000"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                    setOtp(e.target.value.replace(/\D/g, ""))
+                  }
+                  required
+                  disabled={isLoading}
+                  className="text-center text-3xl font-semibold tracking-widest font-mono"
+                  autoFocus
+                />
+                <p className="text-xs text-muted-foreground">
+                  Check your spam folder if you don't see the email
+                </p>
+              </Field>
+
+              <div className="flex flex-col gap-3">
+                <Button
+                  type="submit"
+                  disabled={isLoading || otp.length !== 6}
+                  className="w-full h-10 font-medium"
+                  size="lg"
+                >
+                  {isLoading ? "Verifying..." : "Verify Email"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleResendOtp}
+                  disabled={isLoading}
+                  className="w-full"
+                >
+                  Resend Code
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -249,22 +259,18 @@ export function SignupForm({
     )
   }
 
+  const passwordStrength = getPasswordStrength(passwordValue)
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card>
-        <CardHeader className="text-center">
-          <CardTitle className="text-xl">Create your account</CardTitle>
-          <CardDescription>
-            Enter your email below to create your account
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="name" className={errors.name ? "text-red-600" : ""}>
-                  Full Name
-                </FieldLabel>
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-6 sm:p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Name Field */}
+            <Field>
+              <FieldLabel htmlFor="name">Full Name</FieldLabel>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <Input
                   id="name"
                   name="name"
@@ -273,42 +279,56 @@ export function SignupForm({
                   required
                   disabled={isLoading}
                   autoComplete="name"
-                  className={errors.name ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  className={cn(
+                    "pl-10 transition-colors",
+                    errors.name && "border-destructive focus-visible:ring-destructive"
+                  )}
                   aria-invalid={errors.name ? "true" : "false"}
                   aria-describedby={errors.name ? "name-error" : undefined}
                 />
-                {errors.name && (
-                  <p id="name-error" className="text-sm font-medium text-red-600 mt-1">
-                    {errors.name}
-                  </p>
-                )}
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="email" className={errors.email ? "text-red-600" : ""}>
-                  Email
-                </FieldLabel>
+              </div>
+              {errors.name && (
+                <div id="name-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.name}
+                </div>
+              )}
+            </Field>
+
+            {/* Email Field */}
+            <Field>
+              <FieldLabel htmlFor="email">Email Address</FieldLabel>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 <Input
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="you@example.com"
                   required
                   disabled={isLoading}
                   autoComplete="email"
-                  className={errors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
+                  className={cn(
+                    "pl-10 transition-colors",
+                    errors.email && "border-destructive focus-visible:ring-destructive"
+                  )}
                   aria-invalid={errors.email ? "true" : "false"}
                   aria-describedby={errors.email ? "email-error" : undefined}
                 />
-                {errors.email && (
-                  <p id="email-error" className="text-sm font-medium text-red-600 mt-1">
-                    {errors.email}
-                  </p>
-                )}
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="phone" className={errors.phone ? "text-red-600" : ""}>
-                  Phone Number (Optional)
-                </FieldLabel>
+              </div>
+              {errors.email && (
+                <div id="email-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.email}
+                </div>
+              )}
+            </Field>
+
+            {/* Phone Field */}
+            <Field>
+              <FieldLabel htmlFor="phone">Phone Number <span className="text-xs text-muted-foreground">(Optional)</span></FieldLabel>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
                 <PhoneInput
                   id="phone"
                   value={phone}
@@ -318,115 +338,180 @@ export function SignupForm({
                   error={!!errors.phone}
                   aria-invalid={errors.phone ? "true" : "false"}
                   aria-describedby={errors.phone ? "phone-error" : undefined}
+                  className="pl-10"
                 />
-                {errors.phone && (
-                  <p id="phone-error" className="text-sm font-medium text-red-600 mt-1">
-                    {errors.phone}
-                  </p>
-                )}
-              </Field>
-              <Field>
-                <Field className="grid grid-cols-2 gap-4">
-                  <Field>
-                    <FieldLabel htmlFor="password" className={errors.password ? "text-red-600" : ""}>
-                      Password
-                    </FieldLabel>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        required
-                        disabled={isLoading}
-                        autoComplete="new-password"
-                        value={passwordValue}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setPasswordValue(e.target.value)}
-                        className={errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}
-                        aria-invalid={errors.password ? "true" : "false"}
-                        aria-describedby={errors.password ? "password-error" : undefined}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowPassword(!showPassword)}
-                        tabIndex={-1}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {passwordValue && (
-                      <div className="mt-1">
-                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full transition-all ${getPasswordStrength(passwordValue).color}`}
-                            style={{ width: getPasswordStrength(passwordValue).width }}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Password strength: {getPasswordStrength(passwordValue).label}
-                        </p>
+              </div>
+              {errors.phone && (
+                <div id="phone-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {errors.phone}
+                </div>
+              )}
+            </Field>
+
+            {/* Password Fields */}
+            <div className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Security</h3>
+                <p className="text-xs text-muted-foreground">Create a strong password to protect your account</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Password */}
+                <Field>
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      disabled={isLoading}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      value={passwordValue}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                        setPasswordValue(e.target.value)
+                      }
+                      className={cn(
+                        "pl-10 pr-10 transition-colors",
+                        errors.password && "border-destructive focus-visible:ring-destructive"
+                      )}
+                      aria-invalid={errors.password ? "true" : "false"}
+                      aria-describedby={errors.password ? "password-error" : undefined}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {passwordValue && (
+                    <div className="mt-2 space-y-1">
+                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all ${passwordStrength.color}`}
+                          style={{ width: passwordStrength.width }}
+                        />
                       </div>
-                    )}
-                    {errors.password && (
-                      <p id="password-error" className="text-sm font-medium text-red-600 mt-1">
-                        {errors.password}
+                      <p className={cn(
+                        "text-xs font-medium",
+                        passwordStrength.label === "Weak" && "text-destructive",
+                        passwordStrength.label === "Fair" && "text-yellow-600",
+                        passwordStrength.label === "Strong" && "text-blue-600",
+                        passwordStrength.label === "Very Strong" && "text-green-600"
+                      )}>
+                        Strength: {passwordStrength.label}
                       </p>
-                    )}
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="confirm-password" className={errors.confirmPassword ? "text-red-600" : ""}>
-                      Confirm Password
-                    </FieldLabel>
-                    <div className="relative">
-                      <Input
-                        id="confirm-password"
-                        name="confirm-password"
-                        type={showConfirmPassword ? "text" : "password"}
-                        required
-                        disabled={isLoading}
-                        autoComplete="new-password"
-                        className={errors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
-                        aria-invalid={errors.confirmPassword ? "true" : "false"}
-                        aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        tabIndex={-1}
-                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                      >
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
                     </div>
-                    {errors.confirmPassword && (
-                      <p id="confirmPassword-error" className="text-sm font-medium text-red-600 mt-1">
-                        {errors.confirmPassword}
-                      </p>
-                    )}
-                  </Field>
+                  )}
+                  {errors.password && (
+                    <div id="password-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.password}
+                    </div>
+                  )}
                 </Field>
-                <FieldDescription>
-                  Must be at least 8 characters long.
-                </FieldDescription>
-              </Field>
-              <Field>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Creating account..." : "Create Account"}
-                </Button>
-                <FieldDescription className="text-center">
-                  Already have an account? <a href={loginHref}>Sign in</a>
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
+
+                {/* Confirm Password */}
+                <Field>
+                  <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      id="confirm-password"
+                      name="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      disabled={isLoading}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                      className={cn(
+                        "pl-10 pr-10 transition-colors",
+                        errors.confirmPassword && "border-destructive focus-visible:ring-destructive"
+                      )}
+                      aria-invalid={errors.confirmPassword ? "true" : "false"}
+                      aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      tabIndex={-1}
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                  {errors.confirmPassword && (
+                    <div id="confirmPassword-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.confirmPassword}
+                    </div>
+                  )}
+                </Field>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Must be at least 8 characters with uppercase, numbers, and symbols for best security
+              </p>
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full h-10 font-medium"
+              size="lg"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground" />
+                  Creating account...
+                </span>
+              ) : (
+                "Create Account"
+              )}
+            </Button>
+
+            {/* Sign In Link */}
+            <div className="flex items-center justify-center gap-1 text-sm">
+              <span className="text-muted-foreground">Already have an account?</span>
+              <a
+                href={loginHref}
+                className="font-medium text-primary hover:underline underline-offset-2"
+              >
+                Sign in
+              </a>
+            </div>
           </form>
         </CardContent>
       </Card>
-      <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="/terms">Terms of Service</a>{", "}
-        and <a href="/privacy">Privacy Policy</a>.
-      </FieldDescription>
+
+      {/* Terms */}
+      <p className="text-xs text-center text-muted-foreground">
+        By creating an account, you agree to our{" "}
+        <a href="/terms" className="underline hover:text-foreground underline-offset-2">
+          Terms of Service
+        </a>
+        {" "}and{" "}
+        <a href="/privacy" className="underline hover:text-foreground underline-offset-2">
+          Privacy Policy
+        </a>
+      </p>
     </div>
   )
 }

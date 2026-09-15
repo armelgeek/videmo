@@ -1,10 +1,8 @@
 import { auth } from "@/lib/auth"
 import { headers } from "next/headers"
 import { redirect } from "next/navigation"
-import { Logo } from '@/components/atoms/icons/logo'
-import { Header } from '@/components/organisms/header/header'
-import { Footer } from '@/components/organisms/footer/footer'
 import { LoginForm } from '@/components/molecules/forms/login-form'
+import { AuthLayout } from "@/components/templates/auth-layout"
 import { buildMetadata } from "@/lib/seo"
 import { safeRedirectPath } from "@/lib/utils/safe-redirect"
 
@@ -31,16 +29,11 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <div className="bg-muted flex flex-1 flex-col items-center justify-center gap-6 p-6 md:p-10">
-        <div className="flex w-full max-w-sm flex-col gap-6">
-          <h1 className="sr-only">Sign in to your account</h1>
-          <Logo className="self-center" />
-          <LoginForm redirectTo={redirectTo} />
-        </div>
-      </div>
-      <Footer />
-    </div>
+    <AuthLayout
+      title="Welcome Back"
+      description="Sign in to your account to continue"
+    >
+      <LoginForm redirectTo={redirectTo} />
+    </AuthLayout>
   )
 }
