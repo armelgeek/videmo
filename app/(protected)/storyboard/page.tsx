@@ -1352,6 +1352,11 @@ export default function StoryboardPage() {
                       <Keyboard className="h-4 w-4" />
                     </button>
                   </Hint>
+                  {step === "whiteboard" && !isExporting && !downloadUrl && (
+                    <SketchHint direction="right" className="mr-1 hidden text-lg xl:flex">
+                      done? get your video here
+                    </SketchHint>
+                  )}
                   <Hint label="turn it into an MP4 (⌘E)" side="bottom">
                     <Button variant="secondary" size="sm" onClick={() => setIsExportModalOpen(true)}>
                       <Download className="h-4 w-4" />
