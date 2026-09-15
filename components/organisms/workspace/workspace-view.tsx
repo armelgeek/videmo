@@ -103,56 +103,53 @@ export function WorkspaceView() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-border/50">
-        <div className="px-4 py-4 sm:px-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {/* Left: Org selector */}
-            <div className="flex items-center gap-3">
-              <OrganizationSwitcher />
-              <div className="hidden sm:block w-px h-6 bg-border" />
-              <h1 className="text-3xl font-extrabold text-foreground">
-                <span className="sk-marker">Projects</span>
-              </h1>
-            </div>
+      <header className="border-b border-border/50 h-16">
+        <div className="h-full px-4 sm:px-6 flex items-center justify-between">
+          {/* Left: Org selector */}
+          <div className="flex items-center gap-3 min-w-0">
+            <OrganizationSwitcher />
+            <div className="hidden sm:block w-px h-6 bg-border" />
+            <h1 className="text-2xl font-extrabold text-foreground whitespace-nowrap">
+              <span className="sk-marker">Projects</span>
+            </h1>
+          </div>
 
-            {/* Right: Search and actions */}
-
-            <div className="flex items-center gap-2">
-              <label className="relative w-full sm:w-64">
-                <span className="sr-only">Search projects</span>
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search projects..."
-                  className="h-9 w-full rounded-lg border-2 border-ink bg-card pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:shadow-[3px_3px_0_hsl(var(--highlight))] [&::-webkit-search-cancel-button]:hidden"
-                />
-                {isFetching && response ? (
-                  <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
-                ) : (
-                  query && (
-                    <button
-                      type="button"
-                      onClick={() => setQuery("")}
-                      aria-label="Clear search"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )
-                )}
-              </label>
-              {viewer?.canCreate !== false && (
-                <Link
-                  href="/new-project"
-                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight whitespace-nowrap"
-                >
-                  <Plus className="h-4 w-4" />
-                  New project
-                </Link>
+          {/* Right: Search and actions */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <label className="relative hidden sm:block w-64">
+              <span className="sr-only">Search projects</span>
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search projects..."
+                className="h-9 w-full rounded-lg border-2 border-ink bg-card pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:shadow-[3px_3px_0_hsl(var(--highlight))] [&::-webkit-search-cancel-button]:hidden"
+              />
+              {isFetching && response ? (
+                <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+              ) : (
+                query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery("")}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )
               )}
-            </div>
+            </label>
+            {viewer?.canCreate !== false && (
+              <Link
+                href="/new-project"
+                className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4" />
+                New project
+              </Link>
+            )}
           </div>
         </div>
       </header>
