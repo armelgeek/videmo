@@ -1,7 +1,6 @@
 import { appConfig } from "@/lib/config";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { isUserAdmin } from "@/lib/auth-utils";
 import { JsonLd } from "@/components/providers/json-ld";
 import { SketchLanding, sketchFaqs } from "@/components/organisms/landing/sketch/sketch-landing";
@@ -35,9 +34,8 @@ export default async function Home() {
     headers: await headers(),
   });
 
-  if (session?.user) {
-    redirect("/workspace");
-  }
+  const user = session?.user ?? null;
+  const isAdmin = user ? await isUserAdmin(user.id) : false;
 
   return (
     <div>
@@ -49,7 +47,7 @@ export default async function Home() {
           faqSchema(sketchFaqs),
         ]}
       />
-      <SketchLanding user={null} isAdmin={false} />
+      <SketchLanding user={user} isAdmin={isAdmin} />
     </div>
   );
 }
