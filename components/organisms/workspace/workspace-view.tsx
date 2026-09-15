@@ -103,44 +103,20 @@ export function WorkspaceView() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Top bar with org switcher */}
-      <div className="border-b border-border/50 bg-background/50 backdrop-blur-sm">
-        <div className="flex h-16 items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-2 font-display text-sm font-extrabold">
-            <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border-2 border-ink bg-highlight" />
-            Projects
-          </Link>
-          <OrganizationSwitcher />
-        </div>
-      </div>
-
-      {/* Main header */}
       <header className="border-b border-border/50">
-        <div className="px-4 pb-5 pt-6 sm:px-6">
+        <div className="px-4 py-5 sm:px-6">
+          {/* Org Switcher Row */}
+          <div className="mb-4 flex items-center gap-2">
+            <OrganizationSwitcher />
+          </div>
+
+          {/* Main content row */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
-              {response?.organization ? (
-                <OrganizationNameEditor
-                  organizationId={response.organization.id}
-                  organizationName={response.organization.name}
-                  isPersonal={response.organization.isPersonal}
-                  onUpdated={(newName) => {
-                    setResponse((prev) =>
-                      prev?.organization
-                        ? { ...prev, organization: { ...prev.organization, name: newName } }
-                        : prev
-                    );
-                  }}
-                />
-              ) : (
-                <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-foreground">
-                  {" "}
-                </p>
-              )}
-              <h1 className="mt-1 text-4xl font-extrabold text-foreground">
+              <h1 className="text-4xl font-extrabold text-foreground">
                 <span className="sk-marker">Projects</span>
               </h1>
-              <p className="sk-scribble mt-2 -rotate-1 text-lg">
+              <p className="sk-scribble mt-1 -rotate-1 text-sm text-muted-foreground">
                 {response
                   ? `${response.total} ${response.total === 1 ? "project" : "projects"} in this workspace`
                   : "loading projects…"}
