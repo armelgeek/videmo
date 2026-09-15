@@ -51,26 +51,26 @@ export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete 
           )}
         </ProjectThumbnail>
 
-        <div className="flex flex-col gap-2 p-3">
+        <div className="flex flex-col gap-2 p-4">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-medium text-sm text-foreground">{project.title}</h3>
+            <h3 className="truncate font-medium text-base text-foreground">{project.title}</h3>
             <p className="truncate text-xs text-muted-foreground">
               {formatDistanceToNowStrict(new Date(project.updatedAt), { addSuffix: true })}
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[10px] font-semibold text-foreground">
+            <span className="rounded-full border border-border bg-accent px-2.5 py-1 text-[11px] font-semibold text-foreground">
               {project.aspectRatio}
             </span>
             {project.sceneCount > 0 && (
-              <span className="rounded-full border border-border bg-accent px-2 py-0.5 text-[10px] font-semibold text-foreground">
+              <span className="rounded-full border border-border bg-accent px-2.5 py-1 text-[11px] font-semibold text-foreground">
                 {project.sceneCount} scene{project.sceneCount !== 1 ? "s" : ""}
               </span>
             )}
           </div>
 
-          <div className="flex gap-1 pt-1 border-t border-border/50">
+          <div className="flex gap-1 pt-2 border-t border-border/50">
             {STEPS.map((step, index) => {
               const done = index < stepIndex;
               const current = index === stepIndex;
