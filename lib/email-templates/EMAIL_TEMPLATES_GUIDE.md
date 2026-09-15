@@ -5,7 +5,7 @@ All templates follow the sketch design system (black/yellow, handwritten fonts, 
 ## Available Templates
 
 ### Authentication
-- **OTP Template** (`getOtpTemplate`)
+- **OTP Template** (`getOTPEmailTemplate`)
   - 6-digit verification codes
   - Used for email verification and 2FA
   

@@ -7,7 +7,8 @@ export type EmailType =
   | 'subscription_cancelled'
   | 'email_change_verification'
   | 'email_change_notification'
-  | 'organization_invitation';
+  | 'organization_invitation'
+  | 'magic_link';
 
 export interface BaseEmailData {
   recipientEmail: string;
@@ -61,6 +62,11 @@ export interface OrganizationInvitationEmailData extends BaseEmailData {
   expiryHours: number;
 }
 
+export interface MagicLinkEmailData extends BaseEmailData {
+  magicLink: string;
+  expiryMinutes: number;
+}
+
 export interface BookingUpdateEmailData {
   recipientName?: string;
   bookingId: string;
@@ -96,7 +102,8 @@ export type EmailData =
   | SubscriptionEmailData
   | EmailChangeVerificationData
   | EmailChangeNotificationData
-  | OrganizationInvitationEmailData;
+  | OrganizationInvitationEmailData
+  | MagicLinkEmailData;
 
 export interface SendEmailRequest {
   type: EmailType;
