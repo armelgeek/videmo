@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState, useEffect, useRef } from "react";
-import { ExportModal } from "@/lib/editor/components/export-modal";
+import { WhiteboardExportDialog } from "@/lib/whiteboard-animation/components/whiteboard-export-dialog";
 import { toRenderProject } from "@/lib/whiteboard-animation/server/to-render-project";
 import { ShortcutsModal } from "@/lib/editor/components/shortcuts-modal";
 import { Button } from "@/components/ui/button";
@@ -1659,7 +1659,12 @@ export default function StoryboardPage() {
         </div>
 
         {/* Export Modal - Using existing component */}
-        <ExportModal
+        <WhiteboardExportDialog
+          projectTitle={projectTitle}
+          aspectRatio={projectParams.aspectRatio}
+          sceneCount={storyboardPanels.length}
+          durationSec={storyboardPanels.reduce((sum, p) => sum + (p.duration || 5), 0)}
+          thumbnailUrl={storyboardPanels[0]?.imageUrl}
           isOpen={isExportModalOpen}
           onClose={() => setIsExportModalOpen(false)}
           onStartExport={async (resolution) => {
@@ -1717,6 +1722,9 @@ export default function StoryboardPage() {
                 if (s.status === "done") {
                   setDownloadUrl(`/api/whiteboard/render/${jobId}/file`);
                   setExportPhase("complete");
+                  // The user may have closed the dialog to keep editing.
+                  setIsExportModalOpen(true);
+                  toast.success("Your video is ready");
                   break;
                 }
                 if (s.status === "error") {
