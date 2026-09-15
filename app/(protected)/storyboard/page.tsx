@@ -1340,7 +1340,7 @@ export default function StoryboardPage() {
             </nav>
 
             <div className="flex items-center justify-end gap-1.5">
-              {step !== "prompt" && (
+              {step === "whiteboard" && (
                 <>
                   <Hint label="keyboard shortcuts" side="bottom">
                     <button
