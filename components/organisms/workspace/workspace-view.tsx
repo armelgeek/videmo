@@ -102,15 +102,22 @@ export function WorkspaceView() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-border/50 h-16">
-        <div className="h-full px-4 sm:px-6 flex items-center justify-between">
-          {/* Left: Title */}
-          <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
-            <span className="sk-marker">Projects</span>
-          </h1>
+      <header className="border-b border-border/50">
+        <div className="px-4 sm:px-6 py-3">
+          {/* Org name */}
+          {response?.organization && (
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              {response.organization.name}
+            </p>
+          )}
+          {/* Title + Actions */}
+          <div className="flex h-12 items-center justify-between">
+            <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
+              <span className="sk-marker">Projects</span>
+            </h1>
 
-          {/* Right: Search and actions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Right: Search and actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
             <label className="relative hidden sm:block w-64">
               <span className="sr-only">Search projects</span>
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -145,6 +152,7 @@ export function WorkspaceView() {
                 New project
               </Link>
             )}
+            </div>
           </div>
         </div>
       </header>
