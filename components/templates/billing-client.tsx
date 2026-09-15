@@ -2,13 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import Link from "next/link";
+import { format } from "date-fns";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,22 +18,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import {
-  CreditCard,
-  CheckCircle,
-  XCircle,
-  Calendar,
-  DollarSign,
-  ArrowRight,
-} from "lucide-react";
 import {
   cancelSubscription,
   resumeSubscription,
   createBillingPortalSession,
 } from "@/actions/payments";
-import Link from "next/link";
 
 interface Plan {
   id: string;
@@ -73,16 +58,12 @@ export default function BillingClient({ subscription, canManage }: BillingClient
     setLoading(true);
     try {
       const result = await createBillingPortalSession();
-
       if (result.error) {
         toast.error(result.error);
         return;
       }
-
-      if (result.url) {
-        window.location.href = result.url;
-      }
-    } catch (error) {
+      if (result.url) window.location.href = result.url;
+    } catch {
       toast.error("Failed to open billing portal");
     } finally {
       setLoading(false);
@@ -91,19 +72,16 @@ export default function BillingClient({ subscription, canManage }: BillingClient
 
   const handleCancelSubscription = async () => {
     if (!subscription) return;
-
     setCancelLoading(true);
     try {
       const result = await cancelSubscription(subscription.id);
-
       if (result.error) {
         toast.error(result.error);
         return;
       }
-
       toast.success("Subscription will be canceled at the end of the billing period");
       router.refresh();
-    } catch (error) {
+    } catch {
       toast.error("Failed to cancel subscription");
     } finally {
       setCancelLoading(false);
@@ -112,197 +90,106 @@ export default function BillingClient({ subscription, canManage }: BillingClient
 
   const handleResumeSubscription = async () => {
     if (!subscription) return;
-
     setResumeLoading(true);
     try {
       const result = await resumeSubscription(subscription.id);
-
       if (result.error) {
         toast.error(result.error);
         return;
       }
-
       toast.success("Subscription resumed successfully");
       router.refresh();
-    } catch (error) {
+    } catch {
       toast.error("Failed to resume subscription");
     } finally {
       setResumeLoading(false);
     }
   };
 
-  if (!subscription) {
-    return null;
-  }
-
   return (
-    <div className="space-y-6">
-      {}
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                {subscription.plan.name} Plan
-              </CardTitle>
-              <CardDescription className="mt-1">
-                {subscription.plan.description}
-              </CardDescription>
-            </div>
-            <Badge
-              variant={subscription.status === "active" ? "default" : "secondary"}
-              className="capitalize"
-            >
-              {subscription.status}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {}
-          <div className="flex items-baseline gap-1">
-            <DollarSign className="h-5 w-5 text-muted-foreground" />
-            <span className="text-3xl font-bold">
-              {(subscription.plan.amount / 100).toFixed(2)}
-            </span>
-            <span className="text-muted-foreground">
-              / {subscription.plan.interval}
-            </span>
-          </div>
+    <section aria-labelledby="subscription-heading" className="space-y-4 rounded-lg border border-border bg-card p-5">
+      <div className="flex items-center justify-between gap-2">
+        <h2 id="subscription-heading" className="text-sm font-semibold text-foreground">
+          Subscription
+        </h2>
+        {subscription && (
+          <Badge variant={subscription.status === "active" ? "default" : "secondary"} className="capitalize">
+            {subscription.status}
+          </Badge>
+        )}
+      </div>
 
-          {}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium">Current billing period:</span>
-            </div>
-            <p className="text-sm text-muted-foreground pl-6">
-              {format(new Date(subscription.currentPeriodStart), "MMM dd, yyyy")} 
-              {" - "}
-              {format(new Date(subscription.currentPeriodEnd), "MMM dd, yyyy")}
+      {!subscription ? (
+        <p className="text-sm text-muted-foreground">Free plan · no payment method on file.</p>
+      ) : (
+        <>
+          <div>
+            <p className="text-sm font-medium text-foreground">{subscription.plan.name}</p>
+            <p className="text-sm tabular-nums text-muted-foreground">
+              ${(subscription.plan.amount / 100).toFixed(2)} / {subscription.plan.interval}
             </p>
           </div>
 
-          {}
-          {!subscription.cancelAtPeriodEnd && (
-            <div className="rounded-lg border bg-muted/50 p-4">
-              <p className="text-sm font-medium">Next billing date</p>
-              <p className="text-lg font-semibold">
-                {format(new Date(subscription.currentPeriodEnd), "MMMM dd, yyyy")}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                ${(subscription.plan.amount / 100).toFixed(2)} will be charged to your payment method
-              </p>
-            </div>
-          )}
-
-          {}
-          {subscription.cancelAtPeriodEnd && (
-            <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-              <p className="text-sm font-medium text-destructive">
-                Subscription Scheduled for Cancellation
-              </p>
-              <p className="text-sm text-destructive/80 mt-1">
-                Your subscription will end on{" "}
-                {format(new Date(subscription.currentPeriodEnd), "MMMM dd, yyyy")}.
-                You&apos;ll continue to have access until then.
-              </p>
-            </div>
-          )}
-
-          {}
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Plan features:</p>
-            <ul className="grid gap-2 sm:grid-cols-2">
-              {subscription.plan.features.map((feature, index) => (
-                <li key={index} className="flex items-center gap-2 text-sm">
-                  <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
-
-      {canManage ? (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5" />
-            Manage Subscription
-          </CardTitle>
-          <CardDescription>
-            Update your billing information, payment method, or subscription plan
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Button
-              onClick={handleManageBilling}
-              disabled={loading}
-              className="w-full border-2 border-ink bg-highlight text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] hover:shadow-[4px_4px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px transition-all"
-            >
-              {loading ? "Loading..." : "Update Payment Method"}
-            </Button>
-            <Button
-              variant="outline"
-              asChild
-              className="w-full"
-            >
-              <Link href="/#pricing">Change Plan</Link>
-            </Button>
-          </div>
-
-          <div className="pt-4 border-t">
+          <p className="text-xs text-muted-foreground">
             {subscription.cancelAtPeriodEnd ? (
-              <Button
-                onClick={handleResumeSubscription}
-                disabled={resumeLoading}
-                className="w-full border-2 border-ink bg-highlight text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] hover:shadow-[4px_4px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px transition-all"
-              >
-                {resumeLoading ? "Resuming..." : "Resume Subscription"}
-              </Button>
+              <span className="text-destructive">
+                Ends on {format(new Date(subscription.currentPeriodEnd), "MMM d, yyyy")}
+              </span>
             ) : (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    className="w-full"
-                  >
-                    Cancel Subscription
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Your subscription will be canceled at the end of the current billing period
-                      ({format(new Date(subscription.currentPeriodEnd), "MMMM dd, yyyy")}).
-                      You&apos;ll continue to have access until then.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleCancelSubscription}
-                      disabled={cancelLoading}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    >
-                      {cancelLoading ? "Canceling..." : "Yes, Cancel Subscription"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              <>Renews on {format(new Date(subscription.currentPeriodEnd), "MMM d, yyyy")}</>
             )}
-          </div>
-        </CardContent>
-      </Card>
-      ) : (
-        <p className="rounded-lg border-2 border-dashed border-border p-4 text-sm text-muted-foreground">
-          Only organization owners and admins can change the plan or payment method.
-        </p>
+          </p>
+
+          {canManage ? (
+            <div className="grid gap-2 border-t border-border pt-4">
+              <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={loading}>
+                {loading ? "Opening…" : "Payment method & invoices"}
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/#pricing">Change plan</Link>
+              </Button>
+
+              {subscription.cancelAtPeriodEnd ? (
+                <Button size="sm" onClick={handleResumeSubscription} disabled={resumeLoading}>
+                  {resumeLoading ? "Resuming…" : "Resume subscription"}
+                </Button>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+                      Cancel subscription
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Cancel your subscription?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        It stays active until{" "}
+                        {format(new Date(subscription.currentPeriodEnd), "MMMM d, yyyy")}, then your
+                        organization returns to the Free plan.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep subscription</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleCancelSubscription}
+                        disabled={cancelLoading}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {cancelLoading ? "Canceling…" : "Cancel subscription"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
+          ) : (
+            <p className="border-t border-border pt-4 text-xs text-muted-foreground">
+              Only owners and admins can change the plan or payment method.
+            </p>
+          )}
+        </>
       )}
-    </div>
+    </section>
   );
 }

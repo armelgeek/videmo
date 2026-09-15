@@ -57,8 +57,8 @@ export function CreditHistory() {
   }, [apply, page]);
 
   return (
-    <section aria-labelledby="credit-history-heading" className="space-y-4 rounded-lg border-2 border-border bg-card p-6 shadow-[3px_3px_0_hsl(var(--offset))]">
-      <h2 id="credit-history-heading" className="text-lg font-semibold">
+    <section aria-labelledby="credit-history-heading" className="space-y-4 rounded-lg border border-border bg-card p-5">
+      <h2 id="credit-history-heading" className="text-sm font-semibold text-foreground">
         Credit history
       </h2>
 
