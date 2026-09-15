@@ -28,11 +28,7 @@ export default async function SignupPage({
   }
 
   return (
-    <AuthLayout
-      title="Get Started"
-      description="Create your account to begin your journey"
-      isSignup
-    >
+    <AuthLayout mode="signup" redirectTo={redirectTo}>
       <SignupForm redirectTo={redirectTo} />
     </AuthLayout>
   )

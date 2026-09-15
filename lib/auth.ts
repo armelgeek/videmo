@@ -19,6 +19,7 @@ import { PROJECT_STATEMENTS } from "./video-project/access";
 
 const isTwoFactorEnabled = process.env.NEXT_PUBLIC_ENABLE_TWO_FACTOR !== "false";
 const isEmailVerificationEnabled = process.env.NEXT_PUBLIC_ENABLE_EMAIL_VERIFICATION !== "false";
+export const isGoogleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
 const pendingWelcomeEmails = new Set<string>();
 
@@ -121,6 +122,14 @@ export const auth = betterAuth({
       }
     },
   },
+  socialProviders: isGoogleEnabled
+    ? {
+        google: {
+          clientId: process.env.GOOGLE_CLIENT_ID as string,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+        },
+      }
+    : undefined,
   emailVerification: {
     sendOnSignUp: isEmailVerificationEnabled,
     autoSignInAfterVerification: !isEmailVerificationEnabled,

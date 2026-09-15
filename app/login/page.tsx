@@ -29,10 +29,7 @@ export default async function LoginPage({
   }
 
   return (
-    <AuthLayout
-      title="Welcome Back"
-      description="Sign in to your account to continue"
-    >
+    <AuthLayout mode="login" redirectTo={redirectTo}>
       <LoginForm redirectTo={redirectTo} />
     </AuthLayout>
   )
