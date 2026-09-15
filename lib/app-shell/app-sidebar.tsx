@@ -10,6 +10,7 @@ import { appConfig } from "@/lib/config";
 import { authClient, useSession } from "@/lib/auth-client";
 import { ProjectThumbnail } from "@/components/organisms/workspace/project-thumbnail";
 import type { ProjectListResponse } from "@/components/organisms/workspace/types";
+import { CreditBalanceBadge } from "./credit-balance-badge";
 import { OrganizationSwitcher } from "./organization-switcher";
 import { ORGANIZATION_CHANGED_EVENT } from "./organization-events";
 
@@ -104,8 +105,9 @@ export function AppSidebar(_props: AppSidebarProps) {
         </Link>
       </div>
 
-      <div className="px-3 pb-3">
+      <div className="space-y-2 px-3 pb-3">
         <OrganizationSwitcher />
+        <CreditBalanceBadge />
       </div>
 
       <div className="px-3 pb-4">

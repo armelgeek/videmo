@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getUserSubscription } from "@/actions/payments";
+import { BillingOverview } from "@/components/organisms/billing/billing-overview";
 import BillingClient from "@/components/templates/billing-client";
 import { AppShell } from "@/lib/app-shell";
 
@@ -20,7 +21,7 @@ export default async function BillingPage() {
     redirect("/login");
   }
 
-  const { subscription } = await getUserSubscription();
+  const { subscription, canManage } = await getUserSubscription();
 
   return (
     <AppShell contentClassName="bg-background">
@@ -30,10 +31,13 @@ export default async function BillingPage() {
             <h1 className="text-3xl font-extrabold text-foreground">
               <span className="sk-marker">Billing</span>
             </h1>
-            <p className="mt-2 text-sm text-muted-foreground">Manage your subscription and billing information</p>
+            <p className="mt-2 text-sm text-muted-foreground">Credits, plan usage and subscription for your organization</p>
           </div>
 
-          <BillingClient subscription={subscription || null} />
+          <div className="space-y-8">
+            <BillingOverview />
+            <BillingClient subscription={subscription || null} canManage={canManage ?? false} />
+          </div>
         </div>
       </div>
     </AppShell>

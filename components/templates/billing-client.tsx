@@ -60,9 +60,10 @@ interface Subscription {
 
 interface BillingClientProps {
   subscription: Subscription | null;
+  canManage: boolean;
 }
 
-export default function BillingClient({ subscription }: BillingClientProps) {
+export default function BillingClient({ subscription, canManage }: BillingClientProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
@@ -136,10 +137,10 @@ export default function BillingClient({ subscription }: BillingClientProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <XCircle className="h-5 w-5 text-muted-foreground" />
-            No Active Subscription
+            You&apos;re on the Free plan
           </CardTitle>
           <CardDescription>
-            You don&apos;t have an active subscription yet. Choose a plan to get started.
+            Upgrade for more monthly credits, projects, members and higher-resolution exports.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -244,7 +245,7 @@ export default function BillingClient({ subscription }: BillingClientProps) {
         </CardContent>
       </Card>
 
-      {}
+      {canManage ? (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -319,6 +320,11 @@ export default function BillingClient({ subscription }: BillingClientProps) {
           </div>
         </CardContent>
       </Card>
+      ) : (
+        <p className="rounded-lg border-2 border-dashed border-border p-4 text-sm text-muted-foreground">
+          Only organization owners and admins can change the plan or payment method.
+        </p>
+      )}
     </div>
   );
 }

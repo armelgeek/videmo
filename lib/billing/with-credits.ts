@@ -6,11 +6,19 @@ import {
   QuotaExceededError,
 } from "./errors";
 
+const QUOTA_MESSAGES: Record<string, (limit: number) => string> = {
+  max_projects: (limit) =>
+    `Your plan allows ${limit} project${limit === 1 ? "" : "s"}. Upgrade or delete a project to create another.`,
+  max_org_members: (limit) =>
+    `Your plan allows ${limit} member${limit === 1 ? "" : "s"}, pending invitations included. Upgrade to invite more.`,
+  max_export_resolution: (limit) => `Your plan exports up to ${limit}p. Upgrade for a higher resolution.`,
+};
+
 export function billingErrorResponse(error: unknown): Response | null {
   if (error instanceof InsufficientCreditsError) {
     return Response.json(
       {
-        error: "Insufficient credits",
+        error: `This needs ${error.required} credits and your organization has ${error.balance}.`,
         code: "insufficient_credits",
         balance: error.balance,
         required: error.required,
@@ -21,7 +29,7 @@ export function billingErrorResponse(error: unknown): Response | null {
   if (error instanceof QuotaExceededError) {
     return Response.json(
       {
-        error: "Plan limit reached",
+        error: QUOTA_MESSAGES[error.quotaKey]?.(error.limit) ?? "Plan limit reached",
         code: "quota_exceeded",
         quota: error.quotaKey,
         limit: error.limit,
@@ -33,7 +41,7 @@ export function billingErrorResponse(error: unknown): Response | null {
   if (error instanceof FeatureNotAvailableError) {
     return Response.json(
       {
-        error: "Not available on your plan",
+        error: `This feature is not included in the ${error.tier} plan.`,
         code: "feature_unavailable",
         feature: error.feature,
         tier: error.tier,
