@@ -5,10 +5,11 @@ import { VideoGenerationJob, GenerationProgress, VideoGenerationRequest } from "
 const jobs = new Map<string, VideoGenerationJob>();
 
 export const videoStore = {
-  createJob: (request: VideoGenerationRequest): VideoGenerationJob => {
-    const id = `job-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  createJob: (request: VideoGenerationRequest, ownerId: string): VideoGenerationJob => {
+    const id = `job-${crypto.randomUUID()}`;
     const job: VideoGenerationJob = {
       id,
+      ownerId,
       request,
       status: "pending",
       createdAt: new Date(),
@@ -23,6 +24,12 @@ export const videoStore = {
 
   getJob: (id: string): VideoGenerationJob | undefined => {
     return jobs.get(id);
+  },
+
+  // Another user's job reads as missing, so job ids can't be probed.
+  getJobForOwner: (id: string, ownerId: string): VideoGenerationJob | undefined => {
+    const job = jobs.get(id);
+    return job?.ownerId === ownerId ? job : undefined;
   },
 
   updateProgress: (id: string, progress: Partial<GenerationProgress>) => {

@@ -1,5 +1,7 @@
 import { videoChatAgent } from "@/lib/mastra/agents/video-chat-agent";
 import { NextRequest, NextResponse } from "next/server";
+import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
+import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 
 const FORMATS = ["explainer", "brief"];
 const STYLES = [
@@ -53,8 +55,19 @@ function getNextParameter(state: ConversationState) {
 }
 
 export async function POST(request: NextRequest) {
+  let viewer;
   try {
-    const { message, sessionId = "default" } = await request.json();
+    viewer = await requireViewer();
+  } catch (error) {
+    return toErrorResponse(error);
+  }
+
+  const limit = await aiGenerationRateLimit(viewer.userId, "videoChat");
+  if (!limit.success) return tooManyGenerations(limit.resetAt);
+
+  try {
+    const { message, sessionId: clientSessionId = "default" } = await request.json();
+    const sessionId = `${viewer.userId}:${clientSessionId}`;
 
     if (!message?.trim()) {
       return NextResponse.json(

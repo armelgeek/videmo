@@ -1,19 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { videoGenerationSchema } from "@/lib/video-generation/types";
+import { type VideoGenerationRequest, videoGenerationSchema } from "@/lib/video-generation/types";
 import { videoStore } from "@/lib/video-generation/store";
-import { mastra } from "@/lib/mastra";
+import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
+import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 
 export async function POST(request: NextRequest) {
+  let viewer;
+  try {
+    viewer = await requireViewer();
+  } catch (error) {
+    return toErrorResponse(error);
+  }
+
+  const limit = await aiGenerationRateLimit(viewer.userId, "video");
+  if (!limit.success) return tooManyGenerations(limit.resetAt);
+
   try {
     const body = await request.json();
-
-    // Validate request
     const validatedData = videoGenerationSchema.parse(body);
+    const job = videoStore.createJob(validatedData, viewer.userId);
 
-    // Create job
-    const job = videoStore.createJob(validatedData);
-
-    // Start generation in background (without awaiting)
     generateVideoWithMastra(job.id, validatedData);
 
     return NextResponse.json(
@@ -38,7 +44,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function generateVideoWithMastra(jobId: string, request: any) {
+async function generateVideoWithMastra(jobId: string, request: VideoGenerationRequest) {
   try {
     videoStore.updateProgress(jobId, {
       status: "processing",

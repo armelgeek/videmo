@@ -1,0 +1,51 @@
+@startuml docs/security/video-generation-auth.puml
+title "Video Generation API — Authenticated & Owner-Scoped"
+
+actor User
+participant "Browser"
+participant "React Component"
+participant "API Route (/api/video/*)"
+participant "Rate Limiter"
+database "Job Store (memory)"
+participant "External" as Mastra
+
+== Nominal Case: start generation (202) ==
+User ->> Browser: Click "Generate"
+Browser ->> "React Component": handleGenerate()
+"React Component" ->> "API Route (/api/video/*)": POST /api/video/generate {content, format, style}
+note right of "API Route (/api/video/*)": requireViewer()\n(session + active org)
+"API Route (/api/video/*)" ->> "Rate Limiter": ai:video:{userId} (5 / 10 min)
+"Rate Limiter" -->> "API Route (/api/video/*)": success
+note right of "API Route (/api/video/*)": Zod videoGenerationSchema
+"API Route (/api/video/*)" ->> "Job Store (memory)": createJob(request, ownerId = userId)
+"API Route (/api/video/*)" ->> Mastra: videoGenerationWorkflow.execute() (background)
+"API Route (/api/video/*)" -->> "React Component": 202 {jobId}
+
+== Nominal Case: poll status (200) ==
+"React Component" ->> "API Route (/api/video/*)": GET /api/video/status/{jobId}
+note right of "API Route (/api/video/*)": requireViewer()
+"API Route (/api/video/*)" ->> "Job Store (memory)": getJobForOwner(jobId, userId)
+"Job Store (memory)" -->> "API Route (/api/video/*)": job
+"API Route (/api/video/*)" -->> "React Component": 200 {status, progress}
+
+== Edge Case: Unauthorized (401) ==
+note right of "API Route (/api/video/*)": No session
+"API Route (/api/video/*)" -->> "React Component": 401 Unauthorized
+"React Component" ->> Browser: toast error
+
+== Edge Case: Too many generations (429) ==
+"Rate Limiter" -->> "API Route (/api/video/*)": limit exceeded
+"API Route (/api/video/*)" -->> "React Component": 429 + Retry-After
+
+== Edge Case: Another user's job (404) ==
+note right of "Job Store (memory)": ownerId != userId\nreads as missing
+"API Route (/api/video/*)" -->> "React Component": 404 Job not found
+
+== Edge Case: Invalid Input (400) ==
+note right of "API Route (/api/video/*)": ZodError
+"API Route (/api/video/*)" -->> "React Component": 400 {error}
+
+== Chat: history scoped per user ==
+"React Component" ->> "API Route (/api/video/*)": POST /api/video/chat {message, sessionId}
+note right of "API Route (/api/video/*)": requireViewer() + ai:videoChat:{userId}\nkey = userId:sessionId
+@enduml

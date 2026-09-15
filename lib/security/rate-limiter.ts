@@ -153,6 +153,8 @@ const AI_LIMITS = {
   narration: { limit: 60, windowSeconds: 600 },
   script: { limit: 20, windowSeconds: 600 },
   storyboard: { limit: 20, windowSeconds: 600 },
+  video: { limit: 5, windowSeconds: 600 },
+  videoChat: { limit: 60, windowSeconds: 600 },
 } as const;
 
 export const aiGenerationRateLimit = (userId: string, kind: keyof typeof AI_LIMITS) =>

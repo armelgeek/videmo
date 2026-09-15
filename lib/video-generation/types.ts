@@ -104,6 +104,7 @@ export interface ClipPreview {
 
 export interface VideoGenerationJob {
   id: string;
+  ownerId: string;
   request: VideoGenerationRequest;
   status: "pending" | "processing" | "completed" | "error";
   createdAt: Date;
