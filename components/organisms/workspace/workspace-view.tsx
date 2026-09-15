@@ -110,11 +110,12 @@ export function WorkspaceView() {
   };
 
   const projects = response?.data ?? [];
+  const projectsInProgress = projects.filter(p => p.step !== "completed").length;
   const viewer = response?.viewer;
   const isInitialLoad = !response && isFetching;
 
   return (
-    <div className="flex min-h-screen flex-col relative" >
+    <div className="flex min-h-screen flex-col relative">
       <NotebookBackground />
       <header className="border-b border-border/50 relative z-10">
         <div className="px-8 sm:px-12 py-3">
@@ -182,7 +183,7 @@ export function WorkspaceView() {
                 teamMembers={1}
               />
 
-              <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 mb-5 border-b border-border">
+              <div className="flex items-center justify-between gap-4 py-4 mb-5 border-b border-border">
                 <h2 className="text-lg font-semibold">Projects</h2>
                 <WorkspaceControls
                   viewMode={viewMode}
