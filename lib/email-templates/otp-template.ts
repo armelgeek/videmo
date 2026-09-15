@@ -1,31 +1,24 @@
 import { getBaseEmailTemplate } from './base-template';
-import { appConfig } from '@/lib/config';
-import type { OTPEmailData } from './types';
 
-export const getOTPEmailTemplate = (data: OTPEmailData): string => {
-  const { recipientName, otp, expiryMinutes = 10 } = data;
-  const companyName = appConfig.name;
-
+export const getOtpTemplate = (data: {
+  otp: string;
+  expiryMinutes?: number;
+}): string => {
   const content = `
-    <h2>Verify Your Account</h2>
-    <p>Hello ${recipientName ? recipientName : 'there'},</p>
-    <p>You have requested a One-Time Password (OTP) to verify your account. Please use the code below:</p>
+    <h2>Your verification code</h2>
     
-    <div class="otp-code">${otp}</div>
+    <p>Use this code to verify your email address. It expires in ${data.expiryMinutes || 10} minutes.</p>
+    
+    <div class="otp-code">${data.otp}</div>
+    
+    <p style="text-align: center; font-size: 14px; color: #666666;">
+      Don't share this code with anyone.
+    </p>
     
     <div class="info-box">
-      <p style="margin: 0; color: #dc3545;">
-        <strong>⚠️ Important:</strong> This code will expire in ${expiryMinutes} minutes.
-      </p>
+      <strong>Tip:</strong> If you didn't request this code, someone might be trying to access your account. Contact support if this wasn't you.
     </div>
-    
-    <p>If you did not request this code, please ignore this email or contact our support team if you have concerns.</p>
-    
-    <p style="margin-top: 30px;">
-      Best regards,<br>
-      <strong>${companyName} Team</strong>
-    </p>
   `;
-
+  
   return getBaseEmailTemplate(content);
 };

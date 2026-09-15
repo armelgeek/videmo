@@ -7,35 +7,27 @@ export const getResetPasswordTemplate = (data: ResetPasswordEmailData): string =
   const companyName = appConfig.name;
 
   const content = `
-    <h2>🔒 Reset Your Password</h2>
+    <h2>Reset Your Password</h2>
     <p>Hello ${recipientName ? recipientName : 'there'},</p>
     <p>We received a request to reset your password for your ${companyName} account.</p>
-    
-    <p>Click the button below to create a new password:</p>
-    
-    <a href="${resetUrl}" class="button">Reset Password</a>
-    
-    <div class="info-box">
-      <p style="margin: 0; color: #dc3545;">
-        <strong>⚠️ Important:</strong> This link will expire in ${expiryHours} hour${expiryHours > 1 ? 's' : ''}.
-      </p>
+
+    <p>Click the button below to create a new password. This link expires in ${expiryHours} hour${expiryHours > 1 ? 's' : ''}:</p>
+
+    <div style="text-align: center;">
+      <a href="${resetUrl}" class="button">Reset Password →</a>
     </div>
 
-    <p>If the button doesn't work, copy and paste this link into your browser:</p>
-    <p style="word-break: break-all; color: #3b82f6; font-size: 14px;">
+    <p style="font-size: 14px; color: #666666;">
+      If the button doesn't work, copy and paste this link in your browser:
+    </p>
+
+    <div style="word-break: break-all; padding: 12px 16px; background-color: #F5F5F5; border: 1px solid #CCCCCC; border-radius: 4px; font-size: 13px; color: #000000;">
       ${resetUrl}
-    </p>
-    
-    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px 20px; margin: 20px 0; border-radius: 4px;">
-      <p style="margin: 0; color: #856404;">
-        <strong>Didn't request this?</strong> If you didn't request a password reset, please ignore this email or contact support if you're concerned about your account security.
-      </p>
     </div>
-    
-    <p style="margin-top: 30px;">
-      Best regards,<br>
-      <strong>${companyName} Team</strong>
-    </p>
+
+    <div class="info-box">
+      <strong>Didn't request this?</strong> If you didn't ask for a password reset, ignore this email or contact support if you think your account is at risk.
+    </div>
   `;
 
   return getBaseEmailTemplate(content);
