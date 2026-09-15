@@ -154,25 +154,27 @@ export function ProfileForm({ user }: ProfileFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="flex items-center gap-6 pb-6 border-b">
-        <Avatar className="h-20 w-20">
+    <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Profile Picture Section */}
+      <div className="flex items-center gap-6 pb-6 border-b-2 border-border">
+        <Avatar className="h-20 w-20 border-2 border-ink">
           <AvatarImage src={user.image || undefined} alt={user.name} />
-          <AvatarFallback className="text-lg">
+          <AvatarFallback className="text-lg bg-highlight text-highlight-foreground">
             {getInitials(user.name)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <h3 className="font-medium">Profile Picture</h3>
+          <h3 className="font-medium text-foreground">Profile Picture</h3>
           <p className="text-sm text-muted-foreground">
             Upload a new profile picture (coming soon)
           </p>
         </div>
       </div>
 
-      <div className="space-y-4">
+      {/* Form Fields - 2 Column Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
+          <Label htmlFor="name" className="text-foreground font-medium">Name</Label>
           <Input
             id="name"
             type="text"
@@ -180,7 +182,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
             onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, name: e.target.value })}
             placeholder="Enter your name"
             required
-            className={errors.name ? "border-red-500" : ""}
+            className={`border-2 ${errors.name ? "border-red-500" : "border-ink"} shadow-[3px_3px_0_hsl(var(--offset))]`}
           />
           {errors.name && (
             <p className="text-sm text-red-500 mt-1">{errors.name}</p>
@@ -188,7 +190,26 @@ export function ProfileForm({ user }: ProfileFormProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="phone" className="text-foreground font-medium">Phone</Label>
+          <PhoneInput
+            id="phone"
+            value={formData.phone}
+            onChange={(value: Value | undefined) => setFormData({ ...formData, phone: value })}
+            defaultCountry="US"
+            placeholder="+1 (555) 000-0000"
+            className={`border-2 ${errors.phone ? "border-red-500" : "border-ink"} shadow-[3px_3px_0_hsl(var(--offset))]`}
+          />
+          {errors.phone && (
+            <p className="text-sm text-red-500 mt-1">{errors.phone}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Email Section */}
+      <div className="space-y-4 pb-6 border-b-2 border-border">
+        <h3 className="font-medium text-foreground">Email Address</h3>
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm">Current Email</Label>
           <div className="flex items-center gap-2">
             <Input
               id="email"
