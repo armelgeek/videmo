@@ -22,6 +22,7 @@ import { ProjectCard } from "./project-card";
 import { WorkspaceControls } from "./workspace-controls";
 import { ProjectListView } from "./project-list-view";
 import { StatsOverview } from "./stats-overview";
+import { WorkspaceToolbar } from "./workspace-toolbar";
 import type { ProjectListItem, ProjectListResponse } from "./types";
 
 export function WorkspaceView() {
@@ -123,41 +124,7 @@ export function WorkspaceView() {
             <p className="mt-2 text-sm text-muted-foreground">Manage your projects</p>
             </h1>
 
-            {/* Right: Search and actions */}
-            <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-              <label className="relative w-64">
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Search projects..."
-                  className="h-9 w-full rounded-lg border-2 border-ink bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none shadow-[3px_3px_0_hsl(var(--offset))] transition focus:shadow-[3px_3px_0_hsl(var(--highlight))] [&::-webkit-search-cancel-button]:hidden"
-                />
-                {isFetching && response ? (
-                  <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
-                ) : (
-                  query && (
-                    <button
-                      type="button"
-                      onClick={() => setQuery("")}
-                      aria-label="Clear search"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  )
-                )}
-              </label>
-            {viewer?.canCreate !== false && (
-              <Link
-                href="/new-project"
-                className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4" />
-                New project
-              </Link>
-            )}
-            </div>
+{/* Will be moved to toolbar below */}
           </div>
         </div>
       </header>
