@@ -224,20 +224,24 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
 
   return (
     <>
-      <div className="auth-tabs mb-6 flex gap-2 border-b-2 border-sk-ink">
+      <div className="auth-tabs" role="tablist" aria-label="Sign-in method">
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === "password"}
           onClick={() => setTab("password")}
-          className={`px-3 py-2 text-sm font-hand ${tab === "password" ? "border-b-2 border-sk-hi text-sk-hi" : "text-sk-ink"}`}
+          className="auth-tab"
         >
-          Email & Password
+          Email & password
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === "magic"}
           onClick={() => setTab("magic")}
-          className={`px-3 py-2 text-sm font-hand ${tab === "magic" ? "border-b-2 border-sk-hi text-sk-hi" : "text-sk-ink"}`}
+          className="auth-tab"
         >
-          Magic Link
+          Magic link
         </button>
       </div>
 
