@@ -40,8 +40,6 @@ model User {
   videoProjectsLocked  VideoProject[] @relation("VideoProjectsLocked")
   creditTransactions   CreditTransaction[]
   creditPurchases      CreditPurchase[]
-  recoveryCodes        RecoveryCode[] @relation("RecoveryCodes")
-  trustedDevices       TrustedDevice[] @relation("TrustedDevices")
 
   @@index([roleId])
   @@index([isAdmin])
@@ -544,31 +542,4 @@ model CreditPurchase {
 
   @@index([organizationId, expiresAt])
   @@index([expiresAt])
-}
-
-// Auth Features - Phase 1, 2, 3
-model RecoveryCode {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation("RecoveryCodes", fields: [userId], references: [id], onDelete: Cascade)
-  codeHash  String   @unique
-  usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  @@index([userId])
-}
-
-model TrustedDevice {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation("TrustedDevices", fields: [userId], references: [id], onDelete: Cascade)
-  deviceHash  String
-  token       String   @unique
-  expiresAt   DateTime
-  lastUsedAt  DateTime
-  revokedAt   DateTime?
-  createdAt   DateTime @default(now())
-
-  @@index([token])
-  @@index([userId])
 }
