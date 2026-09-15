@@ -9,7 +9,9 @@ export type EmailType =
   | 'email_change_notification'
   | 'organization_invitation'
   | 'magic_link'
-  | 'video_ready';
+  | 'video_ready'
+  | 'onboarding'
+  | 'monthly_digest';
 
 export interface BaseEmailData {
   recipientEmail: string;
@@ -63,6 +65,18 @@ export interface OrganizationInvitationEmailData extends BaseEmailData {
   expiryHours: number;
 }
 
+export interface OnboardingEmailData extends BaseEmailData {
+  step: 1 | 2 | 3;
+  unsubscribeUrl: string;
+}
+
+export interface MonthlyDigestEmailData extends BaseEmailData {
+  monthLabel: string;
+  projectsCreated: number;
+  creditsUsed: number;
+  unsubscribeUrl: string;
+}
+
 export interface VideoReadyEmailData extends BaseEmailData {
   videoTitle: string;
   downloadUrl: string;
@@ -111,7 +125,9 @@ export type EmailData =
   | EmailChangeNotificationData
   | OrganizationInvitationEmailData
   | MagicLinkEmailData
-  | VideoReadyEmailData;
+  | VideoReadyEmailData
+  | OnboardingEmailData
+  | MonthlyDigestEmailData;
 
 export interface SendEmailRequest {
   type: EmailType;

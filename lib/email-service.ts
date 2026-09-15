@@ -1,5 +1,7 @@
 import nodemailer from 'nodemailer';
-import type { SendEmailRequest, OTPEmailData, ResetPasswordEmailData, PaymentReceiptEmailData, WelcomeEmailData, SubscriptionEmailData, EmailChangeVerificationData, EmailChangeNotificationData, OrganizationInvitationEmailData, MagicLinkEmailData, VideoReadyEmailData } from '@/types/email';
+import type { SendEmailRequest, OTPEmailData, ResetPasswordEmailData, PaymentReceiptEmailData, WelcomeEmailData, SubscriptionEmailData, EmailChangeVerificationData, EmailChangeNotificationData, OrganizationInvitationEmailData, MagicLinkEmailData, VideoReadyEmailData, OnboardingEmailData, MonthlyDigestEmailData } from '@/types/email';
+import { getOnboardingTemplate, onboardingSubject } from './email-templates/onboarding-template';
+import { getMonthlyDigestTemplate } from './email-templates/monthly-digest-template';
 import { getMagicLinkTemplate } from './email-templates/magic-link-template';
 import { getVideoReadyTemplate } from './email-templates/video-complete-template';
 import { getOrganizationInvitationTemplate } from './email-templates/organization-invitation-template';
@@ -83,6 +85,14 @@ export class EmailService {
         htmlContent = getVideoReadyTemplate(data as VideoReadyEmailData);
         emailSubject = subject || 'Your video is ready';
         break;
+      case 'onboarding':
+        htmlContent = getOnboardingTemplate(data as OnboardingEmailData);
+        emailSubject = subject || onboardingSubject((data as OnboardingEmailData).step);
+        break;
+      case 'monthly_digest':
+        htmlContent = getMonthlyDigestTemplate(data as MonthlyDigestEmailData);
+        emailSubject = subject || `Your ${(data as MonthlyDigestEmailData).monthLabel} summary`;
+        break;
       default:
         throw new Error(`Unsupported email type: ${type}`);
     }
@@ -92,6 +102,12 @@ export class EmailService {
       to: recipients?.[0] || (data as any).recipientEmail,
       subject: emailSubject,
       html: htmlContent,
+      ...('unsubscribeUrl' in data
+        ? {
+            list: { unsubscribe: data.unsubscribeUrl },
+            headers: { 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' },
+          }
+        : {}),
     };
 
     await this.transporter.sendMail(mailOptions);

@@ -35,11 +35,13 @@ model User {
   organizationMemberships OrganizationMember[]   @relation("OrganizationMemberships")
   twoFactor     TwoFactor?
   twoFactorEnabled Boolean @default(false)
+  marketingEmailsOptOut Boolean @default(false)
   emailChangeRequests EmailChangeRequest[]
   videoProjectsCreated VideoProject[] @relation("VideoProjectsCreated")
   videoProjectsLocked  VideoProject[] @relation("VideoProjectsLocked")
   creditTransactions   CreditTransaction[]
   creditPurchases      CreditPurchase[]
+  scheduledEmails      ScheduledEmail[]
 
   @@index([roleId])
   @@index([isAdmin])
@@ -542,4 +544,20 @@ model CreditPurchase {
 
   @@index([organizationId, expiresAt])
   @@index([expiresAt])
+}
+
+model ScheduledEmail {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String    // onboarding:<step> | digest:<YYYY-MM>
+  sendAt    DateTime
+  claimedAt DateTime?
+  sentAt    DateTime?
+  attempts  Int       @default(0)
+  lastError String?
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, kind])
+  @@index([sentAt, sendAt])
 }

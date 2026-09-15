@@ -1,6 +1,9 @@
 import { appConfig } from '@/lib/config';
 
-export const getBaseEmailTemplate = (content: string): string => {
+export const getBaseEmailTemplate = (
+  content: string,
+  options: { unsubscribeUrl?: string } = {},
+): string => {
   const companyName = appConfig.name;
   const appDescription = appConfig.description;
 
@@ -189,6 +192,7 @@ export const getBaseEmailTemplate = (content: string): string => {
           <p style="font-size: 11px; color: #999999; margin-top: 12px;">
             Automated email • Do not reply to this message
           </p>
+          ${options.unsubscribeUrl ? `<p style="font-size: 11px; margin-top: 6px;"><a href="${options.unsubscribeUrl}" style="color: #666666;">Unsubscribe from tips and summaries</a></p>` : ''}
         </div>
       </div>
     </body>

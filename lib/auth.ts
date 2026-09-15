@@ -14,6 +14,7 @@ import { chooseActiveOrganization } from "./auth-organization";
 import { QuotaExceededError } from "./billing/errors";
 import { assertSeatAvailable, membershipLimitFor } from "./billing/org-usage";
 import { EmailService } from "./email-service";
+import { enqueueOnboarding } from "./email-sequences/enqueue";
 import { appConfig } from "./config";
 import { PROJECT_STATEMENTS } from "./video-project/access";
 
@@ -48,6 +49,10 @@ export const auth = betterAuth({
         after: async (user) => {
           if (!user.emailVerified) {
             pendingWelcomeEmails.add(user.id);
+          } else {
+            await enqueueOnboarding(user.id).catch((error) =>
+              console.error('❌ [Auth] Failed to schedule onboarding emails:', error),
+            );
           }
         },
       },
@@ -74,6 +79,10 @@ export const auth = betterAuth({
           } catch (error) {
             console.error('❌ [Auth] Failed to send welcome email:', error);
           }
+
+          await enqueueOnboarding(user.id).catch((error) =>
+            console.error('❌ [Auth] Failed to schedule onboarding emails:', error),
+          );
         },
       },
     },

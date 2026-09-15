@@ -10,5 +10,7 @@ export { getEmailChangeVerificationTemplate } from './email-change-verification-
 export { getEmailChangeNotificationTemplate } from './email-change-notification-template';
 export { getOrganizationInvitationTemplate } from './organization-invitation-template';
 export { getVideoReadyTemplate } from './video-complete-template';
+export { getOnboardingTemplate } from './onboarding-template';
+export { getMonthlyDigestTemplate } from './monthly-digest-template';
 
 export * from './types';
