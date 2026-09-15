@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, Folder, Mail, Plus, Settings, Users } from "lucide-react";
+import { CreditCard, Folder, Loader2, LogOut, Mail, Plus, Settings, Users } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/client";
 import { appConfig } from "@/lib/config";
-import { authClient, useSession } from "@/lib/auth-client";
+import { authClient, signOut, useSession } from "@/lib/auth-client";
 import { ProjectThumbnail } from "@/components/organisms/workspace/project-thumbnail";
 import type { ProjectListResponse } from "@/components/organisms/workspace/types";
 import { CreditBalanceBadge } from "./credit-balance-badge";
@@ -95,6 +96,20 @@ export function AppSidebar(_props: AppSidebarProps) {
   const recentProjects = useRecentProjects(pathname);
   const pendingInvitations = usePendingInvitations(pathname);
   const isCreating = pathname === "/new-project";
+  const router = useRouter();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      toast.success("You're signed out.");
+      router.push("/login");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sign out failed.");
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <aside className="fixed bottom-0 left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r-2 border-ink bg-background shadow-[4px_0_0_hsl(var(--highlight))]">
@@ -215,9 +230,10 @@ export function AppSidebar(_props: AppSidebarProps) {
       </nav>
 
       {session?.user && (
+        <div className="mx-2 mb-2 flex items-stretch gap-2">
         <Link
           href="/profile"
-          className="group mx-2 mb-2 flex items-center gap-2.5 rounded-lg border-2 border-border px-3 py-3 outline-none transition-all hover:border-ink hover:bg-card focus-visible:ring-2 focus-visible:ring-highlight"
+          className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-lg border-2 border-border px-3 py-3 outline-none transition-all hover:border-ink hover:bg-card focus-visible:ring-2 focus-visible:ring-highlight"
         >
           {session.user.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -241,6 +257,21 @@ export function AppSidebar(_props: AppSidebarProps) {
           </div>
           <Settings className="h-4 w-4 shrink-0 text-muted-foreground transition-all group-hover:text-foreground" />
         </Link>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={isSigningOut}
+          aria-label="Sign out"
+          title="Sign out"
+          className="flex w-11 shrink-0 items-center justify-center rounded-lg border-2 border-border text-muted-foreground outline-none transition-all hover:border-ink hover:bg-card hover:text-foreground focus-visible:ring-2 focus-visible:ring-highlight disabled:opacity-60"
+        >
+          {isSigningOut ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+          )}
+        </button>
+        </div>
       )}
     </aside>
   );
