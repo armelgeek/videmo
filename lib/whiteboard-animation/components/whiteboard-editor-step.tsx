@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { DEFAULT_ANIM_STYLE } from "../schema";
 import { Button } from "@/components/ui/button";
 import { Loader2, Pencil, Play } from "lucide-react";
+import { Hint } from "@/components/molecules/hint";
 import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import * as selectors from "@/lib/unified-engine/hooks/selectors";
@@ -770,12 +771,12 @@ export function WhiteboardEditorStep({
           >
             {(
               [
-                { key: "edit", label: "Edit", Icon: Pencil },
-                { key: "preview", label: "Preview", Icon: Play },
+                { key: "edit", label: "Edit", Icon: Pencil, hint: "place and resize the zones on the full image" },
+                { key: "preview", label: "Preview", Icon: Play, hint: "watch the hand draw it with the voice" },
               ] as const
-            ).map(({ key, label, Icon }) => (
+            ).map(({ key, label, Icon, hint }) => (
+              <Hint key={key} label={hint} side="bottom">
               <button
-                key={key}
                 type="button"
                 role="tab"
                 aria-selected={mode === key}
@@ -789,6 +790,7 @@ export function WhiteboardEditorStep({
                 <Icon className="h-4 w-4" />
                 {label}
               </button>
+              </Hint>
             ))}
           </div>
         </div>

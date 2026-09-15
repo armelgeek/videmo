@@ -1214,14 +1214,16 @@ export default function StoryboardPage() {
         <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm">
           <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-4 px-5">
             <div className="flex min-w-0 items-center gap-1">
-              <Link
-                href="/workspace"
-                aria-label="Back to projects"
-                className="mr-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border-2 border-border px-2.5 text-xs font-semibold text-foreground transition-colors hover:border-ink hover:bg-accent"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-                <span className="hidden md:inline">Projects</span>
-              </Link>
+              <Hint label="back to all your projects, changes are saved" side="bottom">
+                <Link
+                  href="/workspace"
+                  aria-label="Back to projects"
+                  className="mr-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border-2 border-border px-2.5 text-xs font-semibold text-foreground transition-colors hover:border-ink hover:bg-accent"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="hidden md:inline">Projects</span>
+                </Link>
+              </Hint>
               <Link
                 href="/workspace"
                 title="Back to projects"
@@ -1257,15 +1259,17 @@ export default function StoryboardPage() {
                 </span>
               </span>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Project actions"
-                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </button>
-                </DropdownMenuTrigger>
+                <Hint label="save now, clear or sign out" side="bottom">
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label="Project actions"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                </Hint>
                 <DropdownMenuContent align="start" className="w-48">
                   <DropdownMenuItem onClick={handleSaveProgress}>
                     <Save className="mr-2 h-4 w-4" />
@@ -1289,6 +1293,18 @@ export default function StoryboardPage() {
                 const canNavigate = canNavigateToStep(i);
                 return (
                   <Fragment key={s.key}>
+                    <Hint
+                      side="bottom"
+                      label={
+                        isActive
+                          ? "you are here"
+                          : s.key === "prompt"
+                            ? "back to the script"
+                            : s.key === "storyboard"
+                              ? "the scenes and their drawings"
+                              : "animate and export"
+                      }
+                    >
                     <button
                       type="button"
                       onClick={() => canNavigate && setStep(s.key as typeof step)}
@@ -1314,6 +1330,7 @@ export default function StoryboardPage() {
                       </span>
                       <span className="hidden md:inline">{s.label}</span>
                     </button>
+                    </Hint>
                     {i < STEPS.length - 1 && (
                       <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
                     )}
@@ -1674,14 +1691,16 @@ export default function StoryboardPage() {
                                         Done
                                       </button>
                                     ) : (
-                                      <button
-                                        type="button"
-                                        onClick={() => setEditingField(`${i}:${field.key}`)}
-                                        aria-label={`Edit ${field.label}`}
-                                        className="opacity-0 group-hover/field:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-                                      >
-                                        <Pencil className="w-3 h-3" />
-                                      </button>
+                                      <Hint label={`edit the ${field.label.toLowerCase()}`}>
+                                        <button
+                                          type="button"
+                                          onClick={() => setEditingField(`${i}:${field.key}`)}
+                                          aria-label={`Edit ${field.label}`}
+                                          className="opacity-0 group-hover/field:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                                        >
+                                          <Pencil className="w-3 h-3" />
+                                        </button>
+                                      </Hint>
                                     )}
                                   </div>
                                   {!isPrompt && !descriptionOpen && !editing ? (

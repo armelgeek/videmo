@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { SketchHint } from '@/components/molecules/sketch-hint';
+import { Hint } from '@/components/molecules/hint';
 import { DEFAULT_ANIM_STYLE, annotationColors } from '../schema';
 
 /** Couleur de repli du calque d'annotations — meme valeur qu'AnnotationOverlay. */
@@ -167,9 +168,11 @@ function AnnotationListPanelImpl({
                       {formatMs(annotation.reveal.from)} → {formatMs(annotation.reveal.to)}
                     </span>
                     <Select value={currentAnimStyle} onValueChange={(v) => handleStyleChange(i, v)}>
-                      <SelectTrigger size="sm" aria-label="Animation style" className="h-7 w-36 text-[11px]">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <Hint label="how the hand draws this zone">
+                        <SelectTrigger size="sm" aria-label="Animation style" className="h-7 w-36 text-[11px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </Hint>
                       <SelectContent>
                         {ANIM_STYLES.map((st) => (
                           <SelectItem key={st.value} value={st.value} className="text-xs">

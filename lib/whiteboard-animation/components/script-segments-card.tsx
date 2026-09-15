@@ -2,6 +2,7 @@
 
 import { Fragment, memo, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { Hint } from "@/components/molecules/hint";
 import { useStoryboardStore } from "@/lib/storyboard/store";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import type { StoryboardPanel } from "@/lib/storyboard/schema";
@@ -116,14 +117,16 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
 
   const transport = (
     <div className="flex shrink-0 items-center gap-2">
-      <button
-        type="button"
-        onClick={togglePlay}
-        aria-label={isPlaying ? "Pause" : "Play"}
-        className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:opacity-80"
-      >
-        {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="ml-0.5 h-3.5 w-3.5" />}
-      </button>
+      <Hint label={isPlaying ? "pause the animation" : "play the whole video from here"}>
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label={isPlaying ? "Pause" : "Play"}
+          className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:opacity-80"
+        >
+          {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="ml-0.5 h-3.5 w-3.5" />}
+        </button>
+      </Hint>
       <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
         <span ref={timeRef} className="text-foreground">
           {formatClock(0)}
@@ -209,29 +212,33 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
       <div
         className="flex shrink-0 items-center rounded-full border border-border text-[11px] tabular-nums text-muted-foreground"
       >
-        <button
-          type="button"
-          onClick={() => goTo(idx - 1)}
-          disabled={idx === 0}
-          aria-label="Previous segment"
-          className="rounded-l-full py-1 pl-1.5 pr-1 hover:bg-muted hover:text-foreground disabled:opacity-30"
-        >
-          <ChevronLeft className="h-3.5 w-3.5" />
-        </button>
+        <Hint label="jump to the previous sentence">
+          <button
+            type="button"
+            onClick={() => goTo(idx - 1)}
+            disabled={idx === 0}
+            aria-label="Previous segment"
+            className="rounded-l-full py-1 pl-1.5 pr-1 hover:bg-muted hover:text-foreground disabled:opacity-30"
+          >
+            <ChevronLeft className="h-3.5 w-3.5" />
+          </button>
+        </Hint>
         <span className="px-1 text-foreground">
           <span className="text-muted-foreground">Phrase </span>
           {idx + 1}
           <span className="text-muted-foreground"> / {segments.length}</span>
         </span>
-        <button
-          type="button"
-          onClick={() => goTo(idx + 1)}
-          disabled={idx === segments.length - 1}
-          aria-label="Next segment"
-          className="rounded-r-full py-1 pl-1 pr-1.5 hover:bg-muted hover:text-foreground disabled:opacity-30"
-        >
-          <ChevronRight className="h-3.5 w-3.5" />
-        </button>
+        <Hint label="jump to the next sentence">
+          <button
+            type="button"
+            onClick={() => goTo(idx + 1)}
+            disabled={idx === segments.length - 1}
+            aria-label="Next segment"
+            className="rounded-r-full py-1 pl-1 pr-1.5 hover:bg-muted hover:text-foreground disabled:opacity-30"
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </Hint>
       </div>
 
       <div aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-muted">

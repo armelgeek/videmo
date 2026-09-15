@@ -2,6 +2,7 @@
 
 import { memo, useState } from "react";
 import { Check, ImageIcon, Mic, Pencil } from "lucide-react";
+import { Hint } from "@/components/molecules/hint";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useStoryboardStore } from "@/lib/storyboard/store";
@@ -34,14 +35,16 @@ function SceneDetailsPanelImpl({ className }: { className?: string }) {
                 Done
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => setEditing("prompt")}
-                aria-label="Edit image prompt"
-                className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/field:opacity-100"
-              >
-                <Pencil className="h-3 w-3" />
-              </button>
+              <Hint label="describe what the drawing should show">
+                <button
+                  type="button"
+                  onClick={() => setEditing("prompt")}
+                  aria-label="Edit image prompt"
+                  className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/field:opacity-100"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </Hint>
             )}
           </div>
           {editing === "prompt" ? (
@@ -75,14 +78,16 @@ function SceneDetailsPanelImpl({ className }: { className?: string }) {
                 Done
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => setEditing("description")}
-                aria-label="Edit narration"
-                className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/field:opacity-100"
-              >
-                <Pencil className="h-3 w-3" />
-              </button>
+              <Hint label="change what the voice says in this scene">
+                <button
+                  type="button"
+                  onClick={() => setEditing("description")}
+                  aria-label="Edit narration"
+                  className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover/field:opacity-100"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              </Hint>
             )}
           </div>
           {/* Grows with its text: the side panel scrolls, never a box inside it. */}
