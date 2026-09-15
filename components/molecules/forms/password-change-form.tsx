@@ -104,8 +104,7 @@ export function PasswordChangeForm({ onSuccess }: { onSuccess?: () => void } = {
             placeholder="Enter your current password"
             required
             autoComplete="current-password"
-            className={errors.currentPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
-            aria-invalid={errors.currentPassword ? "true" : "false"}
+            aria-invalid={!!errors.currentPassword}
             aria-describedby={errors.currentPassword ? "currentPassword-error" : undefined}
           />
           {errors.currentPassword && (
@@ -130,8 +129,7 @@ export function PasswordChangeForm({ onSuccess }: { onSuccess?: () => void } = {
             required
             minLength={8}
             autoComplete="new-password"
-            className={errors.newPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
-            aria-invalid={errors.newPassword ? "true" : "false"}
+            aria-invalid={!!errors.newPassword}
             aria-describedby={errors.newPassword ? "newPassword-error" : undefined}
           />
           {errors.newPassword && (
@@ -147,7 +145,7 @@ export function PasswordChangeForm({ onSuccess }: { onSuccess?: () => void } = {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="confirmPassword" className={errors.confirmPassword ? "text-red-600" : ""}>
+          <Label htmlFor="confirmPassword">
             Confirm New Password
           </Label>
           <Input
@@ -161,8 +159,7 @@ export function PasswordChangeForm({ onSuccess }: { onSuccess?: () => void } = {
             required
             minLength={8}
             autoComplete="new-password"
-            className={errors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
-            aria-invalid={errors.confirmPassword ? "true" : "false"}
+            aria-invalid={!!errors.confirmPassword}
             aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
           />
           {errors.confirmPassword && (

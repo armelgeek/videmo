@@ -185,9 +185,10 @@ export function ProfileForm({ user }: ProfileFormProps) {
           onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, name: e.target.value })}
           placeholder="Your name"
           required
-          className={errors.name ? "border-red-500" : ""}
+          aria-invalid={!!errors.name}
+          aria-describedby={errors.name ? "name-error" : undefined}
         />
-        {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+        {errors.name && <p id="name-error" className="text-sm text-red-500">{errors.name}</p>}
       </div>
 
       <div className="space-y-2">
@@ -220,7 +221,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
             type="email"
             value={user.email}
             disabled
-            className="flex-1 bg-muted"
+            className="flex-1"
             aria-describedby="email-status"
           />
           <Button type="button" variant="outline" onClick={() => setIsEditingEmail(true)}>
@@ -248,8 +249,7 @@ export function ProfileForm({ user }: ProfileFormProps) {
               placeholder="New email address"
               aria-label="New email address"
               disabled={isEmailChangeLoading}
-              className={emailChangeError ? "border-red-500" : ""}
-              aria-invalid={emailChangeError ? "true" : "false"}
+              aria-invalid={!!emailChangeError}
               aria-describedby="email-change-hint"
             />
             <p id="email-change-hint" className={emailChangeError ? "text-xs text-red-500" : "text-xs text-muted-foreground"}>

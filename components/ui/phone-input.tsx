@@ -23,8 +23,8 @@ const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
         value={value}
         onChange={onChange}
         className={cn(
-          'flex h-10 w-full rounded-lg border-2 border-ink bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-          error ? 'border-red-500 focus-visible:ring-red-500' : 'border-input',
+          'flex h-10 w-full rounded-lg border-2 border-ink bg-card px-3 py-2 text-sm shadow-[3px_3px_0_hsl(var(--offset))] ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:shadow-[3px_3px_0_hsl(var(--highlight))] disabled:cursor-not-allowed disabled:opacity-50',
+          error && 'border-red-500 shadow-[3px_3px_0_hsl(var(--destructive))]',
           className
         )}
         numberInputProps={{
