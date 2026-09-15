@@ -24,6 +24,7 @@ import { ProjectListView } from "./project-list-view";
 import { StatsOverview } from "./stats-overview";
 import { WorkspaceToolbar } from "./workspace-toolbar";
 import type { ProjectListItem, ProjectListResponse } from "./types";
+import { NotebookBackground } from "./notebook-background";
 
 export function WorkspaceView() {
   const [response, setResponse] = useState<ProjectListResponse | null>(null);
@@ -113,8 +114,9 @@ export function WorkspaceView() {
   const isInitialLoad = !response && isFetching;
 
   return (
-    <div className="flex min-h-screen flex-col" style={{ fontFamily: "var(--font-sketch-hand)" }}>
-      <header className="border-b border-border/50">
+    <div className="flex min-h-screen flex-col relative" style={{ fontFamily: "var(--font-sketch-hand)" }}>
+      <NotebookBackground />
+      <header className="border-b border-border/50 relative z-10">
         <div className="px-4 sm:px-6 py-3">
           {/* Org name */}
           {response?.organization && (
@@ -136,7 +138,7 @@ export function WorkspaceView() {
         </div>
       </header>
 
-      <div className="flex-1 px-4 py-6 sm:px-6">
+      <div className="flex-1 px-4 py-6 sm:px-6 relative z-10">
         <div>
           {error && !response ? (
             <div className="flex flex-col items-center rounded-lg border-2 border-dashed border-border bg-card px-6 py-14 text-center">
