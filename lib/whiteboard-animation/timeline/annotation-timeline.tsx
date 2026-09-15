@@ -101,7 +101,7 @@ const AnnotationTimelineImpl: React.FC<AnnotationTimelineProps> = ({
         endPadding={END_PADDING_PX}
         showPlayhead={false}
         hideTrackHeaders
-        videoTrackHeight="h-20"
+        videoTrackHeight="h-14"
         onViewportChange={onViewportChange}
         clipWindows={clipWindows}
         onTransitionResize={onTransitionResize}
