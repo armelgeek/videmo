@@ -3,6 +3,7 @@
 import { Fragment, useState, useEffect, useRef } from "react";
 import { WhiteboardExportDialog } from "@/lib/whiteboard-animation/components/whiteboard-export-dialog";
 import { SketchHint } from "@/components/molecules/sketch-hint";
+import { Hint } from "@/components/molecules/hint";
 import {
   RENDER_CHANGED_EVENT,
   parseStoredRender,
@@ -1324,19 +1325,22 @@ export default function StoryboardPage() {
             <div className="flex items-center justify-end gap-1.5">
               {step !== "prompt" && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => setIsShortcutsOpen(true)}
-                    aria-label="Keyboard shortcuts"
-                    title="Keyboard shortcuts"
-                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  >
-                    <Keyboard className="h-4 w-4" />
-                  </button>
-                  <Button variant="secondary" size="sm" onClick={() => setIsExportModalOpen(true)} title="Export video (⌘E)">
-                    <Download className="h-4 w-4" />
-                    Export
-                  </Button>
+                  <Hint label="keyboard shortcuts" side="bottom">
+                    <button
+                      type="button"
+                      onClick={() => setIsShortcutsOpen(true)}
+                      aria-label="Keyboard shortcuts"
+                      className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    >
+                      <Keyboard className="h-4 w-4" />
+                    </button>
+                  </Hint>
+                  <Hint label="turn it into an MP4 (⌘E)" side="bottom">
+                    <Button variant="secondary" size="sm" onClick={() => setIsExportModalOpen(true)}>
+                      <Download className="h-4 w-4" />
+                      Export
+                    </Button>
+                  </Hint>
                 </>
               )}
             </div>
@@ -1453,16 +1457,17 @@ export default function StoryboardPage() {
                         Recording voice · {Math.round(narrationProgress)}%
                       </span>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => void generateImagesProgressively({ force: true })}
-                      disabled={isGeneratingImages || isGeneratingNarration}
-                      title="Redraw all visuals"
-                      aria-label="Redraw all visuals"
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
+                    <Hint label="redraw every scene from scratch">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => void generateImagesProgressively({ force: true })}
+                        disabled={isGeneratingImages || isGeneratingNarration}
+                        aria-label="Redraw all visuals"
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    </Hint>
                     {!isGeneratingImages && !isGeneratingNarration && sceneClips.length > 0 && (
                       <SketchHint direction="right" className="hidden text-lg lg:flex">
                         happy with it? bring it to life
@@ -1584,11 +1589,11 @@ export default function StoryboardPage() {
                             </p>
                           </div>
                           <div className="flex shrink-0 items-center rounded-full border-2 border-border p-0.5">
-                            <button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30" disabled={i === 0} onClick={() => { moveClip(i, "up"); setSelectedClipIndex(i - 1); }} title="Move up" aria-label="Move up"><ArrowUp className="h-3.5 w-3.5" /></button>
-                            <button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30" disabled={i === editableClips.length - 1} onClick={() => { moveClip(i, "down"); setSelectedClipIndex(i + 1); }} title="Move down" aria-label="Move down"><ArrowDown className="h-3.5 w-3.5" /></button>
-                            <button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground" onClick={() => duplicateClip(i)} title="Duplicate" aria-label="Duplicate"><Copy className="h-3.5 w-3.5" /></button>
+                            <Hint label="move this scene earlier"><button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30" disabled={i === 0} onClick={() => { moveClip(i, "up"); setSelectedClipIndex(i - 1); }} aria-label="Move up"><ArrowUp className="h-3.5 w-3.5" /></button></Hint>
+                            <Hint label="move this scene later"><button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30" disabled={i === editableClips.length - 1} onClick={() => { moveClip(i, "down"); setSelectedClipIndex(i + 1); }} aria-label="Move down"><ArrowDown className="h-3.5 w-3.5" /></button></Hint>
+                            <Hint label="copy this scene right after it"><button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground" onClick={() => duplicateClip(i)} aria-label="Duplicate"><Copy className="h-3.5 w-3.5" /></button></Hint>
                             <span className="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
-                            <button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => { deleteClip(i); setSelectedClipIndex(Math.max(0, i - 1)); }} title="Delete" aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                            <Hint label="remove this scene"><button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => { deleteClip(i); setSelectedClipIndex(Math.max(0, i - 1)); }} aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></button></Hint>
                           </div>
                         </div>
 

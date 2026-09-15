@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNowStrict } from "date-fns";
 import { SketchHint } from "@/components/molecules/sketch-hint";
+import { Hint } from "@/components/molecules/hint";
 import { AlertCircle, Check, Copy, Loader2, Mail, MoreVertical, RotateCw, UserMinus, X } from "lucide-react";
 import { toast } from "sonner";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -543,14 +544,15 @@ function IconButton({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
   return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      {...props}
-      className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground outline-none transition hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-highlight disabled:opacity-40"
-    >
-      {children}
-    </button>
+    <Hint label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        {...props}
+        className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground outline-none transition hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-highlight disabled:opacity-40"
+      >
+        {children}
+      </button>
+    </Hint>
   );
 }

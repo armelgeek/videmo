@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Hint } from "@/components/molecules/hint";
 import { ProjectThumbnail } from "./project-thumbnail";
 import type { ProjectListItem, ProjectStep } from "./types";
 
@@ -94,6 +95,7 @@ export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete 
       </Link>
 
       {project.latestExport && (
+        <Hint label="your last export, kept for 24 hours">
         <a
           href={`/api/whiteboard/render/${project.latestExport.jobId}/file`}
           download
@@ -103,16 +105,19 @@ export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete 
           <Download className="h-3.5 w-3.5" />
           Video
         </a>
+        </Hint>
       )}
 
       {(canUpdate || canDelete) && (
         <DropdownMenu>
-          <DropdownMenuTrigger
-            aria-label={`Actions for ${project.title}`}
-            className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded bg-background/80 text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-highlight focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </DropdownMenuTrigger>
+          <Hint label="rename or delete">
+            <DropdownMenuTrigger
+              aria-label={`Actions for ${project.title}`}
+              className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded bg-background/80 text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-highlight focus-visible:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </DropdownMenuTrigger>
+          </Hint>
           <DropdownMenuContent align="end" className="w-40">
             {canUpdate && (
               <DropdownMenuItem onSelect={() => onRename(project)}>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { format } from "date-fns";
 import { Download, MoreVertical } from "lucide-react";
+import { Hint } from "@/components/molecules/hint";
 import { ProjectThumbnail } from "./project-thumbnail";
 import type { ProjectListItem } from "./types";
 
@@ -80,16 +81,18 @@ export function ProjectListView({
                     </a>
                   )}
                   {(canUpdate || canDelete) && (
-                    <button
-                      type="button"
-                      aria-label={`Actions for ${project.title}`}
-                      onClick={() => {
-                        if (canUpdate) onRename(project);
-                      }}
-                      className="text-muted-foreground hover:text-foreground transition"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </button>
+                    <Hint label="rename this project">
+                      <button
+                        type="button"
+                        aria-label={`Actions for ${project.title}`}
+                        onClick={() => {
+                          if (canUpdate) onRename(project);
+                        }}
+                        className="text-muted-foreground hover:text-foreground transition"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    </Hint>
                   )}
                 </div>
               </td>
