@@ -547,18 +547,6 @@ model CreditPurchase {
 }
 
 // Auth Features - Phase 1, 2, 3
-model MagicLink {
-  id        String   @id @default(cuid())
-  email     String
-  token     String   @unique
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  @@index([token])
-  @@index([email])
-}
-
 model RecoveryCode {
   id        String   @id @default(cuid())
   userId    String

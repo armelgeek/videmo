@@ -2,6 +2,7 @@ import { createAuthClient } from "better-auth/react";
 import {
   emailOTPClient,
   inferOrgAdditionalFields,
+  magicLinkClient,
   organizationClient,
   twoFactorClient,
 } from "better-auth/client/plugins";
@@ -14,6 +15,7 @@ export const authClient = createAuthClient({
   plugins: [
     organizationClient({ schema: inferOrgAdditionalFields<typeof auth>() }),
     emailOTPClient(),
+    magicLinkClient(),
     ...(isTwoFactorEnabled ? [twoFactorClient()] : []),
   ],
 });

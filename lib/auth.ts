@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
-import { emailOTP, organization, twoFactor } from "better-auth/plugins";
+import { emailOTP, magicLink, organization, twoFactor } from "better-auth/plugins";
 import { createAccessControl } from "better-auth/plugins/access";
 import {
   defaultStatements,
@@ -24,6 +24,7 @@ export const isGoogleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID && process.e
 const pendingWelcomeEmails = new Set<string>();
 
 const INVITATION_EXPIRY_HOURS = 48;
+const MAGIC_LINK_EXPIRY_MINUTES = 15;
 
 const statement = { ...defaultStatements, ...PROJECT_STATEMENTS } as const;
 const ac = createAccessControl(statement);
@@ -216,6 +217,21 @@ export const auth = betterAuth({
             description: { type: "string", required: false },
           },
         },
+      },
+    }),
+    magicLink({
+      expiresIn: MAGIC_LINK_EXPIRY_MINUTES * 60,
+      async sendMagicLink({ email, url }) {
+        await new EmailService().sendEmail({
+          type: 'magic_link',
+          recipients: [email],
+          subject: `Your sign-in link for ${appConfig.name}`,
+          data: {
+            recipientEmail: email,
+            magicLink: url,
+            expiryMinutes: MAGIC_LINK_EXPIRY_MINUTES,
+          },
+        });
       },
     }),
     emailOTP({
