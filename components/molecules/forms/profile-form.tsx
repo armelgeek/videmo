@@ -7,6 +7,14 @@ import { Label } from "@/components/ui/label";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { z } from "zod";
 import { isValidPhoneNumber, type Value } from "react-phone-number-input";
 import { Mail } from "lucide-react";
@@ -215,16 +223,20 @@ export function ProfileForm({ user }: ProfileFormProps) {
             className="flex-1 bg-muted"
             aria-describedby="email-status"
           />
-          {!isEditingEmail && (
-            <Button type="button" variant="outline" onClick={() => setIsEditingEmail(true)}>
-              <Mail className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              Change
-            </Button>
-          )}
+          <Button type="button" variant="outline" onClick={() => setIsEditingEmail(true)}>
+            <Mail className="mr-1.5 h-4 w-4" aria-hidden="true" />
+            Change
+          </Button>
         </div>
 
-        {isEditingEmail && (
-          <div className="space-y-3 rounded-lg bg-muted/50 p-3">
+        <Dialog open={isEditingEmail} onOpenChange={(open) => (open ? setIsEditingEmail(true) : handleCancelEmailChange())}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change email</DialogTitle>
+              <DialogDescription>
+                Your email stays {user.email} until you confirm the new address.
+              </DialogDescription>
+            </DialogHeader>
             <Input
               id="new-email"
               type="email"
@@ -243,16 +255,16 @@ export function ProfileForm({ user }: ProfileFormProps) {
             <p id="email-change-hint" className={emailChangeError ? "text-xs text-red-500" : "text-xs text-muted-foreground"}>
               {emailChangeError || "We'll send a link to confirm the new address."}
             </p>
-            <div className="flex gap-2">
-              <Button type="button" size="sm" onClick={handleEmailChange} disabled={isEmailChangeLoading || !newEmail}>
-                {isEmailChangeLoading ? "Sending…" : "Send link"}
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={handleCancelEmailChange} disabled={isEmailChangeLoading}>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={handleCancelEmailChange} disabled={isEmailChangeLoading}>
                 Cancel
               </Button>
-            </div>
-          </div>
-        )}
+              <Button type="button" onClick={handleEmailChange} disabled={isEmailChangeLoading || !newEmail}>
+                {isEmailChangeLoading ? "Sending…" : "Send link"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="flex justify-end pt-2">

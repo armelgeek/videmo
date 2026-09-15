@@ -18,7 +18,7 @@ const passwordChangeSchema = z.object({
   path: ["confirmPassword"],
 });
 
-export function PasswordChangeForm() {
+export function PasswordChangeForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -78,6 +78,7 @@ export function PasswordChangeForm() {
         revokeOtherSessions: false,
       });
       setErrors({});
+      onSuccess?.();
     } catch (error) {
       toast.error("An error occurred. Please try again.");
       console.error(error);
