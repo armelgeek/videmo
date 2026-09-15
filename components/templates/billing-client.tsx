@@ -239,10 +239,9 @@ export default function BillingClient({ subscription, canManage }: BillingClient
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <Button
-              variant="outline"
               onClick={handleManageBilling}
               disabled={loading}
-              className="w-full"
+              className="w-full border-2 border-ink bg-highlight text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] hover:shadow-[4px_4px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px transition-all"
             >
               {loading ? "Loading..." : "Update Payment Method"}
             </Button>
@@ -258,10 +257,9 @@ export default function BillingClient({ subscription, canManage }: BillingClient
           <div className="pt-4 border-t">
             {subscription.cancelAtPeriodEnd ? (
               <Button
-                variant="default"
                 onClick={handleResumeSubscription}
                 disabled={resumeLoading}
-                className="w-full"
+                className="w-full border-2 border-ink bg-highlight text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] hover:shadow-[4px_4px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px transition-all"
               >
                 {resumeLoading ? "Resuming..." : "Resume Subscription"}
               </Button>
