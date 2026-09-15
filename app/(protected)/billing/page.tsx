@@ -23,14 +23,14 @@ export default async function BillingPage() {
   const { subscription } = await getUserSubscription();
 
   return (
-    <AppShell>
-      <div className="px-6 pb-14 pt-10 lg:px-10">
+    <AppShell contentClassName="bg-background">
+      <div className="px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-4xl">
           <div className="mb-8">
-            <h1 className="text-4xl font-extrabold text-foreground">
+            <h1 className="text-3xl font-extrabold text-foreground">
               <span className="sk-marker">Billing</span>
             </h1>
-            <p className="sk-scribble mt-2 -rotate-1 text-lg">your plan and billing settings</p>
+            <p className="mt-2 text-sm text-muted-foreground">Manage your subscription and billing information</p>
           </div>
 
           <BillingClient subscription={subscription || null} />
