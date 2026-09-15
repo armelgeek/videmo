@@ -5,7 +5,13 @@ import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { selectSceneAnnotations } from '@/lib/unified-engine/hooks/selectors';
 import { useStoryboardStore } from '@/lib/storyboard/store';
 import { deriveTimeline } from '../timeline/derive-timeline';
-import { Check } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { DEFAULT_ANIM_STYLE, annotationColors } from '../schema';
 
@@ -154,20 +160,18 @@ function AnnotationListPanelImpl({
                     <span className="text-[11px] text-muted-foreground">
                       {formatMs(annotation.reveal.from)} → {formatMs(annotation.reveal.to)}
                     </span>
-                    <label className="mb-0 flex items-center gap-1.5 text-[11px] font-normal text-muted-foreground">
-                      Style
-                      <select
-                        value={currentAnimStyle}
-                        onChange={(e) => handleStyleChange(i, e.target.value)}
-                        className="h-7 w-auto rounded-md border border-border bg-card px-2 py-0 text-[11px] font-medium text-foreground"
-                      >
+                    <Select value={currentAnimStyle} onValueChange={(v) => handleStyleChange(i, v)}>
+                      <SelectTrigger size="sm" aria-label="Animation style" className="h-7 w-36 text-[11px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
                         {ANIM_STYLES.map((st) => (
-                          <option key={st.value} value={st.value}>
+                          <SelectItem key={st.value} value={st.value} className="text-xs">
                             {st.label}
-                          </option>
+                          </SelectItem>
                         ))}
-                      </select>
-                    </label>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
               </li>
