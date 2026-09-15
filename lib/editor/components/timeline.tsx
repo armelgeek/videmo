@@ -848,7 +848,7 @@ function TimelineTransitionCard({
 
       {showMenu && (
         <div
-          className="absolute top-full mt-1.5 left-0 z-[100] w-48 bg-[#18181c] border border-border rounded-md shadow-2xl py-1 text-xs animate-in fade-in zoom-in-95 duration-75"
+          className="absolute top-full mt-1.5 left-0 z-[100] w-48 bg-popover text-popover-foreground border border-border rounded-md shadow-2xl py-1 text-xs animate-in fade-in zoom-in-95 duration-75"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1">

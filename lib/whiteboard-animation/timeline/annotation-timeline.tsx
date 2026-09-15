@@ -5,29 +5,28 @@ import { Timeline } from "@/lib/editor/components/timeline";
 import { useAnnotationTimeline } from "./use-annotation-timeline";
 
 /**
- * The NLE timeline paints itself from design tokens that only the standalone
- * inkplainer page ever defined, so they resolve to nothing here and every clip
- * comes out transparent. Scoping them to this wrapper keeps the fix local.
+ * Timeline theme using CSS custom properties that react to light/dark mode.
+ * Uses Tailwind's dynamic color system for consistency with the app.
  */
 const TIMELINE_THEME: React.CSSProperties = {
-  "--surface-0": "#0b0b0d",
-  "--surface-1": "#141417",
-  "--surface-2": "#1e1e23",
-  "--surface-3": "#2a2a31",
-  "--border-subtle": "rgba(255,255,255,0.06)",
-  "--border-default": "rgba(255,255,255,0.12)",
-  "--border-emphasis": "rgba(255,255,255,0.24)",
-  "--hover-overlay": "rgba(255,255,255,0.04)",
-  "--text-primary": "#f4f4f5",
-  "--text-secondary": "#c4c4c8",
-  "--text-tertiary": "#8e8e96",
-  "--text-muted": "#6b6b73",
-  "--tertiary": "#a855f7",
-  "--accent-primary": "#a855f7",
-  "--accent-muted": "rgba(168,85,247,0.5)",
-  "--accent-text": "#e9d5ff",
-  "--accent-border": "rgba(168,85,247,0.4)",
-  "--accent-bg-subtle": "rgba(168,85,247,0.15)",
+  "--surface-0": "hsl(var(--background))",
+  "--surface-1": "hsl(var(--card))",
+  "--surface-2": "hsl(var(--muted))",
+  "--surface-3": "hsl(var(--muted) / 0.5)",
+  "--border-subtle": "hsl(var(--border) / 0.3)",
+  "--border-default": "hsl(var(--border) / 0.6)",
+  "--border-emphasis": "hsl(var(--border))",
+  "--hover-overlay": "hsl(var(--border) / 0.15)",
+  "--text-primary": "hsl(var(--foreground))",
+  "--text-secondary": "hsl(var(--foreground) / 0.8)",
+  "--text-tertiary": "hsl(var(--muted-foreground))",
+  "--text-muted": "hsl(var(--muted-foreground) / 0.7)",
+  "--tertiary": "hsl(var(--primary))",
+  "--accent-primary": "hsl(var(--primary))",
+  "--accent-muted": "hsl(var(--primary) / 0.4)",
+  "--accent-text": "hsl(var(--foreground))",
+  "--accent-border": "hsl(var(--primary) / 0.3)",
+  "--accent-bg-subtle": "hsl(var(--primary) / 0.1)",
 } as React.CSSProperties;
 
 /**

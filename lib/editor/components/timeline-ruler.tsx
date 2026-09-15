@@ -18,8 +18,8 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({ duration, zoomLeve
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = Math.floor(seconds % 60)
-    const f = Math.floor((seconds % 1) * 30) // Approx 30fps frames
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}:${f.toString().padStart(2, "0")}`
+    const c = Math.floor((seconds % 1) * 100)
+    return `${m}:${s.toString().padStart(2, "0")}.${c.toString().padStart(2, "0")}`
   }
 
   const draw = (ctx: CanvasRenderingContext2D, scrollLeft: number, canvasWidth: number) => {
@@ -28,8 +28,10 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({ duration, zoomLeve
     // Clear
     ctx.clearRect(0, 0, canvasWidth, height)
 
-    ctx.fillStyle = "#71717a" // Zinc 500
-    ctx.strokeStyle = "#3f3f46" // Zinc 700
+    // Canvas can't read CSS vars directly: resolve them so the ruler follows light/dark.
+    const styles = getComputedStyle(ctx.canvas)
+    ctx.fillStyle = styles.getPropertyValue("--text-tertiary").trim() || "#71717a"
+    ctx.strokeStyle = styles.getPropertyValue("--border-default").trim() || "#3f3f46"
     ctx.lineWidth = 1
     ctx.font = `500 10px "Inter", sans-serif` // Match app font
     ctx.textBaseline = "top"
@@ -72,7 +74,8 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({ duration, zoomLeve
           const s = Math.floor(sec % 60)
           timeStr = `${m}:${s.toString().padStart(2, "0")}`
         }
-        ctx.fillText(timeStr, x + 4, 2)
+        // Extra offset at 0 so the playhead doesn't cover the first label.
+        ctx.fillText(timeStr, x + (sec === 0 ? 8 : 4), 2)
       }
 
       // Draw Minor Ticks

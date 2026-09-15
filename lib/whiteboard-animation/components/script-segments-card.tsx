@@ -111,7 +111,7 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
     useUnifiedEngineStore.getState().setCurrentTime(segments[target].startMs);
 
   return (
-    <div className="relative flex shrink-0 items-center gap-3 overflow-hidden rounded-lg border-2 border-border bg-card px-4 py-2.5 text-foreground shadow-[3px_3px_0_hsl(var(--offset))]">
+    <div className="relative flex shrink-0 items-center gap-3 overflow-hidden rounded-lg border border-border bg-card px-4 py-2.5 text-foreground">
       <p
         key={idx}
         className="line-clamp-2 min-w-0 flex-1 text-center animate-in fade-in duration-300"

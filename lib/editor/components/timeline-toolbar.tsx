@@ -196,7 +196,7 @@ export const TimelineToolbar = memo(function TimelineToolbar({
           {onShowShortcuts && (
             <button
               onClick={onShowShortcuts}
-              className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/[0.04] border border-white/[0.06] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-accent transition-colors"
+              className="flex items-center gap-1.5 px-2 py-1 rounded bg-[var(--hover-overlay)] border border-[var(--border-subtle)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-accent transition-colors"
             >
               <kbd className="text-[10px] font-mono bg-card px-1 rounded">
                 ?
@@ -252,9 +252,11 @@ const TimecodeCourant = memo(function TimecodeCourant({
   );
 });
 
-const formatTimecode = (seconds: number, frameRate = 30) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  const frames = Math.floor((seconds % 1) * frameRate);
-  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}:${frames.toString().padStart(2, "0")}`;
+// mm:ss.cc — "01:47:18" read as hours, and frames meant nothing to users.
+const formatTimecode = (seconds: number, _frameRate = 30) => {
+  const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+  const mins = Math.floor(safe / 60);
+  const secs = Math.floor(safe % 60);
+  const centis = Math.floor((safe % 1) * 100);
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${centis.toString().padStart(2, "0")}`;
 };

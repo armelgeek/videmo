@@ -389,6 +389,11 @@ export function WhiteboardEditorStep({
     return null;
   }, [activePanel, annotationsDe, config.annotations]);
 
+  const ghostImageUrl =
+    activePanel?.imageUrl ||
+    DEMO_STORYBOARD.panels[activeClipIndex % DEMO_STORYBOARD.panels.length]
+      ?.imageUrl;
+
   // Enable canvas rendering.
   const { isOverlayHidden, isScrubbing } =
     useWhiteboardRenderer({
@@ -749,10 +754,10 @@ export function WhiteboardEditorStep({
         {/* Canvas Container */}
         {/* Le canevas prend toute la hauteur laissee par la timeline, au format
             du projet : sa taille se deduit de la place, pas d'une hauteur figee. */}
-        <div className="flex-1 min-h-0 rounded-lg border-2 border-border bg-card/50 p-6">
+        <div className="flex-1 min-h-0 rounded-lg border border-border bg-muted/30 p-4">
           <div className="h-full w-full flex items-center justify-center [container-type:size]">
             <div
-              className="rounded-lg bg-white overflow-hidden relative shadow-[3px_3px_0_hsl(var(--offset))] border-2 border-ink"
+              className="rounded-md bg-white overflow-hidden relative shadow-sm ring-1 ring-border"
               style={{
                 aspectRatio: cssAspectRatio(aspectRatio),
                 width: `min(100cqw, calc(100cqh * ${canvasWidth} / ${canvasHeight}))`,
@@ -770,6 +775,16 @@ export function WhiteboardEditorStep({
                 height={canvasHeight}
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none z-20"
               />
+              {/* At rest the reveal hasn't drawn anything yet: ghost the artwork so zones can be placed on it. */}
+              {!isOverlayHidden && ghostImageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={ghostImageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 z-[15] h-full w-full object-contain opacity-30 pointer-events-none"
+                />
+              )}
               {showPreparing && (
                 <div
                   role="status"
@@ -809,7 +824,7 @@ export function WhiteboardEditorStep({
           }
         />
 
-        <div className="relative shrink-0 rounded-lg border-2 border-border bg-card overflow-hidden shadow-[3px_3px_0_hsl(var(--offset))]">
+        <div className="relative shrink-0 rounded-lg border border-border bg-card overflow-hidden">
           <AnnotationTimeline
             onViewportChange={setTimelineViewport}
             globalAnnotations={allAnnotations}
@@ -828,7 +843,7 @@ export function WhiteboardEditorStep({
         <div
           role="tablist"
           aria-label="Side panel"
-          className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border-2 border-border bg-card p-2"
+          className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-border bg-card p-1"
         >
           {(["scene", "annotations"] as const).map((tab) => (
             <button
