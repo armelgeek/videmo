@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { GlobalExportIndicator } from "@/components/organisms/export/global-export-indicator";
 
 export default async function ProtectedLayout({
   children,
@@ -15,5 +16,10 @@ export default async function ProtectedLayout({
     redirect("/login");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <GlobalExportIndicator />
+    </>
+  );
 }

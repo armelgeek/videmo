@@ -2,6 +2,10 @@
 
 import { Fragment, useState, useEffect, useRef } from "react";
 import { WhiteboardExportDialog } from "@/lib/whiteboard-animation/components/whiteboard-export-dialog";
+import {
+  RENDER_CHANGED_EVENT,
+  parseStoredRender,
+} from "@/components/organisms/export/global-export-indicator";
 import { toRenderProject } from "@/lib/whiteboard-animation/server/to-render-project";
 import { ShortcutsModal } from "@/lib/editor/components/shortcuts-modal";
 import { Button } from "@/components/ui/button";
@@ -207,8 +211,15 @@ export default function StoryboardPage() {
   const rememberRender = (jobId: string | null) => {
     if (!renderStorageKey) return;
     try {
-      if (jobId) localStorage.setItem(renderStorageKey, jobId);
-      else localStorage.removeItem(renderStorageKey);
+      if (jobId) {
+        localStorage.setItem(
+          renderStorageKey,
+          JSON.stringify({ jobId, title: projectTitle || "Untitled project" })
+        );
+      } else {
+        localStorage.removeItem(renderStorageKey);
+      }
+      window.dispatchEvent(new Event(RENDER_CHANGED_EVENT));
     } catch {}
   };
 
@@ -267,7 +278,8 @@ export default function StoryboardPage() {
     try {
       saved = localStorage.getItem(renderStorageKey);
     } catch {}
-    if (saved) void trackRender(saved);
+    const stored = parseStoredRender(saved);
+    if (stored) void trackRender(stored.jobId);
     // trackRender only uses setters and refs; re-running on its identity would restart polling.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderStorageKey]);
