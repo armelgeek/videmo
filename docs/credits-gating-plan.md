@@ -25,7 +25,8 @@ Verify for every task unless stated: `npx tsc --noEmit && npm test && npx biome 
 
 **T1.3 — Backfill script** `scripts/migrate-billing-to-organizations.ts`
 - `Subscription.organizationId` ← subscriber's personal org (`ensurePersonalOrganization`); `Organization.stripeCustomerId` ← `User.stripeCustomerId` for that org; wallets for every org with `resetAt` = subscription `currentPeriodEnd` or +1 month. Idempotent (skip ledger grant if a wallet exists).
-- Follow-up migration making `Subscription.organizationId` required.
+- Run order in each environment: `prisma migrate deploy` → `npm run seed:plans` → `npx tsx scripts/migrate-billing-to-organizations.ts --dry-run` → same without `--dry-run`.
+- Follow-up migration making `Subscription.organizationId` required ships only after the backfill has run in production (T3.4, once checkout writes `organizationId`).
 
 ## Phase 2 — Services (`lib/billing/`)
 
