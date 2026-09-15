@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CheckCircle2, Download, Loader2, X } from "lucide-react";
+import { CheckCircle2, Download, Loader2, Play, X } from "lucide-react";
+import { VideoPreviewDialog } from "@/components/molecules/video-preview-dialog";
 
 export const RENDER_STORAGE_PREFIX = "sketchpilot:render:";
 export const RENDER_CHANGED_EVENT = "sketchpilot:render-changed";
@@ -150,14 +151,25 @@ export function GlobalExportIndicator() {
           </div>
 
           {t.status === "done" ? (
-            <a
-              href={`/api/whiteboard/render/${t.jobId}/file`}
-              download
-              className="inline-flex h-8 items-center justify-center gap-2 rounded-md border-2 border-ink bg-highlight text-xs font-semibold text-highlight-foreground"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download MP4
-            </a>
+            <div className="grid grid-cols-2 gap-2">
+              <VideoPreviewDialog jobId={t.jobId} title={t.title || "Your video"}>
+                <button
+                  type="button"
+                  className="inline-flex h-8 items-center justify-center gap-2 rounded-md border-2 border-ink bg-highlight text-xs font-semibold text-highlight-foreground"
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  Watch
+                </button>
+              </VideoPreviewDialog>
+              <a
+                href={`/api/whiteboard/render/${t.jobId}/file`}
+                download
+                className="inline-flex h-8 items-center justify-center gap-2 rounded-md border-2 border-border text-xs font-semibold text-foreground hover:border-ink"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Download
+              </a>
+            </div>
           ) : (
             <>
               <span className="h-1.5 w-full overflow-hidden rounded-full bg-muted">

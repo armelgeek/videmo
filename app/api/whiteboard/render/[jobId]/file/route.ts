@@ -5,7 +5,7 @@ import { getObjectStorage } from "@/lib/storage/s3-storage";
 import { getRenderJob } from "@/lib/whiteboard-animation/server/render-store";
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -33,7 +33,10 @@ export async function GET(
       ...(object.contentLength !== null
         ? { "Content-Length": String(object.contentLength) }
         : {}),
-      "Content-Disposition": `attachment; filename="whiteboard-${jobId}.mp4"`,
+      // ?inline=1 lets a <video> element play it in the page instead of forcing a download.
+      "Content-Disposition": `${
+        request.nextUrl.searchParams.get("inline") === "1" ? "inline" : "attachment"
+      }; filename="whiteboard-${jobId}.mp4"`,
     },
   });
 }

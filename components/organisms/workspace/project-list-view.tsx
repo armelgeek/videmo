@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { format } from "date-fns";
-import { Download, MoreVertical } from "lucide-react";
+import { MoreVertical, Play } from "lucide-react";
+import { VideoPreviewDialog } from "@/components/molecules/video-preview-dialog";
 import { Hint } from "@/components/molecules/hint";
 import { ProjectThumbnail } from "./project-thumbnail";
 import type { ProjectListItem } from "./types";
@@ -70,15 +71,16 @@ export function ProjectListView({
               <td className="px-4 py-3">
                 <div className="flex items-center justify-end gap-3">
                   {project.latestExport && (
-                    <a
-                      href={`/api/whiteboard/render/${project.latestExport.jobId}/file`}
-                      download
-                      aria-label={`Download the video of ${project.title}`}
-                      className="inline-flex h-7 items-center gap-1.5 rounded-md border-2 border-ink bg-highlight px-2 text-xs font-semibold text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      Video
-                    </a>
+                    <VideoPreviewDialog jobId={project.latestExport.jobId} title={project.title}>
+                      <button
+                        type="button"
+                        aria-label={`Watch the video of ${project.title}`}
+                        className="inline-flex h-7 items-center gap-1.5 rounded-md border-2 border-ink bg-highlight px-2 text-xs font-semibold text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
+                      >
+                        <Play className="h-3.5 w-3.5" />
+                        Video
+                      </button>
+                    </VideoPreviewDialog>
                   )}
                   {(canUpdate || canDelete) && (
                     <Hint label="rename this project">
