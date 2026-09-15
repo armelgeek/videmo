@@ -33,7 +33,7 @@ export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete 
   const editedBy = project.lock.state === "held-by-other" ? project.lock.by?.name ?? "Someone" : null;
 
   return (
-    <article className="group relative overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-ink hover:shadow-lg">
+    <article className="group relative overflow-hidden rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))] transition-transform hover:-translate-y-1">
       <Link
         href={`/storyboard?project=${project.id}`}
         className="flex flex-col outline-none focus-visible:ring-2 focus-visible:ring-highlight"
