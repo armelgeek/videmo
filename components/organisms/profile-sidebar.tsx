@@ -14,26 +14,26 @@ export function ProfileSidebar({ userData }: ProfileSidebarProps) {
   const [activeTab, setActiveTab] = useState('profile');
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
       {/* Sidebar Navigation */}
-      <div className="md:col-span-1">
-        <nav className="space-y-1 sticky top-10">
+      <div className="lg:col-span-1">
+        <nav className="space-y-2 sticky top-20">
           <button
             onClick={() => setActiveTab('profile')}
-            className={`w-full text-left px-4 py-3 rounded-lg font-medium text-sm transition-colors ${
+            className={`w-full text-left px-4 py-2.5 rounded-lg font-medium text-sm border-2 transition-all ${
               activeTab === 'profile'
-                ? 'bg-muted text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                ? 'border-ink bg-highlight text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))]'
+                : 'border-border text-foreground hover:border-ink bg-card'
             }`}
           >
             Profile
           </button>
           <button
             onClick={() => setActiveTab('security')}
-            className={`w-full text-left px-4 py-3 rounded-lg font-medium text-sm transition-colors ${
+            className={`w-full text-left px-4 py-2.5 rounded-lg font-medium text-sm border-2 transition-all ${
               activeTab === 'security'
-                ? 'bg-muted text-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                ? 'border-ink bg-highlight text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))]'
+                : 'border-border text-foreground hover:border-ink bg-card'
             }`}
           >
             Security
@@ -42,39 +42,35 @@ export function ProfileSidebar({ userData }: ProfileSidebarProps) {
       </div>
 
       {/* Content */}
-      <div className="md:col-span-3 space-y-6">
+      <div className="lg:col-span-3 space-y-6">
         {/* Profile Tab */}
         {activeTab === 'profile' && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>
+          <div className="rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))] p-6">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-foreground">Profile Information</h2>
+              <p className="text-sm text-muted-foreground mt-1">
                 Update your profile details and personal information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ProfileForm user={{
-                ...userData,
-                phone: userData.phone || "",
-              }} />
-            </CardContent>
-          </Card>
+              </p>
+            </div>
+            <ProfileForm user={{
+              ...userData,
+              phone: userData.phone || "",
+            }} />
+          </div>
         )}
 
         {/* Security Tab */}
         {activeTab === 'security' && (
           <>
-            <Card>
-              <CardHeader>
-                <CardTitle>Change Password</CardTitle>
-                <CardDescription>
+            <div className="rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))] p-6">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-foreground">Change Password</h2>
+                <p className="text-sm text-muted-foreground mt-1">
                   Update your password to keep your account secure
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <PasswordChangeForm />
-              </CardContent>
-            </Card>
+                </p>
+              </div>
+              <PasswordChangeForm />
+            </div>
             {process.env.NEXT_PUBLIC_ENABLE_TWO_FACTOR !== "false" && (
               <TwoFactorSettings />
             )}

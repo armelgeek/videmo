@@ -1,8 +1,6 @@
+import { AppShell } from '@/lib/app-shell';
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { isUserAdmin } from "@/lib/auth-utils";
-import { Header } from '@/components/organisms/header/header';
-import { Footer } from '@/components/organisms/footer/footer';
 import { ProfileSidebar } from '@/components/organisms/profile-sidebar';
 import { prisma } from "@/lib/prisma";
 
@@ -12,8 +10,6 @@ export default async function ProfilePage() {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-
-  const isAdmin = await isUserAdmin(session?.user?.id);
 
   const userData = await prisma.user.findUnique({
     where: { id: session?.user?.id },
@@ -28,23 +24,19 @@ export default async function ProfilePage() {
   });
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header user={session?.user} isAdmin={isAdmin} />
-
-      <div className="flex-1">
-        <div className="container mx-auto py-10 px-4 sm:px-6 md:px-8 lg:px-12">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your account settings and preferences
-            </p>
-          </div>
-
-          <ProfileSidebar userData={userData} />
+    <AppShell contentClassName="bg-background">
+      <div className="px-4 py-6 sm:px-6">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground">
+            <span className="sk-marker">Profile Settings</span>
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Manage your account settings and preferences
+          </p>
         </div>
-      </div>
 
-      <Footer />
-    </div>
+        <ProfileSidebar userData={userData} />
+      </div>
+    </AppShell>
   );
 }
