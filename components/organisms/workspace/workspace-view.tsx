@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertCircle, Loader2, Plus, X } from "lucide-react";
+import { AlertCircle, Loader2, Plus, X, List, Grid3X3 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { ORGANIZATION_CHANGED_EVENT } from "@/lib/app-shell/organization-events";
@@ -19,6 +19,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ProjectCard } from "./project-card";
+import { WorkspaceControls } from "./workspace-controls";
+import { ProjectListView } from "./project-list-view";
+import { StatsOverview } from "./stats-overview";
 import type { ProjectListItem, ProjectListResponse } from "./types";
 
 export function WorkspaceView() {
@@ -31,6 +34,9 @@ export function WorkspaceView() {
   const [renaming, setRenaming] = useState<ProjectListItem | null>(null);
   const [deleting, setDeleting] = useState<ProjectListItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [sortBy, setSortBy] = useState<"recent" | "oldest" | "a-z" | "z-a">("recent");
+  const [timeFilter, setTimeFilter] = useState<"all" | "week" | "month">("all");
   const requestSeq = useRef(0);
 
   useEffect(() => {
@@ -191,6 +197,25 @@ export function WorkspaceView() {
             <>
               <div className="px-4 sm:px-6">
                 <div
+            <StatsOverview
+              totalProjects={response?.total ?? 0}
+              creditsAvailable={response?.creditsAvailable ?? 0}
+              teamMembers={response?.teamMembersCount ?? 0}
+            />
+
+            <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 border-b border-border">
+              <h2 className="text-lg font-semibold">Projects</h2>
+              <WorkspaceControls
+                viewMode={viewMode}
+                onViewModeChange={setViewMode}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                timeFilter={timeFilter}
+                onTimeFilterChange={setTimeFilter}
+              />
+            </div>
+
+            {viewMode === "grid" ? (
                   className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
                 >
                   {projects.map((project) => (

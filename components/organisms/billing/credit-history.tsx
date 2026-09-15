@@ -63,11 +63,15 @@ export function CreditHistory() {
       </h2>
 
       {error ? (
-        <p className="text-sm text-muted-foreground">{error}</p>
+        <div className="flex h-32 items-center justify-center">
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
       ) : !result ? (
         <div aria-hidden="true" className="h-32 rounded-md bg-muted motion-safe:animate-pulse" />
       ) : result.data.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No credit activity yet.</p>
+        <div className="flex h-32 items-center justify-center">
+          <p className="text-sm text-muted-foreground">No credit activity yet.</p>
+        </div>
       ) : (
         <div className="overflow-x-auto">
           <Table>

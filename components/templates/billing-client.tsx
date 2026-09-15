@@ -132,27 +132,7 @@ export default function BillingClient({ subscription, canManage }: BillingClient
   };
 
   if (!subscription) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-muted-foreground" />
-            You&apos;re on the Free plan
-          </CardTitle>
-          <CardDescription>
-            Upgrade for more monthly credits, projects, members and higher-resolution exports.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild>
-            <Link href="/#pricing">
-              View Available Plans
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   return (
