@@ -53,7 +53,7 @@ function ClipSelectorBarImpl() {
   if (!storyboardPanels || storyboardPanels.length === 0) return null;
 
   return (
-    <div className="w-60 shrink-0 h-full flex flex-col rounded-lg border border-border bg-card overflow-hidden">
+    <div className="w-60 shrink-0 h-full flex flex-col rounded-lg border border-border bg-muted/60 overflow-hidden">
       <div className="flex h-10 shrink-0 items-center justify-between border-b border-border px-3">
         <span className="text-xs font-semibold text-foreground">Scenes</span>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">
