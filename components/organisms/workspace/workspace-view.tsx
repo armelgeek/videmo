@@ -195,7 +195,7 @@ export function WorkspaceView() {
               </div>
 
               {viewMode === "grid" ? (
-                <div className="px-4 sm:px-6">
+                <div>
                   <div
                     className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
                   >
