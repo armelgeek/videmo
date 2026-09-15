@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
+import { SignOutMenuItem } from "@/lib/app-shell/sign-out-menu-item";
 import { notifyCreditsChanged } from "@/lib/billing/billing-notice";
 import { showBillingNotice } from "@/lib/billing/show-billing-notice";
 import { VOICES, normalizeVoice } from "@/lib/speech/speech-generator";
@@ -1181,6 +1182,8 @@ export default function StoryboardPage() {
                     <Trash2 className="mr-2 h-4 w-4" />
                     Clear session
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <SignOutMenuItem />
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

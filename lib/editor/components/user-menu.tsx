@@ -8,9 +8,11 @@ import {
   Palette,
   LogOut,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import * as Popover from "@radix-ui/react-popover";
+import { useSignOut } from "@/lib/app-shell/use-sign-out";
 
 interface UserMenuProps {
   user?: {
@@ -30,6 +32,7 @@ export function UserMenu({ user }: UserMenuProps) {
   };
 
   const [open, setOpen] = React.useState(false);
+  const { handleSignOut, isSigningOut } = useSignOut();
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -108,7 +111,19 @@ export function UserMenu({ user }: UserMenuProps) {
 
             <div className="h-px bg-[var(--border-default)] my-2" />
 
-            <MenuItem icon={<LogOut className="size-4" />}>Sign Out</MenuItem>
+            <MenuItem
+              icon={
+                isSigningOut ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <LogOut className="size-4" aria-hidden="true" />
+                )
+              }
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+            >
+              Sign Out
+            </MenuItem>
           </div>
 
           <div className="flex items-center justify-center gap-4 px-3 py-3 border-t border-[var(--border-default)]">
@@ -128,12 +143,21 @@ export function UserMenu({ user }: UserMenuProps) {
 function MenuItem({
   icon,
   children,
+  onClick,
+  disabled,
 }: {
   icon?: React.ReactNode;
   children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
 }) {
   return (
-    <button className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-[var(--hover-overlay)] rounded-lg cursor-pointer transition-colors outline-none w-full">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:text-foreground hover:bg-[var(--hover-overlay)] rounded-lg cursor-pointer transition-colors outline-none w-full disabled:opacity-60"
+    >
       {icon}
       <span className="text-sm">{children}</span>
     </button>

@@ -1,18 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CreditCard, Folder, Loader2, LogOut, Mail, Plus, Settings, Users } from "lucide-react";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/client";
 import { appConfig } from "@/lib/config";
-import { authClient, signOut, useSession } from "@/lib/auth-client";
+import { authClient, useSession } from "@/lib/auth-client";
 import { ProjectThumbnail } from "@/components/organisms/workspace/project-thumbnail";
 import type { ProjectListResponse } from "@/components/organisms/workspace/types";
 import { CreditBalanceBadge } from "./credit-balance-badge";
 import { OrganizationSwitcher } from "./organization-switcher";
+import { useSignOut } from "./use-sign-out";
 import { ORGANIZATION_CHANGED_EVENT } from "./organization-events";
 
 export type SidebarView =
@@ -96,20 +96,7 @@ export function AppSidebar(_props: AppSidebarProps) {
   const recentProjects = useRecentProjects(pathname);
   const pendingInvitations = usePendingInvitations(pathname);
   const isCreating = pathname === "/new-project";
-  const router = useRouter();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-
-  const handleSignOut = async () => {
-    setIsSigningOut(true);
-    try {
-      await signOut();
-      toast.success("You're signed out.");
-      router.push("/login");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Sign out failed.");
-      setIsSigningOut(false);
-    }
-  };
+  const { handleSignOut, isSigningOut } = useSignOut();
 
   return (
     <aside className="fixed bottom-0 left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r-2 border-ink bg-background shadow-[4px_0_0_hsl(var(--highlight))]">
