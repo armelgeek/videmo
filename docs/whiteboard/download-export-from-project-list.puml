@@ -1,0 +1,52 @@
+@startuml docs/whiteboard/download-export-from-project-list.puml
+title "User Downloads an Exported Video from the Project List"
+
+actor User
+participant "Browser"
+participant "React Component"
+participant "API Route (/api/whiteboard/render)"
+participant "API Route (/api/video-projects)"
+database "Database (Prisma)"
+participant "External (Object storage)"
+
+== Export attached to a project (202) ==
+User ->> Browser: Click "Export 1080p"
+Browser ->> "React Component": onStartExport(quality)
+"React Component" ->> "API Route (/api/whiteboard/render)": POST {projectId, quality, aspectRatio, project}
+note right of "API Route (/api/whiteboard/render)": requireViewer()\nZod renderRequestSchema\nrequireProjectAccess(projectId, "read")\nassertExportResolution(org, quality)
+"API Route (/api/whiteboard/render)" ->> "Database (Prisma)": renderJob.create({userId, projectId, status: rendering})
+"Database (Prisma)" -->> "API Route (/api/whiteboard/render)": {id}
+"API Route (/api/whiteboard/render)" -->> "React Component": {jobId}
+note over "API Route (/api/whiteboard/render)": Worker renders, uploads MP4\nthen status = done, outputKey set
+
+== List shows the download (200) ==
+User ->> Browser: Open /workspace
+Browser ->> "React Component": load projects
+"React Component" ->> "API Route (/api/video-projects)": GET ?page&limit
+note right of "API Route (/api/video-projects)": requireOrganizationRole()\ncanAct(role, "read")
+"API Route (/api/video-projects)" ->> "Database (Prisma)": renderJob.findMany\nWHERE userId = viewer AND projectId IN page\nAND status = done AND outputKey NOT NULL\nAND createdAt >= now - 24h\nDISTINCT projectId ORDER BY createdAt DESC
+"Database (Prisma)" -->> "API Route (/api/video-projects)": latest export per project
+"API Route (/api/video-projects)" -->> "React Component": 200 {data[].latestExport}
+"React Component" ->> Browser: Show "Video" button on card / row
+User ->> Browser: Click "Video"
+Browser ->> "API Route (/api/whiteboard/render)": GET /{jobId}/file
+note right of "API Route (/api/whiteboard/render)": job.userId must equal session user
+"API Route (/api/whiteboard/render)" ->> "External (Object storage)": getStream(outputKey)
+"External (Object storage)" -->> Browser: video/mp4 attachment
+
+== Edge Case: Unauthorized (401) ==
+"API Route (/api/whiteboard/render)" -->> "React Component": 401 no session
+
+== Edge Case: Project not readable (404) ==
+note right of "API Route (/api/whiteboard/render)": other org or deleted project\nanswers 404, never 403
+"API Route (/api/whiteboard/render)" -->> "React Component": 404 Not found
+
+== Edge Case: Plan resolution exceeded (402/403) ==
+"API Route (/api/whiteboard/render)" -->> "React Component": billing error, showBillingNotice()
+
+== Edge Case: Already rendering (429) ==
+"API Route (/api/whiteboard/render)" -->> "React Component": 429 one export per user
+
+== Edge Case: Expired or someone else's export (404) ==
+note right of "API Route (/api/video-projects)": exports older than 24h or owned\nby another member are not listed
+@enduml

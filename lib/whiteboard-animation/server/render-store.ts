@@ -5,6 +5,8 @@ export type RenderStatus = "pending" | "rendering" | "done" | "error" | "cancell
 export interface RenderJob {
   id: string;
   userId: string;
+  /** The project exported, so its video can be offered from the project list. */
+  projectId: string | null;
   status: RenderStatus;
   progress: number;
   /** Cle de la video dans le bac, une fois envoyee. */
@@ -44,6 +46,7 @@ export interface RenderJobBackend {
   createIfCapacity(input: {
     id: string;
     userId: string;
+    projectId?: string | null;
     perUser: number;
     global: number;
     now: Date;
@@ -73,7 +76,7 @@ export class InMemoryRenderJobBackend implements RenderJobBackend {
     }
   }
 
-  async createIfCapacity({ id, userId, perUser, global, now }: Parameters<RenderJobBackend["createIfCapacity"]>[0]) {
+  async createIfCapacity({ id, userId, projectId = null, perUser, global, now }: Parameters<RenderJobBackend["createIfCapacity"]>[0]) {
     this.reapStale(now);
     const active = [...this.rows.values()].filter((r) => isActive(r.status));
     if (active.filter((r) => r.userId === userId).length >= perUser) return "user" as const;
@@ -81,6 +84,7 @@ export class InMemoryRenderJobBackend implements RenderJobBackend {
     const row: Row = {
       id,
       userId,
+      projectId,
       status: "rendering",
       progress: 0,
       outputKey: null,
@@ -134,6 +138,7 @@ export class InMemoryRenderJobBackend implements RenderJobBackend {
 type PrismaRenderRow = {
   id: string;
   userId: string;
+  projectId: string | null;
   status: string;
   progress: number;
   outputKey: string | null;
@@ -144,6 +149,7 @@ type PrismaRenderRow = {
 const toJob = (row: PrismaRenderRow): RenderJob => ({
   id: row.id,
   userId: row.userId,
+  projectId: row.projectId,
   status: row.status as RenderStatus,
   progress: row.progress,
   outputKey: row.outputKey,
@@ -154,7 +160,7 @@ const toJob = (row: PrismaRenderRow): RenderJob => ({
 const db = async () => (await import("@/lib/prisma")).prisma;
 
 export class PrismaRenderJobBackend implements RenderJobBackend {
-  async createIfCapacity({ id, userId, perUser, global, now }: Parameters<RenderJobBackend["createIfCapacity"]>[0]) {
+  async createIfCapacity({ id, userId, projectId = null, perUser, global, now }: Parameters<RenderJobBackend["createIfCapacity"]>[0]) {
     const prisma = await db();
     return prisma.$transaction(async (tx) => {
       // Le verrou serialise les reservations de TOUTES les instances : sans
@@ -172,7 +178,7 @@ export class PrismaRenderJobBackend implements RenderJobBackend {
       const all = await tx.renderJob.count({ where: { status: { in: ACTIVE } } });
       if (all >= global) return "global" as const;
       const row = await tx.renderJob.create({
-        data: { id, userId, status: "rendering", heartbeatAt: now, createdAt: now },
+        data: { id, userId, projectId, status: "rendering", heartbeatAt: now, createdAt: now },
       });
       return toJob(row);
     });
@@ -242,12 +248,14 @@ export function forgetLocalChildren(): void {
 export async function reserveRenderJob(
   userId: string,
   limits: { perUser: number; global: number; perInstance: number },
+  projectId: string | null = null,
 ): Promise<RenderJob | Refusal> {
   // Chaque rendu occupe un coeur de CETTE machine, quel que soit le parc.
   if (children.size >= limits.perInstance) return "global";
   return backend.createIfCapacity({
     id: randomUUID(),
     userId,
+    projectId,
     perUser: limits.perUser,
     global: limits.global,
     now: new Date(),

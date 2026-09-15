@@ -33,7 +33,7 @@ import Image from "next/image";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { PromptWizard } from "@/components/organisms/storyboard/prompt-wizard";
 import { appConfig } from "@/lib/config";
-import { ArrowDown, ArrowUp, Keyboard, Lock, MoreHorizontal } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Keyboard, Lock, MoreHorizontal } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1202,6 +1202,14 @@ export default function StoryboardPage() {
             <div className="flex min-w-0 items-center gap-1">
               <Link
                 href="/workspace"
+                aria-label="Back to projects"
+                className="mr-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border-2 border-border px-2.5 text-xs font-semibold text-foreground transition-colors hover:border-ink hover:bg-accent"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
+                <span className="hidden md:inline">Projects</span>
+              </Link>
+              <Link
+                href="/workspace"
                 title="Back to projects"
                 className="flex shrink-0 items-center gap-2 rounded-md px-1.5 py-1 font-display text-sm font-extrabold text-foreground transition-colors hover:bg-accent"
               >
@@ -1777,6 +1785,7 @@ export default function StoryboardPage() {
                 method: "POST",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify({
+                  projectId: projectSync.projectId ?? undefined,
                   quality: resolution,
                   aspectRatio: projectParams.aspectRatio,
                   project,

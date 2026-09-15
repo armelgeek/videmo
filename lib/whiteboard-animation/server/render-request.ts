@@ -29,6 +29,7 @@ export function resolveExportSize(
 }
 
 export const renderRequestSchema = z.object({
+  projectId: z.string().min(1).max(64).optional(),
   quality: z.enum(["720p", "1080p"]),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]),
   project: z.object({

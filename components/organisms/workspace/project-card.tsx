@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { formatDistanceToNowStrict } from "date-fns";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Download, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
@@ -92,6 +92,18 @@ export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete 
           </div>
         </div>
       </Link>
+
+      {project.latestExport && (
+        <a
+          href={`/api/whiteboard/render/${project.latestExport.jobId}/file`}
+          download
+          aria-label={`Download the video of ${project.title}`}
+          className="absolute right-11 top-2 flex h-7 items-center gap-1.5 rounded-md border-2 border-ink bg-highlight px-2 text-xs font-semibold text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Video
+        </a>
+      )}
 
       {(canUpdate || canDelete) && (
         <DropdownMenu>

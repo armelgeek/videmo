@@ -14,6 +14,9 @@ import {
 } from "@/lib/video-project/schema";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 
+/** Same lifetime as the render route keeps a video in storage. */
+const RENDER_DOWNLOAD_TTL_MS = 24 * 60 * 60 * 1000;
+
 // Jamais les colonnes Json : un panels[] complet par ligne rendrait la liste
 // inutilisable.
 const LIST_SELECT = {
@@ -89,13 +92,34 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    const previews = new Map(); // const previews_disabled = await loadPreviews(rows.map((row) => row.id));
+    const previews = await loadPreviews(rows.map((row) => row.id));
 
     const now = new Date();
+
+    // The viewer's own videos only: the download route serves a job to its owner alone.
+    const exports = await prisma.renderJob.findMany({
+      where: {
+        userId: viewer.userId,
+        projectId: { in: rows.map((row) => row.id) },
+        status: "done",
+        outputKey: { not: null },
+        createdAt: { gte: new Date(now.getTime() - RENDER_DOWNLOAD_TTL_MS) },
+      },
+      orderBy: { createdAt: "desc" },
+      distinct: ["projectId"],
+      select: { id: true, projectId: true, createdAt: true },
+    });
+    const latestExport = new Map(exports.map((job) => [job.projectId, job]));
     const data = rows.map(({ lockedById, lockExpiresAt, lockedBy, ...rest }) => ({
       ...rest,
       previewUrl: previews.get(rest.id)?.previewUrl ?? null,
       sceneCount: previews.get(rest.id)?.sceneCount ?? 0,
+      latestExport: latestExport.has(rest.id)
+        ? {
+            jobId: latestExport.get(rest.id)!.id,
+            createdAt: latestExport.get(rest.id)!.createdAt,
+          }
+        : null,
       lock: {
         state: lockState({ lockedById, lockExpiresAt }, viewer.userId, now),
         byId: lockedById,

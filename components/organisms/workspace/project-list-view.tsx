@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { format } from "date-fns";
-import { MoreVertical } from "lucide-react";
+import { Download, MoreVertical } from "lucide-react";
 import { ProjectThumbnail } from "./project-thumbnail";
 import type { ProjectListItem } from "./types";
 
@@ -38,7 +38,7 @@ export function ProjectListView({
             <th className="px-4 py-3 text-left font-semibold text-foreground">Project</th>
             <th className="px-4 py-3 text-left font-semibold text-foreground">Created</th>
             <th className="px-4 py-3 text-left font-semibold text-foreground">Modified</th>
-            {(canUpdate || canDelete) && <th className="px-4 py-3 text-right">Actions</th>}
+            <th className="px-4 py-3 text-right">Actions</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -66,19 +66,33 @@ export function ProjectListView({
               <td className="px-4 py-3 text-muted-foreground">
                 {formatDate(project.updatedAt)}
               </td>
-              {(canUpdate || canDelete) && (
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (canUpdate) onRename(project);
-                    }}
-                    className="text-muted-foreground hover:text-foreground transition"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-                </td>
-              )}
+              <td className="px-4 py-3">
+                <div className="flex items-center justify-end gap-3">
+                  {project.latestExport && (
+                    <a
+                      href={`/api/whiteboard/render/${project.latestExport.jobId}/file`}
+                      download
+                      aria-label={`Download the video of ${project.title}`}
+                      className="inline-flex h-7 items-center gap-1.5 rounded-md border-2 border-ink bg-highlight px-2 text-xs font-semibold text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Video
+                    </a>
+                  )}
+                  {(canUpdate || canDelete) && (
+                    <button
+                      type="button"
+                      aria-label={`Actions for ${project.title}`}
+                      onClick={() => {
+                        if (canUpdate) onRename(project);
+                      }}
+                      className="text-muted-foreground hover:text-foreground transition"
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+              </td>
             </tr>
           ))}
         </tbody>

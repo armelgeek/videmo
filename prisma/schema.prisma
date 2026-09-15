@@ -418,6 +418,7 @@ model Annotation {
 model RenderJob {
   id          String   @id
   userId      String   @map("user_id")
+  projectId   String?  @map("project_id")
   status      String   @db.VarChar(20)
   progress    Int      @default(0)
   outputKey   String?  @map("output_key")
@@ -428,6 +429,7 @@ model RenderJob {
 
   @@index([status, heartbeatAt])
   @@index([userId, status])
+  @@index([userId, projectId, status])
   @@index([createdAt])
   @@map("render_jobs")
 }

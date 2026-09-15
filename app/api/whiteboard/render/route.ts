@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { assertExportResolution } from "@/lib/billing/org-usage";
 import { billingErrorResponse } from "@/lib/billing/with-credits";
+import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse, type Viewer } from "@/lib/video-project/session";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
@@ -87,6 +88,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   }
 
+  // Only a project the viewer can read may be attached; otherwise it would leak into their list.
+  if (parsed.data.projectId) {
+    try {
+      await requireProjectAccess(parsed.data.projectId, viewer, "read");
+    } catch (error) {
+      return toErrorResponse(error);
+    }
+  }
+
   if (viewer.organizationId) {
     try {
       await assertExportResolution(
@@ -116,11 +126,15 @@ export async function POST(request: NextRequest) {
   void purgeExpiredRenders().catch(logError("purge"));
 
   const userId = viewer.userId;
-  const job = await reserveRenderJob(userId, {
-    perUser: MAX_RENDERS_PER_USER,
-    global: MAX_CONCURRENT_RENDERS,
-    perInstance: MAX_RENDERS_PER_INSTANCE,
-  });
+  const job = await reserveRenderJob(
+    userId,
+    {
+      perUser: MAX_RENDERS_PER_USER,
+      global: MAX_CONCURRENT_RENDERS,
+      perInstance: MAX_RENDERS_PER_INSTANCE,
+    },
+    parsed.data.projectId ?? null,
+  );
   if (job === "user") {
     return NextResponse.json(
       { error: "Un export est deja en cours. Attendez sa fin pour en lancer un autre." },

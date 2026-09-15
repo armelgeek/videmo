@@ -9,6 +9,9 @@ export interface ProjectListItem {
   updatedAt: string;
   previewUrl: string | null;
   sceneCount: number;
+  createdAt?: string;
+  /** The viewer's latest finished export still in storage (24 h). */
+  latestExport: { jobId: string; createdAt: string } | null;
   createdBy: { id: string; name: string } | null;
   lock: {
     state: "free" | "held-by-me" | "held-by-other";
