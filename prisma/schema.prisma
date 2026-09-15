@@ -515,10 +515,13 @@ model CreditTransaction {
   action         String?
   referenceId    String?
   description    String?
+  // Consumption split ({ fromPlan, fromPurchases }) so a refund restores the same pools.
+  metadata       Json?
   createdAt      DateTime     @default(now())
 
   @@index([organizationId, createdAt])
   @@index([type])
+  @@index([referenceId])
 }
 
 model CreditPurchase {
