@@ -8,7 +8,7 @@ interface StatsOverviewProps {
 
 export function StatsOverview({ totalProjects, creditsAvailable, teamMembers }: StatsOverviewProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 px-4 sm:px-6 py-6">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 py-4">
       <div className="rounded-lg border-2 border-border bg-card p-4 shadow-[3px_3px_0_hsl(var(--offset))]">
         <div className="flex items-center justify-between">
           <div>
