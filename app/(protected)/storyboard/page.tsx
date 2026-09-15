@@ -43,6 +43,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
+import { notifyCreditsChanged } from "@/lib/billing/billing-notice";
+import { showBillingNotice } from "@/lib/billing/show-billing-notice";
 import { VOICES, normalizeVoice } from "@/lib/speech/speech-generator";
 import {
   type ScriptBeat,
@@ -219,9 +221,11 @@ export default function StoryboardPage() {
       });
       const body = await response.json();
       if (!response.ok) {
+        showBillingNotice(response.status, body);
         setScriptError(body.error ?? `HTTP ${response.status}`);
         return;
       }
+      notifyCreditsChanged();
       setScriptTitle(body.title ?? "");
       setScriptText(body.text ?? "");
     } catch (error) {
@@ -423,11 +427,14 @@ export default function StoryboardPage() {
 
     const body = await response.json();
     if (!response.ok) {
+      showBillingNotice(response.status, body);
       const error = new Error(body.error ?? `HTTP ${response.status}`);
-      // 503 = moteur ou bac mal configure. Rien ne changera au clip suivant.
-      (error as Error & { fatal?: boolean }).fatal = response.status === 503;
+      // 503 = moteur ou bac mal configure, 402 = plus de credits : rien ne changera au clip suivant.
+      (error as Error & { fatal?: boolean }).fatal =
+        response.status === 503 || response.status === 402;
       throw error;
     }
+    notifyCreditsChanged();
     return body.url as string;
   };
 
@@ -595,7 +602,14 @@ export default function StoryboardPage() {
         }),
       });
       const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+      if (!response.ok) {
+        if (showBillingNotice(response.status, body)) {
+          setPreviewingVoice(null);
+          return;
+        }
+        throw new Error(body.error ?? `HTTP ${response.status}`);
+      }
+      notifyCreditsChanged();
 
       const audio = new Audio(body.url);
       previewAudioRef.current = audio;
@@ -672,9 +686,11 @@ export default function StoryboardPage() {
       });
       const body = await response.json();
       if (!response.ok) {
+        showBillingNotice(response.status, body);
         setScriptError(body.error ?? `HTTP ${response.status}`);
         return;
       }
+      notifyCreditsChanged();
 
       const scenes = (body.scenes ?? []) as ScriptScene[];
 
@@ -890,10 +906,13 @@ export default function StoryboardPage() {
         });
         const body = await response.json();
         if (!response.ok) {
+          showBillingNotice(response.status, body);
           const error = new Error(body.error ?? `HTTP ${response.status}`);
-          (error as Error & { fatal?: boolean }).fatal = response.status === 503;
+          (error as Error & { fatal?: boolean }).fatal =
+            response.status === 503 || response.status === 402;
           throw error;
         }
+        notifyCreditsChanged();
 
         // L'enregistrement ne se decoupe pas : ses temps s'y REPERENT, chacun
         // recevant l'instant ou il est dit et la place qu'il occupe — silence
@@ -1661,7 +1680,12 @@ export default function StoryboardPage() {
                 }),
               });
               if (!res.ok) {
-                throw new Error((await res.json()).error || "Export refuse");
+                const body = await res.json();
+                if (showBillingNotice(res.status, body)) {
+                  setExportPhase("idle");
+                  return;
+                }
+                throw new Error(body.error || "Export refuse");
               }
               const { jobId } = await res.json();
               renderJobIdRef.current = jobId;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { showBillingNotice } from "@/lib/billing/show-billing-notice";
 import { LOCK_TTL_MS } from "@/lib/video-project/lock";
 import {
   fromLoadedProject,
@@ -205,6 +206,7 @@ export function useProjectSync(): ProjectSyncState {
           });
           if (!response.ok) {
             const body = await response.json().catch(() => ({}));
+            showBillingNotice(response.status, body);
             setError(body.error ?? `HTTP ${response.status}`);
             setStatus("error");
             return;
