@@ -766,7 +766,7 @@ export function WhiteboardEditorStep({
           <div
             role="tablist"
             aria-label="Editor mode"
-            className="grid grid-cols-2 gap-1 rounded-lg border-2 border-border bg-card p-1"
+            className="grid grid-cols-2 gap-1.5 rounded-xl border-2 border-border bg-card p-1.5"
           >
             {(
               [
@@ -780,13 +780,13 @@ export function WhiteboardEditorStep({
                 role="tab"
                 aria-selected={mode === key}
                 onClick={() => switchMode(key)}
-                className={`flex items-center justify-center gap-1.5 rounded-md border-2 px-4 py-1 text-xs font-semibold transition-colors ${
+                className={`flex h-8 items-center justify-center gap-2 rounded-lg border-2 px-5 text-sm font-semibold transition-colors ${
                   mode === key
-                    ? "border-ink bg-highlight text-highlight-foreground"
+                    ? "border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-4 w-4" />
                 {label}
               </button>
             ))}
