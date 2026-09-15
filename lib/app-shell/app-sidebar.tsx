@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, Folder, Mail, Plus, Users } from "lucide-react";
+import { CreditCard, Folder, Mail, Plus, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/client";
 import { appConfig } from "@/lib/config";
@@ -215,7 +215,7 @@ export function AppSidebar(_props: AppSidebarProps) {
       {session?.user && (
         <Link
           href="/profile"
-          className="flex items-center gap-2.5 border-t-2 border-dashed border-border px-3 py-3 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-highlight rounded-lg mx-2 mb-2"
+          className="group mx-2 mb-2 flex items-center gap-2.5 rounded-lg border-2 border-border px-3 py-3 outline-none transition-all hover:border-ink hover:bg-card focus-visible:ring-2 focus-visible:ring-highlight"
         >
           {session.user.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -237,6 +237,7 @@ export function AppSidebar(_props: AppSidebarProps) {
             </p>
             <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
           </div>
+          <Settings className="h-4 w-4 shrink-0 text-muted-foreground transition-all group-hover:text-foreground" />
         </Link>
       )}
     </aside>
