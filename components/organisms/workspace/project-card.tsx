@@ -38,7 +38,7 @@ export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete 
         href={`/storyboard?project=${project.id}`}
         className="flex flex-col outline-none focus-visible:ring-2 focus-visible:ring-highlight"
       >
-        <div className="aspect-square overflow-hidden border-b border-border bg-white">
+        <div className="aspect-video overflow-hidden border-b border-border bg-white">
           <ProjectThumbnail
             previewUrl={project.previewUrl}
             aspectRatio={project.aspectRatio}
