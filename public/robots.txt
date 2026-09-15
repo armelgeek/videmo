@@ -1,0 +1,11 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin and auth paths
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://sketchpilot.app/sitemap.xml
