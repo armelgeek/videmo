@@ -24,6 +24,7 @@ import {
   reserveRenderJob,
   takeExpiredRenders,
 } from "@/lib/whiteboard-animation/server/render-store";
+import { notifyRenderReady } from "@/lib/whiteboard-animation/server/render-notify";
 
 /** Rendus simultanes sur tout le parc : l'etat est en base, partage. */
 const MAX_CONCURRENT_RENDERS = Number(process.env.MAX_CONCURRENT_RENDERS) || 2;
@@ -188,6 +189,12 @@ export async function POST(request: NextRequest) {
       const outputKey = buildRenderKey(userId, job.id);
       await storage.putFile({ key: outputKey, path: outputPath, contentType: "video/mp4" });
       await finalizeRenderJob(job.id, { status: "done", progress: 100, outputKey });
+      void notifyRenderReady({
+        userId,
+        jobId: job.id,
+        projectId: parsed.data.projectId ?? null,
+        expiryHours: RENDER_TTL_MS / (60 * 60 * 1000),
+      }).catch(logError("notify"));
     } catch (error) {
       logError("upload")(error);
       await finalizeRenderJob(job.id, {

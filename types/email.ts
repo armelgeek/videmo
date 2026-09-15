@@ -8,7 +8,8 @@ export type EmailType =
   | 'email_change_verification'
   | 'email_change_notification'
   | 'organization_invitation'
-  | 'magic_link';
+  | 'magic_link'
+  | 'video_ready';
 
 export interface BaseEmailData {
   recipientEmail: string;
@@ -62,6 +63,12 @@ export interface OrganizationInvitationEmailData extends BaseEmailData {
   expiryHours: number;
 }
 
+export interface VideoReadyEmailData extends BaseEmailData {
+  videoTitle: string;
+  downloadUrl: string;
+  expiryHours: number;
+}
+
 export interface MagicLinkEmailData extends BaseEmailData {
   magicLink: string;
   expiryMinutes: number;
@@ -103,7 +110,8 @@ export type EmailData =
   | EmailChangeVerificationData
   | EmailChangeNotificationData
   | OrganizationInvitationEmailData
-  | MagicLinkEmailData;
+  | MagicLinkEmailData
+  | VideoReadyEmailData;
 
 export interface SendEmailRequest {
   type: EmailType;

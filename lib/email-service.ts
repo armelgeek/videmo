@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
-import type { SendEmailRequest, OTPEmailData, ResetPasswordEmailData, PaymentReceiptEmailData, WelcomeEmailData, SubscriptionEmailData, EmailChangeVerificationData, EmailChangeNotificationData, OrganizationInvitationEmailData, MagicLinkEmailData } from '@/types/email';
+import type { SendEmailRequest, OTPEmailData, ResetPasswordEmailData, PaymentReceiptEmailData, WelcomeEmailData, SubscriptionEmailData, EmailChangeVerificationData, EmailChangeNotificationData, OrganizationInvitationEmailData, MagicLinkEmailData, VideoReadyEmailData } from '@/types/email';
 import { getMagicLinkTemplate } from './email-templates/magic-link-template';
+import { getVideoReadyTemplate } from './email-templates/video-complete-template';
 import { getOrganizationInvitationTemplate } from './email-templates/organization-invitation-template';
 import { getOTPEmailTemplate } from './email-templates/otp-template';
 import { getResetPasswordTemplate } from './email-templates/reset-password-template';
@@ -77,6 +78,10 @@ export class EmailService {
       case 'magic_link':
         htmlContent = getMagicLinkTemplate(data as MagicLinkEmailData);
         emailSubject = subject || 'Your sign-in link';
+        break;
+      case 'video_ready':
+        htmlContent = getVideoReadyTemplate(data as VideoReadyEmailData);
+        emailSubject = subject || 'Your video is ready';
         break;
       default:
         throw new Error(`Unsupported email type: ${type}`);

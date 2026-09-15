@@ -20,15 +20,10 @@ export const getWelcomeEmailTemplate = (data: WelcomeEmailData): string => {
     <ul style="line-height: 2; color: #000000;">
       <li><strong><a href="${appUrl}/profile" style="color: #000000; text-decoration: underline; text-decoration-color: #FFFF33;">Complete your profile</a></strong> — Add your details and preferences</li>
       <li><strong><a href="${appUrl}/dashboard" style="color: #000000; text-decoration: underline; text-decoration-color: #FFFF33;">View your dashboard</a></strong> — See everything at a glance</li>
-      <li><strong><a href="${appUrl}/settings" style="color: #000000; text-decoration: underline; text-decoration-color: #FFFF33;">Explore settings</a></strong> — Configure your preferences</li>
     </ul>
 
     <div style="text-align: center; margin: 28px 0;">
       <a href="${appUrl}/dashboard" class="button">Go to Dashboard →</a>
-    </div>
-
-    <div class="info-box" style="background-color: #FFFACD;">
-      <strong>Tip:</strong> Complete your profile to unlock personalized features and recommendations tailored to you!
     </div>
 
     <h3 style="color: #000000;">Questions?</h3>
