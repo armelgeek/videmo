@@ -17,6 +17,7 @@ async function main() {
   console.log("https://dashboard.stripe.com/test/products\n");
 
   const plans = await prisma.plan.findMany({
+    where: { tier: { not: "free" } },
     orderBy: [{ name: "asc" }, { interval: "asc" }],
   });
 

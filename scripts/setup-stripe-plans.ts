@@ -1,132 +1,95 @@
-import 'dotenv/config';
-import { stripe } from "@/lib/payments/stripe/config";
+import "dotenv/config";
+import {
+  type BillingInterval,
+  TIER_CATALOG,
+  getTierDefinition,
+  placeholderPriceId,
+} from "@/lib/billing/catalog";
+import {
+  backfillLegacyTiers,
+  findTierPlan,
+  syncActionCosts,
+  upsertTierPlan,
+} from "@/lib/billing/sync-catalog";
 import { db } from "@/lib/db";
+import { stripe } from "@/lib/payments/stripe/config";
 
-const PLANS = [
-  {
-    name: "Starter",
-    description: "Perfect for getting started",
-    monthlyAmount: 2900, // $29.00
-    yearlyAmount: 29900, // $299.00
-    features: [
-      "Up to 1,000 API calls/month",
-      "Basic support",
-      "1 project",
-      "Email support"
-    ],
-  },
-  {
-    name: "Professional",
-    description: "For growing businesses",
-    monthlyAmount: 7900, // $79.00
-    yearlyAmount: 79900, // $799.00
-    features: [
-      "Up to 100,000 API calls/month",
-      "Priority support",
-      "Unlimited projects",
-      "Advanced analytics",
-      "Custom integrations"
-    ],
-    isPopular: true,
-  },
-  {
-    name: "Enterprise",
-    description: "For large scale operations",
-    monthlyAmount: 29900, // $299.00
-    yearlyAmount: 299900, // $2,999.00
-    features: [
-      "Unlimited API calls",
-      "24/7 dedicated support",
-      "Unlimited projects",
-      "Advanced security",
-      "Custom SLA",
-      "Dedicated account manager"
-    ],
-  },
-];
+function isRealStripeId(id: string | undefined, placeholder: string): id is string {
+  return !!id && id !== placeholder;
+}
 
 async function setupStripePlans() {
   console.log("🔄 Setting up Stripe plans...\n");
+  await backfillLegacyTiers(db);
 
-  for (const plan of PLANS) {
+  const free = getTierDefinition("free");
+  if (free) await upsertTierPlan(db, free, "month");
+
+  let failures = 0;
+
+  for (const definition of TIER_CATALOG.filter((t) => t.tier !== "free")) {
     try {
-      // Create product in Stripe
-      console.log(`📦 Creating product: ${plan.name}`);
-      const product = await stripe.products.create({
-        name: plan.name,
-        description: plan.description,
-        metadata: {
-          plan_type: plan.name.toLowerCase(),
-        },
-      });
+      const intervals = Object.keys(definition.prices) as BillingInterval[];
+      const existingRows = await Promise.all(
+        intervals.map((interval) => findTierPlan(db, definition.tier, interval)),
+      );
 
-      console.log(`✅ Product created: ${product.id}\n`);
+      let productId = existingRows
+        .map((row) => row?.stripeProductId)
+        .find((id) => isRealStripeId(id, `prod_${definition.tier}`));
 
-      // Create monthly price
-      console.log(`💰 Creating monthly price for ${plan.name}`);
-      const monthlyPrice = await stripe.prices.create({
-        product: product.id,
-        unit_amount: plan.monthlyAmount,
-        currency: "usd",
-        recurring: {
-          interval: "month",
-          interval_count: 1,
-        },
-      });
+      for (const [index, interval] of intervals.entries()) {
+        const existing = existingRows[index];
+        const placeholder = placeholderPriceId(definition.tier, interval);
 
-      console.log(`✅ Monthly price: ${monthlyPrice.id}`);
+        // Re-running must not create duplicate Stripe prices.
+        if (isRealStripeId(existing?.stripePriceId, placeholder)) {
+          console.log(`⏭️  ${definition.name} (${interval}) already linked: ${existing?.stripePriceId}`);
+          await upsertTierPlan(db, definition, interval);
+          continue;
+        }
 
-      // Create yearly price
-      console.log(`💰 Creating yearly price for ${plan.name}`);
-      const yearlyPrice = await stripe.prices.create({
-        product: product.id,
-        unit_amount: plan.yearlyAmount,
-        currency: "usd",
-        recurring: {
-          interval: "year",
-          interval_count: 1,
-        },
-      });
+        if (!productId) {
+          const product = await stripe.products.create({
+            name: definition.name,
+            description: definition.description,
+            metadata: { tier: definition.tier },
+          });
+          productId = product.id;
+          console.log(`📦 Product created for ${definition.name}: ${product.id}`);
+        }
 
-      console.log(`✅ Yearly price: ${yearlyPrice.id}\n`);
-
-      // Create monthly plan
-      await db.plan.create({
-        data: {
-          name: plan.name,
-          description: plan.description,
-          amount: plan.monthlyAmount,
+        const price = await stripe.prices.create({
+          product: productId,
+          unit_amount: definition.prices[interval],
           currency: "usd",
-          interval: "month",
-          features: plan.features,
-          stripePriceId: monthlyPrice.id,
-          stripeProductId: product.id,
-          isPopular: plan.isPopular || false,
-        },
-      });
+          recurring: { interval, interval_count: 1 },
+          metadata: { tier: definition.tier },
+        });
+        console.log(`💰 ${definition.name} (${interval}) price: ${price.id}`);
 
-      // Create yearly plan
-      await db.plan.create({
-        data: {
-          name: plan.name,
-          description: plan.description,
-          amount: plan.yearlyAmount,
-          currency: "usd",
-          interval: "year",
-          features: plan.features,
-          stripePriceId: yearlyPrice.id,
-          stripeProductId: product.id,
-          isPopular: plan.isPopular || false,
-        },
-      });
-
-      console.log(`📝 Database updated for ${plan.name}\n`);
+        await upsertTierPlan(db, definition, interval, { priceId: price.id, productId });
+      }
     } catch (error) {
-      console.error(`❌ Error setting up plan ${plan.name}:`, error);
+      failures++;
+      console.error(`❌ Error setting up ${definition.name}:`, error);
     }
   }
 
-  console.log("✨ Stripe plans setup complete!");
+  await syncActionCosts(db);
+
+  if (failures > 0) {
+    console.error(`\n⚠️  ${failures} tier(s) failed.`);
+    process.exit(1);
+  }
+  console.log("\n✨ Stripe plans setup complete!");
 }
 
-setupStripePlans().catch(console.error);
+setupStripePlans()
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await db.$disconnect();
+  });

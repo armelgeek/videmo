@@ -6,6 +6,7 @@ async function main() {
     select: {
       id: true,
       name: true,
+      tier: true,
       interval: true,
       stripePriceId: true,
       stripeProductId: true,
@@ -19,7 +20,7 @@ async function main() {
 
   console.log("\n📊 Current Plans in Database:\n");
   plans.forEach((plan) => {
-    console.log(`${plan.name} (${plan.interval}):`);
+    console.log(`${plan.name} [${plan.tier}] (${plan.interval}):`);
     console.log(`  Price ID: ${plan.stripePriceId}`);
     console.log(`  Product ID: ${plan.stripeProductId}`);
     console.log(`  Active: ${plan.isActive}`);
