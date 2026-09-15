@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useCreditSummary } from "@/lib/billing/use-credit-summary";
 import { cn } from "@/lib/utils";
+import { SketchHint } from "@/components/molecules/sketch-hint";
 
 type Quality = "720p" | "1080p";
 
@@ -206,6 +207,9 @@ export function WhiteboardExportDialog({
             <Button className={PRIMARY_BUTTON} onClick={() => onStartExport(quality)}>
               Export {quality}
             </Button>
+            <SketchHint direction="up" className="mx-auto text-lg">
+              it keeps rendering even if you close this
+            </SketchHint>
           </div>
         )}
       </DialogContent>

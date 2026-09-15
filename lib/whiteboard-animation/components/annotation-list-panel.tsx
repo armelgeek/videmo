@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { SketchHint } from '@/components/molecules/sketch-hint';
 import { DEFAULT_ANIM_STYLE, annotationColors } from '../schema';
 
 /** Couleur de repli du calque d'annotations — meme valeur qu'AnnotationOverlay. */
@@ -112,9 +113,14 @@ function AnnotationListPanelImpl({
     <section className={cn('flex min-h-0 flex-col overflow-hidden', className)}>
 
       {derived.length === 0 ? (
-        <p className="px-3 py-4 text-xs text-muted-foreground">
-          No annotations yet. Draw a region on the canvas to add one.
-        </p>
+        <div className="flex flex-col items-center gap-2 px-3 py-8 text-center">
+          <SketchHint direction="left" className="text-lg">
+            drag on the image to draw a zone
+          </SketchHint>
+          <p className="text-xs text-muted-foreground">
+            Each zone is drawn by the hand, in order.
+          </p>
+        </div>
       ) : (
         <ul className="min-h-0 flex-1 overflow-y-auto p-2 space-y-1">
           {derived.map((annotation, i) => {

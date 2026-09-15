@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { notifyCreditsChanged } from "@/lib/billing/billing-notice";
 import { useCreditSummary } from "@/lib/billing/use-credit-summary";
+import { SketchHint } from "@/components/molecules/sketch-hint";
 import { CreditHistory } from "./credit-history";
 import { CreditTopupDialog } from "./credit-topup-dialog";
 
@@ -78,6 +79,7 @@ export function BillingOverview({ hasSubscription, subscriptionSlot }: BillingOv
     summary.monthlyAllowance > 0
       ? Math.min(100, Math.round((summary.planCredits / summary.monthlyAllowance) * 100))
       : 0;
+  const runningLow = summary.monthlyAllowance > 0 && summary.balance < summary.monthlyAllowance * 0.2;
 
   return (
     <div className="space-y-6">
@@ -99,7 +101,12 @@ export function BillingOverview({ hasSubscription, subscriptionSlot }: BillingOv
           </div>
 
           {summary.canManage && (
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {runningLow && (
+                <SketchHint direction="right" className="hidden text-lg md:flex">
+                  running low, top up here
+                </SketchHint>
+              )}
               {!hasSubscription && (
                 <Link href="/#pricing" className={SECONDARY_ACTION}>
                   Upgrade

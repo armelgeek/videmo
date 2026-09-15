@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useEffect, useRef } from "react";
 import { WhiteboardExportDialog } from "@/lib/whiteboard-animation/components/whiteboard-export-dialog";
+import { SketchHint } from "@/components/molecules/sketch-hint";
 import {
   RENDER_CHANGED_EVENT,
   parseStoredRender,
@@ -1462,6 +1463,11 @@ export default function StoryboardPage() {
                     >
                       <RefreshCw className="h-4 w-4" />
                     </Button>
+                    {!isGeneratingImages && !isGeneratingNarration && sceneClips.length > 0 && (
+                      <SketchHint direction="right" className="hidden text-lg lg:flex">
+                        happy with it? bring it to life
+                      </SketchHint>
+                    )}
                     <Button
                       variant="secondary"
                       onClick={() => {

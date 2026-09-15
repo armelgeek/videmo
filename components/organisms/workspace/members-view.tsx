@@ -212,6 +212,11 @@ export function MembersView() {
             <p className="mt-1 text-sm text-muted-foreground">{organization?.members.length || 0} members</p>
           </div>
           <div className="flex items-center gap-2">
+            {canManage && organization?.members.length === 1 && (
+              <SketchHint direction="right" className="mr-1 hidden text-lg md:flex">
+                videos go faster with a teammate
+              </SketchHint>
+            )}
             {canManage && (
               <button
                 type="button"
