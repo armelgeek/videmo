@@ -30,7 +30,7 @@ export function WorkspaceToolbar({
   canCreate = true,
 }: WorkspaceToolbarProps) {
   return (
-    <div className="flex flex-col gap-4 px-4 sm:px-6 py-4 border-b border-border">
+    <div className="flex flex-col gap-4 px-8 sm:px-12 py-4 border-b border-border">
       {/* Search Row */}
       <div className="flex items-center gap-2">
         <label className="relative flex-1">

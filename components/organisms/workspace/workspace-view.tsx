@@ -117,7 +117,7 @@ export function WorkspaceView() {
     <div className="flex min-h-screen flex-col relative" >
       <NotebookBackground />
       <header className="border-b border-border/50 relative z-10">
-        <div className="px-4 sm:px-6 py-3">
+        <div className="px-8 sm:px-12 py-3">
           {/* Org name */}
           {response?.organization && (
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
@@ -138,7 +138,7 @@ export function WorkspaceView() {
         </div>
       </header>
 
-      <div className="flex-1 px-4 py-6 sm:px-6 relative z-10">
+      <div className="flex-1 px-6 py-6 sm:px-8 relative z-10">
         <div>
           {error && !response ? (
             <div className="flex flex-col items-center rounded-lg border-2 border-dashed border-border bg-card px-6 py-14 text-center">
