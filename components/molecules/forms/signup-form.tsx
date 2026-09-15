@@ -200,318 +200,212 @@ export function SignupForm({
 
   if (showOtpVerification) {
     return (
-      <div className={cn("flex flex-col gap-6", className)} {...props}>
-        <Card className="border-0 shadow-lg">
-          <CardContent className="p-6 sm:p-8">
-            <form onSubmit={handleOtpVerification} className="space-y-6">
-              <div className="space-y-2">
-                <CardTitle className="text-2xl">Verify Your Email</CardTitle>
-                <CardDescription>
-                  We sent a 6-digit code to{" "}
-                  <span className="font-medium text-foreground">{email}</span>
-                </CardDescription>
-              </div>
+      <form onSubmit={handleOtpVerification} className={cn("sk-field space-y-4", className)} {...props}>
+        <div className="sk-field">
+          <label htmlFor="otp" className="sk-label">
+            Verification Code
+          </label>
+          <input
+            id="otp"
+            type="text"
+            placeholder="000000"
+            maxLength={6}
+            value={otp}
+            onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+              setOtp(e.target.value.replace(/\D/g, ""))
+            }
+            required
+            disabled={isLoading}
+            className="sk-input text-center text-3xl font-mono tracking-widest font-bold"
+            autoFocus
+          />
+          <p className="sk-hint">
+            We sent a 6-digit code to <span className="font-medium text-foreground">{email}</span>
+          </p>
+        </div>
 
-              <Field>
-                <FieldLabel htmlFor="otp">Verification Code</FieldLabel>
-                <Input
-                  id="otp"
-                  type="text"
-                  placeholder="000000"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-                    setOtp(e.target.value.replace(/\D/g, ""))
-                  }
-                  required
-                  disabled={isLoading}
-                  className="text-center text-3xl font-semibold tracking-widest font-mono"
-                  autoFocus
-                />
-                <p className="text-xs text-muted-foreground">
-                  Check your spam folder if you don't see the email
-                </p>
-              </Field>
-
-              <div className="flex flex-col gap-3">
-                <Button
-                  type="submit"
-                  disabled={isLoading || otp.length !== 6}
-                  className="w-full h-10 font-medium"
-                  size="lg"
-                >
-                  {isLoading ? "Verifying..." : "Verify Email"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleResendOtp}
-                  disabled={isLoading}
-                  className="w-full"
-                >
-                  Resend Code
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="sk-button-group">
+          <button
+            type="submit"
+            disabled={isLoading || otp.length !== 6}
+            className="sk-btn sk-btn-main flex-1"
+          >
+            {isLoading ? "Verifying..." : "Verify Email"}
+          </button>
+          <button
+            type="button"
+            onClick={handleResendOtp}
+            disabled={isLoading}
+            className="sk-btn flex-1"
+          >
+            Resend
+          </button>
+        </div>
+      </form>
     )
   }
 
   const passwordStrength = getPasswordStrength(passwordValue)
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-6 sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name Field */}
-            <Field>
-              <FieldLabel htmlFor="name">Full Name</FieldLabel>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  placeholder="John Doe"
-                  required
-                  disabled={isLoading}
-                  autoComplete="name"
-                  className={cn(
-                    "pl-10 transition-colors",
-                    errors.name && "border-destructive focus-visible:ring-destructive"
-                  )}
-                  aria-invalid={errors.name ? "true" : "false"}
-                  aria-describedby={errors.name ? "name-error" : undefined}
-                />
-              </div>
-              {errors.name && (
-                <div id="name-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  {errors.name}
-                </div>
-              )}
-            </Field>
+    <form onSubmit={handleSubmit} className={cn("sk-field space-y-4", className)} {...props}>
+      {/* Name Field */}
+      <div className="sk-field">
+        <label htmlFor="name" className="sk-label">Name</label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          placeholder="John Doe"
+          required
+          disabled={isLoading}
+          autoComplete="name"
+          className={cn("sk-input", errors.name && "sk-input-error")}
+          aria-invalid={errors.name ? "true" : "false"}
+          aria-describedby={errors.name ? "name-error" : undefined}
+        />
+        {errors.name && (
+          <div id="name-error" className="sk-error">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {errors.name}
+          </div>
+        )}
+      </div>
 
-            {/* Email Field */}
-            <Field>
-              <FieldLabel htmlFor="email">Email Address</FieldLabel>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  required
-                  disabled={isLoading}
-                  autoComplete="email"
-                  className={cn(
-                    "pl-10 transition-colors",
-                    errors.email && "border-destructive focus-visible:ring-destructive"
-                  )}
-                  aria-invalid={errors.email ? "true" : "false"}
-                  aria-describedby={errors.email ? "email-error" : undefined}
-                />
-              </div>
-              {errors.email && (
-                <div id="email-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  {errors.email}
-                </div>
-              )}
-            </Field>
+      {/* Email Field */}
+      <div className="sk-field">
+        <label htmlFor="email" className="sk-label">Email</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          placeholder="you@example.com"
+          required
+          disabled={isLoading}
+          autoComplete="email"
+          className={cn("sk-input", errors.email && "sk-input-error")}
+          aria-invalid={errors.email ? "true" : "false"}
+          aria-describedby={errors.email ? "email-error" : undefined}
+        />
+        {errors.email && (
+          <div id="email-error" className="sk-error">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {errors.email}
+          </div>
+        )}
+      </div>
 
-            {/* Phone Field */}
-            <Field>
-              <FieldLabel htmlFor="phone">Phone Number <span className="text-xs text-muted-foreground">(Optional)</span></FieldLabel>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none z-10" />
-                <PhoneInput
-                  id="phone"
-                  value={phone}
-                  onChange={(value) => setPhone(value || undefined)}
-                  placeholder="+1 (555) 000-0000"
-                  disabled={isLoading}
-                  error={!!errors.phone}
-                  aria-invalid={errors.phone ? "true" : "false"}
-                  aria-describedby={errors.phone ? "phone-error" : undefined}
-                  className="pl-10"
-                />
-              </div>
-              {errors.phone && (
-                <div id="phone-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  {errors.phone}
-                </div>
-              )}
-            </Field>
+      {/* Phone Field */}
+      <div className="sk-field">
+        <label htmlFor="phone" className="sk-label">
+          Phone <span className="text-xs text-foreground/60">(optional)</span>
+        </label>
+        <PhoneInput
+          id="phone"
+          value={phone}
+          onChange={(value) => setPhone(value || undefined)}
+          placeholder="+1 (555) 000-0000"
+          disabled={isLoading}
+          error={!!errors.phone}
+          aria-invalid={errors.phone ? "true" : "false"}
+          aria-describedby={errors.phone ? "phone-error" : undefined}
+        />
+        {errors.phone && (
+          <div id="phone-error" className="sk-error">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            {errors.phone}
+          </div>
+        )}
+      </div>
 
-            {/* Password Fields */}
-            <div className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium">Security</h3>
-                <p className="text-xs text-muted-foreground">Create a strong password to protect your account</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Password */}
-                <Field>
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <Input
-                      id="password"
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      disabled={isLoading}
-                      autoComplete="new-password"
-                      placeholder="••••••••"
-                      value={passwordValue}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-                        setPasswordValue(e.target.value)
-                      }
-                      className={cn(
-                        "pl-10 pr-10 transition-colors",
-                        errors.password && "border-destructive focus-visible:ring-destructive"
-                      )}
-                      aria-invalid={errors.password ? "true" : "false"}
-                      aria-describedby={errors.password ? "password-error" : undefined}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setShowPassword(!showPassword)}
-                      tabIndex={-1}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  {passwordValue && (
-                    <div className="mt-2 space-y-1">
-                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                        <div
-                          className={`h-full transition-all ${passwordStrength.color}`}
-                          style={{ width: passwordStrength.width }}
-                        />
-                      </div>
-                      <p className={cn(
-                        "text-xs font-medium",
-                        passwordStrength.label === "Weak" && "text-destructive",
-                        passwordStrength.label === "Fair" && "text-yellow-600",
-                        passwordStrength.label === "Strong" && "text-blue-600",
-                        passwordStrength.label === "Very Strong" && "text-green-600"
-                      )}>
-                        Strength: {passwordStrength.label}
-                      </p>
-                    </div>
-                  )}
-                  {errors.password && (
-                    <div id="password-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.password}
-                    </div>
-                  )}
-                </Field>
-
-                {/* Confirm Password */}
-                <Field>
-                  <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <Input
-                      id="confirm-password"
-                      name="confirm-password"
-                      type={showConfirmPassword ? "text" : "password"}
-                      required
-                      disabled={isLoading}
-                      autoComplete="new-password"
-                      placeholder="••••••••"
-                      className={cn(
-                        "pl-10 pr-10 transition-colors",
-                        errors.confirmPassword && "border-destructive focus-visible:ring-destructive"
-                      )}
-                      aria-invalid={errors.confirmPassword ? "true" : "false"}
-                      aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      tabIndex={-1}
-                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff className="h-4 w-4" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </button>
-                  </div>
-                  {errors.confirmPassword && (
-                    <div id="confirmPassword-error" className="flex items-center gap-2 mt-2 text-sm text-destructive">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.confirmPassword}
-                    </div>
-                  )}
-                </Field>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                Must be at least 8 characters with uppercase, numbers, and symbols for best security
-              </p>
-            </div>
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
+      {/* Password Fields */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="sk-field">
+          <label htmlFor="password" className="sk-label">Password</label>
+          <div className="relative">
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              required
               disabled={isLoading}
-              className="w-full h-10 font-medium"
-              size="lg"
+              autoComplete="new-password"
+              placeholder="••••••••"
+              value={passwordValue}
+              onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+                setPasswordValue(e.target.value)
+              }
+              className={cn("sk-input pr-10", errors.password && "sk-input-error")}
+              aria-invalid={errors.password ? "true" : "false"}
+              aria-describedby={errors.password ? "password-error" : undefined}
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/60 hover:text-foreground"
+              onClick={() => setShowPassword(!showPassword)}
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground" />
-                  Creating account...
-                </span>
-              ) : (
-                "Create Account"
-              )}
-            </Button>
-
-            {/* Sign In Link */}
-            <div className="flex items-center justify-center gap-1 text-sm">
-              <span className="text-muted-foreground">Already have an account?</span>
-              <a
-                href={loginHref}
-                className="font-medium text-primary hover:underline underline-offset-2"
-              >
-                Sign in
-              </a>
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {passwordValue && (
+            <div className="sk-password-strength">
+              <div className="sk-strength-bar">
+                <div
+                  className={cn("sk-strength-fill", passwordStrength.label.toLowerCase().replace(" ", "-"))}
+                  style={{ width: passwordStrength.width }}
+                />
+              </div>
+              <span className="sk-strength-label">{passwordStrength.label}</span>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+          )}
+          {errors.password && (
+            <div id="password-error" className="sk-error">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {errors.password}
+            </div>
+          )}
+        </div>
 
-      {/* Terms */}
-      <p className="text-xs text-center text-muted-foreground">
-        By creating an account, you agree to our{" "}
-        <a href="/terms" className="underline hover:text-foreground underline-offset-2">
-          Terms of Service
-        </a>
-        {" "}and{" "}
-        <a href="/privacy" className="underline hover:text-foreground underline-offset-2">
-          Privacy Policy
-        </a>
-      </p>
-    </div>
+        <div className="sk-field">
+          <label htmlFor="confirm-password" className="sk-label">Confirm</label>
+          <div className="relative">
+            <input
+              id="confirm-password"
+              name="confirm-password"
+              type={showConfirmPassword ? "text" : "password"}
+              required
+              disabled={isLoading}
+              autoComplete="new-password"
+              placeholder="••••••••"
+              className={cn("sk-input pr-10", errors.confirmPassword && "sk-input-error")}
+              aria-invalid={errors.confirmPassword ? "true" : "false"}
+              aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
+            />
+            <button
+              type="button"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground/60 hover:text-foreground"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              tabIndex={-1}
+              aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+            >
+              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <div id="confirmPassword-error" className="sk-error">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              {errors.confirmPassword}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Submit Button */}
+      <button type="submit" disabled={isLoading} className="sk-btn sk-btn-main w-full">
+        {isLoading ? "Creating account..." : "Sign Up"}
+      </button>
+    </form>
   )
 }

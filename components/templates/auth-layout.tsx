@@ -1,114 +1,106 @@
 import { ReactNode } from "react"
 import { Logo } from "@/components/atoms/icons/logo"
+import Link from "next/link"
+import "./auth.css"
 
 interface AuthLayoutProps {
   children: ReactNode
   title: string
   description: string
+  isSignup?: boolean
 }
 
-export function AuthLayout({ children, title, description }: AuthLayoutProps) {
+export function AuthLayout({ children, title, description, isSignup }: AuthLayoutProps) {
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Left side - Form */}
-      <div className="flex flex-col items-center justify-center px-4 py-12 sm:px-6 lg:px-8 relative overflow-hidden">
-        {/* Subtle background pattern */}
-        <div className="absolute inset-0 -z-10 opacity-40">
-          <div className="absolute top-0 right-0 w-72 h-72 bg-primary/5 rounded-full blur-3xl -mr-32 -mt-32" />
-          <div className="absolute bottom-0 left-0 w-72 h-72 bg-primary/5 rounded-full blur-3xl -ml-32 -mb-32" />
-        </div>
+    <div className="sketch flex min-h-screen flex-col lg:grid lg:grid-cols-2">
+      {/* Top bar - visible on all screens */}
+      <div className="flex items-center justify-between gap-4 border-b-2 border-foreground/10 px-6 py-4 lg:col-span-2">
+        <Link href="/" className="flex items-center gap-2">
+          <Logo className="h-6 w-6" />
+          <span className="sk-hand text-lg font-medium">sketch</span>
+        </Link>
+        <nav className="flex items-center gap-4 text-sm">
+          {isSignup ? (
+            <div className="flex items-center gap-2">
+              <span className="text-foreground/60">Already have an account?</span>
+              <Link href="/login" className="sk-btn sk-btn-main text-xs py-1.5">
+                Sign In
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <span className="text-foreground/60">New here?</span>
+              <Link href="/signup" className="sk-btn sk-btn-main text-xs py-1.5">
+                Sign Up
+              </Link>
+            </div>
+          )}
+        </nav>
+      </div>
 
-        <div className="w-full max-w-md space-y-8">
+      {/* Main content */}
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-12">
+        <div className="w-full max-w-sm space-y-8">
           {/* Header */}
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5 rounded-lg blur-lg" />
-              <div className="relative rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 p-3 border border-primary/10">
-                <Logo className="h-8 w-8" />
-              </div>
-            </div>
-            <div className="text-center space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
-                {title}
-              </h1>
-              <p className="text-sm text-muted-foreground">{description}</p>
-            </div>
+          <div className="space-y-4 text-center">
+            <h1 className="sk-display text-4xl">{title}</h1>
+            <p className="sk-ink-2 text-base">{description}</p>
           </div>
 
-          {/* Form */}
-          <div className="space-y-6">{children}</div>
+          {/* Form box */}
+          <div className="sk-box sk-box-lift space-y-6 p-8">
+            {children}
+          </div>
+
+          {/* Terms */}
+          <p className="text-center text-xs text-foreground/60">
+            By continuing, you agree to our{" "}
+            <Link href="/terms" className="underline hover:text-foreground/80">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="underline hover:text-foreground/80">
+              Privacy
+            </Link>
+          </p>
         </div>
       </div>
 
-      {/* Right side - Visual */}
-      <div className="hidden lg:flex lg:flex-col lg:items-center lg:justify-center lg:p-12 lg:bg-gradient-to-br lg:from-primary/5 lg:via-background lg:to-primary/10 relative overflow-hidden">
-        {/* Decorative elements */}
-        <div className="absolute inset-0 -z-10 opacity-30">
-          <div className="absolute top-20 right-20 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
-          <div className="absolute -bottom-20 -left-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
-          <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-primary/5 rounded-full blur-2xl" />
-        </div>
-
-        <div className="max-w-md text-center space-y-8 relative z-10">
-          {/* Main message */}
-          <div className="space-y-4">
-            <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 mx-auto">
-              <svg
-                className="h-6 w-6 text-primary"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            </div>
-            <h2 className="text-3xl font-bold">Secure & Simple</h2>
-            <p className="text-lg text-muted-foreground">
-              Enterprise-grade authentication with a focus on user experience and security
-            </p>
+      {/* Right side - Visual features (desktop only) */}
+      <div className="hidden flex-col items-center justify-center border-l-2 border-foreground/10 px-12 py-12 lg:flex">
+        <div className="max-w-sm space-y-8 text-center">
+          {/* Headline */}
+          <div className="space-y-2">
+            <p className="sk-eyebrow">Why choose us?</p>
+            <h2 className="sk-display text-2xl">Built for creators</h2>
           </div>
 
-          {/* Feature list */}
-          <div className="space-y-4 pt-8">
+          {/* Features */}
+          <div className="space-y-4">
             {[
-              {
-                icon: "🔒",
-                title: "Enterprise Security",
-                description: "Industry-leading encryption and 2FA protection",
-              },
-              {
-                icon: "⚡",
-                title: "Lightning Fast",
-                description: "Optimized performance and instant verification",
-              },
-              {
-                icon: "🎯",
-                title: "User Friendly",
-                description: "Intuitive interface designed for everyone",
-              },
-            ].map((feature, index) => (
-              <div
-                key={feature.title}
-                className="flex gap-4 text-left p-4 rounded-lg bg-white/50 dark:bg-black/20 backdrop-blur-sm border border-primary/10 hover:border-primary/20 transition-colors"
-              >
-                <div className="text-2xl flex-shrink-0">{feature.icon}</div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-foreground">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+              { num: "1", title: "Secure", desc: "Enterprise-grade encryption" },
+              { num: "2", title: "Fast", desc: "Instant verification & sync" },
+              { num: "3", title: "Simple", desc: "No complexity, just clarity" },
+            ].map((item) => (
+              <div key={item.num} className="flex gap-4 text-left">
+                <div className="sk-box flex h-10 w-10 flex-shrink-0 items-center justify-center">
+                  <span className="sk-display text-lg">{item.num}</span>
+                </div>
+                <div>
+                  <h3 className="font-semibold">{item.title}</h3>
+                  <p className="text-sm text-foreground/60">{item.desc}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Footer message */}
-          <p className="text-xs text-muted-foreground pt-4">
-            Trusted by thousands of developers worldwide
-          </p>
+          {/* Quote */}
+          <div className="sk-box-lift sk-box border-0 bg-primary/10 py-4 text-center">
+            <p className="sk-hand italic text-sm">
+              "The simplest auth experience I've used."
+            </p>
+            <p className="mt-2 text-xs text-foreground/60">— A happy user</p>
+          </div>
         </div>
       </div>
     </div>
