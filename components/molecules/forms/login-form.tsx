@@ -24,6 +24,7 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
   const [showOtpVerification, setShowOtpVerification] = useState(false)
   const [showTwoFactor, setShowTwoFactor] = useState(false)
   const [totpCode, setTotpCode] = useState("")
+  const [trustDevice, setTrustDevice] = useState(false)
   const [email, setEmail] = useState("")
   const [otp, setOtp] = useState("")
   const [lastResendTime, setLastResendTime] = useState(0)
@@ -131,7 +132,7 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
     e.preventDefault()
     setIsLoading(true)
     try {
-      const { error } = await (authClient as any).twoFactor.verifyTotp({ code: totpCode })
+      const { error } = await (authClient as any).twoFactor.verifyTotp({ code: totpCode, trustDevice })
       if (error) {
         toast.error(error.message || "Invalid authentication code")
         setIsLoading(false)
@@ -165,6 +166,15 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
           className="auth-input is-code"
           autoFocus
         />
+        <label className="auth-check">
+          <input
+            type="checkbox"
+            checked={trustDevice}
+            onChange={(e) => setTrustDevice(e.target.checked)}
+            disabled={isLoading}
+          />
+          Trust this device for 30 days
+        </label>
         <div className="auth-actions">
           <button type="submit" disabled={isLoading || totpCode.length !== 6} className="sk-btn sk-btn-main">
             {isLoading ? "Verifying…" : "Verify →"}

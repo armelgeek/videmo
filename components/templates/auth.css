@@ -347,6 +347,20 @@
   gap: 10px;
 }
 
+.auth-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.auth-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--sk-ink);
+}
+
 .auth-tabs {
   display: flex;
   gap: 0;
