@@ -31,7 +31,7 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({ duration, zoomLeve
     // Canvas can't read CSS vars directly: resolve them so the ruler follows light/dark.
     const styles = getComputedStyle(ctx.canvas)
     ctx.fillStyle = styles.getPropertyValue("--text-tertiary").trim() || "#71717a"
-    ctx.strokeStyle = styles.getPropertyValue("--border-default").trim() || "#3f3f46"
+    ctx.strokeStyle = styles.getPropertyValue("--text-muted").trim() || "#71717a"
     ctx.lineWidth = 1
     ctx.font = `500 10px "Inter", sans-serif` // Match app font
     ctx.textBaseline = "top"
@@ -49,7 +49,7 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({ duration, zoomLeve
     ctx.beginPath()
 
     for (let sec = startGrid; sec <= endSec; sec += majorInterval) {
-      const x = sec * zoomLevel - scrollLeft
+      const x = Math.round(sec * zoomLevel - scrollLeft) + 0.5
 
       // Draw Major Tick
       ctx.moveTo(x, 12) // Start a bit lower
@@ -82,7 +82,7 @@ export const TimelineRuler: React.FC<TimelineRulerProps> = ({ duration, zoomLeve
       const minorInterval = majorInterval / minorDivisions
       for (let i = 1; i < minorDivisions; i++) {
         const minorSec = sec + i * minorInterval
-        const minorX = minorSec * zoomLevel - scrollLeft
+        const minorX = Math.round(minorSec * zoomLevel - scrollLeft) + 0.5
 
         // Skip if out of view
         if (minorX > canvasWidth) break
