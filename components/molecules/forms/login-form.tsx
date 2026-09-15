@@ -8,6 +8,7 @@ import Link from "next/link"
 import { toast } from "sonner"
 import { z } from "zod"
 import { Eye, EyeOff } from "lucide-react"
+import { MagicLinkForm } from "./magic-link-form"
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -27,6 +28,7 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
   const [otp, setOtp] = useState("")
   const [lastResendTime, setLastResendTime] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
+  const [tab, setTab] = useState<"password" | "magic">("password")
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -211,56 +213,79 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
   }
 
   return (
-    <form onSubmit={handleSubmit} className="auth-form" noValidate>
-      <div className="auth-field">
-        <label htmlFor="email" className="auth-label">Email</label>
-        <input
-          id="email"
-          name="email"
-          type="email"
-          placeholder="you@company.com"
-          required
-          disabled={isLoading}
-          autoComplete="email"
-          className="auth-input"
-          aria-invalid={errors.email ? "true" : "false"}
-          aria-describedby={errors.email ? "email-error" : undefined}
-        />
-        {errors.email && <p id="email-error" className="auth-error">{errors.email}</p>}
+    <>
+      <div className="auth-tabs mb-6 flex gap-2 border-b-2 border-sk-ink">
+        <button
+          type="button"
+          onClick={() => setTab("password")}
+          className={`px-3 py-2 text-sm font-hand ${tab === "password" ? "border-b-2 border-sk-hi text-sk-hi" : "text-sk-ink"}`}
+        >
+          Email & Password
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("magic")}
+          className={`px-3 py-2 text-sm font-hand ${tab === "magic" ? "border-b-2 border-sk-hi text-sk-hi" : "text-sk-ink"}`}
+        >
+          Magic Link
+        </button>
       </div>
 
-      <div className="auth-field">
-        <span className="auth-label">
-          <label htmlFor="password">Password</label>
-          <Link href="/forgot-password" className="auth-link">Forgot it?</Link>
-        </span>
-        <div className="auth-pass">
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            required
-            disabled={isLoading}
-            autoComplete="current-password"
-            className="auth-input"
-            aria-invalid={errors.password ? "true" : "false"}
-            aria-describedby={errors.password ? "password-error" : undefined}
-          />
-          <button
-            type="button"
-            className="auth-eye"
-            onClick={() => setShowPassword(!showPassword)}
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      {tab === "password" ? (
+        <form onSubmit={handleSubmit} className="auth-form" noValidate>
+          <div className="auth-field">
+            <label htmlFor="email" className="auth-label">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="you@company.com"
+              required
+              disabled={isLoading}
+              autoComplete="email"
+              className="auth-input"
+              aria-invalid={errors.email ? "true" : "false"}
+              aria-describedby={errors.email ? "email-error" : undefined}
+            />
+            {errors.email && <p id="email-error" className="auth-error">{errors.email}</p>}
+          </div>
+
+          <div className="auth-field">
+            <span className="auth-label">
+              <label htmlFor="password">Password</label>
+              <Link href="/forgot-password" className="auth-link">Forgot it?</Link>
+            </span>
+            <div className="auth-pass">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                required
+                disabled={isLoading}
+                autoComplete="current-password"
+                className="auth-input"
+                aria-invalid={errors.password ? "true" : "false"}
+                aria-describedby={errors.password ? "password-error" : undefined}
+              />
+              <button
+                type="button"
+                className="auth-eye"
+                onClick={() => setShowPassword(!showPassword)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {errors.password && <p id="password-error" className="auth-error">{errors.password}</p>}
+          </div>
+
+          <button type="submit" disabled={isLoading} className="sk-btn sk-btn-main">
+            {isLoading ? "Signing in…" : "Sign in →"}
           </button>
-        </div>
-        {errors.password && <p id="password-error" className="auth-error">{errors.password}</p>}
-      </div>
-
-      <button type="submit" disabled={isLoading} className="sk-btn sk-btn-main">
-        {isLoading ? "Signing in…" : "Sign in →"}
-      </button>
-    </form>
+        </form>
+      ) : (
+        <MagicLinkForm redirectTo={redirectTo} />
+      )}
+    </>
   )
 }
