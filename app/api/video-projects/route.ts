@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
+import { assertProjectQuota } from "@/lib/billing/org-usage";
+import { billingErrorResponse } from "@/lib/billing/with-credits";
 import { prisma } from "@/lib/prisma";
 import { canAct } from "@/lib/video-project/access";
 import { ProjectForbiddenError } from "@/lib/video-project/errors";
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
     if (!canAct(role, "create")) throw new ProjectForbiddenError();
 
     const { title, aspectRatio } = createVideoProjectSchema.parse(await request.json());
+    await assertProjectQuota(organizationId);
 
     const project = await prisma.videoProject.create({
       data: {
@@ -152,6 +155,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(project, { status: 201 });
   } catch (error) {
-    return toErrorResponse(error);
+    return billingErrorResponse(error) ?? toErrorResponse(error);
   }
 }

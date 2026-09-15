@@ -1,6 +1,7 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { assertExportResolution } from "@/lib/billing/org-usage";
+import { billingErrorResponse } from "@/lib/billing/with-credits";
+import { requireViewer, toErrorResponse, type Viewer } from "@/lib/video-project/session";
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -64,9 +65,11 @@ async function purgeExpiredRenders() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let viewer: Viewer;
+  try {
+    viewer = await requireViewer();
+  } catch (error) {
+    return toErrorResponse(error);
   }
 
   let body: unknown;
@@ -84,6 +87,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.message }, { status: 400 });
   }
 
+  if (viewer.organizationId) {
+    try {
+      await assertExportResolution(
+        viewer.organizationId,
+        Number.parseInt(parsed.data.quality, 10),
+      );
+    } catch (error) {
+      const billing = billingErrorResponse(error);
+      if (billing) return billing;
+      throw error;
+    }
+  }
+
   let storage: ReturnType<typeof getObjectStorage>;
   try {
     storage = getObjectStorage();
@@ -99,7 +115,7 @@ export async function POST(request: NextRequest) {
 
   void purgeExpiredRenders().catch(logError("purge"));
 
-  const userId = session.user.id;
+  const userId = viewer.userId;
   const job = await reserveRenderJob(userId, {
     perUser: MAX_RENDERS_PER_USER,
     global: MAX_CONCURRENT_RENDERS,

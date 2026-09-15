@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError } from "better-auth/api";
 import { emailOTP, organization, twoFactor } from "better-auth/plugins";
 import { createAccessControl } from "better-auth/plugins/access";
 import {
@@ -10,6 +11,8 @@ import {
 } from "better-auth/plugins/organization/access";
 import { prisma } from "./prisma";
 import { chooseActiveOrganization } from "./auth-organization";
+import { QuotaExceededError } from "./billing/errors";
+import { assertSeatAvailable, membershipLimitFor } from "./billing/org-usage";
 import { EmailService } from "./email-service";
 import { appConfig } from "./config";
 import { PROJECT_STATEMENTS } from "./video-project/access";
@@ -154,6 +157,24 @@ export const auth = betterAuth({
       ac,
       roles: organizationRoles,
       invitationExpiresIn: INVITATION_EXPIRY_HOURS * 60 * 60,
+      // Checked by the plugin when a member is added or an invitation accepted.
+      membershipLimit: (_user, invitedTo) => membershipLimitFor(invitedTo.id),
+      organizationHooks: {
+        // Pending invitations count as seats, so a full plan is refused at invite time.
+        beforeCreateInvitation: async ({ invitation }) => {
+          try {
+            await assertSeatAvailable(invitation.organizationId);
+          } catch (error) {
+            if (error instanceof QuotaExceededError) {
+              throw new APIError("FORBIDDEN", {
+                code: "quota_exceeded",
+                message: `Your plan allows ${error.limit} member(s). Upgrade to invite more.`,
+              });
+            }
+            throw error;
+          }
+        },
+      },
       sendInvitationEmail: async ({ id, email, role, organization: invitedTo, inviter }) => {
         const acceptUrl = `${appConfig.url}/invite/${id}`;
         const inviterName = inviter.user.name || inviter.user.email;

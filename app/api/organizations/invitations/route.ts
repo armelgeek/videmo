@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { assertSeatAvailable } from "@/lib/billing/org-usage";
+import { billingErrorResponse } from "@/lib/billing/with-credits";
 import { db as prisma } from "@/lib/db";
 import { EmailService } from "@/lib/email-service";
 
@@ -64,6 +66,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await assertSeatAvailable(organizationId);
+
     const invitation = await prisma.organizationInvitation.create({
       data: {
         email,
@@ -108,6 +112,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const billing = billingErrorResponse(error);
+    if (billing) return billing;
     console.error("Failed to send invitation", error);
     return NextResponse.json({ error: "Failed to send invitation" }, { status: 500 });
   }
