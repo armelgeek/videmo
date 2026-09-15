@@ -1,29 +1,60 @@
+import type Stripe from "stripe";
 import { stripe } from "./config";
 import { prisma } from "@/lib/prisma";
 
-export const createOrRetrieveCustomer = async (userId: string, email: string) => {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
+export interface OrganizationCustomerOwner {
+  userId: string;
+  email: string;
+  organizationId: string;
+  organizationName: string;
+}
+
+type CreateCustomer = (params: Stripe.CustomerCreateParams) => Promise<{ id: string }>;
+
+// Concurrent callers race to fill the null column; every caller returns the stored winner.
+async function claimCustomer(organizationId: string, customerId: string): Promise<string> {
+  await prisma.organization.updateMany({
+    where: { id: organizationId, stripeCustomerId: null },
+    data: { stripeCustomerId: customerId },
+  });
+  const { stripeCustomerId } = await prisma.organization.findUniqueOrThrow({
+    where: { id: organizationId },
     select: { stripeCustomerId: true },
   });
+  return stripeCustomerId ?? customerId;
+}
 
-  if (user?.stripeCustomerId) {
-    return user.stripeCustomerId;
+export const createOrRetrieveOrganizationCustomer = async (
+  owner: OrganizationCustomerOwner,
+  createCustomer: CreateCustomer = (params) => stripe.customers.create(params),
+): Promise<string> => {
+  const organization = await prisma.organization.findUniqueOrThrow({
+    where: { id: owner.organizationId },
+    select: { stripeCustomerId: true, slug: true },
+  });
+  if (organization.stripeCustomerId) return organization.stripeCustomerId;
+
+  // A personal workspace inherits the customer its owner paid with before billing moved to organizations.
+  if (organization.slug === `personal-${owner.userId}`) {
+    const user = await prisma.user.findUnique({
+      where: { id: owner.userId },
+      select: { stripeCustomerId: true },
+    });
+    if (user?.stripeCustomerId) {
+      const holder = await prisma.organization.findFirst({
+        where: { stripeCustomerId: user.stripeCustomerId },
+        select: { id: true },
+      });
+      if (!holder) return claimCustomer(owner.organizationId, user.stripeCustomerId);
+    }
   }
 
-  const customer = await stripe.customers.create({
-    email,
-    metadata: {
-      userId,
-    },
+  const customer = await createCustomer({
+    email: owner.email,
+    name: owner.organizationName,
+    metadata: { organizationId: owner.organizationId, userId: owner.userId },
   });
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: { stripeCustomerId: customer.id },
-  });
-
-  return customer.id;
+  return claimCustomer(owner.organizationId, customer.id);
 };
 
 export const formatAmount = (amount: number, currency: string = "usd"): string => {

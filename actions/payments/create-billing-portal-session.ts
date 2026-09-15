@@ -1,53 +1,44 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import {
+  BillingAccessError,
+  billingAccessMessage,
+  requireBillingManager,
+} from "@/lib/billing/billing-access";
 import { stripe } from "@/lib/payments/stripe/config";
 import { prisma } from "@/lib/prisma";
-import { auditLogger, AuditEventType } from "@/lib/security/audit-logger";
+import { AuditEventType, auditLogger } from "@/lib/security/audit-logger";
 import { getClientIdentifier } from "@/lib/security/rate-limiter";
 
 export const createBillingPortalSession = async () => {
-  const requestHeaders = await headers();
-  const clientIp = getClientIdentifier(requestHeaders);
-  
+  const clientIp = getClientIdentifier(await headers());
+
   try {
-    const session = await auth.api.getSession({
-      headers: requestHeaders,
-    });
+    const manager = await requireBillingManager();
 
-    if (!session?.user) {
-      auditLogger.logSecurity(
-        AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
-        "Unauthorized billing portal access attempt",
-        {
-          ipAddress: clientIp,
-        }
-      );
-      return { error: "Authentication required" };
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
+    const organization = await prisma.organization.findUnique({
+      where: { id: manager.organizationId },
       select: { stripeCustomerId: true },
     });
 
-    if (!user?.stripeCustomerId) {
+    if (!organization?.stripeCustomerId) {
       auditLogger.logPayment(
         AuditEventType.BILLING_PORTAL_ACCESSED,
         "failure",
         "No billing information found",
         {
-          userId: session.user.id,
-          email: session.user.email,
+          userId: manager.userId,
+          email: manager.email,
           ipAddress: clientIp,
-        }
+          metadata: { organizationId: manager.organizationId },
+        },
       );
       return { error: "No billing information available" };
     }
 
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
+      customer: organization.stripeCustomerId,
       return_url: `${process.env.NEXT_PUBLIC_APP_URL}/billing`,
     });
 
@@ -56,18 +47,30 @@ export const createBillingPortalSession = async () => {
       "success",
       "Billing portal session created",
       {
-        userId: session.user.id,
-        email: session.user.email,
+        userId: manager.userId,
+        email: manager.email,
         ipAddress: clientIp,
         resourceId: portalSession.id,
         metadata: {
-          customerId: user.stripeCustomerId,
+          customerId: organization.stripeCustomerId,
+          organizationId: manager.organizationId,
         },
-      }
+      },
     );
 
     return { url: portalSession.url };
   } catch (error) {
+    if (error instanceof BillingAccessError) {
+      auditLogger.logSecurity(
+        error.reason === "forbidden"
+          ? AuditEventType.AUTHORIZATION_FAILED
+          : AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
+        "Billing portal access refused",
+        { ipAddress: clientIp },
+      );
+      return { error: billingAccessMessage(error) };
+    }
+
     auditLogger.logPayment(
       AuditEventType.BILLING_PORTAL_ACCESSED,
       "failure",
@@ -75,9 +78,8 @@ export const createBillingPortalSession = async () => {
       {
         ipAddress: clientIp,
         error: error instanceof Error ? error : new Error(String(error)),
-      }
+      },
     );
-    
     return { error: "Unable to access billing portal" };
   }
 };

@@ -161,6 +161,13 @@ export const CREDIT_PACKS = {
 } as const;
 export type CreditPackId = keyof typeof CREDIT_PACKS;
 
+// Own keys only: "toString" must not resolve to a pack.
+export function findCreditPack(packId: unknown) {
+  if (typeof packId !== "string" || !Object.hasOwn(CREDIT_PACKS, packId)) return null;
+  const id = packId as CreditPackId;
+  return { id, ...CREDIT_PACKS[id] };
+}
+
 export const PURCHASED_CREDITS_VALIDITY_MONTHS = 12;
 
 export function getTierDefinition(tier: string): TierDefinition | undefined {

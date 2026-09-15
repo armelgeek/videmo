@@ -1,42 +1,28 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import {
+  BillingAccessError,
+  billingAccessMessage,
+  requireBillingManager,
+} from "@/lib/billing/billing-access";
 import { stripe } from "@/lib/payments/stripe/config";
 import { prisma } from "@/lib/prisma";
-import { auditLogger, AuditEventType } from "@/lib/security/audit-logger";
+import { AuditEventType, auditLogger } from "@/lib/security/audit-logger";
 import { getClientIdentifier } from "@/lib/security/rate-limiter";
 
 export const cancelSubscription = async (subscriptionId: string) => {
-  const requestHeaders = await headers();
-  const clientIp = getClientIdentifier(requestHeaders);
-  
-  try {
-    const session = await auth.api.getSession({
-      headers: requestHeaders,
-    });
+  const clientIp = getClientIdentifier(await headers());
 
-    if (!session?.user) {
-      auditLogger.logSecurity(
-        AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
-        "Unauthorized subscription cancellation attempt",
-        {
-          ipAddress: clientIp,
-          metadata: { subscriptionId },
-        }
-      );
-      return { error: "Authentication required" };
-    }
+  try {
+    const manager = await requireBillingManager();
 
     if (!subscriptionId || typeof subscriptionId !== "string") {
       return { error: "Invalid subscription" };
     }
 
-    const subscription = await prisma.subscription.findUnique({
-      where: {
-        id: subscriptionId,
-        userId: session.user.id, 
-      },
+    const subscription = await prisma.subscription.findFirst({
+      where: { id: subscriptionId, organizationId: manager.organizationId },
     });
 
     if (!subscription) {
@@ -44,11 +30,11 @@ export const cancelSubscription = async (subscriptionId: string) => {
         AuditEventType.AUTHORIZATION_FAILED,
         "Subscription not found or access denied",
         {
-          userId: session.user.id,
-          email: session.user.email,
+          userId: manager.userId,
+          email: manager.email,
           ipAddress: clientIp,
-          metadata: { subscriptionId },
-        }
+          metadata: { subscriptionId, organizationId: manager.organizationId },
+        },
       );
       return { error: "Subscription not found" };
     }
@@ -57,16 +43,10 @@ export const cancelSubscription = async (subscriptionId: string) => {
       return { error: "Subscription already cancelled" };
     }
 
-    const idempotencyKey = `cancel_${subscriptionId}_${Date.now()}`;
-    
     await stripe.subscriptions.update(
       subscription.stripeSubscriptionId,
-      {
-        cancel_at_period_end: true,
-      },
-      {
-        idempotencyKey,
-      }
+      { cancel_at_period_end: true },
+      { idempotencyKey: `cancel_${subscriptionId}_${Date.now()}` },
     );
 
     await prisma.subscription.update({
@@ -79,19 +59,31 @@ export const cancelSubscription = async (subscriptionId: string) => {
       "success",
       "Subscription cancelled at period end",
       {
-        userId: session.user.id,
-        email: session.user.email,
+        userId: manager.userId,
+        email: manager.email,
         ipAddress: clientIp,
         resourceId: subscriptionId,
         metadata: {
           stripeSubscriptionId: subscription.stripeSubscriptionId,
+          organizationId: manager.organizationId,
           currentPeriodEnd: subscription.currentPeriodEnd,
         },
-      }
+      },
     );
 
     return { success: true };
   } catch (error) {
+    if (error instanceof BillingAccessError) {
+      auditLogger.logSecurity(
+        error.reason === "forbidden"
+          ? AuditEventType.AUTHORIZATION_FAILED
+          : AuditEventType.UNAUTHORIZED_ACCESS_ATTEMPT,
+        "Subscription cancellation refused",
+        { ipAddress: clientIp, metadata: { subscriptionId } },
+      );
+      return { error: billingAccessMessage(error) };
+    }
+
     auditLogger.logPayment(
       AuditEventType.SUBSCRIPTION_CANCELLED,
       "failure",
@@ -100,9 +92,8 @@ export const cancelSubscription = async (subscriptionId: string) => {
         ipAddress: clientIp,
         error: error instanceof Error ? error : new Error(String(error)),
         metadata: { subscriptionId },
-      }
+      },
     );
-    
     return { error: "Unable to cancel subscription" };
   }
 };

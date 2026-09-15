@@ -7,6 +7,7 @@ import {
   QUOTA_KEYS,
   TIER_CATALOG,
   TIERS,
+  findCreditPack,
   getTierDefinition,
   placeholderPriceId,
 } from "./catalog";
@@ -59,6 +60,18 @@ describe("credit costs and packs", () => {
       expect(pack.credits).toBeGreaterThan(0);
       expect(pack.amount).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("findCreditPack", () => {
+  it("returns a known pack with its id", () => {
+    expect(findCreditPack("medium")).toEqual({ id: "medium", ...CREDIT_PACKS.medium });
+  });
+
+  it("rejects unknown, prototype and non-string ids", () => {
+    expect(findCreditPack("huge")).toBeNull();
+    expect(findCreditPack("toString")).toBeNull();
+    expect(findCreditPack(42)).toBeNull();
   });
 });
 

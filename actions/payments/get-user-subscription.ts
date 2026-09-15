@@ -1,34 +1,30 @@
 "use server";
 
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import {
+  BillingAccessError,
+  billingAccessMessage,
+  getBillingViewer,
+} from "@/lib/billing/billing-access";
 import { prisma } from "@/lib/prisma";
+
+// Dunning subscriptions stay visible so a manager can fix the payment method.
+const VISIBLE_STATUSES = ["active", "trialing", "past_due", "unpaid"];
 
 export const getUserSubscription = async () => {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user) {
-      return { error: "Unauthorized" };
-    }
+    const viewer = await getBillingViewer();
 
     const subscription = await prisma.subscription.findFirst({
-      where: {
-        userId: session.user.id,
-        status: "active",
-      },
-      include: {
-        plan: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      where: { organizationId: viewer.organizationId, status: { in: VISIBLE_STATUSES } },
+      include: { plan: true },
+      orderBy: { createdAt: "desc" },
     });
 
-    return { subscription };
+    return { subscription, canManage: viewer.canManage };
   } catch (error) {
+    if (error instanceof BillingAccessError) {
+      return { error: billingAccessMessage(error) };
+    }
     console.error("Error fetching subscription:", error);
     return { error: "Failed to fetch subscription" };
   }

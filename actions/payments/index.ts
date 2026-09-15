@@ -1,4 +1,5 @@
 export { createCheckoutSession } from "./create-checkout-session";
+export { createCreditPurchaseCheckout } from "./create-credit-purchase";
 export { getUserSubscription } from "./get-user-subscription";
 export { cancelSubscription } from "./cancel-subscription";
 export { resumeSubscription } from "./resume-subscription";
