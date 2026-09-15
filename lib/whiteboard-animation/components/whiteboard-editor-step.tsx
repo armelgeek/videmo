@@ -740,7 +740,7 @@ export function WhiteboardEditorStep({
   );
 
   return (
-    <div className="w-full h-full flex gap-4 overflow-hidden px-10 py-2 xl:px-20">
+    <div className="w-full h-full flex gap-4 overflow-hidden px-8 py-4 sm:px-12">
       {/* Column 1: Vertical Clip Selector Sidebar */}
       <ClipSelectorBar />
 
@@ -749,10 +749,10 @@ export function WhiteboardEditorStep({
         {/* Canvas Container */}
         {/* Le canevas prend toute la hauteur laissee par la timeline, au format
             du projet : sa taille se deduit de la place, pas d'une hauteur figee. */}
-        <div className="flex-1 min-h-0 rounded-xl border border-border bg-muted/20 p-4">
+        <div className="flex-1 min-h-0 rounded-lg border-2 border-border bg-card/50 p-6">
           <div className="h-full w-full flex items-center justify-center [container-type:size]">
             <div
-              className="rounded-md bg-white overflow-hidden relative shadow-xl ring-1 ring-black/10"
+              className="rounded-lg bg-white overflow-hidden relative shadow-[3px_3px_0_hsl(var(--offset))] border-2 border-ink"
               style={{
                 aspectRatio: cssAspectRatio(aspectRatio),
                 width: `min(100cqw, calc(100cqh * ${canvasWidth} / ${canvasHeight}))`,
@@ -809,7 +809,7 @@ export function WhiteboardEditorStep({
           }
         />
 
-        <div className="relative shrink-0 rounded-xl border border-border bg-card overflow-hidden">
+        <div className="relative shrink-0 rounded-lg border-2 border-border bg-card overflow-hidden shadow-[3px_3px_0_hsl(var(--offset))]">
           <AnnotationTimeline
             onViewportChange={setTimelineViewport}
             globalAnnotations={allAnnotations}
@@ -828,7 +828,7 @@ export function WhiteboardEditorStep({
         <div
           role="tablist"
           aria-label="Side panel"
-          className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-border bg-card p-1"
+          className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border-2 border-border bg-card p-2"
         >
           {(["scene", "annotations"] as const).map((tab) => (
             <button

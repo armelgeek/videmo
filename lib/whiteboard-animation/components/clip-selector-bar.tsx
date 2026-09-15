@@ -53,8 +53,8 @@ function ClipSelectorBarImpl() {
   if (!storyboardPanels || storyboardPanels.length === 0) return null;
 
   return (
-    <div className="w-60 shrink-0 h-full flex flex-col rounded-xl border border-border bg-card overflow-hidden">
-      <div className="flex h-10 shrink-0 items-center justify-between border-b border-border px-3">
+    <div className="w-60 shrink-0 h-full flex flex-col rounded-lg border-2 border-border bg-card overflow-hidden shadow-[3px_3px_0_hsl(var(--offset))]">
+      <div className="flex h-10 shrink-0 items-center justify-between border-b-2 border-border px-3">
         <span className="text-xs font-semibold text-foreground">Scenes</span>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">
           {storyboardPanels.length}
@@ -127,7 +127,7 @@ const ClipThumb = memo(function ClipThumb({
               }`}
             >
               {/* Thumbnail */}
-              <div className="relative w-full aspect-video rounded-md overflow-hidden bg-white border border-border/40 shrink-0 flex items-center justify-center">
+              <div className="relative w-full aspect-video rounded-md overflow-hidden bg-white border-2 border-border/40 shrink-0 flex items-center justify-center">
                 <Image
                   src={imageUrl}
                   alt={title}
