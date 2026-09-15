@@ -177,7 +177,7 @@ export function MembersView() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-border px-4 py-4 sm:px-6">
-        <div className="mx-auto max-w-4xl">
+        <div>
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
             {organization?.name ?? " "}
           </p>
@@ -193,7 +193,7 @@ export function MembersView() {
       </header>
 
       <div className="flex-1 px-4 py-4 sm:px-6">
-        <div className="mx-auto max-w-4xl space-y-6">
+        <div className="space-y-6">
           {canManage && (
             <section className={cn(PANEL, "space-y-4")}>
               <div>
