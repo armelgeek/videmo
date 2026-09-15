@@ -54,7 +54,7 @@ export function BillingOverview() {
 
   if (error) {
     return (
-      <p className="rounded-lg border-2 border-dashed border-border p-6 text-sm text-muted-foreground">
+      <p className="rounded-lg border-2 border-dashed border-border bg-card p-6 text-sm text-muted-foreground">
         {error}
       </p>
     );
@@ -72,7 +72,7 @@ export function BillingOverview() {
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-3">
-        <section aria-labelledby="credits-heading" className="space-y-4 rounded-lg border bg-card p-6 lg:col-span-2">
+        <section aria-labelledby="credits-heading" className="space-y-4 rounded-lg border-2 border-border bg-card p-6 shadow-[3px_3px_0_hsl(var(--offset))] lg:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 id="credits-heading" className="text-lg font-semibold">
@@ -120,7 +120,7 @@ export function BillingOverview() {
           )}
         </section>
 
-        <section aria-labelledby="usage-heading" className="space-y-4 rounded-lg border bg-card p-6">
+        <section aria-labelledby="usage-heading" className="space-y-4 rounded-lg border-2 border-border bg-card p-6 shadow-[3px_3px_0_hsl(var(--offset))]">
           <h2 id="usage-heading" className="text-lg font-semibold">
             Plan usage
           </h2>
