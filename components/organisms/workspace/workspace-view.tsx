@@ -114,7 +114,7 @@ export function WorkspaceView() {
   const isInitialLoad = !response && isFetching;
 
   return (
-    <div className="flex min-h-screen flex-col relative" style={{ fontFamily: "var(--font-sketch-hand)" }}>
+    <div className="flex min-h-screen flex-col relative" >
       <NotebookBackground />
       <header className="border-b border-border/50 relative z-10">
         <div className="px-4 sm:px-6 py-3">
