@@ -1,157 +1,39 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 import { stripe } from "@/lib/payments/stripe/config";
-import { prisma } from "@/lib/prisma";
-import Stripe from "stripe";
+import { handleCheckoutSessionCompleted } from "@/lib/webhooks/stripe/handlers";
 
+// The webhook stays the source of truth; this only closes the gap when the user lands before it.
 export const verifyCheckoutSession = async (sessionId: string) => {
-  console.log("[VERIFY] Starting checkout session verification");
-  console.log("[VERIFY] Session ID received:", sessionId);
-  
   try {
-    console.log("[VERIFY] Fetching authenticated user session...");
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user) return { error: "Unauthorized" };
 
-    if (!session?.user) {
-      console.error("[VERIFY] No authenticated user found");
-      return { error: "Unauthorized" };
+    if (typeof sessionId !== "string" || !sessionId.startsWith("cs_")) {
+      return { error: "Invalid session" };
     }
 
-    console.log("[VERIFY] Authenticated user:", session.user.id, session.user.email);
-
-    console.log("[VERIFY] Retrieving checkout session from Stripe...");
     const checkoutSession = await stripe.checkout.sessions.retrieve(sessionId);
 
-    console.log("[VERIFY] Checkout session retrieved from Stripe:", {
-      id: checkoutSession.id,
-      payment_status: checkoutSession.payment_status,
-      customer: checkoutSession.customer,
-      subscription: checkoutSession.subscription,
-      metadata: checkoutSession.metadata,
-    });
-
-    if (!checkoutSession) {
-      console.error("[VERIFY] Checkout session not found in Stripe");
+    // Answering "not found" keeps other users' session ids from being probed.
+    if (checkoutSession.metadata?.userId !== session.user.id) {
       return { error: "Session not found" };
     }
-
     if (checkoutSession.payment_status !== "paid") {
-      console.error("[VERIFY] Payment not completed. Status:", checkoutSession.payment_status);
       return { error: "Payment not completed" };
     }
 
-    console.log("[VERIFY] Payment status confirmed: paid");
+    const result = await handleCheckoutSessionCompleted(checkoutSession);
+    if (result.kind === "ignored") return { error: "Invalid session data" };
 
-    const subscriptionId = checkoutSession.subscription as string;
-    const customerId = checkoutSession.customer as string;
-    const userId = checkoutSession.metadata?.userId;
-    const planId = checkoutSession.metadata?.planId;
-
-    console.log("[VERIFY] Extracted data:", {
-      subscriptionId,
-      customerId,
-      userId,
-      planId,
-    });
-
-    if (!userId || !planId || !subscriptionId) {
-      console.error("[VERIFY] Missing required data:", {
-        hasUserId: !!userId,
-        hasPlanId: !!planId,
-        hasSubscriptionId: !!subscriptionId,
-      });
-      return { error: "Invalid session data" };
-    }
-
-    console.log("[VERIFY] All required data present");
-
-    console.log("[VERIFY] Checking for existing subscription in database...");
-    const existingSubscription = await prisma.subscription.findFirst({
-      where: { stripeSubscriptionId: subscriptionId },
-    });
-
-    if (existingSubscription) {
-      console.log("[VERIFY] Subscription already exists in database:", {
-        id: existingSubscription.id,
-        userId: existingSubscription.userId,
-        status: existingSubscription.status,
-      });
-      return { success: true, alreadyExists: true };
-    }
-
-    console.log("[VERIFY] No existing subscription found, proceeding to create...");
-
-    console.log("[VERIFY] Retrieving full subscription details from Stripe...");
-    const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-    console.log("[VERIFY] Stripe subscription details:", {
-      id: stripeSubscription.id,
-      status: stripeSubscription.status,
-      current_period_start: stripeSubscription.current_period_start,
-      current_period_end: stripeSubscription.current_period_end,
-      cancel_at_period_end: stripeSubscription.cancel_at_period_end,
-    });
-
-    console.log("[VERIFY] Creating subscription in database with data:", {
-      userId,
-      planId,
-      stripeSubscriptionId: subscriptionId,
-      stripeCustomerId: customerId,
-      status: stripeSubscription.status,
-      currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-      cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-    });
-
-    const createdSubscription = await prisma.subscription.create({
-      data: {
-        userId,
-        planId,
-        stripeSubscriptionId: subscriptionId,
-        stripeCustomerId: customerId,
-        status: stripeSubscription.status,
-        currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-      },
-    });
-
-    console.log("[VERIFY] ✅ Subscription created successfully!", {
-      id: createdSubscription.id,
-      userId: createdSubscription.userId,
-      planId: createdSubscription.planId,
-      status: createdSubscription.status,
-    });
-
-    if (checkoutSession.payment_intent) {
-      console.log("[VERIFY] Creating payment record for payment intent:", checkoutSession.payment_intent);
-      const paymentRecord = await prisma.payment.create({
-        data: {
-          userId,
-          stripePaymentId: checkoutSession.payment_intent as string,
-          amount: checkoutSession.amount_total || 0,
-          currency: checkoutSession.currency || "usd",
-          status: "succeeded",
-          description: `Subscription payment for plan ${planId}`,
-        },
-      });
-      console.log("[VERIFY] Payment record created:", paymentRecord.id);
-    } else {
-      console.log("[VERIFY] No payment_intent found, skipping payment record creation");
-    }
-
-    console.log("[VERIFY] ✅ Checkout session verification completed successfully");
-    return { success: true };
+    return {
+      success: true,
+      alreadyExists: result.kind === "subscription" ? !result.created : !result.applied,
+    };
   } catch (error) {
-    console.error("[VERIFY] ❌ Error verifying checkout session:", error);
-    console.error("[VERIFY] Error details:", {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      error,
-    });
+    console.error("[billing] Checkout session verification failed:", error);
     return { error: "Failed to verify checkout session" };
   }
 };
