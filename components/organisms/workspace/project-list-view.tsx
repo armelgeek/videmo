@@ -12,6 +12,17 @@ interface ProjectListViewProps {
   onDelete: (project: ProjectListItem) => void;
 }
 
+function formatDate(date: any): string {
+  try {
+    if (!date) return "—";
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "—";
+    return format(d, "MMM d, yyyy");
+  } catch {
+    return "—";
+  }
+}
+
 export function ProjectListView({
   projects,
   canUpdate,
@@ -50,10 +61,10 @@ export function ProjectListView({
                 </Link>
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {format(new Date(project.createdAt), "MMM d, yyyy")}
+                {formatDate(project.createdAt)}
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {format(new Date(project.updatedAt), "MMM d, yyyy")}
+                {formatDate(project.updatedAt)}
               </td>
               {(canUpdate || canDelete) && (
                 <td className="px-4 py-3 text-right">
