@@ -157,7 +157,7 @@ export function WorkspaceView() {
         </div>
       </header>
 
-      <div className="flex-1 px-4 py-5 sm:px-6">
+      <div className="flex-1 px-6 py-8 sm:px-8">
         <div>
           {error && !response ? (
             <div className="flex flex-col items-center rounded-lg border-2 border-dashed border-border bg-card px-6 py-14 text-center">
