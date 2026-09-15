@@ -7,6 +7,8 @@ import { AlertCircle, Check, Copy, Loader2, Mail, RotateCw, UserMinus, X } from 
 import { toast } from "sonner";
 import { authClient, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ORGANIZATION_CHANGED_EVENT,
   notifyOrganizationChanged,
@@ -59,8 +61,7 @@ const ROLE_HINTS: Record<Role, string> = {
   member: "Create and edit projects",
 };
 
-const inputClass =
-  "h-10 rounded-lg border border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:border-ink focus:bg-accent";
+const PANEL = "rounded-lg border-2 border-ink bg-card p-6 shadow-[5px_5px_0_hsl(var(--offset))]";
 
 export function MembersView() {
   const router = useRouter();
@@ -157,14 +158,14 @@ export function MembersView() {
   if (loadError && !organization) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
-        <div className="text-center">
+        <div className={cn(PANEL, "text-center")}>
           <AlertCircle className="mx-auto h-6 w-6 text-foreground" />
           <p className="mt-3 font-medium text-foreground">Members could not be loaded</p>
           <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
           <button
             type="button"
             onClick={load}
-            className="mt-5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+            className="mt-5 rounded-lg border-2 border-ink bg-highlight px-4 py-2 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
           >
             Try again
           </button>
@@ -175,13 +176,15 @@ export function MembersView() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-border px-4 py-6 sm:px-8">
+      <header className="border-b border-border px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-4xl">
-          <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-foreground">
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
             {organization?.name ?? " "}
           </p>
-          <h1 className="mt-1 text-3xl font-bold text-foreground">Members</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h1 className="text-3xl font-bold text-foreground">
+            <span className="sk-marker">Members</span>
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             {organization
               ? `${organization.members.length} ${organization.members.length === 1 ? "person" : "people"} can open this organization's projects`
               : "Loading members…"}
@@ -189,34 +192,35 @@ export function MembersView() {
         </div>
       </header>
 
-      <div className="flex-1 px-4 py-8 sm:px-8">
+      <div className="flex-1 px-4 py-6 sm:px-6">
         <div className="mx-auto max-w-4xl space-y-6">
           {canManage && (
-            <section className="space-y-4 rounded-xl border border-border bg-card p-6">
+            <section className={cn(PANEL, "space-y-4")}>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Invite people</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1 text-sm text-muted-foreground">
                   They get an email with a link that works for 48 hours.
                 </p>
               </div>
-              <form onSubmit={invite} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_11rem_auto]">
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Email</span>
-                  <input
+              <form onSubmit={invite} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_auto]">
+                <div className="grid gap-1.5">
+                  <label htmlFor="invite-email" className="text-xs font-medium text-muted-foreground">Email</label>
+                  <Input
+                    id="invite-email"
                     type="email"
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="teammate@company.com"
-                    className={inputClass}
                   />
-                </label>
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Role</span>
+                </div>
+                <div className="grid gap-1.5">
+                  <label htmlFor="invite-role" className="text-xs font-medium text-muted-foreground">Role</label>
                   <select
+                    id="invite-role"
                     value={inviteRole}
                     onChange={(event) => setInviteRole(event.target.value as Role)}
-                    className={cn(inputClass, "capitalize")}
+                    className="h-10 rounded-lg border-2 border-ink bg-card px-3 text-sm capitalize shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition focus-visible:shadow-[3px_3px_0_hsl(var(--highlight))]"
                   >
                     {assignableRoles.map((role) => (
                       <option key={role} value={role} className="bg-card capitalize">
@@ -224,14 +228,14 @@ export function MembersView() {
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
                 <button
                   type="submit"
                   disabled={isInviting || !email.trim()}
-                  className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-full border-2 border-ink bg-highlight px-5 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition hover:shadow-lg hover:shadow-[4px_4px_0_hsl(var(--offset))] focus-visible:ring-2 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex h-10 items-center justify-center gap-2 self-end rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight disabled:opacity-50"
                 >
                   {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                  Send invite
+                  Invite
                 </button>
               </form>
               <p className="text-xs text-muted-foreground">{ROLE_HINTS[inviteRole]}.</p>
@@ -239,14 +243,14 @@ export function MembersView() {
           )}
 
           {canManage && pendingInvitations.length > 0 && (
-            <section className="rounded-xl border border-border bg-card">
+            <section className={cn(PANEL, "p-0 overflow-hidden")}>
               <h2 className="border-b border-border px-6 py-4 text-sm font-semibold text-foreground">
                 Pending invitations
                 <span className="ml-2 text-muted-foreground">{pendingInvitations.length}</span>
               </h2>
               <ul className="divide-y divide-border">
                 {pendingInvitations.map((invitation) => (
-                  <li key={invitation.id} className="flex flex-wrap items-center gap-3 px-6 py-3">
+                  <li key={invitation.id} className="flex flex-wrap items-center gap-3 px-6 py-4">
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-border text-muted-foreground">
                       <Mail className="h-3.5 w-3.5" />
                     </span>
@@ -304,7 +308,7 @@ export function MembersView() {
             </section>
           )}
 
-          <section className="rounded-xl border border-border bg-card">
+          <section className={cn(PANEL, "p-0 overflow-hidden")}>
             <h2 className="border-b border-border px-6 py-4 text-sm font-semibold text-foreground">People</h2>
             {!organization ? (
               <ul className="divide-y divide-border" aria-busy="true">
@@ -328,7 +332,7 @@ export function MembersView() {
                   const displayName = member.user.name || member.user.email;
 
                   return (
-                    <li key={member.id} className="flex flex-wrap items-center gap-3 px-6 py-3">
+                    <li key={member.id} className="flex flex-wrap items-center gap-3 px-6 py-4">
                       {member.user.image ? (
                         <img src={member.user.image} alt="" className="h-9 w-9 shrink-0 rounded-full object-cover" />
                       ) : (
@@ -363,7 +367,7 @@ export function MembersView() {
                                 `${displayName} is now ${role}`,
                               );
                             }}
-                            className={cn(inputClass, "h-8 capitalize")}
+                            className="h-8 rounded-lg border-2 border-ink bg-card px-2 text-xs capitalize shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition focus-visible:shadow-[3px_3px_0_hsl(var(--highlight))] disabled:opacity-50"
                           >
                             {assignableRoles.map((role) => (
                               <option key={role} value={role} className="bg-card capitalize">
@@ -417,10 +421,10 @@ export function MembersView() {
           </section>
 
           {organization && me && (
-            <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border px-6 py-4">
+            <section className={cn(PANEL, "flex flex-wrap items-center justify-between gap-4")}>
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Leave organization</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {myRole === "owner" && ownerCount === 1
                     ? "You're the only owner. Make someone else owner before leaving."
                     : "You lose access to its projects until someone invites you again."}
@@ -448,7 +452,7 @@ export function MembersView() {
                     },
                   })
                 }
-                className="rounded-lg border border-ink px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-highlight/20 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border-2 border-ink px-4 py-2 text-sm font-semibold text-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
               >
                 Leave
               </button>
