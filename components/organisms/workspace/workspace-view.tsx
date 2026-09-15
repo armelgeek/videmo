@@ -103,15 +103,15 @@ export function WorkspaceView() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-border/50">
-        <div className="px-4 sm:px-6 py-4">
+        <div className="px-4 sm:px-6 py-3">
           {/* Org name */}
           {response?.organization && (
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
               {response.organization.name}
             </p>
           )}
           {/* Title + Actions */}
-          <div className="flex h-12 items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
               <span className="sk-marker">Projects</span>
             </h1>
