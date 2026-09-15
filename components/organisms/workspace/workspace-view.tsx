@@ -103,7 +103,7 @@ export function WorkspaceView() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-border/50">
-        <div className="px-4 sm:px-6 py-3">
+        <div className="px-4 sm:px-6 py-4">
           {/* Org name */}
           {response?.organization && (
             <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
