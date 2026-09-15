@@ -2,6 +2,7 @@ import type React from "react";
 import Link from "next/link";
 import { HeroPrompt } from "./hero-prompt";
 import { Header } from "@/components/organisms/header/header";
+import { Footer } from "@/components/organisms/footer/footer";
 import { HowItWorks } from "./how-it-works";
 import { HandArrow } from "./hand-arrow";
 import { appConfig } from "@/lib/config";
@@ -342,24 +343,7 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
         </section>
       </main>
 
-      <footer className="site-foot">
-        <div className="sk-wrap site-foot-inner">
-          <Link href="/" className="site-foot-logo">
-            <i aria-hidden="true" />
-            {appConfig.name}
-          </Link>
-          <nav className="site-foot-links" aria-label="Footer">
-            <Link href="/#how-it-works">How it works</Link>
-            <Link href="/#pricing">Pricing</Link>
-            <Link href="/blog">Blog</Link>
-            <Link href="/contact">Contact</Link>
-            {appConfig.nav.legal.map((l) => (
-              <Link key={l.href} href={l.href}>{l.label}</Link>
-            ))}
-          </nav>
-          <span className="sk-mono site-foot-copy">© {new Date().getFullYear()} {appConfig.company.name}</span>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
