@@ -110,7 +110,8 @@ export function WorkspaceView() {
   };
 
   const projects = response?.data ?? [];
-  const projectsInProgress = projects.filter(p => p.step && p.step !== "archived").length;
+  // Not exported yet; counted on the loaded page only, the list API has no aggregate.
+  const projectsInProgress = projects.filter((p) => !p.latestExport).length;
   const viewer = response?.viewer;
   const isInitialLoad = !response && isFetching;
 
@@ -179,7 +180,7 @@ export function WorkspaceView() {
             <>
               <StatsOverview
                 totalProjects={response?.total ?? 0}
-                creditsAvailable={0}
+                projectsInProgress={projectsInProgress}
                 teamMembers={1}
               />
 
