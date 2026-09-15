@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState } from "react";
-import { Check, ChevronDown, ChevronRight, ImageIcon, Pencil } from "lucide-react";
+import { Check, ImageIcon, Mic, Pencil } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useStoryboardStore } from "@/lib/storyboard/store";
@@ -14,7 +14,6 @@ function SceneDetailsPanelImpl({ className }: { className?: string }) {
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
   const updatePanel = useStoryboardStore((s) => s.updatePanel);
   const [editing, setEditing] = useState<Field | null>(null);
-  const [descriptionOpen, setDescriptionOpen] = useState(false);
 
   if (!panel) return null;
 
@@ -22,7 +21,7 @@ function SceneDetailsPanelImpl({ className }: { className?: string }) {
   const description = panel.narration || "";
 
   return (
-    <section className={cn("shrink-0 rounded-xl border border-border bg-card overflow-hidden", className)}>
+    <section className={cn("shrink-0 rounded-lg border border-border bg-card overflow-hidden", className)}>
       <header className="flex h-10 items-center gap-2 border-b border-border px-3">
         <span className="rounded bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
           {activeClipIndex + 1}
@@ -74,39 +73,44 @@ function SceneDetailsPanelImpl({ className }: { className?: string }) {
           )}
         </div>
 
-        <div className="space-y-1.5">
-          <button
-            type="button"
-            onClick={() => setDescriptionOpen((open) => !open)}
-            aria-expanded={descriptionOpen}
-            className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground hover:text-foreground"
-          >
-            {descriptionOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            Description
-          </button>
-          {!descriptionOpen ? (
-            <button
-              type="button"
-              onClick={() => setDescriptionOpen(true)}
-              className="w-full truncate px-1 text-left text-xs text-muted-foreground hover:text-foreground"
-            >
-              {description || "What is said during this scene..."}
-            </button>
-          ) : editing === "description" ? (
+        <div className="group/field space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-foreground">
+              <Mic className="h-3.5 w-3.5 text-primary" />
+              Narration
+            </span>
+            {editing === "description" ? (
+              <button type="button" onClick={() => setEditing(null)} className="flex items-center gap-1 text-[11px] text-primary">
+                <Check className="h-3 w-3" />
+                Done
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditing("description")}
+                aria-label="Edit narration"
+                className="text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover/field:opacity-100"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {/* Grows with its text: the side panel scrolls, never a box inside it. */}
+          {editing === "description" ? (
             <Textarea
               autoFocus
               value={description}
               onChange={(e) => updatePanel(panel.id, { narration: e.target.value })}
               onBlur={() => setEditing(null)}
-              className="field-sizing-fixed h-28 min-h-0 resize-none overflow-y-auto text-xs leading-relaxed"
+              className="field-sizing-content min-h-20 resize-none overflow-hidden text-xs leading-relaxed"
             />
           ) : (
             <button
               type="button"
               onClick={() => setEditing("description")}
-              className="max-h-32 w-full overflow-y-auto rounded-md px-1 py-0.5 text-left text-xs leading-relaxed text-muted-foreground hover:bg-muted/30"
+              className="w-full whitespace-pre-wrap rounded-md border border-border bg-muted/40 px-3 py-2 text-left text-xs leading-relaxed text-foreground transition-colors hover:border-foreground/30"
             >
-              {description || "What is said during this scene..."}
+              {description || <span className="text-muted-foreground">What is said during this scene...</span>}
             </button>
           )}
         </div>
