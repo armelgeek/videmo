@@ -200,6 +200,78 @@ export default function StoryboardPage() {
   // bail d'edition et ecrit chaque changement du store.
   const projectSync = useProjectSync();
 
+  // The render runs on the server; only its id lives here, so a reload can pick it back up.
+  const renderStorageKey = projectSync.projectId
+    ? `sketchpilot:render:${projectSync.projectId}`
+    : null;
+  const rememberRender = (jobId: string | null) => {
+    if (!renderStorageKey) return;
+    try {
+      if (jobId) localStorage.setItem(renderStorageKey, jobId);
+      else localStorage.removeItem(renderStorageKey);
+    } catch {}
+  };
+
+  const trackRender = async (jobId: string) => {
+    renderJobIdRef.current = jobId;
+    setIsExporting(true);
+    setExportPhase("encoding");
+    try {
+      // Interrogation plutot qu'un websocket : un rendu dure des
+      // minutes, une seconde de latence sur une barre ne se voit pas.
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 1000));
+        if (renderJobIdRef.current !== jobId) return;
+        const r = await fetch(`/api/whiteboard/render/${jobId}`);
+        // Sur un 404 le corps est {error} : sans ce controle la boucle
+        // tournait a l'infini, la barre figee a 0 %.
+        if (!r.ok) {
+          throw new Error(
+            r.status === 404
+              ? "The render was lost by the server"
+              : `Could not track the render (${r.status})`
+          );
+        }
+        const s = await r.json();
+        setExportProgress(s.progress ?? 0);
+        if (s.status === "done") {
+          rememberRender(null);
+          setDownloadUrl(`/api/whiteboard/render/${jobId}/file`);
+          setExportPhase("complete");
+          // The user may have closed the dialog to keep editing.
+          setIsExportModalOpen(true);
+          toast.success("Your video is ready");
+          return;
+        }
+        if (s.status === "error") {
+          throw new Error(s.error || "The render failed");
+        }
+        if (s.status === "cancelled") {
+          rememberRender(null);
+          setExportPhase("idle");
+          return;
+        }
+      }
+    } catch (err) {
+      rememberRender(null);
+      toast.error(err instanceof Error ? err.message : "Export failed");
+      setExportPhase("idle");
+    } finally {
+      if (renderJobIdRef.current === jobId) setIsExporting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!renderStorageKey || renderJobIdRef.current) return;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(renderStorageKey);
+    } catch {}
+    if (saved) void trackRender(saved);
+    // trackRender only uses setters and refs; re-running on its identity would restart polling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderStorageKey]);
+
   const scriptWordCount = scriptText.trim()
     ? scriptText.trim().split(/\s+/).length
     : 0;
@@ -1696,51 +1768,11 @@ export default function StoryboardPage() {
                 throw new Error(body.error || "Export refuse");
               }
               const { jobId } = await res.json();
-              renderJobIdRef.current = jobId;
-              setExportPhase("encoding");
-
-              // Interrogation plutot qu'un websocket : un rendu dure des
-              // minutes, une seconde de latence sur une barre ne se voit pas.
-              for (;;) {
-                await new Promise((r) => setTimeout(r, 1000));
-                if (renderJobIdRef.current !== jobId) return;
-                const r = await fetch(`/api/whiteboard/render/${jobId}`);
-                // Sans ce controle la boucle tournait a l'infini : sur un 404
-                // — serveur redemarre en plein rendu, dossier des rendus vide —
-                // le corps est {error}, donc `status` vaut undefined, aucune
-                // branche de sortie ne se declenche et la barre reste a 0 %
-                // pour toujours, sans le moindre message.
-                if (!r.ok) {
-                  throw new Error(
-                    r.status === 404
-                      ? "Le rendu a ete perdu par le serveur"
-                      : `Could not track the render (${r.status})`
-                  );
-                }
-                const s = await r.json();
-                setExportProgress(s.progress ?? 0);
-                if (s.status === "done") {
-                  setDownloadUrl(`/api/whiteboard/render/${jobId}/file`);
-                  setExportPhase("complete");
-                  // The user may have closed the dialog to keep editing.
-                  setIsExportModalOpen(true);
-                  toast.success("Your video is ready");
-                  break;
-                }
-                if (s.status === "error") {
-                  throw new Error(s.error || "Le rendu a echoue");
-                }
-                if (s.status === "cancelled") {
-                  setExportPhase("idle");
-                  break;
-                }
-              }
+              rememberRender(jobId);
+              await trackRender(jobId);
             } catch (err) {
-              toast.error(
-                err instanceof Error ? err.message : "Export echoue"
-              );
+              toast.error(err instanceof Error ? err.message : "Export failed");
               setExportPhase("idle");
-            } finally {
               setIsExporting(false);
             }
           }}
@@ -1753,6 +1785,7 @@ export default function StoryboardPage() {
             // Remis a null AVANT la requete : la boucle d'interrogation compare
             // cette reference et s'arrete d'elle-meme.
             renderJobIdRef.current = null;
+            rememberRender(null);
             if (id) {
               void fetch(`/api/whiteboard/render/${id}`, { method: "DELETE" });
             }
