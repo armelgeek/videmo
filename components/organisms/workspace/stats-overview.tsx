@@ -1,14 +1,13 @@
-import { BarChart3, Users, Zap } from "lucide-react";
+import { BarChart3, Users } from "lucide-react";
 
 interface StatsOverviewProps {
   totalProjects: number;
-  creditsAvailable: number;
   teamMembers: number;
 }
 
-export function StatsOverview({ totalProjects, creditsAvailable, teamMembers }: StatsOverviewProps) {
+export function StatsOverview({ totalProjects, teamMembers }: StatsOverviewProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 py-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 py-4">
       <div className="rounded-lg border-2 border-border bg-card p-4 shadow-[3px_3px_0_hsl(var(--offset))]">
         <div className="flex items-center justify-between">
           <div>
@@ -16,16 +15,6 @@ export function StatsOverview({ totalProjects, creditsAvailable, teamMembers }: 
             <p className="text-3xl font-bold text-foreground mt-1">{totalProjects}</p>
           </div>
           <BarChart3 className="h-8 w-8 text-muted-foreground opacity-50" />
-        </div>
-      </div>
-
-      <div className="rounded-lg border-2 border-border bg-card p-4 shadow-[3px_3px_0_hsl(var(--offset))]">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground font-medium">Credits Available</p>
-            <p className="text-3xl font-bold text-foreground mt-1">{creditsAvailable.toLocaleString()}</p>
-          </div>
-          <Zap className="h-8 w-8 text-muted-foreground opacity-50" />
         </div>
       </div>
 
