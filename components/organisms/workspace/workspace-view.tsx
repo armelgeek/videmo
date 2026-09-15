@@ -21,6 +21,7 @@ import {
 import { ProjectCard } from "./project-card";
 import { WorkspaceControls } from "./workspace-controls";
 import { ProjectListView } from "./project-list-view";
+import { SketchHint } from "@/components/molecules/sketch-hint";
 import { StatsOverview } from "./stats-overview";
 import { WorkspaceToolbar } from "./workspace-toolbar";
 import type { ProjectListItem, ProjectListResponse } from "./types";
@@ -320,9 +321,14 @@ function EmptyWorkspace({ canCreate }: { canCreate: boolean }) {
         the whiteboard.
       </p>
       {canCreate && (
+        <SketchHint direction="down" className="mt-6">
+          start here, your first video takes a few minutes
+        </SketchHint>
+      )}
+      {canCreate && (
         <Link
           href="/new-project"
-          className="mt-6 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-highlight px-5 py-2.5 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition hover:shadow-lg hover:shadow-[4px_4px_0_hsl(var(--offset))] focus-visible:ring-2 focus-visible:ring-highlight"
+          className="mt-2 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-highlight px-5 py-2.5 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition hover:shadow-lg hover:shadow-[4px_4px_0_hsl(var(--offset))] focus-visible:ring-2 focus-visible:ring-highlight"
         >
           <Plus className="h-4 w-4" />
           Create your first project

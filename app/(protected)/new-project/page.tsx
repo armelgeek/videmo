@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/client';
 import { cn } from '@/lib/utils';
 import { AppShell } from '@/lib/app-shell';
+import { SketchHint } from '@/components/molecules/sketch-hint';
 
 const FORMATS = [
   { value: '16:9', label: 'Landscape', hint: 'YouTube, slides', width: 56, height: 32 },
@@ -60,9 +61,16 @@ export default function NewProjectPage() {
           </div>
 
           <div className="space-y-2">
-            <label htmlFor="project-title" className="block text-sm font-semibold text-foreground">
-              Project name
-            </label>
+            <div className="flex items-end justify-between gap-4">
+              <label htmlFor="project-title" className="block text-sm font-semibold text-foreground">
+                Project name
+              </label>
+              {!title && (
+                <SketchHint direction="left" className="hidden text-lg sm:flex">
+                  a working title is fine, rename it anytime
+                </SketchHint>
+              )}
+            </div>
             <input
               id="project-title"
               autoFocus
