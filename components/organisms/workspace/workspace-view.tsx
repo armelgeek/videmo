@@ -128,15 +128,16 @@ export function WorkspaceView() {
             </p>
           )}
           {/* Title + Actions */}
-          <div className="flex items-center justify-between gap-4">
-            <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
-              <span className="sk-marker">Workspace</span>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Manage your projects
-              </p>
-            </h1>
-
-            {/* Will be moved to toolbar below */}
+          <div>
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
+                <span className="sk-marker">Workspace</span>
+              </h1>
+              <SketchHint direction="left" className="hidden text-lg sm:flex">
+                every video your team makes lives here
+              </SketchHint>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">Manage your projects</p>
           </div>
         </div>
       </header>

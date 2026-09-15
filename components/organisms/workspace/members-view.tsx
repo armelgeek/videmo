@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNowStrict } from "date-fns";
+import { SketchHint } from "@/components/molecules/sketch-hint";
 import { AlertCircle, Check, Copy, Loader2, Mail, MoreVertical, RotateCw, UserMinus, X } from "lucide-react";
 import { toast } from "sonner";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -188,9 +189,14 @@ export function MembersView() {
           <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
             {organization?.name ?? " "}
           </p>
-          <h1 className="text-3xl font-bold text-foreground">
-            <span className="sk-marker">Members</span>
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-bold text-foreground">
+              <span className="sk-marker">Members</span>
+            </h1>
+            <SketchHint direction="left" className="hidden text-lg sm:flex">
+              invite teammates to write and animate together
+            </SketchHint>
+          </div>
           <p className="mt-2 text-sm text-muted-foreground">
             {organization
               ? `${organization.members.length} ${organization.members.length === 1 ? "person" : "people"} can open this organization's projects`

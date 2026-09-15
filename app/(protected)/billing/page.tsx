@@ -6,6 +6,7 @@ import { getUserSubscription } from "@/actions/payments";
 import { BillingOverview } from "@/components/organisms/billing/billing-overview";
 import BillingClient from "@/components/templates/billing-client";
 import { AppShell } from "@/lib/app-shell";
+import { SketchHint } from "@/components/molecules/sketch-hint";
 import { NotebookBackground } from "@/components/organisms/workspace/notebook-background";
 
 export const metadata: Metadata = {
@@ -29,9 +30,14 @@ export default async function BillingPage() {
       <NotebookBackground />
       <div className="relative z-10 mx-auto w-full max-w-6xl px-8 py-6 sm:px-12">
         <header className="mb-8">
-          <h1 className="text-3xl font-extrabold text-foreground">
-            <span className="sk-marker">Billing</span>
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-extrabold text-foreground">
+              <span className="sk-marker">Billing</span>
+            </h1>
+            <SketchHint direction="left" className="hidden text-lg sm:flex">
+              your credits, plan and invoices in one place
+            </SketchHint>
+          </div>
           <p className="mt-2 text-sm text-muted-foreground">
             Credits, plan usage and subscription for your organization
           </p>
