@@ -213,7 +213,10 @@ export function AppSidebar(_props: AppSidebarProps) {
       </nav>
 
       {session?.user && (
-        <div className="flex items-center gap-2.5 border-t-2 border-dashed border-border px-3 py-3">
+        <Link
+          href="/profile"
+          className="flex items-center gap-2.5 border-t-2 border-dashed border-border px-3 py-3 outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-highlight rounded-lg mx-2 mb-2"
+        >
           {session.user.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -234,7 +237,7 @@ export function AppSidebar(_props: AppSidebarProps) {
             </p>
             <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
           </div>
-        </div>
+        </Link>
       )}
     </aside>
   );
