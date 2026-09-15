@@ -38,6 +38,8 @@ model User {
   emailChangeRequests EmailChangeRequest[]
   videoProjectsCreated VideoProject[] @relation("VideoProjectsCreated")
   videoProjectsLocked  VideoProject[] @relation("VideoProjectsLocked")
+  creditTransactions   CreditTransaction[]
+  creditPurchases      CreditPurchase[]
 
   @@index([roleId])
   @@index([isAdmin])
@@ -160,21 +162,28 @@ model Plan {
   currency        String   @default("usd")
   interval        String   // "month" or "year"
   features        String[] // Array of feature strings
+  tier            String   @default("starter") // free | starter | pro | enterprise
   isPopular       Boolean  @default(false)
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   subscriptions Subscription[]
+  quotas        PlanQuota[]
+  featureGates  PlanFeatureGate[]
 
   @@index([interval])
   @@index([isActive])
+  @@index([tier])
 }
 
 model Subscription {
   id                   String    @id @default(cuid())
   userId               String
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Nullable until scripts/migrate-billing-to-organizations.ts backfills it.
+  organizationId       String?
+  organization         Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   planId               String
   plan                 Plan      @relation(fields: [planId], references: [id])
   stripeSubscriptionId String    @unique
@@ -187,6 +196,7 @@ model Subscription {
   updatedAt            DateTime  @updatedAt
 
   @@index([userId])
+  @@index([organizationId])
   @@index([planId])
   @@index([status])
 }
@@ -251,6 +261,11 @@ model Organization {
   members     OrganizationMember[]
   invitations OrganizationInvitation[]
   videoProjects VideoProject[]
+  stripeCustomerId   String?   @unique
+  subscriptions      Subscription[]
+  creditWallet       CreditWallet?
+  creditTransactions CreditTransaction[]
+  creditPurchases    CreditPurchase[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }
@@ -438,4 +453,88 @@ model ProcessedWebhookEvent {
 
   @@index([claimedAt])
   @@map("processed_webhook_events")
+}
+
+model PlanQuota {
+  id        String   @id @default(cuid())
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  key       String   // monthly_credits | max_projects | max_video_duration_sec | max_export_resolution | max_org_members | max_storage_gb
+  value     Int      // -1 = unlimited
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([planId, key])
+}
+
+model PlanFeatureGate {
+  id        String   @id @default(cuid())
+  planId    String
+  plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  key       String   // premium_templates | custom_branding | remove_watermark | api_access | priority_support
+  enabled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([planId, key])
+}
+
+model CreditActionCost {
+  id        String   @id @default(cuid())
+  action    String   @unique
+  cost      Int
+  label     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CreditWallet {
+  id               String       @id @default(cuid())
+  organizationId   String       @unique
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  planCredits      Int          @default(0)
+  purchasedCredits Int          @default(0)
+  resetAt          DateTime
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([resetAt])
+}
+
+model CreditTransaction {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  // Actor; kept as history when the member is deleted.
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type           String       // plan_grant | consumption | purchase | expiration | refund
+  amount         Int          // positive = credit, negative = debit
+  balance        Int          // total balance after this transaction
+  source         String?      // plan | purchased | mixed
+  action         String?
+  referenceId    String?
+  description    String?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([type])
+}
+
+model CreditPurchase {
+  id               String       @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  stripePaymentId  String       @unique
+  credits          Int
+  amount           Int          // cents
+  currency         String       @default("usd")
+  remainingCredits Int
+  expiresAt        DateTime
+  createdAt        DateTime     @default(now())
+
+  @@index([organizationId, expiresAt])
+  @@index([expiresAt])
 }
