@@ -119,7 +119,8 @@ export function WorkspaceView() {
           {/* Title + Actions */}
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
-              <span className="sk-marker">Projects</span>
+              <span className="sk-marker">Workspace</span>
+            <p className="mt-2 text-sm text-muted-foreground">Manage your projects</p>
             </h1>
 
             {/* Right: Search and actions */}
@@ -195,29 +196,29 @@ export function WorkspaceView() {
             )
           ) : (
             <>
-              <div className="px-4 sm:px-6">
-                <div
-            <StatsOverview
-              totalProjects={response?.total ?? 0}
-              creditsAvailable={response?.creditsAvailable ?? 0}
-              teamMembers={response?.teamMembersCount ?? 0}
-            />
-
-            <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold">Projects</h2>
-              <WorkspaceControls
-                viewMode={viewMode}
-                onViewModeChange={setViewMode}
-                sortBy={sortBy}
-                onSortChange={setSortBy}
-                timeFilter={timeFilter}
-                onTimeFilterChange={setTimeFilter}
+              <StatsOverview
+                totalProjects={response?.total ?? 0}
+                creditsAvailable={response?.creditsAvailable ?? 0}
+                teamMembers={response?.teamMembersCount ?? 0}
               />
-            </div>
 
-            {viewMode === "grid" ? (
-                  className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
-                >
+              <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 border-b border-border">
+                <h2 className="text-lg font-semibold">Projects</h2>
+                <WorkspaceControls
+                  viewMode={viewMode}
+                  onViewModeChange={setViewMode}
+                  sortBy={sortBy}
+                  onSortChange={setSortBy}
+                  timeFilter={timeFilter}
+                  onTimeFilterChange={setTimeFilter}
+                />
+              </div>
+
+              {viewMode === "grid" ? (
+                <div className="px-4 sm:px-6">
+                  <div
+                    className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
+                  >
                   {projects.map((project) => (
                     <ProjectCard
                       key={project.id}
@@ -228,8 +229,17 @@ export function WorkspaceView() {
                       onDelete={setDeleting}
                     />
                   ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <ProjectListView
+                  projects={projects}
+                  canUpdate={viewer?.canUpdate ?? false}
+                  canDelete={viewer?.canDelete ?? false}
+                  onRename={setRenaming}
+                  onDelete={setDeleting}
+                />
+              )}
 
               {response && response.totalPages > 1 && (
                 <nav className="mt-8 flex items-center justify-between gap-3" aria-label="Pagination">
