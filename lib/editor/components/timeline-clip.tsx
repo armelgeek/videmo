@@ -60,7 +60,7 @@ export const TimelineClipItem = memo(
     // Color is identity only; selection is a neutral ring so the two never read alike.
     const tinted = clip.color
       ? isSelected
-        ? "z-20 shadow-md ring-2 ring-[var(--text-primary)] ring-offset-1 ring-offset-[var(--surface-0)]"
+        ? "z-20 shadow-md ring-1 ring-[var(--text-primary)]"
         : "z-10 hover:brightness-110"
       : null
 
@@ -94,11 +94,11 @@ export const TimelineClipItem = memo(
           width: `${clip.duration * zoomLevel}px`,
           opacity: track.isMuted ? 0.5 : undefined,
           ...(clip.color && {
-            backgroundColor: `color-mix(in srgb, ${clip.color} ${isSelected ? 22 : 14}%, var(--surface-1))`,
-            borderColor: `color-mix(in srgb, ${clip.color} 45%, transparent)`,
+            backgroundColor: isSelected ? "var(--surface-2)" : "var(--surface-1)",
+            borderColor: "var(--border-default)",
             borderLeftColor: clip.color,
             borderWidth: 1,
-            borderLeftWidth: 4,
+            borderLeftWidth: 2,
           }),
         }}
         onMouseDown={(e) => handleClipMouseDown(e, "move")}
@@ -208,8 +208,7 @@ export const TimelineClipItem = memo(
           {!isText && (
             <div className="relative z-10 flex items-center justify-center gap-2 text-center">
               <span
-                className={`truncate text-[10px] font-semibold uppercase tracking-wide ${clip.color ? "" : isAudio ? "text-emerald-100 drop-shadow-md" : "text-[var(--text-primary)] drop-shadow-md"}`}
-                style={clip.color ? { color: clip.color } : undefined}
+                className={`truncate text-[10px] font-semibold uppercase tracking-wide ${clip.color ? "text-[var(--text-secondary)]" : isAudio ? "text-emerald-100 drop-shadow-md" : "text-[var(--text-primary)] drop-shadow-md"}`}
               >
                 {media?.prompt || "Media"}
               </span>
