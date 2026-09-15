@@ -4,7 +4,7 @@ import { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import dynamic from "next/dynamic";
 import { DEFAULT_ANIM_STYLE } from "../schema";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, Pencil, Play } from "lucide-react";
 import { toast } from "sonner";
 import { useUnifiedEngine } from "@/lib/unified-engine/hooks/useUnifiedEngine";
 import * as selectors from "@/lib/unified-engine/hooks/selectors";
@@ -70,6 +70,14 @@ export function WhiteboardEditorStep({
     | undefined
   >(undefined);
   const [sideTab, setSideTab] = useState<"scene" | "annotations">("scene");
+  const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const switchMode = (next: "edit" | "preview") => {
+    if (next === "edit") {
+      const engine = useUnifiedEngineStore.getState();
+      if (engine.timeline.isPlaying) engine.setIsPlaying(false);
+    }
+    setMode(next);
+  };
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -754,6 +762,37 @@ export function WhiteboardEditorStep({
         {/* Canvas Container */}
         {/* Le canevas prend toute la hauteur laissee par la timeline, au format
             du projet : sa taille se deduit de la place, pas d'une hauteur figee. */}
+        <div className="flex shrink-0 justify-center">
+          <div
+            role="tablist"
+            aria-label="Editor mode"
+            className="grid grid-cols-2 gap-1 rounded-lg border-2 border-border bg-card p-1"
+          >
+            {(
+              [
+                { key: "edit", label: "Edit", Icon: Pencil },
+                { key: "preview", label: "Preview", Icon: Play },
+              ] as const
+            ).map(({ key, label, Icon }) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={mode === key}
+                onClick={() => switchMode(key)}
+                className={`flex items-center justify-center gap-1.5 rounded-md border-2 px-4 py-1 text-xs font-semibold transition-colors ${
+                  mode === key
+                    ? "border-ink bg-highlight text-highlight-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex-1 min-h-0 rounded-lg border border-border bg-muted/30 p-4">
           <div className="h-full w-full flex items-center justify-center [container-type:size]">
             <div
@@ -775,14 +814,14 @@ export function WhiteboardEditorStep({
                 height={canvasHeight}
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none z-20"
               />
-              {/* At rest the reveal hasn't drawn anything yet: ghost the artwork so zones can be placed on it. */}
-              {!isOverlayHidden && ghostImageUrl && (
+              {/* Edit mode shows the finished artwork, not the reveal in progress. */}
+              {mode === "edit" && ghostImageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={ghostImageUrl}
                   alt=""
                   aria-hidden="true"
-                  className="absolute inset-0 z-[15] h-full w-full object-contain opacity-30 pointer-events-none"
+                  className="absolute inset-0 z-[25] h-full w-full bg-white object-contain pointer-events-none"
                 />
               )}
               {showPreparing && (
@@ -808,7 +847,7 @@ export function WhiteboardEditorStep({
               <AnnotationOverlay
                 canvasWidth={canvasWidth}
                 canvasHeight={canvasHeight}
-                hidden={isOverlayHidden}
+                hidden={mode === "preview" || isOverlayHidden}
               />
             </div>
           </div>
@@ -817,7 +856,8 @@ export function WhiteboardEditorStep({
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
-        <div className="shrink-0 rounded-lg border border-border bg-card overflow-hidden">
+        {/* Hidden, not unmounted: the timeline owns the playhead viewport the renderer relies on. */}
+        <div className={`shrink-0 rounded-lg border border-border bg-card overflow-hidden ${mode === "edit" ? "hidden" : ""}`}>
           <ScriptSegmentsCard
             sceneStartMs={
               panelBoundaries.find((b) => b.panelIdx === activeClipIndex)
