@@ -202,9 +202,10 @@ export const TimelineClipItem = memo(
             ) : null)}
 
           {!isText && (
-            <div className="relative z-10 flex items-center gap-2">
+            <div className="relative z-10 flex items-center justify-center gap-2 text-center">
               <span
-                className={`text-[10px] font-medium truncate drop-shadow-md ${isAudio ? "text-emerald-100" : "text-[var(--text-primary)]"}`}
+                className={`truncate text-[10px] font-semibold uppercase tracking-wide ${clip.color ? "" : isAudio ? "text-emerald-100 drop-shadow-md" : "text-[var(--text-primary)] drop-shadow-md"}`}
+                style={clip.color ? { color: clip.color } : undefined}
               >
                 {media?.prompt || "Media"}
               </span>
