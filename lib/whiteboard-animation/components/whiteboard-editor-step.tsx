@@ -745,7 +745,7 @@ export function WhiteboardEditorStep({
   );
 
   return (
-    <div className="w-full h-full flex gap-4 overflow-hidden py-2">
+    <div className="w-full h-full flex gap-4 overflow-hidden py-2 [&_*]:[scrollbar-width:none] [&_*::-webkit-scrollbar]:hidden">
       {/* Column 1: Vertical Clip Selector Sidebar */}
       <ClipSelectorBar />
 
