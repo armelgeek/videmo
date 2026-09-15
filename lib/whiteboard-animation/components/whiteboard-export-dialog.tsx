@@ -40,6 +40,36 @@ interface WhiteboardExportDialogProps {
   thumbnailUrl?: string;
 }
 
+const CONFETTI_COLORS = ["hsl(var(--highlight))", "hsl(var(--foreground))", "#3b82f6", "#ef4444", "#22c55e"];
+
+/** Pure CSS burst: positions are derived from the index so renders stay deterministic. */
+function Confetti() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-0 overflow-visible">
+      <style>{`@keyframes sp-confetti{0%{transform:translate(0,0) rotate(0);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot));opacity:0}}`}</style>
+      {Array.from({ length: 36 }, (_, i) => {
+        const angle = (i / 36) * Math.PI * 2;
+        const dist = 90 + ((i * 37) % 70);
+        return (
+          <span
+            key={i}
+            className="absolute left-1/2 top-24 block h-2 w-1.5 rounded-[1px] motion-reduce:hidden"
+            style={
+              {
+                background: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+                "--dx": `${Math.cos(angle) * dist}px`,
+                "--dy": `${Math.sin(angle) * dist + 60}px`,
+                "--rot": `${(i * 47) % 360}deg`,
+                animation: `sp-confetti 1.1s cubic-bezier(.2,.7,.3,1) ${(i % 6) * 30}ms forwards`,
+              } as React.CSSProperties
+            }
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function formatDuration(sec: number) {
   const total = Math.max(0, Math.round(sec));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
@@ -102,6 +132,7 @@ export function WhiteboardExportDialog({
           </p>
         </div>
 
+        {downloadUrl && <Confetti />}
         {downloadUrl ? (
           <div className="space-y-3">
             <p className="flex items-center gap-2 text-sm text-foreground">

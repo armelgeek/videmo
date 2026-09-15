@@ -1730,6 +1730,29 @@ export default function StoryboardPage() {
 
         </div>
 
+        {isExporting && !isExportModalOpen && (
+          <button
+            type="button"
+            onClick={() => setIsExportModalOpen(true)}
+            aria-label={`Export in progress, ${Math.round(exportProgress)}%. Open export`}
+            className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] right-5 z-50 flex w-64 flex-col gap-2 rounded-lg border-2 border-ink bg-card px-3 py-2.5 text-left shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
+          >
+            <span className="flex items-center justify-between gap-2 text-xs font-semibold text-foreground">
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                Exporting video
+              </span>
+              <span className="tabular-nums text-muted-foreground">{Math.round(exportProgress)}%</span>
+            </span>
+            <span className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <span
+                className="block h-full rounded-full bg-highlight transition-[width] duration-500"
+                style={{ width: `${exportPhase === "init" ? 0 : exportProgress}%` }}
+              />
+            </span>
+          </button>
+        )}
+
         {/* Export Modal - Using existing component */}
         <WhiteboardExportDialog
           projectTitle={projectTitle}
