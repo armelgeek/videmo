@@ -193,16 +193,16 @@ export function MembersView() {
       </header>
 
       <div className="flex-1 px-6 py-4 sm:px-8">
-        <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {canManage && (
-            <section className={cn(PANEL, "space-y-4")}>
+            <section className={cn(PANEL, "space-y-4 lg:col-span-1")}>
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Invite people</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   They get an email with a link that works for 48 hours.
                 </p>
               </div>
-              <form onSubmit={invite} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto_auto]">
+              <form onSubmit={invite} className="grid grid-cols-1 gap-3">
                 <div className="grid gap-1.5">
                   <label htmlFor="invite-email" className="text-xs font-medium text-muted-foreground">Email</label>
                   <Input
@@ -243,7 +243,7 @@ export function MembersView() {
           )}
 
           {canManage && pendingInvitations.length > 0 && (
-            <section className={cn(PANEL, "p-0 overflow-hidden")}>
+            <section className={cn(PANEL, "p-0 overflow-hidden lg:col-span-1")}>
               <h2 className="border-b border-border px-6 py-4 text-sm font-semibold text-foreground">
                 Pending invitations
                 <span className="ml-2 text-muted-foreground">{pendingInvitations.length}</span>
@@ -308,7 +308,7 @@ export function MembersView() {
             </section>
           )}
 
-          <section className={cn(PANEL, "p-0 overflow-hidden")}>
+          <section className={cn(PANEL, "p-0 overflow-hidden lg:col-span-3")}>
             <h2 className="border-b border-border px-6 py-4 text-sm font-semibold text-foreground">People</h2>
             {!organization ? (
               <ul className="divide-y divide-border" aria-busy="true">
@@ -421,7 +421,7 @@ export function MembersView() {
           </section>
 
           {organization && me && (
-            <section className={cn(PANEL, "flex flex-wrap items-center justify-between gap-4")}>
+            <section className={cn(PANEL, "flex flex-wrap items-center justify-between gap-4 lg:col-span-3")}>
               <div>
                 <h2 className="text-sm font-semibold text-foreground">Leave organization</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
