@@ -178,8 +178,8 @@ export function WorkspaceView() {
             <>
               <StatsOverview
                 totalProjects={response?.total ?? 0}
-                creditsAvailable={response?.creditsAvailable ?? 0}
-                teamMembers={response?.teamMembersCount ?? 0}
+                creditsAvailable={0}
+                teamMembers={1}
               />
 
               <div className="flex items-center justify-between gap-4 px-4 sm:px-6 py-4 mb-5 border-b border-border">
