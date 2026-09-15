@@ -1,12 +1,10 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { getUserSubscription } from "@/actions/payments";
-import { isUserAdmin } from "@/lib/auth-utils";
-import BillingClient from '@/components/templates/billing-client';
-import { Header } from '@/components/organisms/header/header';
-import { Footer } from '@/components/organisms/footer/footer';
-import { Metadata } from "next";
+import BillingClient from "@/components/templates/billing-client";
+import { AppShell } from "@/lib/app-shell";
 
 export const metadata: Metadata = {
   title: "Billing | Manage Your Subscription",
@@ -22,25 +20,22 @@ export default async function BillingPage() {
     redirect("/login");
   }
 
-  const isAdmin = await isUserAdmin(session?.user?.id);
   const { subscription } = await getUserSubscription();
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header user={session?.user} isAdmin={isAdmin} />
+    <AppShell>
+      <div className="px-6 pb-14 pt-10 lg:px-10">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-8">
+            <h1 className="text-4xl font-extrabold text-foreground">
+              <span className="sk-marker">Billing</span>
+            </h1>
+            <p className="sk-scribble mt-2 -rotate-1 text-lg">your plan and billing settings</p>
+          </div>
 
-      <div className="container max-w-4xl mx-auto flex-1 py-10 px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Billing</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage your subscription plan and billing settings
-          </p>
+          <BillingClient subscription={subscription || null} />
         </div>
-
-        <BillingClient subscription={subscription || null} />
       </div>
-
-      <Footer />
-    </div>
+    </AppShell>
   );
 }

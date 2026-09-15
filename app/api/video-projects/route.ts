@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       prisma.videoProject.count({ where }),
       prisma.organization.findUnique({
         where: { id: organizationId },
-        select: { id: true, name: true, isPersonal: true },
+        select: { id: true, name: true, slug: true },
       }),
     ]);
 
@@ -108,7 +108,14 @@ export async function GET(request: NextRequest) {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
-      organization,
+      // A personal workspace is recognised by the slug ensurePersonalOrganization gives it.
+      organization: organization
+        ? {
+            id: organization.id,
+            name: organization.name,
+            isPersonal: organization.slug.startsWith("personal-"),
+          }
+        : null,
       viewer: {
         role,
         canCreate: canAct(role, "create"),

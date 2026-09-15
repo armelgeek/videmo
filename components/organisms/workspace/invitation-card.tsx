@@ -41,7 +41,7 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
   const loadInvitation = async () => {
     try {
       setState("loading");
-      const res = await api.get(`/api/auth/organization/invitations/${invitationId}`);
+      const res = await api.get(`/api/organizations/invitations/${invitationId}`);
 
       if (!res.ok) {
         if (res.error?.includes("expired")) {
@@ -78,7 +78,7 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
 
     setState("processing");
     try {
-      const res = await api.post(`/api/auth/organization/invitations/${invitationId}/accept`, {});
+      const res = await api.post(`/api/organizations/invitations/${invitationId}`, {});
 
       if (!res.ok) {
         if (res.error?.includes("not verified")) {

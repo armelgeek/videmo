@@ -19,6 +19,7 @@ type Props = {
   previewingVoice: string | null;
   onGenerate: (brief: string) => void;
   isGenerating?: boolean;
+  aside?: React.ReactNode;
 };
 
 const STEPS = [
@@ -82,6 +83,7 @@ export function PromptWizard({
   previewingVoice,
   onGenerate,
   isGenerating = false,
+  aside,
 }: Props) {
   const [index, setIndex] = useState(0);
   const step = STEPS[index];
@@ -97,7 +99,7 @@ export function PromptWizard({
   };
 
   return (
-    <div className="mx-auto grid w-full max-w-3xl gap-5">
+    <div className={cn("mx-auto grid w-full gap-5", aside ? "max-w-7xl" : "max-w-3xl")}>
       {/* Question + light progress, distinct from the page step indicator */}
       <div className="grid justify-items-center gap-2 text-center">
         <div className="flex items-center gap-3">
@@ -149,6 +151,7 @@ export function PromptWizard({
         </button>
       )}
 
+      <div className={cn(aside && "grid items-start gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(440px,1fr)]")}>
       <section className="sk-sheet grid gap-5 p-5 sm:p-6">
         <span className="sk-tape" aria-hidden="true" />
 
@@ -356,6 +359,8 @@ export function PromptWizard({
           </div>
         </div>
       </section>
+        {aside && <aside className="relative lg:sticky lg:top-6">{aside}</aside>}
+      </div>
     </div>
   );
 }

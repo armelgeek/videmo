@@ -43,7 +43,7 @@ export function OrganizationNameEditor({
 
     setIsLoading(true);
     try {
-      const res = await api.patch(`/api/auth/organization/${organizationId}`, {
+      const res = await api.patch(`/api/organizations/${organizationId}`, {
         name: name.trim(),
       });
 

@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { Folder, FolderPlus, Mail, Users } from "lucide-react";
+import { CreditCard, Folder, Mail, Plus, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/client";
-import { LogoIcon } from "@/lib/editor/components/icons";
+import { appConfig } from "@/lib/config";
 import { authClient, useSession } from "@/lib/auth-client";
 import { ProjectThumbnail } from "@/components/organisms/workspace/project-thumbnail";
 import type { ProjectListResponse } from "@/components/organisms/workspace/types";
@@ -29,9 +29,9 @@ interface AppSidebarProps {
 }
 
 const NAV_ITEMS = [
-  { href: "/new-project", icon: FolderPlus, label: "New project" },
   { href: "/workspace", icon: Folder, label: "Projects" },
   { href: "/workspace/members", icon: Users, label: "Members" },
+  { href: "/billing", icon: CreditCard, label: "Billing" },
 ] as const;
 
 interface PendingInvitation {
@@ -78,6 +78,14 @@ function useRecentProjects(pathname: string) {
   return projects;
 }
 
+function SectionTitle({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <h2 id={id} className="sk-scribble mb-2 px-2 text-base">
+      {children}
+    </h2>
+  );
+}
+
 export function AppSidebar(_props: AppSidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -85,23 +93,33 @@ export function AppSidebar(_props: AppSidebarProps) {
   const { data: session } = useSession();
   const recentProjects = useRecentProjects(pathname);
   const pendingInvitations = usePendingInvitations(pathname);
+  const isCreating = pathname === "/new-project";
 
   return (
-    <aside className="fixed bottom-0 left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r border-border bg-background">
-      <div className="flex items-center gap-3 border-b border-border px-4 py-4">
-        <Link href="/" className="flex flex-1 items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent">
-            <LogoIcon className="h-4 w-4 text-foreground" />
-          </div>
-          <span className="text-sm font-bold text-foreground">Studio</span>
+    <aside className="fixed bottom-0 left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r-2 border-ink bg-background shadow-[4px_0_0_hsl(var(--highlight))]">
+      <div className="flex items-center px-4 pb-3 pt-5">
+        <Link href="/" className="flex items-center gap-2 font-display text-lg font-extrabold tracking-tight text-foreground">
+          <span aria-hidden="true" className="h-3.5 w-3.5 rounded-full border-2 border-ink bg-highlight" />
+          {appConfig.name}
         </Link>
       </div>
 
-      <div className="border-b border-border px-2 py-2">
+      <div className="px-3 pb-3">
         <OrganizationSwitcher />
       </div>
 
-      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4">
+      <div className="px-3 pb-4">
+        <Link
+          href="/new-project"
+          aria-current={isCreating ? "page" : undefined}
+          className="flex w-full items-center justify-center gap-2 rounded-full border-2 border-ink bg-highlight px-4 py-2 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight"
+        >
+          <Plus className="h-4 w-4" />
+          New project
+        </Link>
+      </div>
+
+      <nav className="flex-1 space-y-6 overflow-y-auto border-t-2 border-dashed border-border px-3 py-4">
         <div className="space-y-1">
           {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
             const isActive = pathname === href;
@@ -111,14 +129,15 @@ export function AppSidebar(_props: AppSidebarProps) {
                 href={href}
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 focus-visible:ring-highlight",
+                  "flex w-full items-center gap-2.5 rounded-lg border-2 px-3 py-2 text-sm font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-highlight",
                   isActive
-                    ? "border-ink bg-gradient-to-r from-highlight/25 to-highlight/10 text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-accent hover:text-foreground",
+                    ? "border-ink bg-card text-foreground shadow-[3px_3px_0_hsl(var(--offset))]"
+                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
                 )}
               >
                 <Icon className="h-4 w-4" />
                 {label}
+                {isActive && <span aria-hidden="true" className="ml-auto h-2 w-2 rounded-full bg-highlight ring-2 ring-ink" />}
               </Link>
             );
           })}
@@ -126,27 +145,20 @@ export function AppSidebar(_props: AppSidebarProps) {
 
         {pendingInvitations.length > 0 && (
           <section aria-labelledby="pending-invitations">
-            <h2
-              id="pending-invitations"
-              className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-            >
-              Invitations
-            </h2>
-            <ul className="space-y-1">
+            <SectionTitle id="pending-invitations">invitations</SectionTitle>
+            <ul className="space-y-1.5">
               {pendingInvitations.map((invitation) => (
                 <li key={invitation.id}>
                   <Link
                     href={`/invite/${invitation.id}`}
-                    className="flex items-center gap-3 rounded-lg border border-ink bg-highlight/15 p-2 outline-none transition-colors hover:bg-highlight/15 focus-visible:ring-2 focus-visible:ring-highlight"
+                    className="flex -rotate-1 items-center gap-3 bg-highlight p-2.5 text-highlight-foreground shadow-[2px_3px_0_hsl(0_0%_0%/0.2)] outline-none transition-transform hover:rotate-0 focus-visible:ring-2 focus-visible:ring-ink"
                   >
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-highlight/20 text-foreground">
-                      <Mail className="h-3.5 w-3.5" />
-                    </span>
+                    <Mail className="h-4 w-4 shrink-0" />
                     <span className="min-w-0">
-                      <span className="block truncate text-sm text-foreground">
+                      <span className="block truncate text-sm font-semibold">
                         {invitation.organizationName ?? "An organization"}
                       </span>
-                      <span className="block text-xs text-foreground">Review invitation</span>
+                      <span className="block text-xs opacity-80">Review invitation →</span>
                     </span>
                   </Link>
                 </li>
@@ -156,25 +168,20 @@ export function AppSidebar(_props: AppSidebarProps) {
         )}
 
         <section aria-labelledby="recent-projects">
-          <h2
-            id="recent-projects"
-            className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
-          >
-            Recent
-          </h2>
+          <SectionTitle id="recent-projects">recent</SectionTitle>
           {recentProjects === null ? (
             <div className="space-y-1 px-1">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex items-center gap-3 p-2">
-                  <div className="h-7 w-12 rounded bg-card motion-safe:animate-pulse" />
-                  <div className="h-3 flex-1 rounded bg-card motion-safe:animate-pulse" />
+                  <div className="h-7 w-12 rounded bg-muted motion-safe:animate-pulse" />
+                  <div className="h-3 flex-1 rounded bg-muted motion-safe:animate-pulse" />
                 </div>
               ))}
             </div>
           ) : recentProjects.length === 0 ? (
-            <p className="px-3 text-xs text-muted-foreground">Projects you open show up here.</p>
+            <p className="px-2 text-xs text-muted-foreground">Projects you open show up here.</p>
           ) : (
-            <ul className="space-y-0.5">
+            <ul className="space-y-1">
               {recentProjects.map((project) => {
                 const isOpen = openProjectId === project.id;
                 return (
@@ -183,17 +190,17 @@ export function AppSidebar(_props: AppSidebarProps) {
                       href={`/storyboard?project=${project.id}`}
                       aria-current={isOpen ? "page" : undefined}
                       className={cn(
-                        "group flex items-center gap-3 rounded-lg p-2 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-highlight",
-                        isOpen ? "bg-accent" : "hover:bg-accent",
+                        "group flex items-center gap-3 rounded-lg border-2 p-1.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-highlight",
+                        isOpen ? "border-ink bg-card" : "border-transparent hover:border-border",
                       )}
                     >
                       <ProjectThumbnail
                         compact
                         previewUrl={project.previewUrl}
                         aspectRatio={project.aspectRatio}
-                        className="w-12 shrink-0 rounded ring-1 ring-border"
+                        className="w-12 shrink-0 rounded border-[1.5px] border-ink"
                       />
-                      <span className="min-w-0 truncate text-sm text-foreground group-hover:text-foreground">
+                      <span className="min-w-0 truncate text-sm font-medium text-foreground">
                         {project.title}
                       </span>
                     </Link>
@@ -206,16 +213,17 @@ export function AppSidebar(_props: AppSidebarProps) {
       </nav>
 
       {session?.user && (
-        <div className="flex items-center gap-2 border-t border-border px-3 py-3">
+        <div className="flex items-center gap-2.5 border-t-2 border-dashed border-border px-3 py-3">
           {session.user.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={session.user.image}
               alt=""
-              className="h-7 w-7 shrink-0 rounded-full object-cover"
+              className="h-8 w-8 shrink-0 rounded-full border-2 border-ink object-cover"
             />
           ) : (
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted">
-              <span className="text-xs font-bold text-foreground">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-highlight">
+              <span className="text-xs font-bold text-highlight-foreground">
                 {(session.user.name?.[0] || session.user.email?.[0] || "U").toUpperCase()}
               </span>
             </div>

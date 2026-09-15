@@ -28,9 +28,9 @@ export function AppShell({
   contentClassName,
 }: AppShellProps) {
   return (
-    <div className="flex min-h-screen bg-[var(--surface-0)]">
+    <div className="sk-paper flex min-h-screen">
       {showSidebar && (
-        <Suspense fallback={<aside className="fixed bottom-0 left-0 top-0 z-50 w-64 bg-background" />}>
+        <Suspense fallback={<aside className="fixed bottom-0 left-0 top-0 z-50 w-64 border-r-2 border-ink bg-background" />}>
           <AppSidebar
             activeView={activeView}
             isPanelOpen={isPanelOpen}

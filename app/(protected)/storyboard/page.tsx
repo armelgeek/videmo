@@ -1,19 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { ExportModal } from "@/lib/editor/components/export-modal";
 import { toRenderProject } from "@/lib/whiteboard-animation/server/to-render-project";
 import { ShortcutsModal } from "@/lib/editor/components/shortcuts-modal";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Save,
   Trash2,
@@ -27,9 +20,6 @@ import {
   Film,
   Loader2,
   RefreshCw,
-  Globe,
-  Volume2,
-  Users,
   Download,
   Copy,
   Plus,
@@ -38,11 +28,19 @@ import {
   ChevronDown,
   ChevronRight,
   ArrowRight,
-  ArrowLeft,
 } from "lucide-react";
 import Image from "next/image";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { PromptWizard } from "@/components/organisms/storyboard/prompt-wizard";
+import { appConfig } from "@/lib/config";
+import { ArrowDown, ArrowUp, Keyboard, Lock, MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import Link from "next/link";
 import { useProjectSync } from "@/lib/storyboard/use-project-sync";
 import { VOICES, normalizeVoice } from "@/lib/speech/speech-generator";
@@ -144,7 +142,6 @@ export default function StoryboardPage() {
     step,
     setStep,
     projectTitle,
-    setProjectTitle,
     promptContent,
     setPromptContent,
     projectParams,
@@ -181,6 +178,7 @@ export default function StoryboardPage() {
   const [editableClips, setEditableClips] = useState<any[]>([]);
 
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [generatingClipIndex, setGeneratingClipIndex] = useState<number | null>(null);
   const [generatingProgress, setGeneratingProgress] = useState({
     current: 0,
     total: 0,
@@ -477,6 +475,7 @@ export default function StoryboardPage() {
 
     for (let rang = 0; rang < todo.length; rang++) {
       const { clip, index } = todo[rang];
+      setGeneratingClipIndex(index);
       try {
         newImages[index] = await requestVisual(clip, index, reference);
         if (!reference) reference = newImages[index];
@@ -498,6 +497,7 @@ export default function StoryboardPage() {
       setGeneratingProgress({ current: rang + 1, total: todo.length });
     }
 
+    setGeneratingClipIndex(null);
     setIsGeneratingImages(false);
     syncClipsToStore(editableClips, newImages);
 
@@ -512,6 +512,7 @@ export default function StoryboardPage() {
 
     setIsGeneratingImages(true);
     setGeneratingProgress({ current: clipIndex, total: clipIndex + 1 });
+    setGeneratingClipIndex(clipIndex);
 
     try {
       const newImages = [...generatedImages];
@@ -529,7 +530,8 @@ export default function StoryboardPage() {
         error instanceof Error ? error.message : "Visual generation failed",
       );
     } finally {
-      setIsGeneratingImages(false);
+      setGeneratingClipIndex(null);
+    setIsGeneratingImages(false);
     }
   };
 
@@ -1039,6 +1041,12 @@ export default function StoryboardPage() {
 
   const getStepIndex = (s: string) => STEPS.findIndex((step) => step.key === s);
   const currentStepIndex = getStepIndex(step);
+  const sceneClips = editableClips.filter((c) => !c.isSection);
+  const clipSeconds = (c: { audioDurationMs?: number; duration?: number }) =>
+    c.audioDurationMs ? c.audioDurationMs / 1000 : Number(c.duration) || 0;
+  const formatSeconds = (total: number) =>
+    `${Math.floor(total / 60)}:${String(Math.round(total % 60)).padStart(2, "0")}`;
+
 
   const canNavigateToStep = (index: number) => {
     if (index === 0) return true;
@@ -1097,125 +1105,126 @@ export default function StoryboardPage() {
           </div>
         )}
 
-        <header className="sticky top-0 z-40 mb-1 border-b-2 border-ink bg-background/90 shadow-[0_4px_0_hsl(var(--highlight))] backdrop-blur-sm">
-          <div className="px-6 py-3 flex items-center justify-center gap-8 relative">
-            {/* Project Title + Actions - Left */}
-            <div className="absolute left-6 flex items-center gap-3">
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm">
+          <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-4 px-5">
+            <div className="flex min-w-0 items-center gap-1">
               <Link
                 href="/workspace"
-                aria-label="Back to workspace"
-                title="Back to workspace"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                title="Back to projects"
+                className="flex shrink-0 items-center gap-2 rounded-md px-1.5 py-1 font-display text-sm font-extrabold text-foreground transition-colors hover:bg-accent"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <span aria-hidden="true" className="h-3 w-3 rounded-full border-2 border-ink bg-highlight" />
+                <span className="hidden sm:inline">{appConfig.name}</span>
               </Link>
-              <input
-                type="text"
-                value={projectTitle}
-                onChange={(e) => setProjectTitle(e.target.value)}
-                className="text-xl font-semibold bg-transparent border-0 border-b border-border/50 focus:border-ink focus:outline-none text-foreground placeholder-muted-foreground w-full max-w-xs px-0 py-1 transition-colors"
-                placeholder="Project title..."
-              />
-              <div className="flex items-center gap-1.5">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleSaveProgress}
-                  className="h-6 w-6 p-0 hover:bg-muted transition-all hover:scale-110"
-                  title="Save progress"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleClearSession}
-                  className="h-6 w-6 p-0 hover:bg-muted transition-all hover:scale-110"
-                  title="Clear session"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              </div>
+              <span className="shrink-0 text-muted-foreground/50" aria-hidden="true">/</span>
+              <span className="min-w-0 max-w-[16rem] truncate px-1.5 text-sm font-medium text-foreground" title={projectTitle || "Untitled project"}>
+                {projectTitle || "Untitled project"}
+              </span>
+              <span
+                role="status"
+                title={
+                  projectSync.status === "saving"
+                    ? "Saving…"
+                    : projectSync.status === "read-only"
+                      ? "Read-only"
+                      : "All changes saved"
+                }
+                className="grid h-5 w-5 shrink-0 place-items-center text-muted-foreground"
+              >
+                {projectSync.status === "saving" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : projectSync.status === "read-only" ? (
+                  <Lock className="h-3.5 w-3.5" />
+                ) : (
+                  <Check className="h-3.5 w-3.5 text-[hsl(var(--success))]" />
+                )}
+                <span className="sr-only">
+                  {projectSync.status === "saving" ? "Saving" : projectSync.status === "read-only" ? "Read-only" : "All changes saved"}
+                </span>
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Project actions"
+                    className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem onClick={handleSaveProgress}>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save now
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleClearSession} className="text-destructive focus:text-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Clear session
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
-            {/* Center: Steps Progress */}
-            {/* Steps Progress - Vertical Style */}
-            <div className="flex items-center justify-center gap-2">
+            <nav aria-label="Project steps" className="flex items-center gap-1.5">
               {STEPS.map((s, i) => {
                 const isActive = i === currentStepIndex;
                 const isCompleted = i < currentStepIndex;
                 const canNavigate = canNavigateToStep(i);
-                const Icon = s.icon;
-
                 return (
-                  <div key={s.key} className="flex items-center gap-2">
+                  <Fragment key={s.key}>
                     <button
-                      onClick={() =>
-                        canNavigate && setStep(s.key as typeof step)
-                      }
+                      type="button"
+                      onClick={() => canNavigate && setStep(s.key as typeof step)}
                       disabled={!canNavigate}
+                      aria-current={isActive ? "step" : undefined}
                       className={cn(
-                        "flex flex-col items-center gap-0.5 group transition-all",
-                        canNavigate
-                          ? "cursor-pointer hover:scale-110"
-                          : "cursor-not-allowed opacity-40",
+                        "flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                        isActive
+                          ? "bg-ink font-semibold text-background"
+                          : "font-medium text-muted-foreground hover:bg-accent hover:text-foreground",
                       )}
                     >
                       <span
-                        className="sk-step-dot"
-                        data-state={isActive ? "active" : isCompleted ? "done" : "todo"}
                         aria-hidden="true"
-                      >
-                        {isCompleted ? <Check className="w-3.5 h-3.5" /> : isActive ? <Icon className="w-3.5 h-3.5" /> : i + 1}
-                      </span>
-                      <span
                         className={cn(
-                          "text-[11px] font-medium transition-colors whitespace-nowrap",
-                          isActive
-                            ? "text-foreground"
-                            : isCompleted
-                              ? "text-foreground"
-                              : "text-muted-foreground",
+                          "grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold",
+                          isActive && "bg-highlight text-highlight-foreground",
+                          isCompleted && "bg-[hsl(var(--success))] text-white",
+                          !isActive && !isCompleted && "border-[1.5px] border-current",
                         )}
                       >
-                        {s.label}
+                        {isCompleted ? <Check className="h-3.5 w-3.5" /> : i + 1}
                       </span>
+                      <span className="hidden md:inline">{s.label}</span>
                     </button>
                     {i < STEPS.length - 1 && (
-                      <div
-                        aria-hidden="true"
-                        className={cn(
-                          "w-12 border-t-2 border-dashed transition-colors -mt-4",
-                          i < currentStepIndex ? "border-ink" : "border-border",
-                        )}
-                      />
+                      <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
                     )}
-                  </div>
+                  </Fragment>
                 );
               })}
-            </div>
+            </nav>
 
-            {/* Right: Action Buttons */}
-            {step !== "prompt" && (
-              <div className="absolute right-6 flex items-center justify-center gap-2">
-                <button
-                  onClick={() => setIsShortcutsOpen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-foreground bg-card hover:bg-accent border-2 border-ink rounded-full text-xs font-semibold transition-all shadow-[2px_2px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px"
-                  title="Learn keyboard shortcuts"
-                >
-                  <Wand2 className="w-3.5 h-3.5" />
-                  <span>Learn</span>
-                </button>
-                <button
-                  onClick={() => setIsExportModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 text-highlight-foreground bg-highlight border-2 border-ink rounded-full text-xs font-semibold transition-all shadow-[3px_3px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px"
-                  title="Export video project (⌘E)"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Export</span>
-                </button>
-              </div>
-            )}
+            <div className="flex items-center justify-end gap-1.5">
+              {step !== "prompt" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsShortcutsOpen(true)}
+                    aria-label="Keyboard shortcuts"
+                    title="Keyboard shortcuts"
+                    className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  >
+                    <Keyboard className="h-4 w-4" />
+                  </button>
+                  <Button variant="secondary" size="sm" onClick={() => setIsExportModalOpen(true)} title="Export video (⌘E)">
+                    <Download className="h-4 w-4" />
+                    Export
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
@@ -1227,24 +1236,21 @@ export default function StoryboardPage() {
         >
           {/* Step Content */}
           {step === "prompt" && (
-            <div className="flex items-stretch px-4 py-8 gap-8 justify-center">
-              <div className="flex-1 max-w-2xl space-y-6">
-                <PromptWizard
-                  brief={promptContent}
-                  onBriefChange={setPromptContent}
-                  params={projectParams}
-                  onParamsChange={setProjectParams}
-                  voice={selectedVoice}
-                  onVoiceChange={setSelectedVoice}
-                  onPreviewVoice={(v) => void playVoicePreview(v)}
-                  previewingVoice={previewingVoice}
-                  onGenerate={handlePromptSubmit}
-                  isGenerating={isGeneratingScript}
-                />
-              </div>
-
-              {(scriptText || isGeneratingScript || scriptError) && (
-                <aside className="relative w-full max-w-md shrink-0 self-start sticky top-6">
+            <div className="px-4 py-8">
+              <PromptWizard
+                brief={promptContent}
+                onBriefChange={setPromptContent}
+                params={projectParams}
+                onParamsChange={setProjectParams}
+                voice={selectedVoice}
+                onVoiceChange={setSelectedVoice}
+                onPreviewVoice={(v) => void playVoicePreview(v)}
+                previewingVoice={previewingVoice}
+                onGenerate={handlePromptSubmit}
+                isGenerating={isGeneratingScript}
+                aside={
+                  scriptText || isGeneratingScript || scriptError ? (
+                    <>
                   <span className="sk-tape" aria-hidden="true" />
                   <div className="sk-sheet overflow-hidden flex flex-col max-h-[calc(100vh-8rem)]">
                     <div className="border-b border-border bg-muted/50 px-4 py-3 flex items-center justify-between">
@@ -1297,8 +1303,10 @@ export default function StoryboardPage() {
                       </Button>
                     </div>
                   </div>
-                </aside>
-              )}
+                    </>
+                  ) : undefined
+                }
+              />
             </div>
           )}
 
@@ -1313,7 +1321,7 @@ export default function StoryboardPage() {
                         <span className="sk-marker">Storyboard</span>
                       </h2>
                       <p className="text-sm text-muted-foreground">
-                        {editableClips.filter((c) => !c.isSection).length} scenes
+                        {sceneClips.length} scene{sceneClips.length === 1 ? "" : "s"}
                       </p>
                     </div>
                     <div className="hidden md:flex items-end gap-1 pb-1" aria-hidden="true">
@@ -1332,37 +1340,37 @@ export default function StoryboardPage() {
                     )}
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => void generateImagesProgressively({ force: true })}
                       disabled={isGeneratingImages || isGeneratingNarration}
-                      title="Redraw every scene's visual, replacing the current ones"
-                      className="text-muted-foreground hover:text-foreground"
+                      title="Redraw all visuals"
+                      aria-label="Redraw all visuals"
                     >
-                      <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                      Redraw visuals
+                      <RefreshCw className="h-4 w-4" />
                     </Button>
                     <Button
-                      size="sm"
+                      variant="secondary"
                       onClick={() => {
                         syncClipsToStore(editableClips, generatedImages);
                         void handleVoiceSelected(selectedVoice);
                       }}
                       disabled={isGeneratingImages || isGeneratingNarration}
-                      variant="secondary"
                     >
                       Next: Whiteboard
-                      <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
+                      <ArrowRight className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
 
                 {isGeneratingImages && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-foreground" />
-                    Drawing visuals {generatingProgress.current}/{generatingProgress.total}
-                    <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                  <div className="flex items-center gap-3 py-1 text-sm" aria-live="polite">
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                    <span className="shrink-0 font-semibold">
+                      Drawing scene {Math.min(generatingProgress.current + 1, generatingProgress.total)} of {generatingProgress.total}
+                    </span>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full bg-highlight transition-all text-highlight-foreground"
+                        className="h-full bg-highlight transition-all duration-500"
                         style={{ width: `${(generatingProgress.current / Math.max(1, generatingProgress.total)) * 100}%` }}
                       />
                     </div>
@@ -1400,18 +1408,34 @@ export default function StoryboardPage() {
                           <div className="relative aspect-video bg-card flex items-center justify-center">
                             {generatedImages[i] ? (
                               <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-contain" />
+                            ) : generatingClipIndex === i ? (
+                              <span className="grid justify-items-center gap-1 text-foreground">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                <span className="sk-scribble text-sm">drawing…</span>
+                              </span>
                             ) : isGeneratingImages ? (
-                              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                              <span className="grid justify-items-center gap-1 text-muted-foreground/70">
+                                <Pencil className="h-4 w-4" />
+                                <span className="text-[11px] font-medium uppercase tracking-wide">Queued</span>
+                              </span>
                             ) : (
-                              <Film className="w-5 h-5 text-muted-foreground/40" />
+                              <Film className="h-5 w-5 text-muted-foreground/40" />
                             )}
                             <span className="absolute top-1.5 left-1.5 rounded-full border-2 border-ink bg-highlight px-2 text-[11px] font-bold leading-4 text-highlight-foreground">
                               {i + 1}
                             </span>
                           </div>
-                          <p className="px-2.5 py-2 text-xs font-medium truncate">
-                            {item.title || `Clip ${i + 1}`}
-                          </p>
+                          <div className="grid gap-1.5 border-t-2 border-dashed border-border px-2.5 py-2">
+                            <p className="truncate text-sm font-bold leading-tight">
+                              {item.title || `Clip ${i + 1}`}
+                            </p>
+                            <p className="line-clamp-2 min-h-[2lh] text-xs leading-snug text-muted-foreground">
+                              {item.summary || item.narration || "No narration yet"}
+                            </p>
+                            <div className="flex items-center gap-1.5 text-[11px]">
+                              <span className="font-mono text-muted-foreground">{formatSeconds(clipSeconds(item))}</span>
+                            </div>
+                          </div>
                         </button>
                       );
                     })}
@@ -1429,15 +1453,23 @@ export default function StoryboardPage() {
                     const i = selectedClipIndex;
                     const item = editableClips[i];
                     return (
-                      <aside className="sk-sheet w-96 shrink-0 sticky top-2 max-h-[calc(100vh-9rem)] overflow-y-auto p-4 space-y-3">
-                        <div className="flex items-center gap-1">
-                          <span className="flex-1 truncate text-sm font-semibold">
-                            {item.isSection ? "Section" : `${i + 1}. ${item.title || `Clip ${i + 1}`}`}
-                          </span>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" disabled={i === 0} onClick={() => { moveClip(i, "up"); setSelectedClipIndex(i - 1); }} title="Move up">↑</Button>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" disabled={i === editableClips.length - 1} onClick={() => { moveClip(i, "down"); setSelectedClipIndex(i + 1); }} title="Move down">↓</Button>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground" onClick={() => duplicateClip(i)} title="Duplicate"><Copy className="w-3.5 h-3.5" /></Button>
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive" onClick={() => { deleteClip(i); setSelectedClipIndex(Math.max(0, i - 1)); }} title="Delete"><Trash2 className="w-3.5 h-3.5" /></Button>
+                      <aside className="sticky top-2 w-96 shrink-0 max-h-[calc(100vh-8rem)] overflow-y-auto rounded-lg border-2 border-ink bg-card p-4 space-y-3 shadow-[6px_6px_0_hsl(var(--offset))]">
+                        <div className="flex items-start justify-between gap-3 border-b-2 border-dashed border-border pb-3">
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-mono uppercase tracking-[0.1em] text-muted-foreground">
+                              {item.isSection ? "Section" : `Scene ${i + 1}`}
+                            </p>
+                            <p className="truncate font-display text-base font-extrabold">
+                              {item.title || (item.isSection ? "Untitled section" : `Clip ${i + 1}`)}
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center rounded-full border-2 border-border p-0.5">
+                            <button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30" disabled={i === 0} onClick={() => { moveClip(i, "up"); setSelectedClipIndex(i - 1); }} title="Move up" aria-label="Move up"><ArrowUp className="h-3.5 w-3.5" /></button>
+                            <button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-30" disabled={i === editableClips.length - 1} onClick={() => { moveClip(i, "down"); setSelectedClipIndex(i + 1); }} title="Move down" aria-label="Move down"><ArrowDown className="h-3.5 w-3.5" /></button>
+                            <button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground" onClick={() => duplicateClip(i)} title="Duplicate" aria-label="Duplicate"><Copy className="h-3.5 w-3.5" /></button>
+                            <span className="mx-0.5 h-4 w-px bg-border" aria-hidden="true" />
+                            <button type="button" className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive" onClick={() => { deleteClip(i); setSelectedClipIndex(Math.max(0, i - 1)); }} title="Delete" aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
+                          </div>
                         </div>
 
                         {item.isSection ? (
@@ -1450,19 +1482,25 @@ export default function StoryboardPage() {
                           />
                         ) : (
                           <>
-                            <div className="relative aspect-video rounded-lg overflow-hidden border bg-card">
+                            <div className="relative aspect-video overflow-hidden rounded-md border-2 border-border bg-white">
                               {generatedImages[i] && (
                                 <Image src={generatedImages[i]} alt={item.title || `Clip ${i + 1}`} fill className="object-contain" />
                               )}
-                              <button
-                                type="button"
+                              {generatingClipIndex === i && (
+                                <span className="absolute inset-0 grid place-items-center bg-background/70">
+                                  <Loader2 className="h-5 w-5 animate-spin" />
+                                </span>
+                              )}
+                              <Button
+                                size="xs"
+                                variant="outline"
                                 onClick={() => void regenerateImageForClip(i)}
                                 disabled={isGeneratingImages}
-                                className="absolute bottom-2 right-2 rounded-md bg-background/90 border border-border px-2 py-1 text-[11px] flex items-center gap-1 disabled:opacity-40"
+                                className="absolute bottom-2 right-2"
                               >
-                                <RefreshCw className="w-3 h-3" />
+                                <RefreshCw className="h-3 w-3" />
                                 Redraw
-                              </button>
+                              </Button>
                             </div>
                             {([
                               {
@@ -1563,10 +1601,14 @@ export default function StoryboardPage() {
                           </>
                         )}
 
-                        <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" onClick={() => addSection(i)}>
-                          <Layers className="w-3.5 h-3.5 mr-1" />
+                        <button
+                          type="button"
+                          onClick={() => addSection(i)}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-border py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-ink hover:text-foreground"
+                        >
+                          <Layers className="h-3.5 w-3.5" />
                           Insert section after
-                        </Button>
+                        </button>
                       </aside>
                     );
                   })()}

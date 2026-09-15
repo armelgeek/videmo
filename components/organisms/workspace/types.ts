@@ -23,7 +23,7 @@ export interface ProjectListResponse {
   page: number;
   limit: number;
   totalPages: number;
-  organization: { id: string; name: string } | null;
+  organization: { id: string; name: string; isPersonal: boolean } | null;
   viewer: {
     role: string;
     canCreate: boolean;

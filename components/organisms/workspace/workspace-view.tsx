@@ -102,78 +102,82 @@ export function WorkspaceView() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b border-border px-4 py-6 sm:px-8">
-        <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            {response?.organization ? (
-              <OrganizationNameEditor
-                organizationId={response.organization.id}
-                organizationName={response.organization.name}
-                isPersonal={response.organization.isPersonal}
-                onUpdated={(newName) => {
-                  setResponse((prev) =>
-                    prev
-                      ? { ...prev, organization: { ...prev.organization, name: newName } }
-                      : prev
-                  );
-                }}
-              />
-            ) : (
-              <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-foreground">
-                {" "}
-              </p>
-            )}
-            <h1 className="mt-1 text-3xl font-bold text-foreground">Projects</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {response
-                ? `${response.total} ${response.total === 1 ? "project" : "projects"} in this workspace`
-                : "Loading projects…"}
-            </p>
-          </div>
-
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <label className="relative flex-1 sm:w-64 sm:flex-none">
-              <span className="sr-only">Search projects</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search projects"
-                className="h-10 w-full rounded-lg border border-border bg-card pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:border-ink focus:bg-accent [&::-webkit-search-cancel-button]:hidden"
-              />
-              {isFetching && response ? (
-                <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+      <header className="border-b border-border/50">
+        <div className="px-4 pb-5 pt-8 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              {response?.organization ? (
+                <OrganizationNameEditor
+                  organizationId={response.organization.id}
+                  organizationName={response.organization.name}
+                  isPersonal={response.organization.isPersonal}
+                  onUpdated={(newName) => {
+                    setResponse((prev) =>
+                      prev?.organization
+                        ? { ...prev, organization: { ...prev.organization, name: newName } }
+                        : prev
+                    );
+                  }}
+                />
               ) : (
-                query && (
-                  <button
-                    type="button"
-                    onClick={() => setQuery("")}
-                    aria-label="Clear search"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                )
+                <p className="truncate text-xs font-medium uppercase tracking-[0.14em] text-foreground">
+                  {" "}
+                </p>
               )}
-            </label>
-            {viewer?.canCreate !== false && (
-              <Link
-                href="/new-project"
-                className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-card px-4 text-sm font-semibold text-foreground outline-none transition-colors hover:bg-card/90 focus-visible:ring-2 focus-visible:ring-highlight"
-              >
-                <Plus className="h-4 w-4" />
-                New project
-              </Link>
-            )}
+              <h1 className="mt-1 text-4xl font-extrabold text-foreground">
+                <span className="sk-marker">Projects</span>
+              </h1>
+              <p className="sk-scribble mt-2 -rotate-1 text-lg">
+                {response
+                  ? `${response.total} ${response.total === 1 ? "project" : "projects"} in this workspace`
+                  : "loading projects…"}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="relative w-full sm:w-64">
+                <span className="sr-only">Search projects</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search projects..."
+                  className="h-9 w-full rounded-lg border-2 border-ink bg-card pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:shadow-[3px_3px_0_hsl(var(--highlight))] [&::-webkit-search-cancel-button]:hidden"
+                />
+                {isFetching && response ? (
+                  <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+                ) : (
+                  query && (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      aria-label="Clear search"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )
+                )}
+              </label>
+              {viewer?.canCreate !== false && (
+                <Link
+                  href="/new-project"
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight whitespace-nowrap"
+                >
+                  <Plus className="h-4 w-4" />
+                  New project
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 px-4 py-8 sm:px-8">
-        <div className="mx-auto max-w-6xl">
+      <div className="flex-1 px-4 py-5 sm:px-6">
+        <div>
           {error && !response ? (
-            <div className="flex flex-col items-center rounded-xl border border-ink bg-highlight/10 px-6 py-14 text-center">
+            <div className="flex flex-col items-center rounded-lg border-2 border-dashed border-border bg-card px-6 py-14 text-center">
               <AlertCircle className="h-6 w-6 text-foreground" />
               <p className="mt-3 font-medium text-foreground">Projects could not be loaded</p>
               <p className="mt-1 text-sm text-muted-foreground">{error}</p>
@@ -189,7 +193,7 @@ export function WorkspaceView() {
             <ProjectGridSkeleton />
           ) : projects.length === 0 ? (
             search ? (
-              <div className="rounded-xl border border-border px-6 py-14 text-center">
+              <div className="rounded-lg border-2 border-dashed border-border bg-card px-6 py-14 text-center">
                 <p className="font-medium text-foreground">No project matches "{search}"</p>
                 <button
                   type="button"
@@ -205,7 +209,7 @@ export function WorkspaceView() {
           ) : (
             <>
               <div
-                className={`grid grid-cols-1 gap-5 transition-opacity sm:grid-cols-2 lg:grid-cols-3 ${isFetching ? "opacity-60" : ""}`}
+                className={`grid grid-cols-1 gap-4 transition-opacity sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 ${isFetching ? "opacity-60" : ""}`}
               >
                 {projects.map((project) => (
                   <ProjectCard
@@ -284,24 +288,19 @@ function PageButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
     <button
       type="button"
       {...props}
-      className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40"
+      className="rounded-full border-2 border-ink bg-card px-4 py-1.5 text-sm font-semibold text-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
     />
   );
 }
 
 function EmptyWorkspace({ canCreate }: { canCreate: boolean }) {
   return (
-    <div className="flex flex-col items-center rounded-xl border border-dashed border-border px-6 py-16 text-center">
-      <div
-        className="flex h-24 w-40 items-center justify-center rounded-lg bg-[#f4f4ef] shadow-[0_0_0_1px_rgba(255,255,255,0.08)]"
-        style={{
-          backgroundImage: "radial-gradient(circle, rgba(23,23,23,0.13) 1px, transparent 1px)",
-          backgroundSize: "12px 12px",
-        }}
-      >
-        <Plus className="h-6 w-6 text-muted-foreground" />
+    <div className="flex flex-col items-center rounded-lg border-2 border-dashed border-border bg-card px-6 py-16 text-center">
+      <div className="relative flex h-24 w-40 -rotate-2 items-center justify-center rounded-md border-2 border-ink bg-white shadow-[4px_4px_0_hsl(var(--offset))]">
+        <span className="sk-tape" aria-hidden="true" />
+        <Plus className="h-6 w-6 text-neutral-400" />
       </div>
-      <p className="mt-6 text-lg font-semibold text-foreground">Your workspace is empty</p>
+      <p className="mt-6 font-display text-xl font-extrabold text-foreground">Your workspace is empty</p>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
         Start from an idea: write a prompt, get a storyboard, then animate it on the whiteboard.
       </p>
@@ -320,14 +319,18 @@ function EmptyWorkspace({ canCreate }: { canCreate: boolean }) {
 
 function ProjectGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="overflow-hidden rounded-xl border border-border bg-card">
-          <div className="aspect-video bg-card motion-safe:animate-pulse" />
-          <div className="space-y-3 p-4">
-            <div className="h-3.5 w-2/3 rounded bg-accent motion-safe:animate-pulse" />
-            <div className="h-3 w-1/3 rounded bg-card motion-safe:animate-pulse" />
-            <div className="h-1 rounded-full bg-card" />
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5" aria-busy="true">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div key={index} className="overflow-hidden rounded-lg border border-border bg-card">
+          <div className="aspect-video bg-accent motion-safe:animate-pulse" />
+          <div className="space-y-2 p-3">
+            <div className="h-3 w-2/3 rounded bg-accent motion-safe:animate-pulse" />
+            <div className="h-2 w-1/3 rounded bg-accent/50 motion-safe:animate-pulse" />
+            <div className="flex gap-2 pt-1">
+              <div className="h-1.5 w-1/3 rounded-full bg-accent/40 motion-safe:animate-pulse" />
+              <div className="h-1.5 w-1/3 rounded-full bg-accent/40 motion-safe:animate-pulse" />
+              <div className="h-1.5 w-1/3 rounded-full bg-accent/40 motion-safe:animate-pulse" />
+            </div>
           </div>
         </div>
       ))}

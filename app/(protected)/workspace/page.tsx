@@ -5,7 +5,7 @@ import { WorkspaceView } from '@/components/organisms/workspace/workspace-view';
 
 export default function WorkspacePage() {
   return (
-    <AppShell contentClassName="bg-background">
+    <AppShell showSidebar={false} contentClassName="bg-background">
       <WorkspaceView />
     </AppShell>
   );

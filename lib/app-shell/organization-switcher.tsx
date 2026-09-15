@@ -26,7 +26,7 @@ import { notifyOrganizationChanged } from "./organization-events";
 
 function OrganizationMark({ name }: { name: string }) {
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-highlight text-highlight-foreground border-2 border-ink text-xs font-bold ">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-highlight font-display text-sm font-extrabold text-highlight-foreground">
       {(name.trim()[0] ?? "?").toUpperCase()}
     </span>
   );
@@ -86,7 +86,7 @@ export function OrganizationSwitcher() {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg p-2 text-left outline-none transition hover:bg-accent focus-visible:ring-2 focus-visible:ring-highlight data-[state=open]:bg-accent">
+        <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg border-2 border-border bg-card p-2 text-left outline-none transition hover:border-ink focus-visible:ring-2 focus-visible:ring-highlight data-[state=open]:border-ink data-[state=open]:shadow-[3px_3px_0_hsl(var(--offset))]">
           {current ? (
             <OrganizationMark name={current.name} />
           ) : (

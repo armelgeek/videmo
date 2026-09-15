@@ -10,9 +10,10 @@ const updateOrganizationSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const headersList = await headers();
     const session = await auth.api.getSession({ headers: headersList });
     if (!session?.user) {
@@ -23,28 +24,28 @@ export async function PATCH(
     const { name } = updateOrganizationSchema.parse(body);
 
     const organization = await prisma.organization.findUnique({
-      where: { id: params.id },
+      where: { id },
+      select: { slug: true },
     });
 
     if (!organization) {
-      return NextResponse.json(
-        { error: "Organization not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Organization not found" }, { status: 404 });
     }
 
-    if (!organization.isPersonal) {
+    // Personal workspaces carry the slug ensurePersonalOrganization assigns.
+    if (!organization.slug.startsWith("personal-")) {
       return NextResponse.json(
         { error: "Only personal workspaces can be renamed" },
         { status: 403 }
       );
     }
 
-    const userOrganizations = await prisma.userOrganization.findMany({
-      where: { organizationId: params.id, userId: session.user.id },
+    const membership = await prisma.organizationMember.findUnique({
+      where: { organizationId_userId: { organizationId: id, userId: session.user.id } },
+      select: { id: true },
     });
 
-    if (userOrganizations.length === 0) {
+    if (!membership) {
       return NextResponse.json(
         { error: "You don't have access to this organization" },
         { status: 403 }
@@ -52,12 +53,12 @@ export async function PATCH(
     }
 
     const updated = await prisma.organization.update({
-      where: { id: params.id },
+      where: { id },
       data: { name },
-      select: { id: true, name: true, isPersonal: true },
+      select: { id: true, name: true },
     });
 
-    return NextResponse.json(updated, { status: 200 });
+    return NextResponse.json({ ...updated, isPersonal: true }, { status: 200 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -65,9 +66,6 @@ export async function PATCH(
         { status: 400 }
       );
     }
-    return NextResponse.json(
-      { error: "Failed to update organization" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update organization" }, { status: 500 });
   }
 }
