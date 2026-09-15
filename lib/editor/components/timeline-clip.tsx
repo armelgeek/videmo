@@ -57,10 +57,11 @@ export const TimelineClipItem = memo(
           ? "bg-emerald-900/60 border-emerald-400 z-20 ring-1 ring-emerald-400 shadow-md"
           : "bg-[var(--surface-3)] border-[var(--tertiary)] z-20 ring-1 ring-[var(--tertiary)] shadow-md"
       : `${baseColor} ${hoverColor} border-transparent hover:border-[var(--border-emphasis)] z-10`
+    // Color is identity only; selection is a neutral ring so the two never read alike.
     const tinted = clip.color
       ? isSelected
-        ? "bg-[var(--surface-3)] z-20 shadow-md"
-        : "bg-[var(--surface-2)] hover:bg-[var(--surface-3)] z-10"
+        ? "z-20 shadow-md ring-2 ring-[var(--text-primary)] ring-offset-1 ring-offset-[var(--surface-0)]"
+        : "z-10 hover:brightness-110"
       : null
 
     const lockedClass = isLocked ? "opacity-60 grayscale-[30%]" : ""
@@ -93,8 +94,11 @@ export const TimelineClipItem = memo(
           width: `${clip.duration * zoomLevel}px`,
           opacity: track.isMuted ? 0.5 : undefined,
           ...(clip.color && {
-            borderColor: isSelected ? clip.color : `color-mix(in srgb, ${clip.color} 70%, transparent)`,
-            borderWidth: isSelected ? 3 : 2,
+            backgroundColor: `color-mix(in srgb, ${clip.color} ${isSelected ? 22 : 14}%, var(--surface-1))`,
+            borderColor: `color-mix(in srgb, ${clip.color} 45%, transparent)`,
+            borderLeftColor: clip.color,
+            borderWidth: 1,
+            borderLeftWidth: 4,
           }),
         }}
         onMouseDown={(e) => handleClipMouseDown(e, "move")}
@@ -149,7 +153,7 @@ export const TimelineClipItem = memo(
               aria-valuemin={0}
               aria-valuemax={clip.start + clip.duration}
               aria-valuenow={clip.start}
-              className={`absolute -left-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle opacity-0 group-hover/item:opacity-100 ${isSelected && "opacity-100"}`}
+              className={`absolute -left-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle ${isSelected ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"}`}
               onMouseDown={(e) => handleClipMouseDown(e, "trim-start")}
             >
               <div className="w-1 h-6 bg-card rounded-full shadow-sm group-hover/handle:scale-110 transition-transform"></div>
@@ -161,7 +165,7 @@ export const TimelineClipItem = memo(
               aria-valuemin={clip.start}
               aria-valuemax={clip.start + clip.duration + 10}
               aria-valuenow={clip.start + clip.duration}
-              className={`absolute -right-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle opacity-0 group-hover/item:opacity-100 ${isSelected && "opacity-100"}`}
+              className={`absolute -right-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle ${isSelected ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"}`}
               onMouseDown={(e) => handleClipMouseDown(e, "trim-end")}
             >
               <div className="w-1 h-6 bg-card rounded-full shadow-sm group-hover/handle:scale-110 transition-transform"></div>
@@ -210,6 +214,12 @@ export const TimelineClipItem = memo(
                 {media?.prompt || "Media"}
               </span>
             </div>
+          )}
+
+          {clip.color && clip.duration * zoomLevel > 48 && (
+            <span className="absolute bottom-0.5 right-1.5 z-10 text-[9px] font-medium tabular-nums text-[var(--text-secondary)]">
+              {clip.duration.toFixed(1)}s
+            </span>
           )}
 
           {!isText && (

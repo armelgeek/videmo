@@ -224,17 +224,17 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
                     }}
                   />
 
-                  {/* Etiquette : meme contenu que l'ancien badge du renderer,
-                      mais elle suit la region et ne se saisit pas. */}
+                  {/* Inside the zone, top-left, so labels of overlapping zones
+                      don't stack on one line; the name only when selected. */}
                   <Label
-                    x={region.x}
-                    y={Math.max(0, region.y - 22 / scale)}
+                    x={region.x + 4 / scale}
+                    y={region.y + 4 / scale}
                     listening={false}
-                    opacity={isSelected ? 1 : 0.85}
+                    opacity={isSelected ? 1 : 0.9}
                   >
-                    <Tag fill={stroke} cornerRadius={2 / scale} />
+                    <Tag fill={stroke} cornerRadius={3 / scale} />
                     <Text
-                      text={`${i + 1}. ${annot.text ?? ''}`}
+                      text={isSelected && annot.text ? `${i + 1}. ${annot.text}` : `${i + 1}`}
                       fontSize={14 / scale}
                       fontStyle="bold"
                       fontFamily="Geist, sans-serif"
