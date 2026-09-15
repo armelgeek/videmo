@@ -14,35 +14,33 @@ export function ProfileSidebar({ userData }: ProfileSidebarProps) {
   const [activeTab, setActiveTab] = useState('profile');
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-      {/* Sidebar Navigation */}
-      <div className="lg:col-span-1">
-        <nav className="space-y-2 sticky top-20">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`w-full text-left px-4 py-2.5 rounded-lg font-medium text-sm border-2 transition-all ${
-              activeTab === 'profile'
-                ? 'border-ink bg-highlight text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))]'
-                : 'border-border text-foreground hover:border-ink bg-card'
-            }`}
-          >
-            Profile
-          </button>
-          <button
-            onClick={() => setActiveTab('security')}
-            className={`w-full text-left px-4 py-2.5 rounded-lg font-medium text-sm border-2 transition-all ${
-              activeTab === 'security'
-                ? 'border-ink bg-highlight text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))]'
-                : 'border-border text-foreground hover:border-ink bg-card'
-            }`}
-          >
-            Security
-          </button>
-        </nav>
+    <div className="space-y-6">
+      {/* Tabs Navigation */}
+      <div className="flex gap-2 border-b-2 border-border pb-0">
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${
+            activeTab === 'profile'
+              ? 'border-ink text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Profile
+        </button>
+        <button
+          onClick={() => setActiveTab('security')}
+          className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${
+            activeTab === 'security'
+              ? 'border-ink text-foreground'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          Security
+        </button>
       </div>
 
       {/* Content */}
-      <div className="lg:col-span-3 space-y-6">
+      <div className="space-y-6">
         {/* Profile Tab */}
         {activeTab === 'profile' && (
           <div className="rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))] p-6">
