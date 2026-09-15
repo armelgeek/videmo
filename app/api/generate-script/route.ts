@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { chargeFor } from "@/lib/billing/with-credits";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
+import { ProjectUnauthorizedError, requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { storyboardAgent } from "@/lib/mastra/agents/storyboard-agent";
 import {
   buildScriptPrompt,
@@ -23,33 +24,33 @@ const requestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const limit = await aiGenerationRateLimit(session.user.id, "script");
+    const viewer = await requireViewer();
+    const limit = await aiGenerationRateLimit(viewer.userId, "script");
     if (!limit.success) return tooManyGenerations(limit.resetAt);
 
     const input = requestSchema.parse(await request.json());
 
-    const result = await storyboardAgent.generate(buildScriptPrompt(input), {
-      structuredOutput: { schema: generatedScriptSchema },
+    return await chargeFor(viewer, "generate_script", async () => {
+      const result = await storyboardAgent.generate(buildScriptPrompt(input), {
+        structuredOutput: { schema: generatedScriptSchema },
+      });
+
+      // Le modele peut rendre un objet hors schema malgre la contrainte : on
+      // prefere un 502 explicite a un script vide affiche comme un succes.
+      const parsed = generatedScriptSchema.safeParse(result.object);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: "The model returned an unusable script" },
+          { status: 502 },
+        );
+      }
+
+      // Un texte, rien d'autre : le decoupage en scenes attend que l'utilisateur
+      // ait valide, et corrige, ce qui sera dit.
+      return NextResponse.json(parsed.data);
     });
-
-    // Le modele peut rendre un objet hors schema malgre la contrainte : on
-    // prefere un 502 explicite a un script vide affiche comme un succes.
-    const parsed = generatedScriptSchema.safeParse(result.object);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "The model returned an unusable script" },
-        { status: 502 },
-      );
-    }
-
-    // Un texte, rien d'autre : le decoupage en scenes attend que l'utilisateur
-    // ait valide, et corrige, ce qui sera dit.
-    return NextResponse.json(parsed.data);
   } catch (error) {
+    if (error instanceof ProjectUnauthorizedError) return toErrorResponse(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.issues },

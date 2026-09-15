@@ -16,6 +16,7 @@ import {
   generateImageRequestSchema,
   imageSizeForAspectRatio,
 } from "@/lib/storyboard/image-generation";
+import { chargeFor } from "@/lib/billing/with-credits";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
@@ -57,33 +58,40 @@ export async function POST(request: NextRequest) {
     const generator = getImageGenerator();
     const storage = getObjectStorage();
 
-    const reference = input.referenceUrl
-      ? await fetchReference(input.referenceUrl)
-      : undefined;
+    return await chargeFor(
+      viewer,
+      "generate_image",
+      async () => {
+        const reference = input.referenceUrl
+          ? await fetchReference(input.referenceUrl)
+          : undefined;
 
-    const image = await generator.generate({
-      prompt: buildImagePrompt({
-        scenePrompt: input.prompt,
-        aspectRatio: input.aspectRatio,
-        language: input.language,
-        hasReference: reference !== undefined,
-      }),
-      size: imageSizeForAspectRatio(input.aspectRatio),
-      reference,
-    });
+        const image = await generator.generate({
+          prompt: buildImagePrompt({
+            scenePrompt: input.prompt,
+            aspectRatio: input.aspectRatio,
+            language: input.language,
+            hasReference: reference !== undefined,
+          }),
+          size: imageSizeForAspectRatio(input.aspectRatio),
+          reference,
+        });
 
-    const encoded = await encodeSceneImage(image);
-    const url = await storage.put({
-      key: buildImageKey({
-        projectId: input.projectId,
-        sceneIndex: input.sceneIndex,
-        extension: encoded.extension,
-      }),
-      body: encoded.body,
-      contentType: encoded.contentType,
-    });
+        const encoded = await encodeSceneImage(image);
+        const url = await storage.put({
+          key: buildImageKey({
+            projectId: input.projectId,
+            sceneIndex: input.sceneIndex,
+            extension: encoded.extension,
+          }),
+          body: encoded.body,
+          contentType: encoded.contentType,
+        });
 
-    return NextResponse.json({ url });
+        return NextResponse.json({ url });
+      },
+      { referenceId: input.projectId },
+    );
   } catch (error) {
     if (
       error instanceof StorageNotConfiguredError ||

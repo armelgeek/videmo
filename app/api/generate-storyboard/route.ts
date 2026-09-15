@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { chargeFor } from "@/lib/billing/with-credits";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
+import { ProjectUnauthorizedError, requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { storyboardAgent } from "@/lib/mastra/agents/storyboard-agent";
 import {
   buildBreakdownPrompt,
@@ -32,30 +33,30 @@ const requestSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth.api.getSession({ headers: request.headers });
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    const limit = await aiGenerationRateLimit(session.user.id, "storyboard");
+    const viewer = await requireViewer();
+    const limit = await aiGenerationRateLimit(viewer.userId, "storyboard");
     if (!limit.success) return tooManyGenerations(limit.resetAt);
 
     const { script, ...params } = requestSchema.parse(await request.json());
 
-    const result = await storyboardAgent.generate(
-      buildBreakdownPrompt({ script, params }),
-      { structuredOutput: { schema: storyboardBreakdownSchema } },
-    );
-
-    const parsed = storyboardBreakdownSchema.safeParse(result.object);
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: "The model returned an unusable breakdown" },
-        { status: 502 },
+    return await chargeFor(viewer, "generate_storyboard", async () => {
+      const result = await storyboardAgent.generate(
+        buildBreakdownPrompt({ script, params }),
+        { structuredOutput: { schema: storyboardBreakdownSchema } },
       );
-    }
 
-    return NextResponse.json({ scenes: reindexScenes(parsed.data.scenes) });
+      const parsed = storyboardBreakdownSchema.safeParse(result.object);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: "The model returned an unusable breakdown" },
+          { status: 502 },
+        );
+      }
+
+      return NextResponse.json({ scenes: reindexScenes(parsed.data.scenes) });
+    });
   } catch (error) {
+    if (error instanceof ProjectUnauthorizedError) return toErrorResponse(error);
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Validation failed", details: error.issues },

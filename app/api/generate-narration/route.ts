@@ -14,6 +14,7 @@ import { measureAudioDurationMs } from "@/lib/speech/audio-duration";
 import { getTranscriber } from "@/lib/speech/openai-transcriber";
 import { TranscriptionFailedError } from "@/lib/speech/transcriber";
 import { alignBeats, type TranscriptWord } from "@/lib/speech/beat-alignment";
+import { chargeFor } from "@/lib/billing/with-credits";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
@@ -57,55 +58,62 @@ export async function POST(request: NextRequest) {
     const speech = getSpeechGenerator();
     const storage = getObjectStorage();
 
-    const audio = await speech.speak({ text: input.text, voice: input.voice });
+    return await chargeFor(
+      viewer,
+      "generate_narration",
+      async () => {
+        const audio = await speech.speak({ text: input.text, voice: input.voice });
 
-    // Mesuree sur le fichier, jamais estimee : les annotations se calent
-    // dessus, et un ecart s'accumulerait d'un temps de narration au suivant.
-    let durationMs: number | null = null;
-    try {
-      durationMs = await measureAudioDurationMs(audio);
-    } catch (cause) {
-      // Une mesure ratee ne doit pas priver la scene de sa voix : le calage
-      // retombera sur l'estimation du decoupage.
-      console.error("Could not measure narration duration:", cause);
-    }
+        // Mesuree sur le fichier, jamais estimee : les annotations se calent
+        // dessus, et un ecart s'accumulerait d'un temps de narration au suivant.
+        let durationMs: number | null = null;
+        try {
+          durationMs = await measureAudioDurationMs(audio);
+        } catch (cause) {
+          // Une mesure ratee ne doit pas priver la scene de sa voix : le calage
+          // retombera sur l'estimation du decoupage.
+          console.error("Could not measure narration duration:", cause);
+        }
 
-    // Les temps sont retrouves dans l'enregistrement, jamais decoupes avant.
-    // Un echec ne prive pas la scene de sa voix : le calage retombe sur
-    // l'estimation du decoupage.
-    let beats: Awaited<ReturnType<typeof alignBeats>> | null = null;
-    // La transcription sert a recaler, mais elle porte l'instant de CHAQUE mot.
-    // La jeter obligeait a repayer une transcription du meme enregistrement des
-    // qu'on en veut autre chose — des sous-titres, par exemple. Elle sort donc
-    // avec le reste.
-    let words: TranscriptWord[] = [];
-    if (input.beats?.length && durationMs) {
-      try {
-        words = await getTranscriber().transcribe({
-          audio,
-          language: input.language,
+        // Les temps sont retrouves dans l'enregistrement, jamais decoupes avant.
+        // Un echec ne prive pas la scene de sa voix : le calage retombe sur
+        // l'estimation du decoupage.
+        let beats: Awaited<ReturnType<typeof alignBeats>> | null = null;
+        // La transcription sert a recaler, mais elle porte l'instant de CHAQUE mot.
+        // La jeter obligeait a repayer une transcription du meme enregistrement des
+        // qu'on en veut autre chose — des sous-titres, par exemple. Elle sort donc
+        // avec le reste.
+        let words: TranscriptWord[] = [];
+        if (input.beats?.length && durationMs) {
+          try {
+            words = await getTranscriber().transcribe({
+              audio,
+              language: input.language,
+            });
+            beats = alignBeats({
+              beats: input.beats,
+              words,
+              audioDurationMs: durationMs,
+            });
+          } catch (cause) {
+            console.error("Could not align the narration beats:", cause);
+          }
+        }
+
+        const url = await storage.put({
+          key: buildNarrationKey({
+            projectId: input.projectId,
+            sceneIndex: input.sceneIndex,
+            beatIndex: input.beatIndex,
+          }),
+          body: audio,
+          contentType: "audio/mpeg",
         });
-        beats = alignBeats({
-          beats: input.beats,
-          words,
-          audioDurationMs: durationMs,
-        });
-      } catch (cause) {
-        console.error("Could not align the narration beats:", cause);
-      }
-    }
 
-    const url = await storage.put({
-      key: buildNarrationKey({
-        projectId: input.projectId,
-        sceneIndex: input.sceneIndex,
-        beatIndex: input.beatIndex,
-      }),
-      body: audio,
-      contentType: "audio/mpeg",
-    });
-
-    return NextResponse.json({ url, durationMs, beats, words });
+        return NextResponse.json({ url, durationMs, beats, words });
+      },
+      { referenceId: input.projectId },
+    );
   } catch (error) {
     if (
       error instanceof StorageNotConfiguredError ||
