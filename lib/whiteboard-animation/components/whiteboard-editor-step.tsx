@@ -817,33 +817,43 @@ export function WhiteboardEditorStep({
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
-        <ScriptSegmentsCard
-          sceneStartMs={
-            panelBoundaries.find((b) => b.panelIdx === activeClipIndex)
-              ?.startMs ?? 0
-          }
-        />
-
-        <div className="relative shrink-0 rounded-lg border border-border bg-card overflow-hidden">
-          <AnnotationTimeline
-            onViewportChange={setTimelineViewport}
-            globalAnnotations={allAnnotations}
-            clipWindows={clipWindows}
-            onTransitionResize={handleTransitionResize}
-            onTransitionTypeChange={handleTransitionTypeChange}
+        <div className="shrink-0 rounded-lg border border-border bg-card overflow-hidden">
+          <ScriptSegmentsCard
+            sceneStartMs={
+              panelBoundaries.find((b) => b.panelIdx === activeClipIndex)
+                ?.startMs ?? 0
+            }
           />
-          <TimelinePlayhead viewport={timelineViewport} />
+
+          <div className="relative">
+            <AnnotationTimeline
+              onViewportChange={setTimelineViewport}
+              globalAnnotations={allAnnotations}
+              clipWindows={clipWindows}
+              onTransitionResize={handleTransitionResize}
+              onTransitionTypeChange={handleTransitionTypeChange}
+            />
+            <TimelinePlayhead viewport={timelineViewport} />
+          </div>
         </div>
       </div>
 
       {/* Right: reglages, puis la sequence d'annotations. C'est cette liste qui
           justifie le rail : elle a besoin de toute la hauteur disponible, la ou
           deux controles seuls ne la remplissaient pas. */}
-      <div className="w-80 shrink-0 min-h-0 flex flex-col gap-3">
+      <div className="w-80 shrink-0 min-h-0 flex flex-col overflow-hidden rounded-lg border border-border bg-card">
+        <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
+          <span className="rounded bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+            {activeClipIndex + 1}
+          </span>
+          <span className="truncate text-xs font-semibold text-foreground">
+            {activePanel?.title || `Scene ${activeClipIndex + 1}`}
+          </span>
+        </header>
         <div
           role="tablist"
           aria-label="Side panel"
-          className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-border bg-card p-1"
+          className="m-2 grid shrink-0 grid-cols-2 gap-1 rounded-md bg-muted/60 p-1"
         >
           {(["scene", "annotations"] as const).map((tab) => (
             <button
@@ -854,7 +864,7 @@ export function WhiteboardEditorStep({
               onClick={() => setSideTab(tab)}
               className={`flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
                 sideTab === tab
-                  ? "bg-muted text-foreground"
+                  ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >

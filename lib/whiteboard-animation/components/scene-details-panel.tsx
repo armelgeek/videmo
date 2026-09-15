@@ -11,7 +11,6 @@ type Field = "prompt" | "description";
 /** What the active scene should show and say, editable in place. */
 function SceneDetailsPanelImpl({ className }: { className?: string }) {
   const panel = useStoryboardStore((s) => s.storyboardPanels[s.activeClipIndex]);
-  const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
   const updatePanel = useStoryboardStore((s) => s.updatePanel);
   const [editing, setEditing] = useState<Field | null>(null);
 
@@ -21,16 +20,7 @@ function SceneDetailsPanelImpl({ className }: { className?: string }) {
   const description = panel.narration || "";
 
   return (
-    <section className={cn("shrink-0 rounded-lg border border-border bg-card overflow-hidden", className)}>
-      <header className="flex h-10 items-center gap-2 border-b border-border px-3">
-        <span className="rounded bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
-          {activeClipIndex + 1}
-        </span>
-        <span className="truncate text-xs font-semibold text-foreground">
-          {panel.title || `Scene ${activeClipIndex + 1}`}
-        </span>
-      </header>
-
+    <section className={cn("shrink-0 overflow-hidden", className)}>
       <div className="space-y-3 p-3">
         <div className="group/field space-y-1.5">
           <div className="flex items-center justify-between">

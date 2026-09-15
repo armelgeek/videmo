@@ -103,7 +103,7 @@ function AnnotationListPanelImpl({
   };
 
   return (
-    <section className={cn('flex min-h-0 flex-col rounded-xl border border-border bg-card overflow-hidden', className)}>
+    <section className={cn('flex min-h-0 flex-col overflow-hidden', className)}>
 
       {derived.length === 0 ? (
         <p className="px-3 py-4 text-xs text-muted-foreground">
