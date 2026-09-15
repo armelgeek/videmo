@@ -110,7 +110,7 @@ export function WorkspaceView() {
   };
 
   const projects = response?.data ?? [];
-  const projectsInProgress = projects.filter(p => p.step !== "completed").length;
+  const projectsInProgress = projects.filter(p => p.step && p.step !== "archived").length;
   const viewer = response?.viewer;
   const isInitialLoad = !response && isFetching;
 
