@@ -51,9 +51,9 @@ export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete 
           )}
         </ProjectThumbnail>
 
-        <div className="flex flex-col gap-2 p-4">
+        <div className="flex flex-col gap-3 p-5">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-medium text-base text-foreground">{project.title}</h3>
+            <h3 className="truncate font-semibold text-lg text-foreground">{project.title}</h3>
             <p className="truncate text-xs text-muted-foreground">
               {formatDistanceToNowStrict(new Date(project.updatedAt), { addSuffix: true })}
             </p>

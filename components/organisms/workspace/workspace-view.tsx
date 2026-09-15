@@ -192,7 +192,7 @@ export function WorkspaceView() {
           ) : (
             <>
               <div
-                className={`grid grid-cols-1 gap-6 transition-opacity sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-5 ${isFetching ? "opacity-60" : ""}`}
+                className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
               >
                 {projects.map((project) => (
                   <ProjectCard
