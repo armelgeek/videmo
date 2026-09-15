@@ -154,181 +154,115 @@ export function ProfileForm({ user }: ProfileFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Profile Picture Section */}
-      <div className="flex items-center gap-6 pb-6 border-b-2 border-border">
-        <Avatar className="h-20 w-20 border-2 border-ink">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="flex items-center gap-4">
+        <Avatar className="h-14 w-14 border-2 border-ink">
           <AvatarImage src={user.image || undefined} alt={user.name} />
-          <AvatarFallback className="text-lg bg-highlight text-highlight-foreground">
+          <AvatarFallback className="bg-highlight font-semibold text-highlight-foreground">
             {getInitials(user.name)}
           </AvatarFallback>
         </Avatar>
-        <div className="flex-1">
-          <h3 className="font-medium text-foreground">Profile Picture</h3>
-          <p className="text-sm text-muted-foreground">
-            Upload a new profile picture (coming soon)
-          </p>
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-foreground">{user.name}</p>
+          <p className="truncate text-sm text-muted-foreground">{user.email}</p>
         </div>
       </div>
 
-      {/* Form Fields - 2 Column Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-2">
-          <Label htmlFor="name" className="text-foreground font-medium">Name</Label>
+      <div className="space-y-2">
+        <Label htmlFor="name">Name</Label>
+        <Input
+          id="name"
+          type="text"
+          value={formData.name}
+          onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, name: e.target.value })}
+          placeholder="Your name"
+          required
+          className={errors.name ? "border-red-500" : ""}
+        />
+        {errors.name && <p className="text-sm text-red-500">{errors.name}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phone">
+          Phone <span className="font-normal text-muted-foreground">(optional)</span>
+        </Label>
+        <PhoneInput
+          id="phone"
+          value={formData.phone}
+          onChange={(value) => setFormData({ ...formData, phone: value || undefined })}
+          placeholder="+1 (555) 000-0000"
+          error={!!errors.phone}
+        />
+        {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="email">Email</Label>
+          <span
+            id="email-status"
+            className={user.emailVerified ? "text-xs text-green-600 dark:text-green-500" : "text-xs text-amber-600 dark:text-amber-500"}
+          >
+            {user.emailVerified ? "Verified" : "Not verified"}
+          </span>
+        </div>
+        <div className="flex gap-2">
           <Input
-            id="name"
-            type="text"
-            value={formData.name}
-            onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Enter your name"
-            required
-            className={`border-2 ${errors.name ? "border-red-500" : "border-ink"} shadow-[3px_3px_0_hsl(var(--offset))]`}
+            id="email"
+            type="email"
+            value={user.email}
+            disabled
+            className="flex-1 bg-muted"
+            aria-describedby="email-status"
           />
-          {errors.name && (
-            <p className="text-sm text-red-500 mt-1">{errors.name}</p>
+          {!isEditingEmail && (
+            <Button type="button" variant="outline" onClick={() => setIsEditingEmail(true)}>
+              <Mail className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              Change
+            </Button>
           )}
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="phone" className="text-foreground font-medium">Phone</Label>
-          <PhoneInput
-            id="phone"
-            value={formData.phone}
-            onChange={(value: Value | undefined) => setFormData({ ...formData, phone: value })}
-            defaultCountry="US"
-            placeholder="+1 (555) 000-0000"
-            className={`border-2 ${errors.phone ? "border-red-500" : "border-ink"} shadow-[3px_3px_0_hsl(var(--offset))]`}
-          />
-          {errors.phone && (
-            <p className="text-sm text-red-500 mt-1">{errors.phone}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Email & User ID Section - 2 Column Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b-2 border-border">
-        <div className="space-y-4">
-          <h3 className="font-medium text-foreground">Email Address</h3>
-          <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm">Current Email</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="email"
-                type="email"
-                value={user.email}
-                disabled
-                className="bg-muted cursor-not-allowed border-2 border-ink flex-1"
-                aria-describedby="email-status"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditingEmail(!isEditingEmail)}
-                aria-label="Change email address"
-                className="border-2 border-ink"
-              >
-                <Mail className="h-4 w-4 mr-1" aria-hidden="true" />
-                Change
+        {isEditingEmail && (
+          <div className="space-y-3 rounded-lg bg-muted/50 p-3">
+            <Input
+              id="new-email"
+              type="email"
+              value={newEmail}
+              onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+                setNewEmail(e.target.value);
+                setEmailChangeError("");
+              }}
+              placeholder="New email address"
+              aria-label="New email address"
+              disabled={isEmailChangeLoading}
+              className={emailChangeError ? "border-red-500" : ""}
+              aria-invalid={emailChangeError ? "true" : "false"}
+              aria-describedby="email-change-hint"
+            />
+            <p id="email-change-hint" className={emailChangeError ? "text-xs text-red-500" : "text-xs text-muted-foreground"}>
+              {emailChangeError || "We'll send a link to confirm the new address."}
+            </p>
+            <div className="flex gap-2">
+              <Button type="button" size="sm" onClick={handleEmailChange} disabled={isEmailChangeLoading || !newEmail}>
+                {isEmailChangeLoading ? "Sending…" : "Send link"}
+              </Button>
+              <Button type="button" size="sm" variant="ghost" onClick={handleCancelEmailChange} disabled={isEmailChangeLoading}>
+                Cancel
               </Button>
             </div>
-            <div id="email-status">
-              {user.emailVerified ? (
-                <p className="text-xs text-green-600 dark:text-green-500 flex items-center gap-1">
-                  <svg
-                    className="w-3 h-3"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  Email verified
-                </p>
-              ) : (
-                <p className="text-xs text-amber-600 dark:text-amber-500">
-                  Email not verified
-                </p>
-              )}
-            </div>
-
-            {isEditingEmail && (
-              <div className="mt-3 p-4 rounded-lg border-2 border-border bg-card space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  A verification email will be sent to your new address. Your
-                  email won&apos;t change until you verify it.
-                </p>
-                <div className="space-y-2">
-                  <Label htmlFor="new-email">New Email Address</Label>
-                  <Input
-                    id="new-email"
-                    type="email"
-                    value={newEmail}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-                      setNewEmail(e.target.value);
-                      setEmailChangeError("");
-                    }}
-                    placeholder="Enter new email address"
-                    disabled={isEmailChangeLoading}
-                    className={`border-2 ${emailChangeError ? "border-red-500" : "border-ink"}`}
-                    aria-invalid={emailChangeError ? "true" : "false"}
-                    aria-describedby={emailChangeError ? "email-change-error" : undefined}
-                  />
-                  {emailChangeError && (
-                    <p id="email-change-error" className="text-sm text-red-500">
-                      {emailChangeError}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleEmailChange}
-                    disabled={isEmailChangeLoading || !newEmail}
-                    className="border-2 border-ink"
-                  >
-                    {isEmailChangeLoading
-                      ? "Sending verification..."
-                      : "Send Verification Email"}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleCancelEmailChange}
-                    disabled={isEmailChangeLoading}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-foreground font-medium">User ID</Label>
-          <Input
-            type="text"
-            value={user.id}
-            disabled
-            className="border-2 border-ink bg-muted cursor-not-allowed"
-          />
-          <p className="text-xs text-muted-foreground">
-            Your unique user identifier
-          </p>
-        </div>
+        )}
       </div>
 
-      <div className="flex justify-end pt-4">
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? "Saving..." : "Save Changes"}
-        </Button>
+      <div className="flex justify-end pt-2">
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="inline-flex h-9 items-center rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
+        >
+          {isLoading ? "Saving…" : "Save changes"}
+        </button>
       </div>
     </form>
   );

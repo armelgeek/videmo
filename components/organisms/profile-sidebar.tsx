@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileForm } from '@/components/molecules/forms/profile-form';
 import { PasswordChangeForm } from '@/components/molecules/forms/password-change-form';
 import { TwoFactorSettings } from '@/components/templates/two-factor-settings';
@@ -10,69 +8,34 @@ interface ProfileSidebarProps {
   userData: any;
 }
 
-export function ProfileSidebar({ userData }: ProfileSidebarProps) {
-  const [activeTab, setActiveTab] = useState('profile');
+const PANEL = "rounded-lg border-2 border-ink bg-card p-6 shadow-[5px_5px_0_hsl(var(--offset))]";
 
+function PanelHeader({ title, description }: { title: string; description: string }) {
   return (
-    <div className="space-y-6">
-      {/* Tabs Navigation */}
-      <div className="flex gap-2 border-b-2 border-border pb-0">
-        <button
-          onClick={() => setActiveTab('profile')}
-          className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${
-            activeTab === 'profile'
-              ? 'border-ink text-foreground'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Profile
-        </button>
-        <button
-          onClick={() => setActiveTab('security')}
-          className={`px-4 py-3 font-medium text-sm border-b-2 transition-all ${
-            activeTab === 'security'
-              ? 'border-ink text-foreground'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          Security
-        </button>
-      </div>
+    <div className="mb-5">
+      <h2 className="text-lg font-bold text-foreground">{title}</h2>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
 
-      {/* Content */}
-      <div className="space-y-6">
-        {/* Profile Tab */}
-        {activeTab === 'profile' && (
-          <div className="rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))] p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-foreground">Profile Information</h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Update your profile details and personal information
-              </p>
-            </div>
-            <ProfileForm user={{
-              ...userData,
-              phone: userData.phone || "",
-            }} />
+export function ProfileSidebar({ userData }: ProfileSidebarProps) {
+  return (
+    <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2">
+      <section className={PANEL}>
+        <PanelHeader title="Profile" description="Your name, photo and contact details" />
+        <ProfileForm user={{ ...userData, phone: userData.phone || "" }} />
+      </section>
+
+      <div className="space-y-8">
+        <section className={PANEL}>
+          <PanelHeader title="Password" description="Update your password to keep your account secure" />
+          <PasswordChangeForm />
+        </section>
+        {process.env.NEXT_PUBLIC_ENABLE_TWO_FACTOR !== "false" && (
+          <div className="overflow-hidden rounded-lg border-2 border-ink shadow-[5px_5px_0_hsl(var(--offset))] [&>div]:rounded-none [&>div]:border-0 [&>div]:shadow-none">
+            <TwoFactorSettings />
           </div>
-        )}
-
-        {/* Security Tab */}
-        {activeTab === 'security' && (
-          <>
-            <div className="rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))] p-6">
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-foreground">Change Password</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Update your password to keep your account secure
-                </p>
-              </div>
-              <PasswordChangeForm />
-            </div>
-            {process.env.NEXT_PUBLIC_ENABLE_TWO_FACTOR !== "false" && (
-              <TwoFactorSettings />
-            )}
-          </>
         )}
       </div>
     </div>
