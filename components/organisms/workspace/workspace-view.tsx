@@ -118,15 +118,14 @@ export function WorkspaceView() {
 
             {/* Right: Search and actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-            <label className="relative hidden sm:block w-64">
-              <span className="sr-only">Search projects</span>
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <label className="relative hidden sm:block w-64 flex items-center">
+              <Search className="pointer-events-none absolute left-2.5 h-4 w-4 text-muted-foreground" />
               <input
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search projects..."
-                className="h-9 w-full rounded-lg border-2 border-ink bg-card pl-9 pr-8 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:shadow-[3px_3px_0_hsl(var(--highlight))] [&::-webkit-search-cancel-button]:hidden"
+                className="h-9 w-full rounded-lg border-2 border-ink bg-card pl-8 pr-2 text-sm text-foreground placeholder:text-muted-foreground outline-none transition focus:shadow-[3px_3px_0_hsl(var(--highlight))] [&::-webkit-search-cancel-button]:hidden"
               />
               {isFetching && response ? (
                 <Loader2 className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
