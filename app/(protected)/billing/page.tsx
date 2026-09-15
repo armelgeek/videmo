@@ -24,7 +24,7 @@ export default async function BillingPage() {
 
   return (
     <AppShell contentClassName="bg-background">
-      <div className="px-4 py-4 sm:px-6">
+      <div className="px-6 py-4 sm:px-8">
         <div>
           <div className="mb-8">
             <h1 className="text-3xl font-extrabold text-foreground">
