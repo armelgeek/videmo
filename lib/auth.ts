@@ -13,6 +13,7 @@ import { prisma } from "./prisma";
 import { chooseActiveOrganization } from "./auth-organization";
 import { QuotaExceededError } from "./billing/errors";
 import { assertSeatAvailable, membershipLimitFor } from "./billing/org-usage";
+import { checkOrganizationQuota } from "./billing/user-plan";
 import { EmailService } from "./email-service";
 import { enqueueOnboarding } from "./email-sequences/enqueue";
 import { appConfig } from "./config";
@@ -216,6 +217,17 @@ export const auth = betterAuth({
       // Checked by the plugin when a member is added or an invitation accepted.
       membershipLimit: (_user, invitedTo) => membershipLimitFor(invitedTo.id),
       organizationHooks: {
+        // Without this, per-organization quotas (projects, seats) are trivially bypassed by
+        // creating another organization. The allowance follows the user's own subscription.
+        beforeCreateOrganization: async ({ user }) => {
+          const quota = await checkOrganizationQuota(user.id);
+          if (!quota.allowed) {
+            throw new APIError("FORBIDDEN", {
+              code: "quota_exceeded",
+              message: `Your plan allows ${quota.limit} organization(s). Upgrade to create more.`,
+            });
+          }
+        },
         // Pending invitations count as seats, so a full plan is refused at invite time.
         beforeCreateInvitation: async ({ invitation }) => {
           try {

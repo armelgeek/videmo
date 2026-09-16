@@ -4,6 +4,7 @@ export type AnimationStyle =
   | "outlinechunks"
   | "chunkjump"
   | "outlinefill"
+  | "brushfill"
   | "nervous"
   | "topanchor"
   | "scribble"

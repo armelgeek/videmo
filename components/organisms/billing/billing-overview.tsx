@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
-import { ArrowRight, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { notifyCreditsChanged } from "@/lib/billing/billing-notice";
@@ -17,8 +17,6 @@ const UNLIMITED = -1;
 
 const PRIMARY_ACTION =
   "inline-flex h-10 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px";
-const SECONDARY_ACTION =
-  "inline-flex h-10 items-center gap-2 rounded-lg border-2 border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:border-ink";
 
 function UsageRow({ label, current, limit }: { label: string; current: number; limit: number }) {
   const unlimited = limit === UNLIMITED;
@@ -82,87 +80,108 @@ export function BillingOverview({ hasSubscription, subscriptionSlot }: BillingOv
   const runningLow = summary.monthlyAllowance > 0 && summary.balance < summary.monthlyAllowance * 0.2;
 
   return (
-    <div className="space-y-6">
-      <section
-        aria-labelledby="credits-heading"
-        className="rounded-xl border-2 border-ink bg-card p-6 shadow-[5px_5px_0_hsl(var(--offset))] sm:p-8"
-      >
-        <div className="flex flex-wrap items-start justify-between gap-6">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {summary.planName} plan · {summary.organizationName}
-            </p>
-            <h2 id="credits-heading" className="mt-2 flex items-baseline gap-2">
-              <span className="font-display text-5xl font-extrabold tabular-nums text-foreground">
-                {summary.balance.toLocaleString("en-US")}
-              </span>
-              <span className="text-base text-muted-foreground">credits available</span>
-            </h2>
-          </div>
-
-          {summary.canManage && (
-            <div className="flex flex-wrap items-center gap-3">
-              {runningLow && (
-                <SketchHint direction="right" className="hidden text-lg md:flex">
-                  running low, top up here
-                </SketchHint>
-              )}
-              {!hasSubscription && (
-                <Link href="/#pricing" className={SECONDARY_ACTION}>
-                  Upgrade
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              )}
-              <button type="button" onClick={() => setIsTopupOpen(true)} className={PRIMARY_ACTION}>
-                <Zap className="h-4 w-4" aria-hidden="true" />
-                Buy credits
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 grid gap-2">
-          <div className="flex justify-between gap-2 text-sm">
-            <span className="text-foreground">Monthly plan credits</span>
-            <span className="tabular-nums text-muted-foreground">
-              {summary.planCredits.toLocaleString("en-US")} / {summary.monthlyAllowance.toLocaleString("en-US")}
-            </span>
-          </div>
-          <Progress value={planPercent} aria-label={`${planPercent}% of monthly plan credits left`} />
-          <p className="text-xs text-muted-foreground">
-            Resets on {format(new Date(summary.resetAt), "MMMM d, yyyy")}.
-            {summary.purchasedCredits > 0 &&
-              ` ${summary.purchasedCredits.toLocaleString("en-US")} purchased credits stay until they expire.`}
-            {!summary.canManage && " Ask an owner or admin to buy more credits."}
+    <div className="space-y-8">
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <section
+          aria-labelledby="plan-heading"
+          className="rounded-xl border-2 border-ink bg-card p-6 shadow-[5px_5px_0_hsl(var(--offset))] sm:p-8"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {summary.organizationName}
           </p>
-        </div>
-      </section>
+          <h2 id="plan-heading" className="mt-2 font-display text-3xl font-extrabold text-foreground">
+            <span className="sk-marker">{summary.planName}</span> plan
+          </h2>
+          <div className="mt-6">{subscriptionSlot}</div>
+        </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <CreditHistory />
-        </div>
+        <section
+          aria-labelledby="credits-heading"
+          className="rounded-xl border-2 border-ink bg-card p-6 shadow-[5px_5px_0_hsl(var(--offset))] sm:p-8"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Credits
+              </p>
+              <h2 id="credits-heading" className="mt-2 flex items-baseline gap-2">
+                <span className="font-display text-4xl font-extrabold tabular-nums text-foreground">
+                  {summary.balance.toLocaleString("en-US")}
+                </span>
+                <span className="text-sm text-muted-foreground">available</span>
+              </h2>
+            </div>
 
-        <aside className="space-y-6">
-          <section aria-labelledby="usage-heading" className="space-y-4 rounded-lg border border-border bg-card p-5">
-            <h2 id="usage-heading" className="text-sm font-semibold text-foreground">
-              Plan usage
-            </h2>
-            <UsageRow label="Projects" current={summary.usage.projects.current} limit={summary.usage.projects.limit} />
+            {summary.canManage && (
+              <div className="flex flex-wrap items-center gap-3">
+                {runningLow && (
+                  <SketchHint direction="right" className="hidden text-lg xl:flex">
+                    running low, top up here
+                  </SketchHint>
+                )}
+                <button type="button" onClick={() => setIsTopupOpen(true)} className={PRIMARY_ACTION}>
+                  <Zap className="h-4 w-4" aria-hidden="true" />
+                  Buy credits
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 grid gap-2">
+            <div className="flex justify-between gap-2 text-sm">
+              <span className="text-foreground">Monthly plan credits</span>
+              <span className="tabular-nums text-muted-foreground">
+                {summary.planCredits.toLocaleString("en-US")} /{" "}
+                {summary.monthlyAllowance.toLocaleString("en-US")}
+              </span>
+            </div>
+            <Progress value={planPercent} aria-label={`${planPercent}% of monthly plan credits left`} />
+            <p className="text-xs text-muted-foreground">
+              Resets on {format(new Date(summary.resetAt), "MMMM d, yyyy")}.
+              {summary.purchasedCredits > 0 &&
+                ` ${summary.purchasedCredits.toLocaleString("en-US")} purchased credits stay until they expire.`}
+              {!summary.canManage && " Ask an owner or admin to buy more credits."}
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 border-t border-border pt-6">
+            <h3 className="text-sm font-semibold text-foreground">Plan usage</h3>
+            <UsageRow
+              label="Projects"
+              current={summary.usage.projects.current}
+              limit={summary.usage.projects.limit}
+            />
             <UsageRow
               label="Members"
               current={summary.usage.members.current}
               limit={summary.usage.members.limit}
             />
-            <p className="border-t border-border pt-3 text-xs text-muted-foreground">
+            {summary.usage.organizations && (
+              <UsageRow
+                label="Organizations you own"
+                current={summary.usage.organizations.current}
+                limit={summary.usage.organizations.limit}
+              />
+            )}
+            <p className="text-xs text-muted-foreground">
               Exports up to{" "}
-              {summary.maxExportResolution === UNLIMITED ? "any resolution" : `${summary.maxExportResolution}p`}
+              {summary.maxExportResolution === UNLIMITED
+                ? "any resolution"
+                : `${summary.maxExportResolution}p`}
+              {!hasSubscription && summary.canManage && (
+                <>
+                  {" · "}
+                  <Link href="/#pricing" className="font-medium text-foreground underline">
+                    upgrade for more
+                  </Link>
+                </>
+              )}
             </p>
-          </section>
-
-          {subscriptionSlot}
-        </aside>
+          </div>
+        </section>
       </div>
+
+      <CreditHistory />
 
       {summary.canManage && <CreditTopupDialog open={isTopupOpen} onOpenChange={setIsTopupOpen} />}
     </div>

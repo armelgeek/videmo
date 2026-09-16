@@ -8,6 +8,7 @@ import {
 import { getWallet } from "@/lib/billing/credit-service";
 import { countActiveProjects, countSeats } from "@/lib/billing/org-usage";
 import { getOrgPlan } from "@/lib/billing/plan-gating";
+import { checkOrganizationQuota } from "@/lib/billing/user-plan";
 
 export interface CreditSummary {
   organizationName: string;
@@ -23,17 +24,20 @@ export interface CreditSummary {
   usage: {
     projects: { current: number; limit: number };
     members: { current: number; limit: number };
+    // User-scoped, unlike the others: omitted for viewers who own no organization.
+    organizations: { current: number; limit: number } | null;
   };
 }
 
 export async function getCreditSummary(): Promise<{ summary: CreditSummary } | { error: string }> {
   try {
     const viewer = await getBillingViewer();
-    const [wallet, plan, projects, seats] = await Promise.all([
+    const [wallet, plan, projects, seats, organizations] = await Promise.all([
       getWallet(viewer.organizationId),
       getOrgPlan(viewer.organizationId),
       countActiveProjects(viewer.organizationId),
       countSeats(viewer.organizationId),
+      checkOrganizationQuota(viewer.userId),
     ]);
 
     return {
@@ -51,6 +55,10 @@ export async function getCreditSummary(): Promise<{ summary: CreditSummary } | {
         usage: {
           projects: { current: projects, limit: plan.quotas.max_projects ?? 0 },
           members: { current: seats, limit: plan.quotas.max_org_members ?? 1 },
+          organizations:
+            organizations.current > 0
+              ? { current: organizations.current, limit: organizations.limit }
+              : null,
         },
       },
     };

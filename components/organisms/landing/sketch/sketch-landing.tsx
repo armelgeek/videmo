@@ -4,11 +4,15 @@ import { HeroPrompt } from "./hero-prompt";
 import { Header } from "@/components/organisms/header/header";
 import { Footer } from "@/components/organisms/footer/footer";
 import { HowItWorks } from "./how-it-works";
+import { Capture } from "./capture";
 import { HandArrow } from "./hand-arrow";
 import { appConfig } from "@/lib/config";
 import { EngineScene } from "./engine-scene";
 import { SavingsCalculator } from "./savings-calculator";
 import { PLANS } from "./pricing";
+import { AnimationStylesShowcase, ANIMATION_STYLES } from "./animation-styles";
+import { VideoGallerySection } from "./video-gallery";
+import { Capabilities } from "./capabilities";
 import "./sketch.css";
 
 export const sketchFaqs = [
@@ -77,12 +81,6 @@ const TEAM_POINTS = [
   ["Email invitations.", "A teammate or client joins the workspace in one click."],
 ];
 
-const TEAM_ROWS = [
-  { t: "Onboarding — new billing", m: "6 scenes · 16:9 · edited 4 min ago", pill: "Lea is editing", lock: true },
-  { t: "v2 launch teaser", m: "4 scenes · 9:16", pill: "Ready", lock: false },
-  { t: "Nordik client — explainer", m: "8 scenes · 1:1", pill: "Draft", lock: false },
-];
-
 const VS_COLUMNS = [
   { key: "doodle", name: "Doodle software", sub: "VideoScribe, Doodly" },
   { key: "ai", name: "AI video generators", sub: "Golpo AI" },
@@ -142,7 +140,7 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
             <div className="hero-board">
               <EngineScene />
               <span className="hero-sticky is-top" aria-hidden="true">voiceover synced word by word ✓</span>
-              <span className="hero-sticky is-bottom" aria-hidden="true">4 hand styles ✍</span>
+              <span className="hero-sticky is-bottom" aria-hidden="true">{ANIMATION_STYLES.length} hand styles ✍</span>
             </div>
             <div className="hero-voice" aria-hidden="true">
               <span className="hero-play">▶</span>
@@ -190,9 +188,27 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
           <SectionHead
             eyebrow="From text to video, in one tool"
             title={<>Your first video, <span className="sk-hl">screen by screen.</span></>}
-            lede={`Here's exactly what you do in ${appConfig.name}, from an empty project to an exported video. No animation skills needed.`}
+            lede={`Here's exactly what you do in ${appConfig.name}, from a blank page to an exported video. No animation skills needed.`}
           />
           <HowItWorks />
+        </section>
+
+        <Rule />
+
+        <section className="sk-section sk-wrap">
+          <AnimationStylesShowcase />
+        </section>
+
+        <Rule />
+
+        <section>
+          <Capabilities />
+        </section>
+
+        <Rule />
+
+        <section>
+          <VideoGallerySection />
         </section>
 
         <Rule />
@@ -246,23 +262,15 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
             </ul>
           </div>
           <div className="team-visual">
-            <div className="team-sheet">
-              <span className="shot-tape" aria-hidden="true" />
-              <p className="sk-eyebrow team-sheet-title">Acme agency · Projects</p>
-              {TEAM_ROWS.map((r) => (
-                <div key={r.t} className={`team-row ${r.lock ? "is-locked" : ""}`}>
-                  <div className="team-row-main">
-                    <b>{r.t}</b>
-                    <small className="sk-mono">{r.m}</small>
-                  </div>
-                  <span className="team-pill sk-mono">{r.pill}</span>
-                </div>
-              ))}
-            </div>
-            <div className="team-callout" aria-hidden="true">
-              <span className="team-callout-arrow"><HandArrow variant="down-left" /></span>
-              <span className="sk-postit">locked while Lea edits, nobody overwrites her</span>
-            </div>
+            <Capture
+              src="/landing/workspace.jpg"
+              alt={`${appConfig.name} workspace: the team's projects, members and credits in one place`}
+              tilt={1}
+              marks={[
+                { x: 0.5, y: 8, w: 16, h: 9, label: "one workspace per team", side: "below" },
+                { x: 71, y: 19, w: 27, h: 17, label: "who's on it", side: "above" },
+              ]}
+            />
           </div>
         </section>
 

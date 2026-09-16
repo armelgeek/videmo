@@ -1,0 +1,40 @@
+@startuml docs/billing/organization-quota.puml
+title "User Creates an Organization (Plan Quota)"
+
+actor User
+participant "Browser"
+participant "Organization Switcher"
+participant "better-auth (/api/auth/organization/create)"
+participant "beforeCreateOrganization hook"
+database "Database (Prisma)"
+
+== Nominal Case (200) ==
+User ->> Browser: Click "Create organization"
+Browser ->> "Organization Switcher": create()
+"Organization Switcher" ->> "better-auth (/api/auth/organization/create)": POST {name, slug}
+"better-auth (/api/auth/organization/create)" ->> "beforeCreateOrganization hook": {user}
+"beforeCreateOrganization hook" ->> "Database (Prisma)": subscription.findMany({userId, status in active|trialing})
+"Database (Prisma)" -->> "beforeCreateOrganization hook": plans -> highest tier (else free plan)
+note right of "beforeCreateOrganization hook": limit = quotas.max_organizations\n-1 (UNLIMITED) short-circuits
+"beforeCreateOrganization hook" ->> "Database (Prisma)": organizationMember.count({userId, role: "owner"})
+"Database (Prisma)" -->> "beforeCreateOrganization hook": current < limit
+"beforeCreateOrganization hook" -->> "better-auth (/api/auth/organization/create)": allowed
+"better-auth (/api/auth/organization/create)" ->> "Database (Prisma)": organization.create + owner member
+"better-auth (/api/auth/organization/create)" -->> "Organization Switcher": 200 {organization}
+"Organization Switcher" ->> Browser: setActive + toast success
+Browser -->> User: New organization active
+
+== Edge Case: Quota Exceeded (403) ==
+note right of "beforeCreateOrganization hook": current >= limit
+"beforeCreateOrganization hook" -->> "better-auth (/api/auth/organization/create)": APIError FORBIDDEN (quota_exceeded)
+"better-auth (/api/auth/organization/create)" -->> "Organization Switcher": 403 "Your plan allows N organization(s)."
+"Organization Switcher" ->> Browser: toast.error(error.message)
+Browser -->> User: Prompted to upgrade
+
+== Edge Case: No Free Plan Seeded (500) ==
+note right of "Database (Prisma)": no active tier "free" row
+"beforeCreateOrganization hook" -->> "better-auth (/api/auth/organization/create)": Error "No free plan configured — run seed:plans"
+
+== Downstream: Per-Organization Quotas ==
+note over "Database (Prisma)": max_projects / max_org_members stay org-scoped\n(assertProjectQuota, assertSeatAvailable)\nand are no longer multipliable by new organizations
+@enduml

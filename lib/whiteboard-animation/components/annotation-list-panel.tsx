@@ -26,6 +26,7 @@ const ANIM_STYLES = [
   { value: 'illust', label: 'Illustration' },
   { value: 'nervous', label: 'Nervous' },
   { value: 'outlinechunks', label: 'Outline Chunks' },
+  { value: 'brushfill', label: 'Brush Fill' },
   { value: 'outlinefill', label: 'Outline Fill' },
   { value: 'outlineonly', label: 'Outline Only' },
   { value: 'scanner', label: 'Scanner' },

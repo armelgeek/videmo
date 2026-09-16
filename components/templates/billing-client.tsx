@@ -107,30 +107,36 @@ export default function BillingClient({ subscription, canManage }: BillingClient
   };
 
   return (
-    <section aria-labelledby="subscription-heading" className="space-y-4 rounded-lg border border-border bg-card p-5">
-      <div className="flex items-center justify-between gap-2">
-        <h2 id="subscription-heading" className="text-sm font-semibold text-foreground">
-          Subscription
-        </h2>
-        {subscription && (
-          <Badge variant={subscription.status === "active" ? "default" : "secondary"} className="capitalize">
-            {subscription.status}
-          </Badge>
-        )}
-      </div>
-
+    <div className="space-y-5">
       {!subscription ? (
-        <p className="text-sm text-muted-foreground">Free plan · no payment method on file.</p>
+        <>
+          <p className="text-sm text-muted-foreground">
+            You are on the Free plan — no payment method on file.
+          </p>
+          {canManage && (
+            <Button asChild className="w-full">
+              <Link href="/#pricing">See plans</Link>
+            </Button>
+          )}
+        </>
       ) : (
         <>
-          <div>
-            <p className="text-sm font-medium text-foreground">{subscription.plan.name}</p>
-            <p className="text-sm tabular-nums text-muted-foreground">
-              ${(subscription.plan.amount / 100).toFixed(2)} / {subscription.plan.interval}
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-2xl font-semibold tabular-nums text-foreground">
+              ${(subscription.plan.amount / 100).toFixed(2)}
+              <span className="ml-1 text-sm font-normal text-muted-foreground">
+                / {subscription.plan.interval}
+              </span>
             </p>
+            <Badge
+              variant={subscription.status === "active" ? "default" : "secondary"}
+              className="capitalize"
+            >
+              {subscription.status}
+            </Badge>
           </div>
 
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             {subscription.cancelAtPeriodEnd ? (
               <span className="text-destructive">
                 Ends on {format(new Date(subscription.currentPeriodEnd), "MMM d, yyyy")}
@@ -141,7 +147,7 @@ export default function BillingClient({ subscription, canManage }: BillingClient
           </p>
 
           {canManage ? (
-            <div className="grid gap-2 border-t border-border pt-4">
+            <div className="grid gap-2 border-t border-border pt-5">
               <Button variant="outline" size="sm" onClick={handleManageBilling} disabled={loading}>
                 {loading ? "Opening…" : "Payment method & invoices"}
               </Button>
@@ -184,12 +190,12 @@ export default function BillingClient({ subscription, canManage }: BillingClient
               )}
             </div>
           ) : (
-            <p className="border-t border-border pt-4 text-xs text-muted-foreground">
+            <p className="border-t border-border pt-5 text-xs text-muted-foreground">
               Only owners and admins can change the plan or payment method.
             </p>
           )}
         </>
       )}
-    </section>
+    </div>
   );
 }

@@ -1,50 +1,44 @@
-import Image from "next/image";
+import { Capture, type Mark } from "./capture";
 import { HandArrow } from "./hand-arrow";
 import { appConfig } from "@/lib/config";
-
-type Mark = { x: number; y: number; w: number; h: number; label: string; side?: "above" | "below" };
 
 type Step = {
   where: string;
   title: string;
   points: string[];
-  capture?: { src: string; alt: string; marks: Mark[] };
+  captures?: { src: string; alt: string; marks: Mark[]; height?: number }[];
 };
 
 const STEPS: Step[] = [
   {
-    where: "New project",
-    title: "Name your project and pick a format",
+    where: "Prompt",
+    title: "Say what the video is about",
     points: [
-      "Click “New project” from your workspace.",
-      "Give it a name, then choose a format: Landscape for YouTube and your website, Portrait for Reels and Shorts, Square for feeds.",
-      "Click “Create project”.",
+      "Write your message and key points, like you'd explain them to a colleague. No naming, no setup screen.",
+      "Pick the type (Brief or Explainer), the format and the length.",
+      "Then the language and the voice — press play to hear it before you commit a whole video to it.",
+      `${appConfig.name} writes the script from it — reread it, or regenerate it.`,
     ],
-    capture: {
-      src: "/landing/step-1-new-project.jpg",
-      alt: `${appConfig.name} New project screen: project name and format picker`,
-      marks: [
-        { x: 36, y: 49, w: 44, h: 20, label: "pick the format upfront", side: "above" },
-        { x: 70, y: 78, w: 10, h: 8, label: "and you're off", side: "below" },
-      ],
-    },
-  },
-  {
-    where: "Create Your Video",
-    title: "Describe your video, in one sentence or ten",
-    points: [
-      "Set the style, the type (Brief or Explainer), the tone, the audience, the voice and the hand.",
-      "Write your message and key points, like you'd explain them to a colleague.",
-      "Choose the ratio, length and language, then send.",
+    captures: [
+      {
+        src: "/landing/step-2-prompt.jpg",
+        alt: `${appConfig.name} prompt screen: your brief on the left, the generated script on the right`,
+        height: 738,
+        marks: [
+          { x: 10, y: 33, w: 39, h: 19, label: "your brief", side: "below" },
+          { x: 52, y: 32, w: 17, h: 8, label: "the script, written for you", side: "above" },
+        ],
+      },
+      {
+        src: "/landing/step-1b-voice.jpg",
+        alt: `${appConfig.name} voice picker: eight languages, and every voice playable before you choose`,
+        height: 684,
+        marks: [
+          { x: 11, y: 47, w: 11, h: 42, label: "8 languages", side: "above" },
+          { x: 27, y: 55, w: 23, h: 35, label: "hear it first", side: "above" },
+        ],
+      },
     ],
-    capture: {
-      src: "/landing/step-2-create-video.jpg",
-      alt: `${appConfig.name} Create Your Video screen: settings and concept description`,
-      marks: [
-        { x: 31, y: 28, w: 38, h: 15, label: "style, tone, voice, hand", side: "above" },
-        { x: 28, y: 45, w: 44, h: 19, label: "your brief goes here", side: "below" },
-      ],
-    },
   },
   {
     where: "Storyboard",
@@ -54,6 +48,15 @@ const STEPS: Step[] = [
       "Rewrite a title or a line, or redraw a visual with “Redraw”.",
       "Reorder, duplicate or delete a scene without touching the others.",
     ],
+    captures: [{
+      src: "/landing/step-3-storyboard.jpg",
+      alt: `${appConfig.name} storyboard: one card per scene, with the selected scene open for editing`,
+      height: 738,
+      marks: [
+        { x: 10, y: 21, w: 18, h: 36, label: "one card per scene", side: "below" },
+        { x: 65, y: 59, w: 24, h: 21, label: "rewrite it, or redraw it", side: "above" },
+      ],
+    }],
   },
   {
     where: "Voiceover",
@@ -62,6 +65,15 @@ const STEPS: Step[] = [
       "The narration is generated with the voice you picked, then transcribed word by word.",
       "Each element is drawn the moment it's spoken. No manual timing.",
     ],
+    captures: [{
+      src: "/landing/step-4-whiteboard.jpg",
+      alt: `${appConfig.name} whiteboard: the scene being drawn, with its narration beside it`,
+      height: 738,
+      marks: [
+        { x: 0.5, y: 17, w: 15, h: 24, label: "jump between scenes", side: "below" },
+        { x: 79, y: 44, w: 20, h: 20, label: "the voice, scene by scene", side: "above" },
+      ],
+    }],
   },
   {
     where: "Export Video",
@@ -70,31 +82,16 @@ const STEPS: Step[] = [
       "Open “Export”, choose the quality (up to 1920x1080) and start the render.",
       "Download the video and post it wherever your customers are watching.",
     ],
+    captures: [{
+      src: "/landing/step-5-export.jpg",
+      alt: `${appConfig.name} export dialog: pick a resolution and start the render`,
+      height: 684,
+      marks: [
+        { x: 37, y: 44, w: 25, h: 12, label: "pick your quality", side: "above" },
+      ],
+    }],
   },
 ];
-
-function ellipsePath(w: number, h: number) {
-  return `M ${w * 0.52} 3 C ${w * 0.9} 1, ${w - 2} ${h * 0.3}, ${w - 3} ${h * 0.55} C ${w - 5} ${h * 0.9}, ${w * 0.6} ${h - 2}, ${w * 0.4} ${h - 3} C ${w * 0.1} ${h - 4}, 2 ${h * 0.7}, 3 ${h * 0.42} C 5 ${h * 0.12}, ${w * 0.3} 2, ${w * 0.62} 6`;
-}
-
-function Capture({ src, alt, marks, tilt }: { src: string; alt: string; marks: Mark[]; tilt: number }) {
-  return (
-    <figure className="shot" style={{ transform: `rotate(${tilt}deg)` }}>
-      <span className="shot-tape" aria-hidden="true" />
-      <div className="shot-img">
-        <Image src={src} alt={alt} width={1568} height={683} sizes="(max-width: 860px) 100vw, 600px" />
-        {marks.map((m) => (
-          <span key={m.label} className="shot-mark" style={{ left: `${m.x}%`, top: `${m.y}%`, width: `${m.w}%`, height: `${m.h}%` }}>
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <path d={ellipsePath(100, 100)} fill="none" stroke="currentColor" strokeWidth="2.4" vectorEffect="non-scaling-stroke" strokeLinecap="round" />
-            </svg>
-            <span className={`shot-label sk-hand ${m.side === "below" ? "is-below" : ""}`}>{m.label}</span>
-          </span>
-        ))}
-      </div>
-    </figure>
-  );
-}
 
 export function HowItWorks() {
   return (
@@ -102,10 +99,12 @@ export function HowItWorks() {
       {STEPS.map((s, i) => {
         const flip = i % 2 === 1;
         return (
-          <li key={s.title} className={`how-step ${flip ? "is-flip" : ""} ${s.capture ? "" : "is-text"}`}>
-            {s.capture && (
+          <li key={s.title} className={`how-step ${flip ? "is-flip" : ""} ${s.captures ? "" : "is-text"}`}>
+            {s.captures && (
               <div className="how-visual">
-                <Capture {...s.capture} tilt={flip ? 1 : -1} />
+                {s.captures.map((c, n) => (
+                  <Capture key={c.src} {...c} tilt={(flip ? 1 : -1) * (n % 2 ? -1 : 1)} />
+                ))}
               </div>
             )}
             <div className="how-text">

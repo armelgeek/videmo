@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CREDITS_CHANGED_EVENT } from "@/lib/billing/billing-notice";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Clock } from "lucide-react";
+import { ChevronDown, Clock, TrendingDown, TrendingUp } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
   plan_grant: "Plan credits",
@@ -57,10 +57,16 @@ export function CreditHistory() {
   }, [apply, page]);
 
   return (
-    <section aria-labelledby="credit-history-heading" className="space-y-4 rounded-lg border border-border bg-card p-5">
-      <h2 id="credit-history-heading" className="text-sm font-semibold text-foreground">
+    <details className="group rounded-lg border border-border bg-card px-5 [&[open]]:pb-5">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 py-4 text-sm font-semibold text-foreground outline-none focus-visible:ring-2 focus-visible:ring-highlight">
         Credit history
-      </h2>
+        <ChevronDown
+          className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180"
+          aria-hidden="true"
+        />
+      </summary>
+
+      <div className="space-y-4">
 
       {error ? (
         <div className="flex h-32 items-center justify-center">
@@ -150,6 +156,7 @@ export function CreditHistory() {
           )}
         </div>
       )}
-    </section>
+      </div>
+    </details>
   );
 }

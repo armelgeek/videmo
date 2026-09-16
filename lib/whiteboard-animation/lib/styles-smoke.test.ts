@@ -10,6 +10,7 @@ const AnimationFactory = require("./index");
  * empeche cette derive.
  */
 const UI_STYLES = [
+  "brushfill",
   "chunkjump",
   "contour",
   "gesture",

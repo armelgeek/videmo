@@ -65,6 +65,7 @@ class AnimationFactoryTS implements IAnimationFactory {
       'outlinechunks',
       'chunkjump',
       'outlinefill',
+      'brushfill',
       'nervous',
       'topanchor',
       'scribble',

@@ -1,6 +1,7 @@
 export const QUOTA_KEYS = [
   "monthly_credits",
   "max_projects",
+  "max_organizations",
   "max_video_duration_sec",
   "max_export_resolution",
   "max_org_members",
@@ -43,9 +44,16 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
     description: "Get started for free",
     prices: { month: 0 },
     isPopular: false,
-    displayFeatures: ["50 credits / month", "3 projects", "720p export", "Watermarked videos"],
+    displayFeatures: [
+      "50 credits / month",
+      "1 organization",
+      "3 projects",
+      "720p export",
+      "Watermarked videos",
+    ],
     quotas: {
       monthly_credits: 50,
+      max_organizations: 1,
       max_projects: 3,
       max_video_duration_sec: 60,
       max_export_resolution: 720,
@@ -66,9 +74,16 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
     description: "Perfect for individuals and small projects",
     prices: { month: 999, year: 9999 },
     isPopular: false,
-    displayFeatures: ["200 credits / month", "20 projects", "1080p export", "5 min videos"],
+    displayFeatures: [
+      "200 credits / month",
+      "1 organization",
+      "20 projects",
+      "1080p export",
+      "5 min videos",
+    ],
     quotas: {
       monthly_credits: 200,
+      max_organizations: 1,
       max_projects: 20,
       max_video_duration_sec: 300,
       max_export_resolution: 1080,
@@ -91,6 +106,7 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
     isPopular: true,
     displayFeatures: [
       "1,000 credits / month",
+      "Up to 3 organizations",
       "Unlimited projects",
       "No watermark",
       "Premium templates",
@@ -100,6 +116,7 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
     ],
     quotas: {
       monthly_credits: 1000,
+      max_organizations: 3,
       max_projects: UNLIMITED,
       max_video_duration_sec: 600,
       max_export_resolution: 1080,
@@ -126,10 +143,12 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
       "4K export",
       "30 min videos",
       "Custom branding",
+      "Unlimited organizations",
       "Unlimited team members",
     ],
     quotas: {
       monthly_credits: 5000,
+      max_organizations: UNLIMITED,
       max_projects: UNLIMITED,
       max_video_duration_sec: 1800,
       max_export_resolution: 2160,

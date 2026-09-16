@@ -463,7 +463,7 @@ model PlanQuota {
   id        String   @id @default(cuid())
   planId    String
   plan      Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
-  key       String   // monthly_credits | max_projects | max_video_duration_sec | max_export_resolution | max_org_members | max_storage_gb
+  key       String   // monthly_credits | max_projects | max_organizations | max_video_duration_sec | max_export_resolution | max_org_members | max_storage_gb
   value     Int      // -1 = unlimited
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
