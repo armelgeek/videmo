@@ -14,6 +14,7 @@ import { updateBlog } from '@/actions/blogs/update-blog';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { z } from 'zod';
 import { TiptapEditor } from '@/components/templates/tiptap-editor';
+import { CoverImageField } from '@/components/molecules/blog/cover-image-field';
 import { Badge } from '@/components/ui/badge';
 import { IconX } from '@tabler/icons-react';
 
@@ -250,18 +251,7 @@ export default function EditBlogPage() {
                     </p>
                   </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="coverImage">
-                      Cover Image URL
-                    </Label>
-                    <Input
-                      id="coverImage"
-                      type="url"
-                      placeholder="https://example.com/image.jpg"
-                      value={coverImage}
-                      onChange={(e) => setCoverImage(e.target.value)}
-                    />
-                  </div>
+                  <CoverImageField value={coverImage} onChange={setCoverImage} />
 
                   <div className="grid gap-2">
                     <Label htmlFor="tags">

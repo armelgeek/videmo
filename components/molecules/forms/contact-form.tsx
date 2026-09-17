@@ -2,14 +2,9 @@
 
 import { useState } from 'react';
 import { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { submitContact } from '@/actions/contact/submit-contact';
-import { Send, CheckCircle2 } from 'lucide-react';
+import { Send, Check, Loader2 } from 'lucide-react';
 
 const contactSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -90,129 +85,150 @@ export function ContactForm() {
 
   if (submitted) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-16 text-center gap-4">
-          <CheckCircle2 className="h-16 w-16 text-green-500" />
-          <h3 className="text-2xl font-semibold">Message Sent!</h3>
-          <p className="text-muted-foreground max-w-sm">
-            Thank you for reaching out. We&apos;ve received your message and will get back to you as soon as possible.
-          </p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSubmitted(false);
-              setForm(initialState);
-            }}
-          >
-            Send Another Message
-          </Button>
-        </CardContent>
-      </Card>
+      <div className="contact-form-sheet contact-success-box">
+        <div className="contact-success-icon" aria-hidden="true">
+          <Check className="h-8 w-8 stroke-[3]" />
+        </div>
+        <h3 className="contact-form-title font-display font-extrabold tracking-tight text-2xl sm:text-3xl">
+          Message Sent!
+        </h3>
+        <p className="sk-hand text-xl text-muted-foreground max-w-md">
+          Thank you for reaching out! We&apos;ve received your message and will get back to you within 24 hours.
+        </p>
+        <button
+          type="button"
+          className="sk-btn sk-btn-main mt-4"
+          onClick={() => {
+            setSubmitted(false);
+            setForm(initialState);
+          }}
+        >
+          Send another message ✍ →
+        </button>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Send us a Message</CardTitle>
-        <CardDescription>
-          Fill out the form below and we&apos;ll get back to you within 24 hours.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} noValidate className="space-y-5">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="fullName" className={errors.fullName ? 'text-destructive' : ''}>
-                Full Name <span aria-hidden="true">*</span>
-              </Label>
-              <Input
-                id="fullName"
-                name="fullName"
-                placeholder="John Doe"
-                value={form.fullName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => handleChange('fullName', e.target.value)}
-                disabled={isLoading}
-                aria-invalid={!!errors.fullName}
-                aria-describedby={errors.fullName ? 'fullName-error' : undefined}
-              />
-              {errors.fullName && (
-                <p id="fullName-error" className="text-sm text-destructive">
-                  {errors.fullName}
-                </p>
-              )}
-            </div>
+    <div className="contact-form-sheet">
+      <span className="contact-sheet-badge sk-hand" aria-hidden="true">
+        ✍ Direct to our team
+      </span>
+      <h2 className="contact-form-title font-display font-extrabold tracking-tight">
+        Send us a message
+      </h2>
+      <p className="contact-form-desc">
+        Fill out the form below and we&apos;ll get back to you within 24 hours.
+      </p>
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className={errors.email ? 'text-destructive' : ''}>
-                Email Address <span aria-hidden="true">*</span>
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => handleChange('email', e.target.value)}
-                disabled={isLoading}
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? 'email-error' : undefined}
-              />
-              {errors.email && (
-                <p id="email-error" className="text-sm text-destructive">
-                  {errors.email}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Phone Number (optional)</Label>
-            <Input
-              id="phoneNumber"
-              name="phoneNumber"
-              type="tel"
-              placeholder="+1 (555) 123-4567"
-              value={form.phoneNumber}
-              onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => handleChange('phoneNumber', e.target.value)}
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <div className="sk-field">
+            <label htmlFor="fullName" className="sk-label">
+              Full Name <span className="text-destructive" aria-hidden="true">*</span>
+            </label>
+            <input
+              id="fullName"
+              name="fullName"
+              type="text"
+              placeholder="John Doe"
+              className="sk-input"
+              value={form.fullName}
+              onChange={(e) => handleChange('fullName', e.target.value)}
               disabled={isLoading}
+              aria-invalid={!!errors.fullName}
+              aria-describedby={errors.fullName ? 'fullName-error' : undefined}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="message" className={errors.message ? 'text-destructive' : ''}>
-              Message <span aria-hidden="true">*</span>
-            </Label>
-            <Textarea
-              id="message"
-              name="message"
-              placeholder="Tell us how we can help you..."
-              rows={5}
-              value={form.message}
-              onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => handleChange('message', e.target.value)}
-              disabled={isLoading}
-              aria-invalid={!!errors.message}
-              aria-describedby={errors.message ? 'message-error' : undefined}
-            />
-            {errors.message && (
-              <p id="message-error" className="text-sm text-destructive">
-                {errors.message}
+            {errors.fullName && (
+              <p id="fullName-error" className="sk-error">
+                {errors.fullName}
               </p>
             )}
           </div>
 
-          <Button type="submit" disabled={isLoading} className="w-full sm:w-auto">
+          <div className="sk-field">
+            <label htmlFor="email" className="sk-label">
+              Email Address <span className="text-destructive" aria-hidden="true">*</span>
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="you@example.com"
+              className="sk-input"
+              value={form.email}
+              onChange={(e) => handleChange('email', e.target.value)}
+              disabled={isLoading}
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? 'email-error' : undefined}
+            />
+            {errors.email && (
+              <p id="email-error" className="sk-error">
+                {errors.email}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="sk-field">
+          <label htmlFor="phoneNumber" className="sk-label">
+            Phone Number <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+          </label>
+          <input
+            id="phoneNumber"
+            name="phoneNumber"
+            type="tel"
+            placeholder="+1 (555) 123-4567"
+            className="sk-input"
+            value={form.phoneNumber}
+            onChange={(e) => handleChange('phoneNumber', e.target.value)}
+            disabled={isLoading}
+          />
+        </div>
+
+        <div className="sk-field">
+          <label htmlFor="message" className="sk-label">
+            Message <span className="text-destructive" aria-hidden="true">*</span>
+          </label>
+          <textarea
+            id="message"
+            name="message"
+            placeholder="Tell us about your project, questions, or ideas..."
+            rows={5}
+            className="sk-textarea"
+            value={form.message}
+            onChange={(e) => handleChange('message', e.target.value)}
+            disabled={isLoading}
+            aria-invalid={!!errors.message}
+            aria-describedby={errors.message ? 'message-error' : undefined}
+          />
+          {errors.message && (
+            <p id="message-error" className="sk-error">
+              {errors.message}
+            </p>
+          )}
+        </div>
+
+        <div className="pt-2">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="sk-btn sk-btn-main contact-submit-btn"
+          >
             {isLoading ? (
-              'Sending...'
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Sending message...</span>
+              </>
             ) : (
               <>
-                <Send className="mr-2 h-4 w-4" />
-                Send Message
+                <Send className="h-4 w-4" />
+                <span>Send Message ✍ →</span>
               </>
             )}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }

@@ -36,7 +36,11 @@ const loadImage = (src: string) =>
     img.src = src;
   });
 
-export function EngineScene() {
+export function EngineScene({
+  aspectRatio = "16:9",
+}: {
+  aspectRatio?: "16:9" | "9:16" | "1:1";
+} = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const handRef = useRef<HTMLCanvasElement>(null);
 
@@ -157,21 +161,24 @@ export function EngineScene() {
   }, []);
 
   return (
-    <figure className="sk-box sk-box-lift" style={{ margin: 0, overflow: "hidden" }}>
-      <div style={{ position: "relative", background: "#ffffff" }}>
+    <figure className="sk-box sk-box-lift hero-engine-figure" style={{ margin: 0, overflow: "hidden" }}>
+      <div
+        className={`hero-canvas-viewport is-${aspectRatio.replace(":", "-")}`}
+        style={{ position: "relative", background: "#ffffff" }}
+      >
         <canvas
           ref={canvasRef}
           width={W}
           height={H}
           aria-label="Scene drawn live by hand by the animation engine"
-          style={{ display: "block", width: "100%", height: "auto", maxWidth: "100%" }}
+          className="hero-engine-canvas"
         />
         <canvas
           ref={handRef}
           width={W}
           height={H}
           aria-hidden="true"
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+          className="hero-engine-hand"
         />
       </div>
     </figure>

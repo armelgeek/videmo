@@ -1,16 +1,16 @@
 import type React from "react";
 import Link from "next/link";
 import { HeroPrompt } from "./hero-prompt";
+import { HeroDemo } from "./hero-demo";
 import { Header } from "@/components/organisms/header/header";
 import { Footer } from "@/components/organisms/footer/footer";
 import { HowItWorks } from "./how-it-works";
 import { Capture } from "./capture";
 import { HandArrow } from "./hand-arrow";
 import { appConfig } from "@/lib/config";
-import { EngineScene } from "./engine-scene";
 import { SavingsCalculator } from "./savings-calculator";
 import { PLANS } from "./pricing";
-import { AnimationStylesShowcase, ANIMATION_STYLES } from "./animation-styles";
+import { AnimationStylesShowcase } from "./animation-styles";
 import { VideoGallerySection } from "./video-gallery";
 import { Capabilities } from "./capabilities";
 import "./sketch.css";
@@ -119,40 +119,18 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
         <section className="sk-wrap hero">
           <div className="hero-copy">
             <h1>
-              Your customers don&apos;t read.
+              Text gets ignored.
               <br />
-              <span className="sk-hl">Draw it for them.</span>
+              <span className="sk-hl">Hand-drawn videos get remembered.</span>
             </h1>
             <p className="hero-lede">
-              Paste your text: {appConfig.name} turns it into a hand-drawn explainer video with voiceover. Ready for LinkedIn, YouTube and Reels, no agency needed.
+              Paste your text: {appConfig.name} turns it into a hand-drawn video that hooks attention from the first stroke. Voiceover included, ready in 60 seconds.
             </p>
             <HeroPrompt />
-            <p className="sk-note hero-try">↑ try it with your own text</p>
+            <p className="sk-note hero-try">Type 2 lines above. Watch the hand do the rest ↑</p>
           </div>
 
-          <div className="hero-demo">
-            <div className="hero-tabs" aria-hidden="true">
-              <span className="sk-eyebrow">Preview</span>
-              <span className="hero-tab is-on"><i style={{ width: 18, height: 10 }} />16:9</span>
-              <span className="hero-tab"><i style={{ width: 8, height: 14 }} />9:16</span>
-              <span className="hero-tab"><i style={{ width: 12, height: 12 }} />1:1</span>
-            </div>
-            <div className="hero-board">
-              <EngineScene />
-              <span className="hero-sticky is-top" aria-hidden="true">voiceover synced word by word ✓</span>
-              <span className="hero-sticky is-bottom" aria-hidden="true">{ANIMATION_STYLES.length} hand styles ✍</span>
-            </div>
-            <div className="hero-voice" aria-hidden="true">
-              <span className="hero-play">▶</span>
-              <span className="hero-wave">
-                {[6, 12, 18, 9, 22, 14, 26, 17, 10, 20, 28, 13, 7, 18, 24, 11, 6, 15, 21, 9, 16, 8, 19, 12, 7, 17, 25, 13, 9, 5].map((h, i) => (
-                  <i key={i} style={{ height: h, opacity: i < 16 ? 1 : 0.35 }} />
-                ))}
-              </span>
-              <span className="sk-mono hero-voice-meta">Nova · English</span>
-            </div>
-            <p className="sk-note hero-video-note">drawn live by our engine ↑</p>
-          </div>
+          <HeroDemo />
         </section>
 
         <Rule />

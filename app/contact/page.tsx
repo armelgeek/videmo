@@ -17,16 +17,19 @@ import {
 import { Header } from "@/components/organisms/header/header";
 import { Footer } from "@/components/organisms/footer/footer";
 import { ContactForm } from "@/components/molecules/forms/contact-form";
+import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { getPublicSettings } from "@/actions/settings/get-public-settings";
 import { auth } from "@/lib/auth";
 import { isUserAdmin } from "@/lib/auth-utils";
 import { appConfig } from "@/lib/config";
-
 import { buildMetadata } from "@/lib/seo";
 
+import "@/components/organisms/landing/sketch/sketch.css";
+import "./contact.css";
+
 export const metadata: Metadata = buildMetadata({
-  title: `Contact Us \u2014 ${appConfig.name}`,
-  description: `Get in touch with ${appConfig.name}. We'd love to hear from you \u2014 send us a message, ask a question, or request support.`,
+  title: `Contact Us — ${appConfig.name}`,
+  description: `Get in touch with ${appConfig.name}. We'd love to hear from you — send us a message, ask a question, or request support.`,
   path: "/contact",
   keywords: ["contact", "support", "help", "get in touch", "customer service"],
 });
@@ -94,155 +97,168 @@ export default async function ContactPage() {
   const contactAddress = fullAddress || FALLBACK_ADDRESS;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="sketch flex min-h-screen flex-col">
       <Header user={session?.user} isAdmin={isAdmin} />
 
-      <main className="flex-1">
-        <section className="border-b bg-muted/30 py-16 text-center">
-          <div className="container mx-auto px-4">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Contact Us
+      <main className="flex-1 contact-page">
+        <div className="sk-wrap">
+          {/* Hero Section */}
+          <section className="contact-hero">
+            <span className="sk-eyebrow">Get In Touch</span>
+            <h1 className="font-display font-extrabold tracking-tight">
+              Let&apos;s talk about <span className="sk-hl">your project.</span>
             </h1>
-            <p className="mt-4 text-lg text-muted-foreground">
-              Have a question or want to work with us? We&apos;d love to hear
-              from you.
+            <p className="contact-hero-lede">
+              Have questions about {appConfig.name}, need custom help, or want to explore our platform? We&apos;d love to hear from you.
             </p>
-          </div>
-        </section>
+            <div className="contact-hero-badge sk-hand" aria-hidden="true">
+              <span>direct human reply, no bot maze</span>
+              <HandArrow variant="curve-right" className="contact-hero-arrow" />
+            </div>
+          </section>
 
-        {}
-        <section className="container mx-auto px-4 py-16">
-          <div className="grid gap-10 lg:grid-cols-5">
-            {}
-            <div className="space-y-8 lg:col-span-2">
+          {/* Main Grid: Contact Info & Form */}
+          <div className="contact-grid">
+            {/* Info Panel */}
+            <aside className="sk-box sk-box-lift contact-info-card">
               <div>
-                <h2 className="text-xl font-semibold mb-2">Get in Touch</h2>
-                <p className="text-sm text-muted-foreground mb-4">
+                <span className="sk-eyebrow mb-2 block">Direct Channels</span>
+                <h2 className="font-display text-2xl font-bold tracking-tight mb-2">
+                  Reach out directly
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   {appConfig.description}
                 </p>
-                <ul className="space-y-4 text-sm">
-                  <li className="flex items-start gap-3">
-                    <Mail className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+              </div>
+
+              <ul className="space-y-5 text-sm">
+                <li className="contact-item">
+                  <div className="contact-icon-box" aria-hidden="true">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <span className="contact-item-label">Email</span>
+                    <a
+                      href={`mailto:${contactEmail}`}
+                      className="contact-item-value contact-link"
+                      aria-label={`Email us at ${contactEmail}`}
+                    >
+                      {contactEmail}
+                    </a>
+                  </div>
+                </li>
+
+                {settings?.phone && (
+                  <li className="contact-item">
+                    <div className="contact-icon-box" aria-hidden="true">
+                      <Phone className="h-5 w-5" />
+                    </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">
-                        Email
-                      </p>
+                      <span className="contact-item-label">Phone</span>
                       <a
-                        href={`mailto:${contactEmail}`}
-                        className="hover:underline"
-                        aria-label={`Email us at ${contactEmail}`}
+                        href={`tel:${settings.phone}`}
+                        className="contact-item-value contact-link"
+                        aria-label={`Call us at ${settings.phone}`}
                       >
-                        {contactEmail}
+                        {settings.phone}
                       </a>
                     </div>
                   </li>
+                )}
 
-                  {settings?.phone && (
-                    <li className="flex items-start gap-3">
-                      <Phone className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">
-                          Phone
-                        </p>
-                        <a
-                          href={`tel:${settings.phone}`}
-                          className="hover:underline"
-                          aria-label={`Call us at ${settings.phone}`}
-                        >
-                          {settings.phone}
-                        </a>
-                      </div>
-                    </li>
-                  )}
-
-                  {settings?.whatsappNumber && (
-                    <li className="flex items-start gap-3">
-                      <MessageCircle className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">
-                          WhatsApp
-                        </p>
-                        <a
-                          href={`https://wa.me/${settings.whatsappNumber.replace(/\D/g, "")}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:underline"
-                          aria-label={`Chat on WhatsApp`}
-                        >
-                          {settings.whatsappNumber}
-                        </a>
-                      </div>
-                    </li>
-                  )}
-
-                  <li className="flex items-start gap-3">
-                    <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+                {settings?.whatsappNumber && (
+                  <li className="contact-item">
+                    <div className="contact-icon-box" aria-hidden="true">
+                      <MessageCircle className="h-5 w-5" />
+                    </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">
-                        Address
-                      </p>
-                      <address className="not-italic">{contactAddress}</address>
+                      <span className="contact-item-label">WhatsApp</span>
+                      <a
+                        href={`https://wa.me/${settings.whatsappNumber.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="contact-item-value contact-link"
+                        aria-label="Chat with us on WhatsApp"
+                      >
+                        {settings.whatsappNumber}
+                      </a>
                     </div>
                   </li>
+                )}
 
-                  {settings?.businessHours && (
-                    <li className="flex items-start gap-3">
-                      <Clock className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-0.5">
-                          Business Hours
-                        </p>
-                        <p className="whitespace-pre-line">
-                          {settings.businessHours}
-                        </p>
-                      </div>
-                    </li>
-                  )}
-                </ul>
-              </div>
+                <li className="contact-item">
+                  <div className="contact-icon-box" aria-hidden="true">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <span className="contact-item-label">Location</span>
+                    <address className="not-italic contact-item-value text-muted-foreground">
+                      {contactAddress}
+                    </address>
+                  </div>
+                </li>
 
-              {}
+                {settings?.businessHours && (
+                  <li className="contact-item">
+                    <div className="contact-icon-box" aria-hidden="true">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <span className="contact-item-label">Office Hours</span>
+                      <p className="contact-item-value whitespace-pre-line text-muted-foreground">
+                        {settings.businessHours}
+                      </p>
+                    </div>
+                  </li>
+                )}
+              </ul>
+
               {socialLinks.length > 0 && (
-                <div>
-                  <h2 className="text-xl font-semibold mb-4">Follow Us</h2>
-                  <ul className="space-y-3">
-                    {socialLinks.map(([platform, url]) => {
-                      const Icon =
-                        SOCIAL_ICONS[platform as keyof typeof SOCIAL_ICONS] ??
-                        Globe;
-                      return (
-                        <li key={platform}>
+                <>
+                  <div className="contact-divider" aria-hidden="true" />
+                  <div>
+                    <span className="sk-eyebrow mb-3 block">Connect With Us</span>
+                    <div className="contact-social-grid">
+                      {socialLinks.map(([platform, url]) => {
+                        const Icon =
+                          SOCIAL_ICONS[platform as keyof typeof SOCIAL_ICONS] ??
+                          Globe;
+                        return (
                           <Link
+                            key={platform}
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-3 text-sm hover:text-foreground text-muted-foreground transition-colors group"
+                            className="contact-social-pill"
                             aria-label={`Follow us on ${SOCIAL_LABELS[platform] ?? platform}`}
                           >
-                            <Icon className="h-5 w-5 shrink-0 group-hover:text-foreground" />
+                            <Icon className="h-4 w-4" />
                             <span>{SOCIAL_LABELS[platform] ?? platform}</span>
                           </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
               )}
-            </div>
+            </aside>
 
-            {}
-            <div className="lg:col-span-3">
+            {/* Form Sheet */}
+            <section aria-labelledby="contact-form-title">
               <ContactForm />
-            </div>
+            </section>
           </div>
-        </section>
 
-        {}
-        {settings?.googleMapsUrl && (
-          <section className="border-t">
-            <div className="container mx-auto px-4 py-16">
-              <h2 className="text-xl font-semibold mb-6">Find Us</h2>
-              <div className="overflow-hidden rounded-xl border">
+          {/* Google Maps Section */}
+          {settings?.googleMapsUrl && (
+            <section className="contact-map-section">
+              <div className="mb-4">
+                <span className="sk-eyebrow mb-1 block">Our Location</span>
+                <h2 className="font-display font-bold text-2xl tracking-tight">
+                  Find us on the map
+                </h2>
+              </div>
+              <div className="contact-map-frame">
                 <iframe
                   src={settings.googleMapsUrl}
                   width="100%"
@@ -255,9 +271,9 @@ export default async function ContactPage() {
                   aria-label="Google Maps showing our location"
                 />
               </div>
-            </div>
-          </section>
-        )}
+            </section>
+          )}
+        </div>
       </main>
 
       <Footer />

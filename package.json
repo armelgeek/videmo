@@ -11,6 +11,7 @@
     "postinstall": "prisma generate",
     "setup:admin": "tsx scripts/create-admin.ts",
     "seed:plans": "tsx scripts/seed-plans.ts",
+    "seed:blogs": "tsx scripts/seed-blogs.ts",
     "setup:stripe-plans": "tsx scripts/setup-stripe-plans.ts",
     "check:subscriptions": "tsx scripts/check-subscriptions.ts",
     "check:organizations": "tsx scripts/check-organizations.ts",
