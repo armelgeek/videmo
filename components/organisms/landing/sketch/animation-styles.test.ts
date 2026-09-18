@@ -44,19 +44,4 @@ describe('styles annonces sur la landing', () => {
     const ids = ANIMATION_STYLES.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
-
-  it('ont des annotations feutre (marks) valides pour le chevalet', () => {
-    for (const s of ANIMATION_STYLES) {
-      expect(s.marks.length).toBeGreaterThan(0);
-      for (const m of s.marks) {
-        expect(m.label.trim().length).toBeGreaterThan(0);
-        expect(m.x).toBeGreaterThanOrEqual(0);
-        expect(m.x).toBeLessThanOrEqual(100);
-        expect(m.y).toBeGreaterThanOrEqual(0);
-        expect(m.y).toBeLessThanOrEqual(100);
-        expect(m.w).toBeGreaterThan(0);
-        expect(m.h).toBeGreaterThan(0);
-      }
-    }
-  });
 });

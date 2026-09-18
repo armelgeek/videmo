@@ -8,8 +8,7 @@ import { HowItWorks } from "./how-it-works";
 import { Capture } from "./capture";
 import { HandArrow } from "./hand-arrow";
 import { appConfig } from "@/lib/config";
-import { SavingsCalculator } from "./savings-calculator";
-import { PLANS } from "./pricing";
+import { PricingPlans } from "./pricing-plans";
 import { AnimationStylesShowcase } from "./animation-styles";
 import { VideoGallerySection } from "./video-gallery";
 import { Capabilities } from "./capabilities";
@@ -119,12 +118,12 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
         <section className="sk-wrap hero">
           <div className="hero-copy">
             <h1>
-              Text gets ignored.
+              Your script.
               <br />
-              <span className="sk-hl">Hand-drawn videos get remembered.</span>
+              <span className="sk-hl">Drawn by hand, in 60 seconds.</span>
             </h1>
             <p className="hero-lede">
-              Paste your text: {appConfig.name} turns it into a hand-drawn video that hooks attention from the first stroke. Voiceover included, ready in 60 seconds.
+              Paste your text: {appConfig.name} turns it into a hand-drawn video that hooks attention from the first stroke. Voiceover included.
             </p>
             <HeroPrompt />
             <p className="sk-note hero-try">Type 2 lines above. Watch the hand do the rest ↑</p>
@@ -254,44 +253,13 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
 
         <Rule />
 
-        <section id="savings" className="sk-section sk-wrap">
-          <SectionHead
-            eyebrow="Do the math"
-            title={<>How much do your videos <span className="sk-hl">cost you today?</span></>}
-            lede="Plug in your own numbers and compare them with a flat subscription. Nothing is sent anywhere."
-          />
-          <SavingsCalculator />
-        </section>
-
-        <Rule />
-
         <section id="pricing" className="sk-section sk-wrap">
           <SectionHead
-            eyebrow="Monthly pricing"
-            title={<>A full year costs less than <span className="sk-hl">one outsourced video.</span></>}
+            eyebrow="Pricing"
+            title={<>Start free. <span className="sk-hl">Upgrade when you publish more.</span></>}
+            lede="Every plan comes with monthly credits for scripts, storyboards, images and voiceover. No commitment, cancel anytime."
           />
-          <div className="plans">
-            {PLANS.map((p) => (
-              <div key={p.name} className={`plan ${p.pick ? "is-pick" : ""}`}>
-                {p.pick && <span className="shot-tape" aria-hidden="true" />}
-                {p.pick && <span className="plan-flag sk-hand">best for teams</span>}
-                <h3>{p.name}</h3>
-                <p className="plan-price">
-                  <span className="sk-display">${p.monthly}</span>
-                  <span className="plan-per">/ month</span>
-                </p>
-                <p className="plan-note">{p.note}</p>
-                <ul className="plan-items">
-                  {p.items.map((it) => (
-                    <li key={it}><span className="sk-hand" aria-hidden="true">✓</span>{it}</li>
-                  ))}
-                </ul>
-                <Link href={p.name === "Enterprise" ? "/contact" : "/signup"} className={`sk-btn ${p.pick ? "sk-btn-main" : ""}`} style={{ justifyContent: "center" }}>
-                  {p.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
+          <PricingPlans />
         </section>
 
         <Rule />
