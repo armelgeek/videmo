@@ -25,6 +25,7 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
   const [showTwoFactor, setShowTwoFactor] = useState(false)
   const [totpCode, setTotpCode] = useState("")
   const [trustDevice, setTrustDevice] = useState(false)
+  const [useBackupCode, setUseBackupCode] = useState(false)
   const [email, setEmail] = useState("")
   const [otp, setOtp] = useState("")
   const [lastResendTime, setLastResendTime] = useState(0)
@@ -132,7 +133,10 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
     e.preventDefault()
     setIsLoading(true)
     try {
-      const { error } = await (authClient as any).twoFactor.verifyTotp({ code: totpCode, trustDevice })
+      const twoFactor = (authClient as any).twoFactor
+      const { error } = useBackupCode
+        ? await twoFactor.verifyBackupCode({ code: totpCode.trim(), trustDevice })
+        : await twoFactor.verifyTotp({ code: totpCode, trustDevice })
       if (error) {
         toast.error(error.message || "Invalid authentication code")
         setIsLoading(false)
@@ -150,19 +154,24 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
     return (
       <form onSubmit={handleTwoFactorVerification} className="auth-form">
         <h2>Two-step check</h2>
-        <p className="auth-hint">Enter the 6-digit code from your authenticator app.</p>
+        <p className="auth-hint">
+          {useBackupCode
+            ? "Enter one of the recovery codes you saved when you turned on two-step login."
+            : "Enter the 6-digit code from your authenticator app."}
+        </p>
         <input
+          key={useBackupCode ? "backup" : "totp"}
           id="totp-login"
-          aria-label="Authentication code"
+          aria-label={useBackupCode ? "Recovery code" : "Authentication code"}
           type="text"
-          inputMode="numeric"
-          placeholder="000000"
-          maxLength={6}
+          inputMode={useBackupCode ? "text" : "numeric"}
+          placeholder={useBackupCode ? "XXXXX-XXXXX" : "000000"}
+          maxLength={useBackupCode ? 32 : 6}
           value={totpCode}
-          onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+          onChange={(e) => setTotpCode(useBackupCode ? e.target.value : e.target.value.replace(/\D/g, ""))}
           required
           disabled={isLoading}
-          autoComplete="one-time-code"
+          autoComplete={useBackupCode ? "off" : "one-time-code"}
           className="auth-input is-code"
           autoFocus
         />
@@ -176,13 +185,21 @@ export function LoginForm({ redirectTo, isOtpFlow }: { redirectTo?: string; isOt
           Trust this device for 30 days
         </label>
         <div className="auth-actions">
-          <button type="submit" disabled={isLoading || totpCode.length !== 6} className="sk-btn sk-btn-main">
+          <button type="submit" disabled={isLoading || (useBackupCode ? totpCode.trim().length === 0 : totpCode.length !== 6)} className="sk-btn sk-btn-main">
             {isLoading ? "Verifying…" : "Verify →"}
           </button>
-          <button type="button" className="sk-btn" disabled={isLoading} onClick={() => { setShowTwoFactor(false); setTotpCode("") }}>
+          <button type="button" className="sk-btn" disabled={isLoading} onClick={() => { setShowTwoFactor(false); setUseBackupCode(false); setTotpCode("") }}>
             Back
           </button>
         </div>
+        <button
+          type="button"
+          className="auth-link"
+          disabled={isLoading}
+          onClick={() => { setUseBackupCode((v) => !v); setTotpCode("") }}
+        >
+          {useBackupCode ? "Use your authenticator app instead" : "Lost your device? Use a recovery code"}
+        </button>
       </form>
     )
   }
