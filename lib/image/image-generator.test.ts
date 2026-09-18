@@ -10,7 +10,7 @@ import {
   readOpenAiImageConfig,
 } from "./openai-image-generator";
 
-const config = { apiKey: "sk-test", model: "gpt-image-1" };
+const config = { apiKey: "sk-test", model: "gpt-image-1", quality: "medium" };
 
 /** Un fetch qui repond ce qu'on lui dit et retient ce qu'il a recu. */
 function stubFetch(response: {
@@ -58,6 +58,13 @@ describe("readOpenAiImageConfig", () => {
         .model,
     ).toBe("autre");
   });
+
+  it("fixe la qualite a medium par defaut pour ne pas payer high en silence", () => {
+    expect(readOpenAiImageConfig({ OPENAI_API_KEY: "k" }).quality).toBe("medium");
+    expect(
+      readOpenAiImageConfig({ OPENAI_API_KEY: "k", OPENAI_IMAGE_QUALITY: "low" }).quality,
+    ).toBe("low");
+  });
 });
 
 describe("OpenAiImageGenerator", () => {
@@ -83,6 +90,7 @@ describe("OpenAiImageGenerator", () => {
       model: "gpt-image-1",
       prompt: "un grain",
       size: "1024x1024",
+      quality: "medium",
     });
   });
 

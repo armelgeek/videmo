@@ -29,7 +29,7 @@ export const PricingSection = async ({ isLoggedIn }: PricingSectionProps) => {
             Choose Your Plan
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Start free with 50 credits a month. Upgrade when your team needs more.
+            Start free with enough credits for your first video. Upgrade when your team needs more.
           </p>
         </div>
 

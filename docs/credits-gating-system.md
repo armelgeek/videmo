@@ -661,7 +661,7 @@ The existing pricing card component evolves:
 - Free plan: "Get Started" button (no Stripe checkout)
 - Quotas displayed structurally (not simple strings)
 - Badge: "Current Plan" on user's active plan
-- Credit badge: "50 credits/month", "200 credits/month", etc.
+- Credit badge: "100 credits/month", "600 credits/month", etc.
 - Features grouped by category (AI, Export, Collaboration, Support)
 
 ### 3.6 Billing Dashboard Page
@@ -795,7 +795,7 @@ export async function handleSubscriptionDeleted(subscription: Stripe.Subscriptio
     // Plan credits expire immediately
     await creditService.resetMonthlyCredits(dbSub.userId);
     
-    // Re-grant Free plan quota (50 credits)
+    // Re-grant Free plan quota (100 credits)
     const freePlan = await prisma.plan.findFirst({
       where: { tier: "free" },
       include: { quotas: true },

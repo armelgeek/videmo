@@ -8,11 +8,10 @@ const PLAN_CTA = {
   free: "Start free",
   starter: "Get started",
   pro: "Choose Pro",
-  enterprise: "Talk to us",
+  enterprise: "Choose Enterprise",
 } as const;
 
 const planHref = (tier: string, interval: BillingInterval) => {
-  if (tier === "enterprise") return "/contact";
   if (tier === "free") return "/signup";
   const target = `/billing?interval=${interval === "year" ? "yearly" : "monthly"}#plans`;
   return `/signup?redirect=${encodeURIComponent(target)}`;

@@ -17,6 +17,7 @@ const responseSchema = z.object({
 export interface OpenAiImageConfig {
   apiKey: string;
   model: string;
+  quality: string;
 }
 
 export function readOpenAiImageConfig(
@@ -28,6 +29,8 @@ export function readOpenAiImageConfig(
   return {
     apiKey: env.OPENAI_API_KEY,
     model: env.OPENAI_IMAGE_MODEL?.trim() || "gpt-image-1",
+    // Left unset, the API picks "auto", which can bill "high" (~4x "medium") and put plans at a loss.
+    quality: env.OPENAI_IMAGE_QUALITY?.trim() || "medium",
   };
 }
 
@@ -70,6 +73,7 @@ export class OpenAiImageGenerator implements ImageGenerator {
         prompt: input.prompt,
         n: 1,
         size: input.size,
+        quality: this.config.quality,
       }),
     });
   }
@@ -85,6 +89,7 @@ export class OpenAiImageGenerator implements ImageGenerator {
     form.append("model", this.config.model);
     form.append("prompt", input.prompt);
     form.append("size", input.size);
+    form.append("quality", this.config.quality);
     form.append("n", "1");
     form.append(
       "image",

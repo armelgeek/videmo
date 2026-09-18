@@ -42,8 +42,10 @@ async function setupStripePlans() {
         const existing = existingRows[index];
         const placeholder = placeholderPriceId(definition.tier, interval);
 
-        // Re-running must not create duplicate Stripe prices.
-        if (isRealStripeId(existing?.stripePriceId, placeholder)) {
+        // Re-running must not create duplicate Stripe prices. Stripe prices are immutable, so a new
+        // amount needs a new price; current subscribers keep the old one until they change plan.
+        const amountUnchanged = existing?.amount === definition.prices[interval];
+        if (isRealStripeId(existing?.stripePriceId, placeholder) && amountUnchanged) {
           console.log(`⏭️  ${definition.name} (${interval}) already linked: ${existing?.stripePriceId}`);
           await upsertTierPlan(db, definition, interval);
           continue;
@@ -57,6 +59,10 @@ async function setupStripePlans() {
           });
           productId = product.id;
           console.log(`📦 Product created for ${definition.name}: ${product.id}`);
+        }
+
+        if (isRealStripeId(existing?.stripePriceId, placeholder)) {
+          console.log(`🔁 ${definition.name} (${interval}) amount changed: ${existing?.amount} → ${definition.prices[interval]}`);
         }
 
         const price = await stripe.prices.create({

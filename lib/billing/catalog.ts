@@ -24,6 +24,18 @@ export type Tier = (typeof TIERS)[number];
 export type BillingInterval = "month" | "year";
 
 export const UNLIMITED = -1;
+
+// Credit costs are set so that one minute of video (~6 scenes of 10 s) spends about this much.
+export const CREDITS_PER_VIDEO_MINUTE = 100;
+
+export function videoMinutesFor(credits: number): number {
+  return Math.floor(credits / CREDITS_PER_VIDEO_MINUTE);
+}
+
+function creditsLine(credits: number): string {
+  const minutes = videoMinutesFor(credits);
+  return `${credits.toLocaleString("en-US")} credits / month (~${minutes} one-minute video${minutes === 1 ? "" : "s"})`;
+}
 export const FREE_PRICE_ID = "free_forever";
 
 export interface TierDefinition {
@@ -45,17 +57,17 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
     prices: { month: 0 },
     isPopular: false,
     displayFeatures: [
-      "50 credits / month",
+      creditsLine(100),
       "1 organization",
       "3 projects",
       "720p export",
       "Watermarked videos",
     ],
     quotas: {
-      monthly_credits: 50,
+      monthly_credits: 100,
       max_organizations: 1,
       max_projects: 3,
-      max_video_duration_sec: 60,
+      max_video_duration_sec: 90,
       max_export_resolution: 720,
       max_org_members: 1,
       max_storage_gb: 1,
@@ -72,17 +84,17 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
     tier: "starter",
     name: "Starter",
     description: "Perfect for individuals and small projects",
-    prices: { month: 999, year: 9999 },
+    prices: { month: 1200, year: 12000 },
     isPopular: false,
     displayFeatures: [
-      "200 credits / month",
+      creditsLine(600),
       "1 organization",
       "20 projects",
       "1080p export",
       "5 min videos",
     ],
     quotas: {
-      monthly_credits: 200,
+      monthly_credits: 600,
       max_organizations: 1,
       max_projects: 20,
       max_video_duration_sec: 300,
@@ -102,10 +114,10 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
     tier: "pro",
     name: "Pro",
     description: "For creators and growing teams",
-    prices: { month: 2999, year: 29999 },
+    prices: { month: 3900, year: 39000 },
     isPopular: true,
     displayFeatures: [
-      "1,000 credits / month",
+      creditsLine(2500),
       "Up to 3 organizations",
       "Unlimited projects",
       "No watermark",
@@ -115,7 +127,7 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
       "Priority support",
     ],
     quotas: {
-      monthly_credits: 1000,
+      monthly_credits: 2500,
       max_organizations: 3,
       max_projects: UNLIMITED,
       max_video_duration_sec: 600,
@@ -135,10 +147,10 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
     tier: "enterprise",
     name: "Enterprise",
     description: "For large organizations with advanced needs",
-    prices: { month: 9999, year: 99999 },
+    prices: { month: 9900, year: 99000 },
     isPopular: false,
     displayFeatures: [
-      "5,000 credits / month",
+      creditsLine(7000),
       "Everything in Pro",
       "4K export",
       "30 min videos",
@@ -147,7 +159,7 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
       "Unlimited team members",
     ],
     quotas: {
-      monthly_credits: 5000,
+      monthly_credits: 7000,
       max_organizations: UNLIMITED,
       max_projects: UNLIMITED,
       max_video_duration_sec: 1800,
@@ -168,8 +180,8 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
 export const CREDIT_ACTION_COSTS = [
   { action: "generate_script", cost: 5, label: "AI script" },
   { action: "generate_storyboard", cost: 10, label: "AI storyboard" },
-  { action: "generate_image", cost: 8, label: "AI image" },
-  { action: "generate_narration", cost: 15, label: "AI narration" },
+  { action: "generate_image", cost: 12, label: "AI image" },
+  { action: "generate_narration", cost: 2, label: "AI narration" },
 ] as const;
 export type CreditAction = (typeof CREDIT_ACTION_COSTS)[number]["action"];
 
