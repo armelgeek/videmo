@@ -2,7 +2,7 @@
 
 import type * as React from "react";
 import { Suspense } from "react";
-import { AppSidebar, type SidebarView } from "./app-sidebar";
+import { AppSidebar, AppSidebarSkeleton, type SidebarView } from "./app-sidebar";
 import { cn } from "@/lib/utils";
 
 interface AppShellProps {
@@ -30,7 +30,7 @@ export function AppShell({
   return (
     <div className="sk-paper flex min-h-screen">
       {showSidebar && (
-        <Suspense fallback={<aside className="fixed bottom-0 left-0 top-0 z-50 w-64 border-r-2 border-ink bg-background" />}>
+        <Suspense fallback={<AppSidebarSkeleton />}>
           <AppSidebar
             activeView={activeView}
             isPanelOpen={isPanelOpen}

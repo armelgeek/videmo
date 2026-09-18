@@ -154,7 +154,7 @@ export const TimelineClipItem = memo(
               className={`absolute -left-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle ${isSelected ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"}`}
               onMouseDown={(e) => handleClipMouseDown(e, "trim-start")}
             >
-              <div className="w-1 h-6 bg-card rounded-full shadow-sm group-hover/handle:scale-110 transition-transform"></div>
+              <div className="w-1.5 h-6 bg-highlight border border-ink rounded-sm shadow-[1px_1px_0_hsl(var(--offset))] group-hover/handle:scale-125 transition-transform" />
             </div>
 
             <div
@@ -166,7 +166,7 @@ export const TimelineClipItem = memo(
               className={`absolute -right-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle ${isSelected ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"}`}
               onMouseDown={(e) => handleClipMouseDown(e, "trim-end")}
             >
-              <div className="w-1 h-6 bg-card rounded-full shadow-sm group-hover/handle:scale-110 transition-transform"></div>
+              <div className="w-1.5 h-6 bg-highlight border border-ink rounded-sm shadow-[1px_1px_0_hsl(var(--offset))] group-hover/handle:scale-125 transition-transform" />
             </div>
           </>
         )}

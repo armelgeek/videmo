@@ -26,7 +26,7 @@ import { selectSceneAnnotations } from '@/lib/unified-engine/hooks/selectors';
  *  saisissable, et le moteur ne tamponnerait rien de visible. */
 const MIN_REGION_PX = 24;
 
-const DEFAULT_STROKE = '#2563eb';
+const DEFAULT_STROKE = '#18181b';
 
 export interface AnnotationOverlayProps {
   /** Largeur du repere canvas — celle des <canvas> empiles dessous. */
@@ -232,13 +232,18 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
                     listening={false}
                     opacity={isSelected ? 1 : 0.9}
                   >
-                    <Tag fill={stroke} cornerRadius={3 / scale} />
+                    <Tag
+                      fill={isSelected ? '#ffde59' : '#ffffff'}
+                      stroke="#18181b"
+                      strokeWidth={1.5 / scale}
+                      cornerRadius={3 / scale}
+                    />
                     <Text
                       text={isSelected && annot.text ? `${i + 1}. ${annot.text}` : `${i + 1}`}
-                      fontSize={14 / scale}
+                      fontSize={13 / scale}
                       fontStyle="bold"
-                      fontFamily="Geist, sans-serif"
-                      fill="#ffffff"
+                      fontFamily="sans-serif"
+                      fill="#18181b"
                       padding={4 / scale}
                     />
                   </Label>
@@ -254,13 +259,14 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
               // PAS divise par `scale` : le Transformer annule lui-meme
               // l'echelle du Layer pour se caler sur la position absolue de sa
               // cible, donc ces tailles sont deja en pixels ECRAN.
-              anchorSize={8}
+              anchorSize={9}
               anchorCornerRadius={2}
-              anchorStrokeWidth={1}
-              borderStrokeWidth={1}
-              borderStroke={DEFAULT_STROKE}
-              anchorStroke={DEFAULT_STROKE}
-              anchorFill="#ffffff"
+              anchorStrokeWidth={1.5}
+              borderStrokeWidth={1.5}
+              borderStroke="#18181b"
+              borderDash={[4, 4]}
+              anchorStroke="#18181b"
+              anchorFill="#ffde59"
               // Les bornes sont en coordonnees ABSOLUES du Stage, donc a
               // l'echelle de l'affichage — d'ou le facteur.
               boundBoxFunc={(oldBox, newBox) => {

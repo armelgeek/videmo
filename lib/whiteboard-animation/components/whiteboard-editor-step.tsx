@@ -763,39 +763,53 @@ export function WhiteboardEditorStep({
         {/* Canvas Container */}
         {/* Le canevas prend toute la hauteur laissee par la timeline, au format
             du projet : sa taille se deduit de la place, pas d'une hauteur figee. */}
-        <div className="flex shrink-0 justify-center">
-          <div
-            role="tablist"
-            aria-label="Editor mode"
-            className="grid grid-cols-2 gap-1.5 rounded-xl border-2 border-border bg-card p-1.5"
-          >
-            {(
-              [
-                { key: "edit", label: "Edit", Icon: Pencil, hint: "place and resize the zones on the full image" },
-                { key: "preview", label: "Preview", Icon: Play, hint: "watch the hand draw it with the voice" },
-              ] as const
-            ).map(({ key, label, Icon, hint }) => (
-              <Hint key={key} label={hint} side="bottom">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mode === key}
-                onClick={() => switchMode(key)}
-                className={`flex h-8 items-center justify-center gap-2 rounded-lg border-2 px-5 text-sm font-semibold transition-colors ${
-                  mode === key
-                    ? "border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
-              </Hint>
-            ))}
-          </div>
-        </div>
+        <div className="relative flex-1 min-h-0 rounded-xl border-2 border-ink bg-card shadow-[6px_6px_0_hsl(var(--offset))] flex flex-col overflow-hidden">
+          <span className="sk-tape" aria-hidden="true" />
+          <div className="flex shrink-0 items-center justify-between border-b-2 border-ink bg-muted/20 px-4 py-2">
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-ink bg-highlight px-2 py-0.5 text-[10px] font-bold tabular-nums text-highlight-foreground shadow-[1px_1px_0_hsl(var(--offset))]">
+                {activeClipIndex + 1}
+              </span>
+              <span className="text-xs font-bold text-foreground">
+                {activePanel?.title || `Scene ${activeClipIndex + 1}`}
+              </span>
+            </div>
 
-        <div className="flex-1 min-h-0 rounded-lg border border-border bg-muted/30 p-4">
+            <div
+              role="tablist"
+              aria-label="Editor mode"
+              className="flex items-center gap-1 rounded-full border-2 border-ink bg-card p-1 shadow-[2px_2px_0_hsl(var(--offset))]"
+            >
+              {(
+                [
+                  { key: "edit", label: "Edit", Icon: Pencil, hint: "place and resize the zones on the full image" },
+                  { key: "preview", label: "Preview", Icon: Play, hint: "watch the hand draw it with the voice" },
+                ] as const
+              ).map(({ key, label, Icon, hint }) => (
+                <Hint key={key} label={hint} side="bottom">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === key}
+                  onClick={() => switchMode(key)}
+                  className={`flex h-8 items-center justify-center gap-2 rounded-full border-2 px-5 text-xs font-semibold transition-all ${
+                    mode === key
+                      ? "border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] font-bold"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {label}
+                </button>
+                </Hint>
+              ))}
+            </div>
+
+            <span className="sk-scribble text-base text-foreground/80 rotate-2 select-none" aria-hidden="true">
+              {String(activeClipIndex + 1).padStart(2, "0")} / {String(storyboardPanels.length || 1).padStart(2, "0")}
+            </span>
+          </div>
+          <div className="flex-1 min-h-0 p-4 flex flex-col justify-center items-center">
           <div className="h-full w-full flex items-center justify-center [container-type:size]">
             <div
               className="rounded-md bg-white overflow-hidden relative shadow-sm ring-1 ring-border"
@@ -853,13 +867,15 @@ export function WhiteboardEditorStep({
               />
             </div>
           </div>
+          </div>
         </div>
 
         {/* Annotation timeline, with the narration lane below it. The playhead
             is drawn by the timeline itself, so the lane has to borrow the same
             scale and scroll offset to stay under it. */}
         {/* Hidden, not unmounted: the timeline owns the playhead viewport the renderer relies on. */}
-        <div className={`shrink-0 rounded-lg border border-border bg-card overflow-hidden ${mode === "edit" ? "hidden" : ""}`}>
+        <div className={`relative shrink-0 rounded-xl border-2 border-ink bg-card shadow-[6px_6px_0_hsl(var(--offset))] overflow-hidden ${mode === "edit" ? "hidden" : ""}`}>
+          <span className="sk-tape" aria-hidden="true" />
           <ScriptSegmentsCard
             sceneStartMs={
               panelBoundaries.find((b) => b.panelIdx === activeClipIndex)
@@ -883,37 +899,39 @@ export function WhiteboardEditorStep({
       {/* Right: reglages, puis la sequence d'annotations. C'est cette liste qui
           justifie le rail : elle a besoin de toute la hauteur disponible, la ou
           deux controles seuls ne la remplissaient pas. */}
-      <div className="w-80 shrink-0 min-h-0 flex flex-col overflow-hidden rounded-lg border border-border bg-card">
-        <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-3">
-          <span className="rounded bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+      <div className="w-80 shrink-0 min-h-0 flex flex-col overflow-hidden rounded-xl border-2 border-ink bg-card shadow-[4px_4px_0_hsl(var(--offset))]">
+        <header className="flex h-11 shrink-0 items-center gap-2 border-b-2 border-ink px-3 bg-muted/20">
+          <span className="rounded-full border border-ink bg-highlight px-2 py-0.5 text-[10px] font-bold tabular-nums text-highlight-foreground shadow-[1px_1px_0_hsl(var(--offset))]">
             {activeClipIndex + 1}
           </span>
-          <span className="truncate text-xs font-semibold text-foreground">
+          <span className="truncate text-xs font-bold text-foreground">
             {activePanel?.title || `Scene ${activeClipIndex + 1}`}
           </span>
         </header>
-        <div
-          role="tablist"
-          aria-label="Side panel"
-          className="m-2 grid shrink-0 grid-cols-2 gap-1 rounded-md bg-muted/60 p-1"
-        >
-          {(["scene", "annotations"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              role="tab"
-              aria-selected={sideTab === tab}
-              onClick={() => setSideTab(tab)}
-              className={`flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-colors ${
-                sideTab === tab
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {tab === "scene" ? "Scene" : "Annotations"}
-              {tab === "annotations" && <AnnotationCountBadge />}
-            </button>
-          ))}
+        <div className="m-2 flex shrink-0 justify-center">
+          <div
+            role="tablist"
+            aria-label="Side panel"
+            className="flex items-center gap-1 rounded-full border-2 border-ink bg-card p-1 shadow-[2px_2px_0_hsl(var(--offset))]"
+          >
+            {(["scene", "annotations"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                role="tab"
+                aria-selected={sideTab === tab}
+                onClick={() => setSideTab(tab)}
+                className={`flex h-8 items-center justify-center gap-1.5 rounded-full border-2 px-5 text-xs font-semibold transition-all ${
+                  sideTab === tab
+                    ? "border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] font-bold"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab === "scene" ? "Scene" : "Annotations"}
+                {tab === "annotations" && <AnnotationCountBadge />}
+              </button>
+            ))}
+          </div>
         </div>
 
         {sideTab === "scene" ? (

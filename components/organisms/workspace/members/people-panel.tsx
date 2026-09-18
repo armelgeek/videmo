@@ -1,9 +1,23 @@
 "use client";
 
-import { UserMinus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Crown, Loader2, Search, Shield, User, UserMinus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Hint } from "@/components/molecules/hint";
 import { IconButton } from "./icon-button";
-import { Member, PANEL, Role } from "./types";
+import { Member, PANEL, Role, ROLE_HINTS } from "./types";
 
 interface PeoplePanelProps {
   members: Member[] | null | undefined;
@@ -18,6 +32,12 @@ interface PeoplePanelProps {
   className?: string;
 }
 
+const ROLE_ICONS: Record<Role, React.ComponentType<{ className?: string }>> = {
+  owner: Crown,
+  admin: Shield,
+  member: User,
+};
+
 export function PeoplePanel({
   members,
   currentUserId,
@@ -30,108 +50,202 @@ export function PeoplePanel({
   onRemoveMember,
   className,
 }: PeoplePanelProps) {
-  const memberCount = members?.length ?? 0;
+  const [search, setSearch] = useState("");
+
+  const filteredMembers = useMemo(() => {
+    if (!members) return [];
+    const query = search.trim().toLowerCase();
+    if (!query) return members;
+
+    return members.filter((member) => {
+      const name = (member.user.name ?? "").toLowerCase();
+      const email = member.user.email.toLowerCase();
+      return name.includes(query) || email.includes(query);
+    });
+  }, [members, search]);
+
+  const totalCount = members?.length ?? 0;
 
   return (
     <section className={cn(PANEL, "p-0 overflow-hidden", className)}>
-      <div className="flex items-center justify-between border-b border-border px-6 py-4">
-        <h2 className="text-sm font-semibold text-foreground">People</h2>
-        <span className="text-xs text-muted-foreground font-medium">
-          {memberCount} {memberCount === 1 ? "member" : "members"}
-        </span>
+      {/* Header with Title, Count and Search */}
+      <div className="flex flex-col gap-3 border-b border-border px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold text-foreground">People</h2>
+          <Badge variant="outline" className="text-xs font-medium">
+            {totalCount} {totalCount === 1 ? "member" : "members"}
+          </Badge>
+        </div>
+
+        {totalCount > 0 && (
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search members…"
+              className="h-8 pl-8 pr-8 text-xs"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* Loading Skeletons */}
       {!members ? (
         <ul className="divide-y divide-border" aria-busy="true">
           {[0, 1, 2].map((i) => (
-            <li key={i} className="flex items-center gap-3 px-6 py-4">
-              <div className="h-9 w-9 rounded-full bg-card motion-safe:animate-pulse" />
+            <li key={i} className="flex items-center gap-4 px-6 py-4">
+              <Skeleton className="size-10 rounded-full" />
               <div className="flex-1 space-y-2">
-                <div className="h-3 w-1/3 rounded bg-accent motion-safe:animate-pulse" />
-                <div className="h-3 w-1/2 rounded bg-card motion-safe:animate-pulse" />
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-3 w-1/2" />
               </div>
+              <Skeleton className="h-8 w-24 rounded-lg" />
             </li>
           ))}
         </ul>
+      ) : filteredMembers.length === 0 ? (
+        /* Empty Search State */
+        <div className="flex flex-col items-center justify-center p-12 text-center">
+          <div className="flex size-10 items-center justify-center rounded-full border border-border bg-muted/40 text-muted-foreground">
+            <Search className="size-5" />
+          </div>
+          <p className="mt-3 text-sm font-semibold text-foreground">No members found</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            No member matched &ldquo;{search}&rdquo;. Try another search term.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setSearch("")}
+            className="mt-4"
+          >
+            Clear search
+          </Button>
+        </div>
       ) : (
+        /* Members List */
         <ul className="divide-y divide-border">
-          {members.map((member) => {
+          {filteredMembers.map((member) => {
             const isMe = member.userId === currentUserId;
             const isLastOwner = member.role === "owner" && ownerCount === 1;
             const canEditRole =
               canManage && !isMe && (member.role !== "owner" || myRole === "owner") && !isLastOwner;
             const displayName = member.user.name || member.user.email;
+            const initials = (displayName[0] || "?").toUpperCase();
+            const isBusy = busyId === member.id;
+            const RoleIcon = ROLE_ICONS[member.role] ?? User;
 
             return (
               <li
                 key={member.id}
-                className="flex flex-wrap items-center gap-3 px-6 py-4 transition-colors hover:bg-muted/10"
-              >
-                {member.user.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- user avatar URL
-                  <img
-                    src={member.user.image}
-                    alt=""
-                    className="h-9 w-9 shrink-0 rounded-full border border-border object-cover"
-                  />
-                ) : (
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-accent text-sm font-semibold text-foreground">
-                    {displayName[0]?.toUpperCase()}
-                  </span>
+                className={cn(
+                  "flex flex-wrap items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/10",
+                  isBusy && "opacity-60 pointer-events-none",
                 )}
+              >
+                {/* Avatar with initials fallback */}
+                <Avatar className="size-10 border border-border shadow-xs">
+                  {member.user.image && (
+                    <AvatarImage src={member.user.image} alt={displayName} />
+                  )}
+                  <AvatarFallback className="bg-accent font-semibold text-foreground">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
 
+                {/* Member Identity & Email */}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
                     {isMe && (
-                      <span className="rounded border border-border bg-muted/60 px-1.5 py-0.2 text-[10px] font-semibold text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="border-highlight/50 bg-highlight/10 px-1.5 py-0 text-[10px] font-semibold text-highlight-foreground"
+                      >
                         You
-                      </span>
+                      </Badge>
+                    )}
+                    {member.role === "owner" && (
+                      <Hint label={ROLE_HINTS.owner}>
+                        <span className="inline-flex text-highlight">
+                          <Crown className="size-3.5 fill-highlight/20" />
+                        </span>
+                      </Hint>
                     )}
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{member.user.email}</p>
                 </div>
 
-                {canEditRole ? (
-                  <label>
-                    <span className="sr-only">Role for {displayName}</span>
-                    <select
+                {/* Role Selector or Badge */}
+                <div className="flex items-center gap-2">
+                  {canEditRole ? (
+                    <Select
                       value={member.role}
-                      disabled={busyId === member.id}
-                      onChange={(event) => onUpdateRole(member, event.target.value as Role)}
-                      className="h-8 rounded-lg border-2 border-ink bg-card px-2 text-xs capitalize shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition focus-visible:shadow-[3px_3px_0_hsl(var(--highlight))] disabled:opacity-50"
+                      disabled={isBusy}
+                      onValueChange={(role) => onUpdateRole(member, role as Role)}
                     >
-                      {assignableRoles.map((role) => (
-                        <option key={role} value={role} className="bg-card capitalize">
-                          {role}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : (
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-0.5 text-xs capitalize",
-                      member.role === "owner"
-                        ? "border-2 border-ink bg-highlight font-bold text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]"
-                        : member.role === "admin"
-                        ? "border border-border bg-muted/60 font-semibold text-foreground"
-                        : "border border-border/60 bg-card text-muted-foreground font-medium",
-                    )}
-                  >
-                    {member.role}
-                  </span>
-                )}
+                      <SelectTrigger size="sm" className="h-8 gap-2 capitalize">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent align="end">
+                        {assignableRoles.map((role) => {
+                          const Icon = ROLE_ICONS[role] ?? User;
+                          return (
+                            <SelectItem key={role} value={role} className="capitalize">
+                              <div className="flex items-center gap-2">
+                                <Icon className="size-3.5 text-muted-foreground" />
+                                <span>{role}</span>
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Hint label={ROLE_HINTS[member.role]}>
+                      <Badge
+                        variant={
+                          member.role === "owner"
+                            ? "secondary"
+                            : member.role === "admin"
+                            ? "default"
+                            : "outline"
+                        }
+                        className="gap-1 capitalize cursor-help"
+                      >
+                        <RoleIcon className="size-3" />
+                        {member.role}
+                      </Badge>
+                    </Hint>
+                  )}
 
-                {canEditRole && (
-                  <IconButton
-                    label={`Remove ${displayName}`}
-                    disabled={busyId === member.id}
-                    onClick={() => onRemoveMember(member)}
-                  >
-                    <UserMinus className="h-4 w-4" />
-                  </IconButton>
-                )}
+                  {/* Remove action */}
+                  {canEditRole && (
+                    <IconButton
+                      label={`Remove ${displayName}`}
+                      disabled={isBusy}
+                      onClick={() => onRemoveMember(member)}
+                    >
+                      {isBusy ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <UserMinus className="size-4" />
+                      )}
+                    </IconButton>
+                  )}
+                </div>
               </li>
             );
           })}

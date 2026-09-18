@@ -1211,14 +1211,14 @@ export default function StoryboardPage() {
           </div>
         )}
 
-        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm">
+        <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b-2 border-ink">
           <div className="grid h-16 grid-cols-[1fr_auto_1fr] items-center gap-4 px-5">
             <div className="flex min-w-0 items-center gap-1">
               <Hint label="back to all your projects, changes are saved" side="bottom">
                 <Link
                   href="/workspace"
                   aria-label="Back to projects"
-                  className="mr-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border-2 border-border px-2.5 text-xs font-semibold text-foreground transition-colors hover:border-ink hover:bg-accent"
+                  className="mr-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border-2 border-ink bg-card px-2.5 text-xs font-bold text-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-all hover:bg-accent hover:-translate-x-px hover:-translate-y-px"
                 >
                   <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
                   <span className="hidden md:inline">Projects</span>
@@ -1264,7 +1264,7 @@ export default function StoryboardPage() {
                     <button
                       type="button"
                       aria-label="Project actions"
-                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-ink/40 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                     </button>
@@ -1286,11 +1286,12 @@ export default function StoryboardPage() {
               </DropdownMenu>
             </div>
 
-            <nav aria-label="Project steps" className="flex items-center gap-1.5">
+            <nav aria-label="Project steps" className="flex items-center gap-1 rounded-full border-2 border-ink bg-card p-1 shadow-[2px_2px_0_hsl(var(--offset))]">
               {STEPS.map((s, i) => {
                 const isActive = i === currentStepIndex;
                 const isCompleted = i < currentStepIndex;
                 const canNavigate = canNavigateToStep(i);
+                const Icon = s.icon;
                 return (
                   <Fragment key={s.key}>
                     <Hint
@@ -1311,28 +1312,30 @@ export default function StoryboardPage() {
                       disabled={!canNavigate}
                       aria-current={isActive ? "step" : undefined}
                       className={cn(
-                        "flex items-center gap-2 rounded-full py-1.5 pl-1.5 pr-3.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40",
+                        "flex items-center gap-2 rounded-full py-1 pl-1.5 pr-3 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-40",
                         isActive
-                          ? "bg-ink font-semibold text-background"
-                          : "font-medium text-muted-foreground hover:bg-accent hover:text-foreground",
+                          ? "border-2 border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] font-bold"
+                          : isCompleted
+                            ? "border-2 border-transparent text-foreground hover:bg-muted/50"
+                            : "border-2 border-transparent text-muted-foreground hover:text-foreground",
                       )}
                     >
                       <span
                         aria-hidden="true"
                         className={cn(
-                          "grid h-6 w-6 place-items-center rounded-full text-[11px] font-bold",
-                          isActive && "bg-highlight text-highlight-foreground",
+                          "grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold",
+                          isActive && "border border-ink bg-card text-foreground",
                           isCompleted && "bg-[hsl(var(--success))] text-white",
-                          !isActive && !isCompleted && "border-[1.5px] border-current",
+                          !isActive && !isCompleted && "border border-current",
                         )}
                       >
-                        {isCompleted ? <Check className="h-3.5 w-3.5" /> : i + 1}
+                        {isCompleted ? <Check className="h-3 w-3" /> : <Icon className="h-3 w-3" />}
                       </span>
-                      <span className="hidden md:inline">{s.label}</span>
+                      <span className="hidden sm:inline">{s.label}</span>
                     </button>
                     </Hint>
                     {i < STEPS.length - 1 && (
-                      <ArrowRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+                      <ArrowRight aria-hidden="true" className="h-3 w-3 shrink-0 text-muted-foreground/40" />
                     )}
                   </Fragment>
                 );
@@ -1347,7 +1350,7 @@ export default function StoryboardPage() {
                       type="button"
                       onClick={() => setIsShortcutsOpen(true)}
                       aria-label="Keyboard shortcuts"
-                      className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      className="grid h-8 w-8 place-items-center rounded-lg border-2 border-ink bg-card shadow-[2px_2px_0_hsl(var(--offset))] text-muted-foreground transition-all hover:text-foreground hover:-translate-x-px hover:-translate-y-px"
                     >
                       <Keyboard className="h-4 w-4" />
                     </button>
@@ -1358,7 +1361,12 @@ export default function StoryboardPage() {
                     </SketchHint>
                   )}
                   <Hint label="turn it into an MP4 (⌘E)" side="bottom">
-                    <Button variant="secondary" size="sm" onClick={() => setIsExportModalOpen(true)}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setIsExportModalOpen(true)}
+                      className="border-2 border-ink shadow-[2px_2px_0_hsl(var(--offset))] font-bold"
+                    >
                       <Download className="h-4 w-4" />
                       Export
                     </Button>

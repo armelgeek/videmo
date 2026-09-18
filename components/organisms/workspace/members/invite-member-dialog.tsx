@@ -11,7 +11,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Role, ROLE_HINTS } from "./types";
 
 interface InviteMemberDialogProps {
@@ -76,33 +84,36 @@ export function InviteMemberDialog({
             <label htmlFor="invite-role" className="text-sm font-medium text-foreground">
               Role
             </label>
-            <select
-              id="invite-role"
+            <Select
               value={inviteRole}
-              onChange={(event) => setInviteRole(event.target.value as Role)}
-              className="h-10 rounded-lg border-2 border-ink bg-card px-3 text-sm capitalize shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition focus-visible:shadow-[3px_3px_0_hsl(var(--highlight))]"
+              onValueChange={(role) => setInviteRole(role as Role)}
             >
-              {assignableRoles.map((role) => (
-                <option key={role} value={role} className="bg-card capitalize">
-                  {role}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="invite-role" className="w-full capitalize">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {assignableRoles.map((role) => (
+                  <SelectItem key={role} value={role} className="capitalize">
+                    {role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <p className="text-xs text-muted-foreground">{ROLE_HINTS[inviteRole]}.</p>
           </div>
         </form>
 
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isInviting}>Cancel</AlertDialogCancel>
-          <button
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => handleSubmit()}
             disabled={isInviting || !email.trim()}
-            className="inline-flex items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 py-2 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
           >
-            {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+            {isInviting ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
             Send invite
-          </button>
+          </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

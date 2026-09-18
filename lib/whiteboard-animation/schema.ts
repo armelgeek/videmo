@@ -4,11 +4,11 @@ import { z } from 'zod';
 export const DEFAULT_ANIM_STYLE = 'chunkjump';
 
 export const ANNOTATION_PALETTE = [
-  { stroke: '#2563eb', fill: 'rgba(37, 99, 235, 0.12)' },
-  { stroke: '#ef4444', fill: 'rgba(239, 68, 68, 0.12)' },
-  { stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.12)' },
-  { stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.12)' },
-  { stroke: '#f97316', fill: 'rgba(249, 115, 22, 0.12)' },
+  { stroke: '#18181b', fill: 'rgba(24, 24, 27, 0.08)' },
+  { stroke: '#e11d48', fill: 'rgba(225, 29, 72, 0.08)' },
+  { stroke: '#059669', fill: 'rgba(5, 150, 105, 0.08)' },
+  { stroke: '#7c3aed', fill: 'rgba(124, 58, 237, 0.08)' },
+  { stroke: '#d97706', fill: 'rgba(217, 119, 6, 0.08)' },
 ] as const;
 
 /**

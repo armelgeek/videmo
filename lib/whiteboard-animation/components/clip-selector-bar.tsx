@@ -53,10 +53,10 @@ function ClipSelectorBarImpl() {
   if (!storyboardPanels || storyboardPanels.length === 0) return null;
 
   return (
-    <div className="w-60 shrink-0 h-full flex flex-col rounded-lg border border-border bg-muted/60 overflow-hidden">
-      <div className="flex h-10 shrink-0 items-center justify-between border-b border-border px-3">
-        <span className="text-xs font-semibold text-foreground">Scenes</span>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+    <div className="w-60 shrink-0 h-full flex flex-col rounded-xl border-2 border-ink bg-card shadow-[4px_4px_0_hsl(var(--offset))] overflow-hidden">
+      <div className="flex h-11 shrink-0 items-center justify-between border-b-2 border-ink px-3 bg-muted/20">
+        <span className="text-xs font-bold uppercase tracking-wider text-foreground">Scenes</span>
+        <span className="rounded-full border border-ink bg-highlight px-2 py-0.5 text-[10px] font-bold tabular-nums text-highlight-foreground shadow-[1px_1px_0_hsl(var(--offset))]">
           {storyboardPanels.length}
         </span>
       </div>
@@ -120,14 +120,14 @@ const ClipThumb = memo(function ClipThumb({
               onClick={() => onSelect(idx)}
               // Hundreds of scenes: off-screen entries skip layout and paint.
               style={{ contentVisibility: "auto", containIntrinsicSize: "auto 160px" }}
-              className={`group/clip relative flex flex-col gap-1.5 p-1.5 rounded-lg border transition-colors text-left ${
+              className={`group/clip relative flex flex-col gap-1.5 p-1.5 rounded-lg border-2 transition-all text-left ${
                 isActive
-                  ? "bg-primary/10 border-primary/60"
-                  : "border-transparent hover:bg-muted/50"
+                  ? "border-ink bg-highlight/15 shadow-[2px_2px_0_hsl(var(--offset))] -translate-y-0.5"
+                  : "border-transparent hover:border-border hover:bg-muted/40"
               }`}
             >
               {/* Thumbnail */}
-              <div className="relative w-full aspect-video rounded-md overflow-hidden bg-white border border-border/40 shrink-0 flex items-center justify-center">
+              <div className="relative w-full aspect-video rounded-md overflow-hidden bg-white border border-border shrink-0 flex items-center justify-center">
                 <Image
                   src={imageUrl}
                   alt={title}
@@ -137,7 +137,7 @@ const ClipThumb = memo(function ClipThumb({
                   loading={idx === 0 || isActive ? "eager" : "lazy"}
                   className="object-contain"
                 />
-                <span className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                <span className="absolute top-1.5 left-1.5 border border-ink bg-highlight text-highlight-foreground text-[10px] font-bold px-1.5 py-0.5 rounded shadow-[1px_1px_0_hsl(var(--offset))]">
                   #{idx + 1}
                 </span>
               </div>
@@ -146,7 +146,7 @@ const ClipThumb = memo(function ClipThumb({
               <div className="flex items-center justify-between min-w-0 px-0.5">
                 <span
                   className={`text-xs font-semibold truncate ${
-                    isActive ? "text-primary font-bold" : "text-foreground"
+                    isActive ? "text-foreground font-bold" : "text-foreground/90"
                   }`}
                 >
                   {title}
@@ -155,7 +155,7 @@ const ClipThumb = memo(function ClipThumb({
                   <span className="text-[10px] text-muted-foreground font-mono">
                     {duration}s
                   </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary font-medium flex items-center gap-1">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-md border border-border bg-accent text-foreground font-semibold flex items-center gap-1">
                     <Layers className="w-2.5 h-2.5" />
                     {annotationCount}
                   </span>

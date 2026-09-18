@@ -1,36 +1,11 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { AppSidebarSkeleton } from "@/lib/app-shell/app-sidebar";
 
 export function AppShellSkeleton() {
   return (
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
-      <aside className="fixed left-0 top-0 bottom-0 z-50 w-64 border-r-2 border-border bg-background/80 p-4 space-y-4">
-        {/* Logo */}
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-8 w-8 rounded-lg" />
-          <Skeleton className="h-5 w-24" />
-        </div>
-
-        {/* Org Switcher */}
-        <Skeleton className="h-10 w-full rounded-lg" />
-        <Skeleton className="h-12 w-full rounded-lg" />
-
-        {/* Nav Items */}
-        <div className="space-y-2 pt-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={`nav-${i}`} className="h-10 w-full rounded-lg" />
-          ))}
-        </div>
-
-        {/* Space filler */}
-        <div className="flex-1" />
-
-        {/* Credit Badge */}
-        <Skeleton className="h-12 w-full rounded-lg" />
-
-        {/* User Profile */}
-        <Skeleton className="h-14 w-full rounded-lg" />
-      </aside>
+      <AppSidebarSkeleton />
 
       {/* Main Content */}
       <main className="ml-64 min-h-screen bg-background">

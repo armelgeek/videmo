@@ -122,7 +122,7 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
           type="button"
           onClick={togglePlay}
           aria-label={isPlaying ? "Pause" : "Play"}
-          className="flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background transition-opacity hover:opacity-80"
+          className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-all hover:scale-105"
         >
           {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="ml-0.5 h-3.5 w-3.5" />}
         </button>
@@ -138,7 +138,7 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
 
   if (segments.length === 0) {
     return (
-      <div className="flex shrink-0 items-center border-b border-border px-4 py-2.5">{transport}</div>
+      <div className="flex shrink-0 items-center border-b-2 border-ink bg-muted/15 px-4 py-2.5">{transport}</div>
     );
   }
 
@@ -151,41 +151,25 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
     useUnifiedEngineStore.getState().setCurrentTime(segments[target].startMs);
 
   return (
-    <div className="relative flex shrink-0 items-center gap-3 overflow-hidden border-b border-border px-4 py-2.5 text-foreground">
+    <div className="relative flex shrink-0 items-center gap-3 overflow-hidden border-b-2 border-ink bg-muted/15 px-4 py-2.5 text-foreground">
       {transport}
       <p
         key={idx}
-        className="line-clamp-2 min-w-0 flex-1 text-center animate-in fade-in duration-300"
-        style={{
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-          fontSize: 12.5,
-          lineHeight: 1.85,
-        }}
+        className="line-clamp-2 min-w-0 flex-1 text-center font-sans text-xs md:text-sm font-medium leading-relaxed text-foreground animate-in fade-in duration-300"
       >
         {words.map((word, wordIdx) => (
           <Fragment key={wordIdx}>
             <span style={{ whiteSpace: wordIdx === 0 ? "nowrap" : undefined }}>
               {wordIdx === 0 && (
-                <span
-                  style={{
-                    background: accent,
-                    color: "#ffffff",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    padding: "1px 6px",
-                    borderRadius: 999,
-                    marginRight: 6,
-                    verticalAlign: "1px",
-                  }}
-                >
+                <span className="inline-flex items-center justify-center rounded-full border border-ink bg-highlight text-highlight-foreground font-mono text-[10px] font-bold px-1.5 py-0.5 shadow-[1px_1px_0_hsl(var(--offset))] mr-2 align-middle">
                   #{idx + 1}
                 </span>
               )}
               <span
-                style={
+                className={
                   variant === "tinted"
-                    ? { color: accent, fontWeight: 600, borderBottom: `2px dotted ${accent}` }
-                    : { fontWeight: 700, borderBottom: `3px solid ${accent}` }
+                    ? "sk-marker font-semibold text-foreground"
+                    : "font-semibold underline decoration-2 decoration-highlight underline-offset-4 text-foreground"
                 }
               >
                 {word}
@@ -193,15 +177,7 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
               {wordIdx === words.length - 1 && (
                 <span
                   aria-hidden
-                  style={{
-                    display: "inline-block",
-                    width: 2,
-                    height: "1.2em",
-                    marginLeft: 4,
-                    borderRadius: 1,
-                    background: accent,
-                    verticalAlign: "-3px",
-                  }}
+                  className="inline-block w-0.5 h-3.5 ml-1 bg-ink/70 align-middle"
                 />
               )}
             </span>{" "}
@@ -210,7 +186,7 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
       </p>
 
       <div
-        className="flex shrink-0 items-center rounded-full border border-border text-[11px] tabular-nums text-muted-foreground"
+        className="flex shrink-0 items-center rounded-full border-2 border-ink bg-card shadow-[1px_1px_0_hsl(var(--offset))] text-[11px] tabular-nums text-muted-foreground"
       >
         <Hint label="jump to the previous sentence">
           <button
@@ -241,11 +217,11 @@ function ScriptSegmentsCardImpl({ sceneStartMs }: { sceneStartMs: number }) {
         </Hint>
       </div>
 
-      <div aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-muted">
+      <div aria-hidden className="absolute inset-x-0 bottom-0 h-1 bg-muted/40">
         <div
           ref={progressRef}
-          className="h-full origin-left"
-          style={{ background: accent, transform: "scaleX(0)" }}
+          className="h-full origin-left bg-highlight border-t border-ink/20"
+          style={{ transform: "scaleX(0)" }}
         />
       </div>
     </div>

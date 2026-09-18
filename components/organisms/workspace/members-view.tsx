@@ -35,6 +35,7 @@ import {
   Invitation,
   InviteMemberDialog,
   Member,
+  MembersSkeleton,
   PANEL,
   PendingInvitationsPanel,
   PeoplePanel,
@@ -219,6 +220,10 @@ export function MembersView() {
         </div>
       </div>
     );
+  }
+
+  if (!organization) {
+    return <MembersSkeleton />;
   }
 
   return (

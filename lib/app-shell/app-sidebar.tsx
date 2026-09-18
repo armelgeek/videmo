@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { CreditCard, Folder, Loader2, LogOut, Mail, Plus, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { appConfig } from "@/lib/config";
 import { authClient, useSession } from "@/lib/auth-client";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,8 +74,6 @@ function SectionTitle({ id, children }: { id: string; children: React.ReactNode 
 
 export function AppSidebar(_props: AppSidebarProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const openProjectId = searchParams.get("project");
   const { data: session } = useSession();
   const pendingInvitations = usePendingInvitations(pathname);
   const isCreating = pathname === "/new-project";
@@ -208,6 +207,41 @@ export function AppSidebar(_props: AppSidebarProps) {
           </DropdownMenu>
         </div>
       )}
+    </aside>
+  );
+}
+
+export function AppSidebarSkeleton() {
+  return (
+    <aside className="fixed bottom-0 left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r-2 border-ink bg-background shadow-[4px_0_0_hsl(var(--highlight))]">
+      <div className="flex items-center px-4 pb-3 pt-5">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-3.5 w-3.5 rounded-full" />
+          <Skeleton className="h-5 w-24 rounded-md" />
+        </div>
+      </div>
+
+      <div className="space-y-2 px-3 pb-3">
+        <Skeleton className="h-10 w-full rounded-lg" />
+      </div>
+
+      <div className="px-3 pb-4">
+        <Skeleton className="h-10 w-full rounded-full" />
+      </div>
+
+      <nav className="flex-1 space-y-2 border-t-2 border-dashed border-border px-3 py-4">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full rounded-lg" />
+        ))}
+      </nav>
+
+      <div className="border-t-2 border-dashed border-border px-3 py-3">
+        <Skeleton className="h-10 w-full rounded-lg" />
+      </div>
+
+      <div className="mx-2 mb-3">
+        <Skeleton className="h-14 w-full rounded-lg" />
+      </div>
     </aside>
   );
 }
