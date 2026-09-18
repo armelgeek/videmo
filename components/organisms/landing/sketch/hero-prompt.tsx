@@ -1,7 +1,8 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createNewVideoProject } from '@/actions/video-projects/create-new';
 
 const SUGGESTIONS = [
   {
@@ -19,10 +20,12 @@ const SUGGESTIONS = [
 ];
 
 export function HeroPrompt() {
+  const router = useRouter();
   const [text, setText] = useState("");
   const [typed, setTyped] = useState("");
   const [touched, setTouched] = useState(false);
   const [ratio, setRatio] = useState("16:9");
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     if (touched) return;
@@ -54,13 +57,16 @@ export function HeroPrompt() {
 
   const activePrompt = touched && text.trim() ? text.trim() : typed;
 
-  const handleGenerateClick = () => {
-    if (typeof window !== "undefined" && activePrompt) {
-      try {
-        sessionStorage.setItem("draft_prompt", activePrompt);
-      } catch {
-        // Ignorer les erreurs d'accès au storage en navigation privée stricte
-      }
+  const handleGenerateClick = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePrompt.trim()) return;
+
+    setIsCreating(true);
+    try {
+      await createNewVideoProject(activePrompt);
+    } catch (error) {
+      console.error('Failed to create project:', error);
+      setIsCreating(false);
     }
   };
 
@@ -85,7 +91,7 @@ export function HeroPrompt() {
         ))}
       </div>
 
-      <div className="prompt">
+      <form onSubmit={handleGenerateClick} className="prompt">
         <label htmlFor="hero-brief" className="sr-only">Describe your video</label>
         <textarea
           id="hero-brief"
@@ -113,15 +119,15 @@ export function HeroPrompt() {
               </button>
             ))}
           </div>
-          <Link
-            href={`/signup?prompt=${encodeURIComponent(activePrompt)}`}
-            onClick={handleGenerateClick}
+          <button
+            type="submit"
+            disabled={!activePrompt.trim() || isCreating}
             className="sk-btn sk-btn-main prompt-go"
           >
-            Create video →
-          </Link>
+            {isCreating ? 'Creating...' : 'Create video →'}
+          </button>
         </div>
-      </div>
+      </form>
 
       <div className="hero-reassurance" aria-label="Product guarantees">
         <span className="reassurance-item">✓ Free plan available</span>

@@ -582,3 +582,24 @@ model StoredObject {
   @@index([projectId])
   @@map("stored_objects")
 }
+
+// Real customer videos shown on the landing, managed from the admin and filtered by sector.
+model ShowcaseVideo {
+  id          String   @id @default(cuid())
+  title       String   @db.VarChar(160)
+  description String?  @db.VarChar(400)
+  sector      String   @db.VarChar(40)
+  customer    String?  @db.VarChar(120)
+  videoUrl    String
+  posterUrl   String?
+  aspectRatio String   @default("16:9") @db.VarChar(8)
+  durationSec Int?
+  sortOrder   Int      @default(0)
+  published   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([published, sector])
+  @@index([sortOrder])
+  @@map("showcase_videos")
+}

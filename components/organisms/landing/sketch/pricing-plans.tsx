@@ -51,11 +51,13 @@ export function PricingPlans() {
       </div>
 
       <div className="plans">
-        {TIER_CATALOG.map((p) => {
+        {TIER_CATALOG.map((p, index) => {
           const monthly = p.prices.month ?? 0;
           const yearly = p.prices.year;
           const showYearly = interval === "year" && yearly !== undefined;
           const perMonth = showYearly ? yearly / 12 : monthly;
+          const previous = index > 1 ? TIER_CATALOG[index - 1] : null;
+          const features = p.displayFeatures.filter((f) => !/credits \/ month/.test(f));
 
           return (
             <div key={p.tier} className={`plan ${p.isPopular ? "is-pick" : ""}`}>
@@ -75,19 +77,15 @@ export function PricingPlans() {
               </p>
               <p className="plan-note">{p.description}</p>
               <p className="plan-videos">
-                <span className="sk-display">~{videoMinutesFor(p.quotas.monthly_credits)}</span>
+                <span className="sk-display">{p.quotas.monthly_credits.toLocaleString("en-US")}</span>
                 <span>
-                  one-minute video{videoMinutesFor(p.quotas.monthly_credits) === 1 ? "" : "s"} / month
+                  credits / month
+                  <small>
+                    ≈ {videoMinutesFor(p.quotas.monthly_credits)} one-minute video
+                    {videoMinutesFor(p.quotas.monthly_credits) === 1 ? "" : "s"}
+                  </small>
                 </span>
               </p>
-              <ul className="plan-items">
-                {p.displayFeatures.map((it) => (
-                  <li key={it}>
-                    <span className="sk-hand" aria-hidden="true">✓</span>
-                    {it}
-                  </li>
-                ))}
-              </ul>
               <Link
                 href={planHref(p.tier, interval)}
                 className={`sk-btn ${p.isPopular ? "sk-btn-main" : ""}`}
@@ -95,6 +93,17 @@ export function PricingPlans() {
               >
                 {PLAN_CTA[p.tier]}
               </Link>
+              <ul className="plan-items">
+                {previous && !features[0]?.startsWith("Everything in") && (
+                  <li className="plan-items-head">Everything in {previous.name}, plus</li>
+                )}
+                {features.map((it) => (
+                  <li key={it}>
+                    <span className="sk-hand" aria-hidden="true">✓</span>
+                    {it}
+                  </li>
+                ))}
+              </ul>
             </div>
           );
         })}

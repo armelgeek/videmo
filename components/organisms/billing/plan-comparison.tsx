@@ -38,10 +38,10 @@ function CellValue({ value }: { value: Cell }) {
   return <>{value}</>;
 }
 
-export function PlanComparison() {
+export function PlanComparison({ showTitle = true }: { showTitle?: boolean }) {
   return (
     <section className="space-y-4">
-      <h2 className="text-xl font-extrabold text-foreground">Compare plans</h2>
+      {showTitle && <h2 className="text-xl font-extrabold text-foreground">Compare plans</h2>}
       <div className="overflow-x-auto rounded-lg border-2 border-border bg-card">
         <table className="w-full min-w-[640px] text-sm">
           <thead>

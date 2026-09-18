@@ -137,6 +137,19 @@ export function buildBrandLogoKey(input: {
   return `organizations/${safeOrg}/branding/logo-${stamp}-${random}.${extension}`;
 }
 
+export function buildShowcaseKey(input: {
+  kind: "video" | "poster";
+  extension: string;
+  now?: number;
+  random?: string;
+}): string {
+  const stamp = input.now ?? Date.now();
+  const random = input.random ?? Math.random().toString(36).slice(2, 8);
+  const extension = input.extension.replace(/[^a-z0-9]/gi, "").toLowerCase();
+
+  return `showcase/${input.kind}s/${stamp}-${random}.${extension}`;
+}
+
 export function buildBlogCoverKey(input: {
   extension: string;
   now?: number;

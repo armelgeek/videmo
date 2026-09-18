@@ -19,8 +19,7 @@ import {
   Shield,
   KeyRound,
   Building2,
-  FileText,
-} from "lucide-react";
+  FileText, Clapperboard } from "lucide-react";
 import { LogoIcon } from "@/lib/editor/components/icons";
 import { UserMenu } from "@/lib/editor/components/user-menu";
 
@@ -47,6 +46,7 @@ const ADMIN_ITEMS = [
   { href: "/permissions", icon: KeyRound, label: "Permissions", permission: "permission:read" },
   { href: "/organizations", icon: Building2, label: "Organizations", permission: null },
   { href: "/blogs", icon: FileText, label: "Blog", permission: "blog:read" },
+  { href: "/showcase", icon: Clapperboard, label: "Showcase", permission: "showcase:read" },
   { href: "/settings", icon: Settings, label: "Settings", permission: "setting:read" },
 ] as const;
 

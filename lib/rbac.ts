@@ -9,6 +9,7 @@ export const PERMISSION_RESOURCES = {
   setting: "settings",
   blog: "blog posts",
   organization: "organizations",
+  showcase: "showcase videos",
 } as const;
 
 export function permissionCatalog() {
