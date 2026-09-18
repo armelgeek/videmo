@@ -25,6 +25,9 @@ type InvitationState =
   | "error-already-member"
   | "error-not-found";
 
+const CARD_STYLE =
+  "rounded-xl border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))]";
+
 export function InvitationCard({ invitationId, signedInEmail }: InvitationCardProps) {
   const router = useRouter();
   const [state, setState] = useState<InvitationState>("loading");
@@ -57,12 +60,13 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
         return;
       }
 
-      setInvitationDetails(res.data);
+      const details = res.data as { organizationName: string; invitedEmail: string };
+      setInvitationDetails(details);
 
-      if (res.data.invitedEmail !== signedInEmail) {
+      if (details.invitedEmail !== signedInEmail) {
         setState("error-email-mismatch");
         setError(
-          `This invitation was sent to ${res.data.invitedEmail}, but you're signed in as ${signedInEmail}. Please sign out and sign in with the correct email.`
+          `This invitation was sent to ${details.invitedEmail}, but you're signed in as ${signedInEmail}. Please sign out and sign in with the correct email.`
         );
       } else {
         setState("ready");
@@ -118,7 +122,7 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
 
   if (state === "loading") {
     return (
-      <Card className="border-border bg-card">
+      <Card className={CARD_STYLE}>
         <CardHeader>
           <div className="flex items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-foreground" />
@@ -133,10 +137,12 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
 
   if (state === "success") {
     return (
-      <Card className="border-green-500/20 bg-green-500/5">
+      <Card className={CARD_STYLE}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-400">
-            <CheckCircle className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg border-2 border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]">
+              <CheckCircle className="h-4 w-4" />
+            </span>
             Invitation Accepted
           </CardTitle>
         </CardHeader>
@@ -150,9 +156,9 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
   }
 
   return (
-    <Card className="border-border bg-card">
+    <Card className={CARD_STYLE}>
       <CardHeader>
-        <CardTitle>You've been invited to an organization</CardTitle>
+        <CardTitle className="text-xl font-bold">You've been invited to an organization</CardTitle>
         <CardDescription>
           {invitationDetails
             ? `You were invited to join: ${invitationDetails.organizationName}`
@@ -161,53 +167,26 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Error States */}
-        {state === "error-expired" && (
-          <Alert className="border-red-500/20 bg-red-500/5">
-            <AlertCircle className="h-4 w-4 text-red-400" />
-            <AlertDescription className="text-red-300">{error}</AlertDescription>
+        {error && (
+          <Alert className="border-2 border-ink bg-muted/20 text-foreground shadow-[2px_2px_0_hsl(var(--offset))]">
+            <AlertCircle className="h-4 w-4 text-foreground" />
+            <AlertDescription className="text-xs font-medium text-foreground">{error}</AlertDescription>
           </Alert>
         )}
 
-        {state === "error-email-mismatch" && (
-          <Alert className="border-amber-500/20 bg-amber-500/5">
-            <AlertCircle className="h-4 w-4 text-amber-400" />
-            <AlertDescription className="text-amber-300">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {state === "error-not-verified" && (
-          <Alert className="border-amber-500/20 bg-amber-500/5">
-            <AlertCircle className="h-4 w-4 text-amber-400" />
-            <AlertDescription className="text-amber-300">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {state === "error-already-member" && (
-          <Alert className="border-blue-500/20 bg-blue-500/5">
-            <AlertCircle className="h-4 w-4 text-blue-400" />
-            <AlertDescription className="text-blue-300">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {state === "error-not-found" && (
-          <Alert className="border-red-500/20 bg-red-500/5">
-            <AlertCircle className="h-4 w-4 text-red-400" />
-            <AlertDescription className="text-red-300">{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Ready State */}
-        {state === "ready" && (
+        {/* Ready / Processing State */}
+        {(state === "ready" || state === "processing") && (
           <div className="space-y-4">
             <p className="text-sm text-foreground">
               You're signed in as <strong>{signedInEmail}</strong>. Click below to accept this invitation.
             </p>
 
             <div className="flex flex-col gap-2">
-              <Button
+              <button
+                type="button"
                 onClick={handleAcceptInvitation}
                 disabled={state === "processing"}
-                className="w-full bg-gradient-to-r from-highlight to-highlight hover:shadow-lg hover:shadow-[4px_4px_0_hsl(var(--offset))]"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-bold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
               >
                 {state === "processing" ? (
                   <>
@@ -217,21 +196,21 @@ export function InvitationCard({ invitationId, signedInEmail }: InvitationCardPr
                 ) : (
                   "Accept Invitation"
                 )}
-              </Button>
+              </button>
 
-              <Button
+              <button
+                type="button"
                 onClick={handleCopyLink}
-                variant="ghost"
-                className="w-full"
+                className="inline-flex h-10 w-full items-center justify-center rounded-lg border-2 border-ink bg-card px-4 text-sm font-semibold text-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
               >
                 <Copy className="mr-2 h-4 w-4" />
                 Copy Invitation Link
-              </Button>
+              </button>
             </div>
 
             <p className="text-xs text-muted-foreground">
               Not the right account?{" "}
-              <a href="/logout" className="text-foreground hover:text-foreground">
+              <a href="/logout" className="font-semibold text-foreground underline underline-offset-2 hover:text-muted-foreground">
                 Sign out
               </a>{" "}
               and sign in with a different email.

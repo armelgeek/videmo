@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 import { getTierDefinition, videoMinutesFor } from "@/lib/billing/catalog";
 import { cn } from "@/lib/utils";
 import { createBillingPortalSession } from "@/actions/payments/create-billing-portal-session";
@@ -80,7 +80,6 @@ export const PricingCards = ({
     });
   };
 
-  // Plan changes on an existing subscription go through Stripe's portal, which prorates them.
   const handleSwitchPlan = (planId: string) => {
     setLoadingPlanId(planId);
     startTransition(async () => {
@@ -115,88 +114,106 @@ export const PricingCards = ({
 
     if (isCurrent) {
       return (
-        <Button className="w-full" size="lg" variant="outline" disabled>
-          Current plan
-        </Button>
+        <div className="inline-flex h-11 w-full items-center justify-center rounded-lg border-2 border-border bg-muted/40 text-sm font-semibold text-muted-foreground opacity-60">
+          Current Plan
+        </div>
       );
     }
 
     if (isFree) {
       return (
         isLoggedIn ? (
-          <Button className="w-full" size="lg" variant="outline" disabled>
-            Free plan
-          </Button>
+          <div className="inline-flex h-11 w-full items-center justify-center rounded-lg border-2 border-border bg-muted/40 text-sm font-semibold text-muted-foreground opacity-60">
+            Free Plan
+          </div>
         ) : (
-          <Button asChild className="w-full" size="lg" variant="outline">
-            <Link href="/signup">Start free</Link>
-          </Button>
+          <Link
+            href="/signup"
+            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink bg-card px-4 text-sm font-semibold text-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px hover:bg-accent"
+          >
+            Start Free
+          </Link>
         )
       );
     }
 
     if (hasSubscription) {
       return (
-        <Button
-          className="w-full"
-          size="lg"
-          variant={variant}
+        <button
+          type="button"
           onClick={() => handleSwitchPlan(plan.id)}
           disabled={isLoading}
+          className={cn(
+            "inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink px-4 text-sm font-semibold shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-60",
+            plan.isPopular
+              ? "bg-highlight text-highlight-foreground"
+              : "bg-card text-foreground hover:bg-accent",
+          )}
         >
-          {isLoading ? "Loading..." : "Switch plan"}
-        </Button>
+          {isLoading ? "Redirecting…" : "Switch Plan"}
+        </button>
       );
     }
 
     return (
-      <Button
-        className="w-full"
-        size="lg"
-        variant={variant}
+      <button
+        type="button"
         onClick={() => handleBuyNow(plan.id)}
         disabled={isLoading}
+        className={cn(
+          "inline-flex h-11 w-full items-center justify-center gap-2 rounded-lg border-2 border-ink px-4 text-sm font-semibold shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-60",
+          plan.isPopular
+            ? "bg-highlight text-highlight-foreground"
+            : "bg-card text-foreground hover:bg-accent",
+        )}
       >
-        {isLoading ? "Loading..." : "Buy Now"}
-      </Button>
+        {isLoading ? "Starting checkout…" : "Upgrade Plan"}
+      </button>
     );
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-extrabold text-foreground">
-            <span className="sk-marker">Choose your plan</span>
+          <h2 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+            <span className="sk-marker">Available Plans</span>
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            More credits, longer videos and every drawing style as you grow.
+            Scale your credits, resolution and workspace features as your team grows.
           </p>
         </div>
+
+        {/* Interval toggle pill */}
         <div className="inline-flex items-center rounded-full border-2 border-ink bg-card p-1 shadow-[3px_3px_0_hsl(var(--offset))]">
-          {(["monthly", "yearly"] as const).map((i) => (
-            <button
-              key={i}
-              type="button"
-              aria-pressed={interval === i}
-              onClick={() => setInterval(i)}
-              className={cn(
-                "flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors",
-                interval === i ? "bg-highlight text-highlight-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {i === "monthly" ? "Monthly" : "Yearly"}
-              {i === "yearly" && yearlySaving > 0 && (
-                <span className="rounded bg-ink px-1.5 py-0.5 text-[10px] font-bold text-background">
-                  −{yearlySaving}%
-                </span>
-              )}
-            </button>
-          ))}
+          {(["monthly", "yearly"] as const).map((i) => {
+            const active = interval === i;
+            return (
+              <button
+                key={i}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setInterval(i)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition-all",
+                  active
+                    ? "border-2 border-ink bg-highlight text-highlight-foreground font-bold shadow-[2px_2px_0_hsl(var(--offset))]"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <span className="capitalize">{i}</span>
+                {i === "yearly" && yearlySaving > 0 && (
+                  <span className="rounded-full border border-ink bg-ink text-background px-1.5 py-0.5 text-[10px] font-bold">
+                    Save {yearlySaving}%
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
         {filteredPlans.map((plan, index) => {
           const credits = getTierDefinition(plan.tier)?.quotas.monthly_credits ?? 0;
           const yearly = plan.interval === "year";
@@ -208,55 +225,75 @@ export const PricingCards = ({
             <div
               key={plan.id}
               className={cn(
-                "relative flex flex-col rounded-lg border-2 bg-card p-5",
+                "relative flex flex-col justify-between rounded-xl bg-card p-6 transition-all",
                 plan.isPopular
-                  ? "border-ink shadow-[6px_6px_0_hsl(var(--offset))]"
-                  : "border-border",
+                  ? "border-2 border-ink shadow-[6px_6px_0_hsl(var(--offset))]"
+                  : "border-2 border-border hover:border-ink hover:shadow-[4px_4px_0_hsl(var(--offset))]",
               )}
             >
               {plan.isPopular && (
-                <span className="absolute -top-3 right-4 rounded border-2 border-ink bg-highlight px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-highlight-foreground">
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full border-2 border-ink bg-highlight px-3 py-0.5 text-[11px] font-bold uppercase tracking-wider text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]">
+                  <Sparkles className="h-3 w-3" />
                   Most popular
                 </span>
               )}
 
-              <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
-              <p className="mt-1 min-h-10 text-sm text-muted-foreground">{plan.description}</p>
+              <div>
+                <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
+                <p className="mt-1 min-h-10 text-xs text-muted-foreground leading-relaxed">
+                  {plan.description}
+                </p>
 
-              <div className="mt-4 flex items-baseline gap-1.5">
-                <span className="text-3xl font-extrabold tabular-nums text-foreground">{money(Math.round(perMonth))}</span>
-                <span className="text-sm text-muted-foreground">/month</span>
-                {yearly && (
-                  <span className="text-sm text-muted-foreground line-through">{money(monthlyAmount(plan.tier))}</span>
-                )}
+                <div className="mt-4 flex items-baseline gap-1.5">
+                  <span className="text-3xl font-extrabold tabular-nums text-foreground">
+                    {money(Math.round(perMonth))}
+                  </span>
+                  <span className="text-xs text-muted-foreground">/month</span>
+                  {yearly && (
+                    <span className="text-xs text-muted-foreground line-through ml-1">
+                      {money(monthlyAmount(plan.tier))}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {plan.tier === "free"
+                    ? "Free forever"
+                    : yearly
+                      ? `${money(plan.amount)} billed yearly`
+                      : "Billed monthly"}
+                </p>
+
+                <div className="mt-4 rounded-xl border border-border/60 bg-muted/25 px-3.5 py-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold tabular-nums text-foreground">
+                      {credits.toLocaleString("en-US")}
+                    </span>
+                    <span className="text-muted-foreground">credits / mo</span>
+                  </div>
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                    ≈ {videoMinutesFor(credits)} one-minute video
+                    {videoMinutesFor(credits) === 1 ? "" : "s"}
+                  </span>
+                </div>
+
+                <div className="mt-5">{renderAction(plan)}</div>
               </div>
-              <p className="mt-1 h-4 text-xs text-muted-foreground">
-                {plan.tier === "free" ? "Free forever" : yearly ? `${money(plan.amount)} billed yearly` : "Billed monthly"}
-              </p>
 
-              <div className="mt-4 rounded-md border border-dashed border-border px-3 py-2 text-sm">
-                <span className="font-bold tabular-nums text-foreground">{credits.toLocaleString("en-US")}</span>{" "}
-                <span className="text-muted-foreground">credits / month</span>
-                <span className="block text-xs text-muted-foreground">
-                  ≈ {videoMinutesFor(credits)} one-minute video{videoMinutesFor(credits) === 1 ? "" : "s"}
-                </span>
-              </div>
-
-              <div className="mt-4">{renderAction(plan)}</div>
-
-              <ul className="mt-5 space-y-2.5 border-t border-border pt-5">
+              <div className="mt-6 border-t border-border/60 pt-5">
                 {previous && previous.tier !== "free" && !features[0]?.startsWith("Everything in") && (
-                  <li className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Everything in {previous.name}, plus
-                  </li>
+                  <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Everything in {previous.name}, plus:
+                  </p>
                 )}
-                {features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-2 text-sm text-foreground">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
+                <ul className="space-y-2.5">
+                  {features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-xs text-foreground/90">
+                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden="true" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
           );
         })}

@@ -17,23 +17,27 @@ export type PhoneInputProps = Omit<
 const PhoneInput = React.forwardRef<HTMLInputElement, PhoneInputProps>(
   ({ className, onChange, value, error, ...props }, ref) => {
     return (
-      <PhoneInputWithCountrySelect
-        international
-        defaultCountry="US"
-        value={value}
-        onChange={onChange}
+      <div
         className={cn(
-          'flex h-10 w-full rounded-lg border-2 border-ink bg-card px-3 py-2 text-sm shadow-[3px_3px_0_hsl(var(--offset))] ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:shadow-[3px_3px_0_hsl(var(--highlight))] disabled:cursor-not-allowed disabled:opacity-50',
-          error && 'border-red-500 shadow-[3px_3px_0_hsl(var(--destructive))]',
+          'flex h-10 w-full items-center rounded-lg border-2 border-border bg-card px-3 text-sm transition-all focus-within:border-ink focus-within:shadow-[2px_2px_0_hsl(var(--offset))]',
+          error && 'border-destructive focus-within:border-destructive shadow-[2px_2px_0_hsl(var(--destructive))]',
           className
         )}
-        numberInputProps={{
-          className: 'outline-none bg-transparent flex-1 border-none focus:ring-0',
-        }}
-        countrySelectProps={{
-          className: 'outline-none bg-transparent border-none focus:ring-0',
-        }}
-      />
+      >
+        <PhoneInputWithCountrySelect
+          international
+          defaultCountry="US"
+          value={value}
+          onChange={onChange}
+          className="flex w-full items-center gap-2.5 [&_.PhoneInputCountry]:flex [&_.PhoneInputCountry]:items-center [&_.PhoneInputCountry]:gap-1.5 [&_.PhoneInputCountryIcon]:h-4 [&_.PhoneInputCountryIcon]:w-6 [&_.PhoneInputCountryIcon]:rounded-sm [&_.PhoneInputCountrySelect]:cursor-pointer [&_.PhoneInputCountrySelectArrow]:opacity-60 [&_.PhoneInputInput]:w-full [&_.PhoneInputInput]:bg-transparent [&_.PhoneInputInput]:text-sm [&_.PhoneInputInput]:text-foreground [&_.PhoneInputInput]:outline-none [&_.PhoneInputInput]:placeholder:text-muted-foreground"
+          numberInputProps={{
+            className: 'w-full bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground',
+          }}
+          countrySelectProps={{
+            className: 'cursor-pointer outline-none',
+          }}
+        />
+      </div>
     );
   }
 );

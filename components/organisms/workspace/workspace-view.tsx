@@ -37,6 +37,7 @@ export function WorkspaceView() {
   const [renaming, setRenaming] = useState<ProjectListItem | null>(null);
   const [deleting, setDeleting] = useState<ProjectListItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [sortBy, setSortBy] = useState<"recent" | "oldest" | "a-z" | "z-a">(
     "recent",
@@ -120,15 +121,14 @@ export function WorkspaceView() {
     <div className="flex min-h-screen flex-col relative">
       <NotebookBackground />
       <header className="border-b border-border/50 relative z-10">
-        <div className="px-8 sm:px-12 py-3">
-          {/* Org name */}
-          {response?.organization && (
-            <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
-              {response.organization.name}
-            </p>
-          )}
-          {/* Title + Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 sm:px-8 py-4">
           <div>
+            {/* Org name */}
+            {response?.organization && (
+              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground mb-1">
+                {response.organization.name}
+              </p>
+            )}
             <div className="flex items-center gap-4">
               <h1 className="text-3xl font-extrabold text-foreground whitespace-nowrap">
                 <span className="sk-marker">Workspace</span>
@@ -139,6 +139,17 @@ export function WorkspaceView() {
             </div>
             <p className="mt-2 text-sm text-muted-foreground">Manage your projects</p>
           </div>
+
+          {viewer?.canCreate && (
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-bold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
+            >
+              <Plus className="h-4 w-4" />
+              New project
+            </button>
+          )}
         </div>
       </header>
 
@@ -154,7 +165,7 @@ export function WorkspaceView() {
               <button
                 type="button"
                 onClick={load}
-                className="mt-5 rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                className="mt-5 rounded-lg border-2 border-ink bg-card px-4 py-2 text-sm font-semibold text-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
               >
                 Try again
               </button>
@@ -176,7 +187,7 @@ export function WorkspaceView() {
                 </button>
               </div>
             ) : (
-              <EmptyWorkspace canCreate={viewer?.canCreate ?? false} />
+              <EmptyWorkspace canCreate={viewer?.canCreate ?? false} onCreate={() => setIsCreateOpen(true)} />
             )
           ) : (
             <>
@@ -186,16 +197,39 @@ export function WorkspaceView() {
                 teamMembers={1}
               />
 
-              <div className="flex items-center justify-between gap-4 py-4 mb-5 border-b border-border">
-                <h2 className="text-lg font-semibold">Projects</h2>
-                <WorkspaceControls
-                  viewMode={viewMode}
-                  onViewModeChange={setViewMode}
-                  sortBy={sortBy}
-                  onSortChange={setSortBy}
-                  timeFilter={timeFilter}
-                  onTimeFilterChange={setTimeFilter}
-                />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 py-4 mb-5 border-b border-border">
+                <div className="relative flex-1 max-w-sm">
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Search projects..."
+                    className="h-9 w-full rounded-lg border-2 border-border bg-card px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none transition hover:border-ink focus:border-ink focus:shadow-[2px_2px_0_hsl(var(--offset))]"
+                  />
+                  {isFetching && query ? (
+                    <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+                  ) : query ? (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      aria-label="Clear search"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="flex items-center justify-between sm:justify-end gap-2">
+                  <WorkspaceControls
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                    sortBy={sortBy}
+                    onSortChange={setSortBy}
+                    timeFilter={timeFilter}
+                    onTimeFilterChange={setTimeFilter}
+                  />
+                </div>
               </div>
 
               {viewMode === "grid" ? (
@@ -254,6 +288,14 @@ export function WorkspaceView() {
         </div>
       </div>
 
+      {isCreateOpen && (
+        <VideoProjectDialog
+          open={isCreateOpen}
+          onOpenChange={setIsCreateOpen}
+          onDone={load}
+        />
+      )}
+
       {renaming && (
         <VideoProjectDialog
           open
@@ -307,7 +349,13 @@ function PageButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   );
 }
 
-function EmptyWorkspace({ canCreate }: { canCreate: boolean }) {
+function EmptyWorkspace({
+  canCreate,
+  onCreate,
+}: {
+  canCreate: boolean;
+  onCreate: () => void;
+}) {
   return (
     <div className="flex flex-col items-center rounded-lg border-2 border-dashed border-border bg-card px-6 py-16 text-center">
       <div className="relative flex h-24 w-40 -rotate-2 items-center justify-center rounded-md border-2 border-ink bg-white shadow-[4px_4px_0_hsl(var(--offset))]">
@@ -327,13 +375,14 @@ function EmptyWorkspace({ canCreate }: { canCreate: boolean }) {
         </SketchHint>
       )}
       {canCreate && (
-        <Link
-          href="/new-project"
-          className="mt-2 inline-flex items-center gap-2 rounded-full border-2 border-ink bg-highlight px-5 py-2.5 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition hover:shadow-lg hover:shadow-[4px_4px_0_hsl(var(--offset))] focus-visible:ring-2 focus-visible:ring-highlight"
+        <button
+          type="button"
+          onClick={onCreate}
+          className="mt-2 inline-flex items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-5 py-2.5 text-sm font-bold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] outline-none transition-transform hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight"
         >
           <Plus className="h-4 w-4" />
           Create your first project
-        </Link>
+        </button>
       )}
     </div>
   );

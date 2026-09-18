@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Zap, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { createCreditPurchaseCheckout } from "@/actions/payments/create-credit-purchase";
 import {
@@ -15,6 +15,7 @@ import {
   CREDIT_PACKS,
   type CreditPackId,
   PURCHASED_CREDITS_VALIDITY_MONTHS,
+  videoMinutesFor,
 } from "@/lib/billing/catalog";
 
 const PACK_IDS = Object.keys(CREDIT_PACKS) as CreditPackId[];
@@ -40,47 +41,64 @@ export function CreditTopupDialog({ open, onOpenChange }: CreditTopupDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Buy credits</DialogTitle>
-          <DialogDescription>
-            A one-time purchase for this organization. Purchased credits last{" "}
-            {PURCHASED_CREDITS_VALIDITY_MONTHS} months and are used after your monthly plan credits.
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg border-2 border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]">
+              <Zap className="h-4 w-4" />
+            </div>
+            <DialogTitle className="text-lg font-bold">
+              <span className="sk-marker">Instant Credit Top-up</span>
+            </DialogTitle>
+          </div>
+          <DialogDescription className="mt-1.5 text-xs text-muted-foreground">
+            One-time purchase for your organization. Purchased credits stay valid for{" "}
+            <span className="font-semibold text-foreground">{PURCHASED_CREDITS_VALIDITY_MONTHS} months</span> and
+            are used automatically when your monthly allowance runs out.
           </DialogDescription>
         </DialogHeader>
 
-        <ul className="grid gap-3 py-2">
+        <ul className="grid gap-2.5 py-2">
           {PACK_IDS.map((id) => {
             const pack = CREDIT_PACKS[id];
+            const isProcessing = pendingPack === id;
+
             return (
               <li key={id}>
                 <button
                   type="button"
                   onClick={() => buy(id)}
                   disabled={pendingPack !== null}
-                  className="flex w-full items-center justify-between gap-4 rounded-lg border-2 border-border bg-card p-4 text-left outline-none transition hover:border-ink focus-visible:ring-2 focus-visible:ring-highlight disabled:opacity-60"
+                  className="group flex w-full items-center justify-between gap-4 rounded-xl border-2 border-border bg-card p-4 text-left transition-all hover:border-ink hover:shadow-[3px_3px_0_hsl(var(--offset))] hover:-translate-x-px hover:-translate-y-px focus-visible:ring-2 focus-visible:ring-highlight disabled:opacity-60"
                 >
-                  <span>
-                    <span className="block font-semibold">{pack.label}</span>
-                    <span className="block text-xs text-muted-foreground">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-foreground">{pack.label}</span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        ≈ {videoMinutesFor(pack.credits)} min
+                      </span>
+                    </div>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
                       {(pack.amount / pack.credits).toFixed(1)}¢ per credit
                     </span>
-                  </span>
-                  <span className="flex items-center gap-2 font-semibold tabular-nums">
-                    {pendingPack === id && (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  </div>
+
+                  <div className="flex items-center gap-2 font-bold tabular-nums text-foreground">
+                    {isProcessing && (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
                     )}
-                    ${(pack.amount / 100).toFixed(2)}
-                  </span>
+                    <span className="text-base">${(pack.amount / 100).toFixed(2)}</span>
+                  </div>
                 </button>
               </li>
             );
           })}
         </ul>
 
-        <p className="text-xs text-muted-foreground">
-          You finish payment on Stripe&apos;s secure checkout.
-        </p>
+        <div className="flex items-center justify-center gap-1.5 pt-1 text-xs text-muted-foreground">
+          <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+          <span>Encrypted payment processed securely via Stripe</span>
+        </div>
       </DialogContent>
     </Dialog>
   );

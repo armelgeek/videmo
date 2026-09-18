@@ -19,19 +19,28 @@ import { z } from "zod";
 import { isValidPhoneNumber, type Value } from "react-phone-number-input";
 import { Mail } from "lucide-react";
 import { api } from "@/lib/client";
+import { cn } from "@/lib/utils";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().refine((val) => {
-    if (!val || val.length === 0) return true;
-    try {
-      return isValidPhoneNumber(val);
-    } catch {
-      return false;
-    }
-  }, {
-    message: 'Please enter a valid phone number',
-  }),
+  phone: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || val.trim().length === 0) return true;
+        const cleaned = val.replace(/[\s\-\(\)\.]/g, "");
+        if (cleaned.length < 5 || cleaned.length > 20) return false;
+        try {
+          return isValidPhoneNumber(val);
+        } catch {
+          return /^\+?[0-9]{6,16}$/.test(cleaned);
+        }
+      },
+      {
+        message: "Please enter a valid phone number",
+      }
+    ),
 });
 
 const emailChangeSchema = z.object({
@@ -162,22 +171,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div className="flex items-center gap-4">
-        <Avatar className="h-14 w-14 border-2 border-ink">
+        <Avatar className="h-16 w-16 border-2 border-ink shadow-[3px_3px_0_hsl(var(--offset))]">
           <AvatarImage src={user.image || undefined} alt={user.name} />
-          <AvatarFallback className="bg-highlight font-semibold text-highlight-foreground">
+          <AvatarFallback className="bg-highlight font-extrabold text-highlight-foreground text-lg">
             {getInitials(user.name)}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <p className="truncate font-semibold text-foreground">{user.name}</p>
-          <p className="truncate text-sm text-muted-foreground">{user.email}</p>
+          <p className="truncate text-base font-extrabold text-foreground">{user.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{user.email}</p>
         </div>
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="name">Name</Label>
+        <Label htmlFor="name" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Full Name
+        </Label>
         <Input
           id="name"
           type="text"
@@ -187,13 +198,14 @@ export function ProfileForm({ user }: ProfileFormProps) {
           required
           aria-invalid={!!errors.name}
           aria-describedby={errors.name ? "name-error" : undefined}
+          className="border-2 border-border focus:border-ink"
         />
-        {errors.name && <p id="name-error" className="text-sm text-red-500">{errors.name}</p>}
+        {errors.name && <p id="name-error" className="text-xs font-medium text-destructive">{errors.name}</p>}
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="phone">
-          Phone <span className="font-normal text-muted-foreground">(optional)</span>
+        <Label htmlFor="phone" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Phone <span className="font-normal normal-case text-muted-foreground">(optional)</span>
         </Label>
         <PhoneInput
           id="phone"
@@ -202,17 +214,24 @@ export function ProfileForm({ user }: ProfileFormProps) {
           placeholder="+1 (555) 000-0000"
           error={!!errors.phone}
         />
-        {errors.phone && <p className="text-sm text-red-500">{errors.phone}</p>}
+        {errors.phone && <p className="text-xs font-medium text-destructive">{errors.phone}</p>}
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Email Address
+          </Label>
           <span
             id="email-status"
-            className={user.emailVerified ? "text-xs text-green-600 dark:text-green-500" : "text-xs text-amber-600 dark:text-amber-500"}
+            className={cn(
+              "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-bold capitalize",
+              user.emailVerified
+                ? "border border-border bg-muted/60 text-foreground"
+                : "border-2 border-ink bg-highlight text-highlight-foreground shadow-[1px_1px_0_hsl(var(--offset))]"
+            )}
           >
-            {user.emailVerified ? "Verified" : "Not verified"}
+            {user.emailVerified ? "Verified" : "Unverified"}
           </span>
         </div>
         <div className="flex gap-2">
@@ -221,17 +240,21 @@ export function ProfileForm({ user }: ProfileFormProps) {
             type="email"
             value={user.email}
             disabled
-            className="flex-1"
+            className="flex-1 border-2 border-border/80 bg-muted/20"
             aria-describedby="email-status"
           />
-          <Button type="button" variant="outline" onClick={() => setIsEditingEmail(true)}>
-            <Mail className="mr-1.5 h-4 w-4" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={() => setIsEditingEmail(true)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg border-2 border-ink bg-card px-3.5 text-xs font-bold text-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
+          >
+            <Mail className="h-3.5 w-3.5" aria-hidden="true" />
             Change
-          </Button>
+          </button>
         </div>
 
         <Dialog open={isEditingEmail} onOpenChange={(open) => (open ? setIsEditingEmail(true) : handleCancelEmailChange())}>
-          <DialogContent>
+          <DialogContent className="border-2 border-ink shadow-[5px_5px_0_hsl(var(--offset))]">
             <DialogHeader>
               <DialogTitle>Change email</DialogTitle>
               <DialogDescription>
@@ -251,27 +274,33 @@ export function ProfileForm({ user }: ProfileFormProps) {
               disabled={isEmailChangeLoading}
               aria-invalid={!!emailChangeError}
               aria-describedby="email-change-hint"
+              className="border-2 border-border focus:border-ink"
             />
-            <p id="email-change-hint" className={emailChangeError ? "text-xs text-red-500" : "text-xs text-muted-foreground"}>
+            <p id="email-change-hint" className={emailChangeError ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
               {emailChangeError || "We'll send a link to confirm the new address."}
             </p>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button type="button" variant="ghost" onClick={handleCancelEmailChange} disabled={isEmailChangeLoading}>
                 Cancel
               </Button>
-              <Button type="button" onClick={handleEmailChange} disabled={isEmailChangeLoading || !newEmail}>
+              <button
+                type="button"
+                onClick={handleEmailChange}
+                disabled={isEmailChangeLoading || !newEmail}
+                className="inline-flex h-10 items-center rounded-lg border-2 border-ink bg-highlight px-4 text-xs font-bold text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
+              >
                 {isEmailChangeLoading ? "Sending…" : "Send link"}
-              </Button>
+              </button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
 
-      <div className="flex justify-end pt-6 border-t border-border mt-4">
+      <div className="flex justify-end pt-5 border-t border-border/60 mt-6">
         <button
           type="submit"
           disabled={isLoading}
-          className="inline-flex h-9 items-center rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
+          className="inline-flex h-10 items-center rounded-lg border-2 border-ink bg-highlight px-5 text-sm font-bold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px disabled:opacity-50"
         >
           {isLoading ? "Saving…" : "Save changes"}
         </button>

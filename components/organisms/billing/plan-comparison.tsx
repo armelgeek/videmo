@@ -28,48 +28,70 @@ const ROWS: { label: string; value: (t: TierDefinition) => Cell }[] = [
   { label: "Organizations", value: (t) => count(t.quotas.max_organizations) },
   { label: "Storage", value: (t) => count(t.quotas.max_storage_gb, " GB") },
   { label: "API access", value: (t) => t.features.api_access },
-  { label: "Your logo on videos", value: (t) => t.features.custom_branding },
+  { label: "Custom branding (logo)", value: (t) => t.features.custom_branding },
   { label: "Priority support", value: (t) => t.features.priority_support },
 ];
 
 function CellValue({ value }: { value: Cell }) {
-  if (value === true) return <Check className="mx-auto h-4 w-4" aria-label="Included" />;
-  if (value === false) return <Minus className="mx-auto h-4 w-4 text-muted-foreground" aria-label="Not included" />;
-  return <>{value}</>;
+  if (value === true) return <Check className="mx-auto h-4 w-4 text-primary" aria-label="Included" />;
+  if (value === false) return <Minus className="mx-auto h-4 w-4 text-muted-foreground/30" aria-label="Not included" />;
+  return <span className="text-xs font-medium text-foreground">{value}</span>;
 }
 
 export function PlanComparison({ showTitle = true }: { showTitle?: boolean }) {
   return (
     <section className="space-y-4">
-      {showTitle && <h2 className="text-xl font-extrabold text-foreground">Compare plans</h2>}
-      <div className="overflow-x-auto rounded-lg border-2 border-border bg-card">
+      {showTitle && (
+        <div>
+          <h2 className="text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
+            <span className="sk-marker">Feature Comparison</span>
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Detailed breakdown of features, limits and capabilities across all plans.
+          </p>
+        </div>
+      )}
+      <div className="overflow-x-auto rounded-xl border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))]">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
-            <tr className="border-b-2 border-border">
-              <th scope="col" className="px-4 py-3 text-left font-semibold text-muted-foreground">
-                <span className="sr-only">Feature</span>
+            <tr className="border-b-2 border-ink bg-muted/40">
+              <th scope="col" className="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Feature
               </th>
               {TIER_CATALOG.map((t) => (
                 <th
                   key={t.tier}
                   scope="col"
-                  className={t.isPopular ? "bg-highlight/25 px-4 py-3 text-center font-bold" : "px-4 py-3 text-center font-bold"}
+                  className={
+                    t.isPopular
+                      ? "bg-highlight/20 px-5 py-3.5 text-center text-xs font-bold text-foreground"
+                      : "px-5 py-3.5 text-center text-xs font-semibold text-muted-foreground"
+                  }
                 >
-                  {t.name}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span>{t.name}</span>
+                    {t.isPopular && (
+                      <span className="text-[10px] font-bold text-foreground">Popular</span>
+                    )}
+                  </div>
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border/60">
             {ROWS.map((row) => (
-              <tr key={row.label} className="border-b border-border last:border-0">
-                <th scope="row" className="px-4 py-2.5 text-left font-medium text-muted-foreground">
+              <tr key={row.label} className="transition-colors hover:bg-muted/15">
+                <th scope="row" className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">
                   {row.label}
                 </th>
                 {TIER_CATALOG.map((t) => (
                   <td
                     key={t.tier}
-                    className={t.isPopular ? "bg-highlight/10 px-4 py-2.5 text-center tabular-nums" : "px-4 py-2.5 text-center tabular-nums"}
+                    className={
+                      t.isPopular
+                        ? "bg-primary/5 px-5 py-3 text-center tabular-nums"
+                        : "px-5 py-3 text-center tabular-nums"
+                    }
                   >
                     <CellValue value={row.value(t)} />
                   </td>

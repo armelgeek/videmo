@@ -55,10 +55,18 @@ export function EngineScene({
     let cancelled = false;
 
     const run = async () => {
-      const [scene, hand] = await Promise.all([loadImage(SCENE_IMAGE), loadImage(HAND_IMAGE)]);
+      const [scene, hand] = await Promise.all([
+        loadImage(SCENE_IMAGE),
+        loadImage(HAND_IMAGE),
+      ]);
       if (cancelled) return;
 
-      const artwork = rectContenu(W, H, scene.naturalWidth, scene.naturalHeight);
+      const artwork = rectContenu(
+        W,
+        H,
+        scene.naturalWidth,
+        scene.naturalHeight,
+      );
       const offscreen = document.createElement("canvas");
       offscreen.width = W;
       offscreen.height = H;
@@ -66,7 +74,8 @@ export function EngineScene({
       if (!octx) return;
       octx.drawImage(scene, artwork.x, artwork.y, artwork.w, artwork.h);
       blanchirFond(octx, W, H);
-      (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable = true;
+      (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable =
+        true;
 
       const paintWhite = (target: CanvasRenderingContext2D) => {
         target.fillStyle = "#ffffff";
@@ -83,12 +92,18 @@ export function EngineScene({
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
       const handConfig = CUSTOM_HANDS.custom1.images[720];
-      const annotations = projectAnnotations(SCENE_PREMIUM_BAG_ANNOTATIONS, artwork.w, artwork.h).map(
-        (a) => ({
-          ...a,
-          region: { ...a.region, x: a.region.x + artwork.x, y: a.region.y + artwork.y },
-        }),
-      );
+      const annotations = projectAnnotations(
+        SCENE_PREMIUM_BAG_ANNOTATIONS,
+        artwork.w,
+        artwork.h,
+      ).map((a) => ({
+        ...a,
+        region: {
+          ...a.region,
+          x: a.region.x + artwork.x,
+          y: a.region.y + artwork.y,
+        },
+      }));
 
       const buildEngine = () => {
         paintWhite(ctx);
@@ -111,7 +126,8 @@ export function EngineScene({
             drawHand: (...args: unknown[]) => {
               const [a, b, c] = args;
               const tipX = typeof a === "number" ? a : (b as number);
-              const tipY = typeof a === "number" ? (b as number) : (c as number);
+              const tipY =
+                typeof a === "number" ? (b as number) : (c as number);
               if (typeof tipX !== "number" || typeof tipY !== "number") return;
               hctx.clearRect(0, 0, W, H);
               const r = handDrawRect(handConfig, 720, tipX, tipY, W, H);
@@ -161,7 +177,10 @@ export function EngineScene({
   }, []);
 
   return (
-    <figure className="sk-box sk-box-lift hero-engine-figure" style={{ margin: 0, overflow: "hidden" }}>
+    <figure
+      className="sk-box sk-box-lift hero-engine-figure"
+      style={{ margin: 0, overflow: "hidden" }}
+    >
       <div
         className={`hero-canvas-viewport is-${aspectRatio.replace(":", "-")}`}
         style={{ position: "relative", background: "#ffffff" }}

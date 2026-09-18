@@ -4,25 +4,20 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getUserSubscription } from "@/actions/payments";
 import { getActivePlans } from "@/actions/payments/get-plans";
-import { PricingCards } from "@/components/molecules/cards/pricing-cards";
-import { PlanComparison } from "@/components/organisms/billing/plan-comparison";
-import { CreditPacks } from "@/components/organisms/billing/credit-packs";
-import { BillingFaq } from "@/components/organisms/billing/billing-faq";
-import { BillingOverview } from "@/components/organisms/billing/billing-overview";
-import BillingClient from "@/components/templates/billing-client";
+import { BillingContainer } from "@/components/organisms/billing/billing-container";
 import { AppShell } from "@/lib/app-shell";
 import { SketchHint } from "@/components/molecules/sketch-hint";
 import { NotebookBackground } from "@/components/organisms/workspace/notebook-background";
 
 export const metadata: Metadata = {
-  title: "Billing | Manage Your Subscription",
-  description: "View and manage your subscription plan and billing information",
+  title: "Billing & Subscription | SketchPilot",
+  description: "Manage your organization subscription plan, credits, usage quotas and invoices",
 };
 
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ interval?: string }>;
+  searchParams: Promise<{ interval?: string; tab?: string }>;
 }) {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -40,45 +35,29 @@ export default async function BillingPage({
 
   return (
     <AppShell contentClassName="bg-background">
-      <NotebookBackground />
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-8 py-6 sm:px-12">
-        <header className="mb-8">
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-extrabold text-foreground">
-              <span className="sk-marker">Billing</span>
-            </h1>
-            <SketchHint direction="left" className="hidden text-lg sm:flex">
-              your credits, plan and invoices in one place
-            </SketchHint>
-          </div>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Credits, plan usage and subscription for your organization
-          </p>
-        </header>
+      <div className="relative min-h-screen">
+        <NotebookBackground />
+        <div className="relative z-10 w-full px-6 py-6 sm:px-8">
+          <header className="mb-8">
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-extrabold tracking-tight text-foreground sm:text-4xl">
+                <span className="sk-marker">Billing</span>
+              </h1>
+              <SketchHint direction="left" className="hidden text-lg sm:flex">
+                your credits, plan and invoices in one place
+              </SketchHint>
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Credits, plan usage and subscription for your organization
+            </p>
+          </header>
 
-        <BillingOverview
-          hasSubscription={Boolean(subscription)}
-          subscriptionSlot={
-            <BillingClient subscription={subscription || null} canManage={canManage ?? false} />
-          }
-        />
-
-        {canManage && plans && plans.length > 0 && (
-          <section id="plans" className="mt-12 scroll-mt-6">
-            <PricingCards
-              plans={plans}
-              isLoggedIn
-              currentPlanId={subscription?.planId ?? null}
-              hasSubscription={Boolean(subscription)}
-              initialInterval={interval === "yearly" ? "yearly" : "monthly"}
-            />
-          </section>
-        )}
-
-        <div className="mt-14 space-y-14 pb-10">
-          <PlanComparison />
-          {canManage && <CreditPacks />}
-          <BillingFaq />
+          <BillingContainer
+            subscription={subscription || null}
+            canManage={canManage ?? false}
+            plans={plans || []}
+            initialInterval={interval === "yearly" ? "yearly" : "monthly"}
+          />
         </div>
       </div>
     </AppShell>
