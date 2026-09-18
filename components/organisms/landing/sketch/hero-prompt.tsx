@@ -22,6 +22,7 @@ export function HeroPrompt() {
   const [text, setText] = useState("");
   const [typed, setTyped] = useState("");
   const [touched, setTouched] = useState(false);
+  const [ratio, setRatio] = useState("16:9");
 
   useEffect(() => {
     if (touched) return;
@@ -70,7 +71,19 @@ export function HeroPrompt() {
 
   return (
     <div className="prompt-wrapper">
-     
+      <div className="prompt-suggestions">
+        <span className="prompt-suggestions-label">Try:</span>
+        {SUGGESTIONS.map((s) => (
+          <button
+            key={s.tag}
+            type="button"
+            className="prompt-suggestion-chip"
+            onClick={() => selectSuggestion(s.text)}
+          >
+            {s.tag}
+          </button>
+        ))}
+      </div>
 
       <div className="prompt">
         <label htmlFor="hero-brief" className="sr-only">Describe your video</label>
@@ -88,17 +101,24 @@ export function HeroPrompt() {
           placeholder="Describe your video: the message, the key points, the audience…"
         />
         <div className="prompt-bar">
-          <span className="prompt-pills" aria-hidden="true">
-            <span>16:9</span>
-            <span>1-2 min</span>
-            <span>English</span>
-          </span>
+          <div className="prompt-pills">
+            {["16:9", "9:16", "1:1"].map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`prompt-pill-btn ${ratio === r ? "is-active" : ""}`}
+                onClick={() => setRatio(r)}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
           <Link
             href={`/signup?prompt=${encodeURIComponent(activePrompt)}`}
             onClick={handleGenerateClick}
             className="sk-btn sk-btn-main prompt-go"
           >
-            Bring my script to life ✍ →
+            Create video →
           </Link>
         </div>
       </div>

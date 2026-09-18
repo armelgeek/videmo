@@ -9,6 +9,9 @@ import { Capture } from "./capture";
 import { HandArrow } from "./hand-arrow";
 import { appConfig } from "@/lib/config";
 import { PricingPlans } from "./pricing-plans";
+import { BILLING_FAQS } from "@/lib/billing/faq";
+import { PlanComparison } from "@/components/organisms/billing/plan-comparison";
+import { CREDIT_PACKS } from "@/lib/billing/catalog";
 import { AnimationStylesShowcase } from "./animation-styles";
 import { VideoGallerySection } from "./video-gallery";
 import { Capabilities } from "./capabilities";
@@ -31,10 +34,7 @@ export const sketchFaqs = [
     question: "Which formats can I export?",
     answer: "16:9 for YouTube and your website, 9:16 for Reels, TikTok and Shorts, 1:1 for LinkedIn and Instagram feeds.",
   },
-  {
-    question: "Can I cancel anytime?",
-    answer: "Yes. There's no commitment, and you can cancel from your billing page.",
-  },
+  ...BILLING_FAQS,
 ];
 
 
@@ -123,7 +123,7 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
               <span className="sk-hl">Drawn by hand, in 60 seconds.</span>
             </h1>
             <p className="hero-lede">
-              Paste your text: {appConfig.name} turns it into a hand-drawn video that hooks attention from the first stroke. Voiceover included.
+              Write your script. We'll turn it into a hand-drawn video with voiceover. 16:9, 9:16, 1:1 — all in one.
             </p>
             <HeroPrompt />
             <p className="sk-note hero-try">Type 2 lines above. Watch the hand do the rest ↑</p>
@@ -260,6 +260,15 @@ export function SketchLanding({ user, isAdmin }: SketchLandingProps) {
             lede="Every plan comes with monthly credits for scripts, storyboards, images and voiceover. No commitment, cancel anytime."
           />
           <PricingPlans />
+          <p className="plans-topup">
+            Need more in a busy month? Top up anytime from{" "}
+            <b>${(Math.min(...Object.values(CREDIT_PACKS).map((p) => p.amount)) / 100).toFixed(2)}</b>, on any plan. Purchased
+            credits last a year.
+          </p>
+          <details className="plans-compare">
+            <summary className="sk-btn">Compare all features</summary>
+            <PlanComparison showTitle={false} />
+          </details>
         </section>
 
         <Rule />

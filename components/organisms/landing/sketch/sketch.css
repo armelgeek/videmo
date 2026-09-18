@@ -624,6 +624,35 @@
 }
 
 /* Pricing */
+.plans-topup {
+  margin: 28px 0 0;
+  text-align: center;
+  color: var(--sk-ink-2);
+}
+
+.plans-compare {
+  margin-top: 18px;
+  text-align: center;
+}
+
+.plans-compare > summary {
+  display: inline-flex;
+  list-style: none;
+  cursor: pointer;
+}
+
+.plans-compare > summary::-webkit-details-marker {
+  display: none;
+}
+
+.plans-compare[open] > summary {
+  margin-bottom: 20px;
+}
+
+.plans-compare > section {
+  text-align: left;
+}
+
 @media (max-width: 1100px) {
   .plans {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -772,6 +801,11 @@
   color: var(--sk-ink-2);
 }
 
+.plan-videos small {
+  display: block;
+  font-size: 0.78rem;
+}
+
 .plan-videos .sk-display {
   font-size: 1.5rem;
   line-height: 1;
@@ -787,8 +821,18 @@
   font-size: 0.95rem;
 }
 
-.plan > .sk-btn {
-  margin-top: auto;
+.plan-items {
+  border-top: 1.5px dashed var(--sk-rule);
+  padding-top: 16px;
+}
+
+.plan-items .plan-items-head {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sk-ink-2);
 }
 
 .plan-items li {
@@ -1236,18 +1280,20 @@
 .prompt-suggestions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 12px;
+  flex-wrap: nowrap;
   padding-left: 2px;
 }
 
 .prompt-suggestions-label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--sk-ink-2);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   font-family: var(--font-dm-mono), monospace;
+  white-space: nowrap;
+  margin-right: 4px;
 }
 
 .prompt-suggestion-chip {
@@ -1334,13 +1380,28 @@
   gap: 6px;
 }
 
-.prompt-pills span {
+.prompt-pill-btn {
   font-family: var(--font-dm-mono), monospace;
   font-size: 12px;
   padding: 3px 10px;
   border: 1.5px solid var(--sk-rule);
   border-radius: 999px;
   color: var(--sk-ink-2);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.prompt-pill-btn:hover {
+  border-color: var(--sk-ink);
+  color: var(--sk-ink);
+}
+
+.prompt-pill-btn.is-active {
+  background: var(--sk-hi);
+  border-color: var(--sk-hi);
+  color: var(--sk-hi-ink);
+  font-weight: 600;
 }
 
 .prompt-go {
