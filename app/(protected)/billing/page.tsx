@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 import { getUserSubscription } from "@/actions/payments";
 import { getActivePlans } from "@/actions/payments/get-plans";
 import { PricingCards } from "@/components/molecules/cards/pricing-cards";
+import { PlanComparison } from "@/components/organisms/billing/plan-comparison";
+import { CreditPacks } from "@/components/organisms/billing/credit-packs";
+import { BillingFaq } from "@/components/organisms/billing/billing-faq";
 import { BillingOverview } from "@/components/organisms/billing/billing-overview";
 import BillingClient from "@/components/templates/billing-client";
 import { AppShell } from "@/lib/app-shell";
@@ -62,9 +65,6 @@ export default async function BillingPage({
 
         {canManage && plans && plans.length > 0 && (
           <section id="plans" className="mt-12 scroll-mt-6">
-            <h2 className="mb-6 text-2xl font-extrabold text-foreground">
-              <span className="sk-marker">Plans</span>
-            </h2>
             <PricingCards
               plans={plans}
               isLoggedIn
@@ -74,6 +74,12 @@ export default async function BillingPage({
             />
           </section>
         )}
+
+        <div className="mt-14 space-y-14 pb-10">
+          <PlanComparison />
+          {canManage && <CreditPacks />}
+          <BillingFaq />
+        </div>
       </div>
     </AppShell>
   );

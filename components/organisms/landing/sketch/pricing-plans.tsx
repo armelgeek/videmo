@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { type BillingInterval, TIER_CATALOG } from "@/lib/billing/catalog";
+import { type BillingInterval, TIER_CATALOG, videoMinutesFor } from "@/lib/billing/catalog";
 
 const PLAN_CTA = {
   free: "Start free",
@@ -74,6 +74,12 @@ export function PricingPlans() {
                     : "Billed monthly"}
               </p>
               <p className="plan-note">{p.description}</p>
+              <p className="plan-videos">
+                <span className="sk-display">~{videoMinutesFor(p.quotas.monthly_credits)}</span>
+                <span>
+                  one-minute video{videoMinutesFor(p.quotas.monthly_credits) === 1 ? "" : "s"} / month
+                </span>
+              </p>
               <ul className="plan-items">
                 {p.displayFeatures.map((it) => (
                   <li key={it}>

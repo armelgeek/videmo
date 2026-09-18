@@ -33,8 +33,7 @@ export function videoMinutesFor(credits: number): number {
 }
 
 function creditsLine(credits: number): string {
-  const minutes = videoMinutesFor(credits);
-  return `${credits.toLocaleString("en-US")} credits / month (~${minutes} one-minute video${minutes === 1 ? "" : "s"})`;
+  return `${credits.toLocaleString("en-US")} credits / month`;
 }
 export const FREE_PRICE_ID = "free_forever";
 
@@ -53,15 +52,15 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
   {
     tier: "free",
     name: "Free",
-    description: "Get started for free",
+    description: "Try it on a real video",
     prices: { month: 0 },
     isPopular: false,
     displayFeatures: [
       creditsLine(100),
-      "1 organization",
+      "4 drawing styles",
       "3 projects",
-      "720p export",
-      "Watermarked videos",
+      "720p export, videos up to 90 s",
+      "Watermark on exports",
     ],
     quotas: {
       monthly_credits: 100,
@@ -83,15 +82,15 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
   {
     tier: "starter",
     name: "Starter",
-    description: "Perfect for individuals and small projects",
+    description: "For solo creators who publish every week",
     prices: { month: 1200, year: 12000 },
     isPopular: false,
     displayFeatures: [
       creditsLine(600),
-      "1 organization",
+      "4 drawing styles",
       "20 projects",
-      "1080p export",
-      "5 min videos",
+      "1080p export, videos up to 5 min",
+      "Watermark on exports",
     ],
     quotas: {
       monthly_credits: 600,
@@ -113,16 +112,16 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
   {
     tier: "pro",
     name: "Pro",
-    description: "For creators and growing teams",
+    description: "For marketing teams that publish a lot",
     prices: { month: 3900, year: 39000 },
     isPopular: true,
     displayFeatures: [
       creditsLine(2500),
-      "Up to 3 organizations",
+      "All 12 drawing styles",
       "Unlimited projects",
+      "1080p export, videos up to 10 min",
       "No watermark",
-      "Premium templates",
-      "Up to 5 team members",
+      "5 members, 3 organizations",
       "API access",
       "Priority support",
     ],
@@ -146,17 +145,16 @@ export const TIER_CATALOG: readonly TierDefinition[] = [
   {
     tier: "enterprise",
     name: "Enterprise",
-    description: "For large organizations with advanced needs",
+    description: "For agencies and large teams",
     prices: { month: 9900, year: 99000 },
     isPopular: false,
     displayFeatures: [
       creditsLine(7000),
       "Everything in Pro",
-      "4K export",
-      "30 min videos",
-      "Custom branding",
-      "Unlimited organizations",
-      "Unlimited team members",
+      "4K export, videos up to 30 min",
+      "Your logo on every video",
+      "Unlimited members and organizations",
+      "Unlimited storage",
     ],
     quotas: {
       monthly_credits: 7000,

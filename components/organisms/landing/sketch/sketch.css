@@ -696,15 +696,16 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
-  align-items: start;
+  align-items: stretch;
   padding-top: 16px;
 }
 
 .plan {
   position: relative;
-  display: grid;
-  gap: 16px;
-  padding: 30px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 26px 22px 22px;
   background: var(--sk-panel);
   border: 2px solid var(--sk-ink);
   border-radius: 6px;
@@ -712,7 +713,7 @@
 
 .plan.is-pick {
   box-shadow: 8px 8px 0 var(--sk-shadow);
-  transform: rotate(-1deg) translateY(-8px);
+  transform: translateY(-8px);
 }
 
 .plan-flag {
@@ -753,12 +754,41 @@
   color: var(--sk-ink-2);
 }
 
+.plan-note {
+  margin: 0;
+  min-height: 2.6em;
+  font-size: 0.95rem;
+}
+
+.plan-videos {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1.5px dashed var(--sk-rule);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--sk-ink-2);
+}
+
+.plan-videos .sk-display {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--sk-ink);
+}
+
 .plan-items {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 0 0 6px;
   display: grid;
-  gap: 10px;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.plan > .sk-btn {
+  margin-top: auto;
 }
 
 .plan-items li {
