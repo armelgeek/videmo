@@ -171,7 +171,7 @@ export function BillingOverview({ hasSubscription, subscriptionSlot }: BillingOv
               {!hasSubscription && summary.canManage && (
                 <>
                   {" · "}
-                  <Link href="/#pricing" className="font-medium text-foreground underline">
+                  <Link href="/billing#plans" className="font-medium text-foreground underline">
                     upgrade for more
                   </Link>
                 </>

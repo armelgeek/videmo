@@ -37,6 +37,7 @@ interface PricingCardsProps {
   isLoggedIn: boolean;
   currentPlanId?: string | null;
   hasSubscription?: boolean;
+  initialInterval?: PricingInterval;
 }
 
 export const PricingCards = ({
@@ -44,8 +45,9 @@ export const PricingCards = ({
   isLoggedIn,
   currentPlanId = null,
   hasSubscription = false,
+  initialInterval = "monthly",
 }: PricingCardsProps) => {
-  const [interval, setInterval] = useState<PricingInterval>("monthly");
+  const [interval, setInterval] = useState<PricingInterval>(initialInterval);
   const [isPending, startTransition] = useTransition();
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
 

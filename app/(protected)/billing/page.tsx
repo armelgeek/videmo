@@ -3,6 +3,8 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { getUserSubscription } from "@/actions/payments";
+import { getActivePlans } from "@/actions/payments/get-plans";
+import { PricingCards } from "@/components/molecules/cards/pricing-cards";
 import { BillingOverview } from "@/components/organisms/billing/billing-overview";
 import BillingClient from "@/components/templates/billing-client";
 import { AppShell } from "@/lib/app-shell";
@@ -14,7 +16,11 @@ export const metadata: Metadata = {
   description: "View and manage your subscription plan and billing information",
 };
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ interval?: string }>;
+}) {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
@@ -23,7 +29,11 @@ export default async function BillingPage() {
     redirect("/login");
   }
 
-  const { subscription, canManage } = await getUserSubscription();
+  const [{ subscription, canManage }, { plans }, { interval }] = await Promise.all([
+    getUserSubscription(),
+    getActivePlans(),
+    searchParams,
+  ]);
 
   return (
     <AppShell contentClassName="bg-background">
@@ -49,6 +59,21 @@ export default async function BillingPage() {
             <BillingClient subscription={subscription || null} canManage={canManage ?? false} />
           }
         />
+
+        {canManage && plans && plans.length > 0 && (
+          <section id="plans" className="mt-12 scroll-mt-6">
+            <h2 className="mb-6 text-2xl font-extrabold text-foreground">
+              <span className="sk-marker">Plans</span>
+            </h2>
+            <PricingCards
+              plans={plans}
+              isLoggedIn
+              currentPlanId={subscription?.planId ?? null}
+              hasSubscription={Boolean(subscription)}
+              initialInterval={interval === "yearly" ? "yearly" : "monthly"}
+            />
+          </section>
+        )}
       </div>
     </AppShell>
   );

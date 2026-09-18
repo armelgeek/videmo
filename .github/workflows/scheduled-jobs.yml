@@ -1,0 +1,25 @@
+name: Scheduled jobs
+
+# Requires repository secrets APP_URL (e.g. https://app.example.com) and CRON_SECRET (same value as the app's env).
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    if: ${{ vars.SCHEDULED_JOBS_ENABLED == 'true' || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [credits, emails]
+    steps:
+      - name: Call /api/cron/${{ matrix.job }}
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl -fsS --max-time 300 -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/cron/${{ matrix.job }}"

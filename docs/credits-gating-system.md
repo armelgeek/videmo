@@ -33,7 +33,7 @@
 
 `invoice.paid` fires once a year for yearly plans, so it cannot drive resets.
 
-- `POST /api/cron/credits`, authorized by `Authorization: Bearer ${CRON_SECRET}`, triggered externally (app runs from `Dockerfile`, no Vercel cron) — e.g. host crontab or a scheduled GitHub Action calling the URL daily.
+- `POST /api/cron/credits`, authorized by `Authorization: Bearer ${CRON_SECRET}`, triggered externally (app runs from `Dockerfile`, no Vercel cron) — e.g. host crontab or a scheduled GitHub Action calling the URL daily. `.github/workflows/scheduled-jobs.yml` calls it (and `/api/cron/emails`) hourly once the repo has secrets `APP_URL` + `CRON_SECRET` and variable `SCHEDULED_JOBS_ENABLED=true`.
 - For each wallet with `resetAt <= now`, in **one** transaction: expire remaining `planCredits` (ledger `expiration`), grant the plan's `monthly_credits` (ledger `plan_grant`), set `resetAt` to +1 calendar month. The row update is conditional on `resetAt <= now` so a double run is a no-op.
 - Same job expires `CreditPurchase` rows past `expiresAt`.
 - `invoice.paid` no longer touches credits.

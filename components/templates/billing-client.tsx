@@ -115,7 +115,7 @@ export default function BillingClient({ subscription, canManage }: BillingClient
           </p>
           {canManage && (
             <Button asChild className="w-full">
-              <Link href="/#pricing">See plans</Link>
+              <Link href="/billing#plans">See plans</Link>
             </Button>
           )}
         </>
@@ -152,7 +152,7 @@ export default function BillingClient({ subscription, canManage }: BillingClient
                 {loading ? "Opening…" : "Payment method & invoices"}
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <Link href="/#pricing">Change plan</Link>
+                <Link href="/billing#plans">Change plan</Link>
               </Button>
 
               {subscription.cancelAtPeriodEnd ? (
