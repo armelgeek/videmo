@@ -209,6 +209,24 @@ export const auth = betterAuth({
   trustedOrigins: [
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   ],
+  rateLimit: {
+    window: 60,
+    max: 100,
+    customRules: {
+      "/sign-in/email": { window: 60, max: 5 },
+      "/sign-in/magic-link": { window: 60, max: 3 },
+      "/sign-in/email-otp": { window: 60, max: 5 },
+      "/sign-up/email": { window: 60, max: 3 },
+      "/email-otp/send-verification-otp": { window: 60, max: 3 },
+      "/email-otp/verify-email": { window: 60, max: 5 },
+      "/request-password-reset": { window: 60, max: 3 },
+      "/forget-password": { window: 60, max: 3 },
+      "/reset-password": { window: 60, max: 3 },
+      "/two-factor/verify-totp": { window: 60, max: 5 },
+      "/two-factor/verify-backup-code": { window: 60, max: 5 },
+      "/change-email": { window: 60, max: 3 },
+    },
+  },
   plugins: [
     organization({
       ac,

@@ -4,6 +4,7 @@ import { EmailService } from "@/lib/email-service";
 import { appConfig } from "@/lib/config";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { rateLimit } from "@/lib/security/rate-limiter";
 import crypto from "crypto";
 
 const EMAIL_CHANGE_TOKEN_EXPIRY_HOURS = 24;
@@ -16,6 +17,14 @@ export async function POST(request: Request) {
 
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const limited = await rateLimit(`email-change:${session.user.id}`, { limit: 3, windowSeconds: 600 });
+    if (!limited.success) {
+      return NextResponse.json(
+        { error: "Too many email change requests. Try again in a few minutes." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil((limited.resetAt - Date.now()) / 1000)) } },
+      );
     }
 
     const body = await request.json();
