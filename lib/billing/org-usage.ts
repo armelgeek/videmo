@@ -60,3 +60,39 @@ export async function assertVideoDuration(organizationId: string, durationMs: nu
     throw new QuotaExceededError("max_video_duration_sec", limit, seconds);
   }
 }
+
+const BYTES_PER_GB = 1024 ** 3;
+
+export async function storageUsedBytes(organizationId: string): Promise<number> {
+  const result = await prisma.storedObject.aggregate({
+    // Files of deleted projects no longer count: deleting a project is how a user frees space.
+    where: { organizationId, OR: [{ projectId: null }, { project: { deletedAt: null } }] },
+    _sum: { bytes: true },
+  });
+  return result._sum.bytes ?? 0;
+}
+
+// Checked before paid generation, so a full organization is refused before any credit is spent.
+export async function assertStorageAvailable(organizationId: string): Promise<void> {
+  const plan = await getOrgPlan(organizationId);
+  const limitGb = plan.quotas.max_storage_gb ?? 0;
+  if (limitGb === UNLIMITED) return;
+  const used = await storageUsedBytes(organizationId);
+  if (used >= limitGb * BYTES_PER_GB) {
+    throw new QuotaExceededError("max_storage_gb", limitGb, Math.round((used / BYTES_PER_GB) * 10) / 10);
+  }
+}
+
+export async function recordStoredObject(input: {
+  organizationId: string;
+  projectId: string | null;
+  key: string;
+  bytes: number;
+}): Promise<void> {
+  const { organizationId, projectId, key, bytes } = input;
+  await prisma.storedObject.upsert({
+    where: { key },
+    create: { key, organizationId, projectId, bytes },
+    update: { bytes },
+  });
+}

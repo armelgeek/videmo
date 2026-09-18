@@ -6,7 +6,8 @@ import crypto from "crypto"
 import { createRateLimitMiddleware } from "@/lib/security/rate-limiter"
 import { auditLogger, AuditEventType } from "@/lib/security/audit-logger"
 import { getOrgPlan } from "@/lib/billing/plan-gating"
-import { requireViewer } from "@/lib/video-project/session"
+import { requireSessionViewer } from "@/lib/video-project/session"
+import { hashApiKey } from "@/lib/api-keys/authenticate"
 
 const listRateLimiter = createRateLimitMiddleware(100, 60 * 60 * 1000)   
 const createRateLimiter = createRateLimitMiddleware(10, 60 * 60 * 1000)  
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const viewer = await requireViewer()
+  const viewer = await requireSessionViewer()
   const plan = viewer.organizationId ? await getOrgPlan(viewer.organizationId) : null
   if (plan?.features.api_access !== true) {
     return NextResponse.json(
@@ -102,7 +103,7 @@ export async function POST(request: NextRequest) {
   }
 
   const rawKey = `sk_live_${crypto.randomBytes(24).toString("hex")}`
-  const keyHash = crypto.createHash("sha256").update(rawKey).digest("hex")
+  const keyHash = hashApiKey(rawKey)
   const keyPrefix = rawKey.slice(0, 12)
 
   const apiKey = await prisma.apiKey.create({
@@ -111,6 +112,7 @@ export async function POST(request: NextRequest) {
       keyHash,
       keyPrefix,
       userId: session.user.id,
+      organizationId: viewer.organizationId,
     },
   })
 

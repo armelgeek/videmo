@@ -15,6 +15,8 @@ const QUOTA_MESSAGES: Record<string, (limit: number) => string> = {
   max_org_members: (limit) =>
     `Your plan allows ${limit} member${limit === 1 ? "" : "s"}, pending invitations included. Upgrade to invite more.`,
   max_export_resolution: (limit) => `Your plan exports up to ${limit}p. Upgrade for a higher resolution.`,
+  max_storage_gb: (limit) =>
+    `Your organization has used its ${limit} GB of storage. Upgrade to keep generating images and voiceovers.`,
   max_video_duration_sec: (limit) =>
     `Your plan exports videos up to ${formatDuration(limit)}. Shorten this one or upgrade.`,
 };

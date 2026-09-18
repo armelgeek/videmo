@@ -9,6 +9,7 @@ import { AlertCircle, Check, Copy, Loader2, Mail, MoreVertical, RotateCw, UserMi
 import { toast } from "sonner";
 import { authClient, useSession } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
+import { BrandLogoPanel } from "./brand-logo-panel";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -52,6 +53,7 @@ interface Invitation {
 interface FullOrganization {
   id: string;
   name: string;
+  logo?: string | null;
   members: Member[];
   invitations: Invitation[];
 }
@@ -342,6 +344,10 @@ export function MembersView() {
                 ))}
               </ul>
             </section>
+          )}
+
+          {canManage && organization && (
+            <BrandLogoPanel key={organization.id} organizationId={organization.id} initialLogo={organization.logo ?? null} />
           )}
 
           <section className={cn(PANEL, "p-0 overflow-hidden lg:col-span-2")}>

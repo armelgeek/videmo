@@ -14,7 +14,8 @@ import { measureAudioDurationMs } from "@/lib/speech/audio-duration";
 import { getTranscriber } from "@/lib/speech/openai-transcriber";
 import { TranscriptionFailedError } from "@/lib/speech/transcriber";
 import { alignBeats, type TranscriptWord } from "@/lib/speech/beat-alignment";
-import { chargeFor } from "@/lib/billing/with-credits";
+import { billingErrorResponse, chargeFor } from "@/lib/billing/with-credits";
+import { assertStorageAvailable, recordStoredObject } from "@/lib/billing/org-usage";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest) {
     const speech = getSpeechGenerator();
     const storage = getObjectStorage();
 
+    if (viewer.organizationId) await assertStorageAvailable(viewer.organizationId);
+
     return await chargeFor(
       viewer,
       "generate_narration",
@@ -100,21 +103,32 @@ export async function POST(request: NextRequest) {
           }
         }
 
+        const key = buildNarrationKey({
+          projectId: input.projectId,
+          sceneIndex: input.sceneIndex,
+          beatIndex: input.beatIndex,
+        });
         const url = await storage.put({
-          key: buildNarrationKey({
-            projectId: input.projectId,
-            sceneIndex: input.sceneIndex,
-            beatIndex: input.beatIndex,
-          }),
+          key,
           body: audio,
           contentType: "audio/mpeg",
         });
+        if (viewer.organizationId) {
+          await recordStoredObject({
+            organizationId: viewer.organizationId,
+            projectId: input.projectId,
+            key,
+            bytes: audio.byteLength,
+          });
+        }
 
         return NextResponse.json({ url, durationMs, beats, words });
       },
       { referenceId: input.projectId },
     );
   } catch (error) {
+    const billing = billingErrorResponse(error);
+    if (billing) return billing;
     if (
       error instanceof StorageNotConfiguredError ||
       error instanceof SpeechGeneratorNotConfiguredError

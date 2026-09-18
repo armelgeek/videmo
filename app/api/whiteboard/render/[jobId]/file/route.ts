@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireViewer, toErrorResponse, type Viewer } from "@/lib/video-project/session";
 import { NextRequest, NextResponse } from "next/server";
 import { getObjectStorage } from "@/lib/storage/s3-storage";
 import { getRenderJob } from "@/lib/whiteboard-animation/server/render-store";
@@ -8,13 +7,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let viewer: Viewer;
+  try {
+    viewer = await requireViewer();
+  } catch (error) {
+    return toErrorResponse(error);
   }
 
   const { jobId } = await params;
-  const job = await getRenderJob(jobId, session.user.id);
+  const job = await getRenderJob(jobId, viewer.userId);
   if (!job || job.status !== "done" || !job.outputKey) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

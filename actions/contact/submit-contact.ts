@@ -6,6 +6,8 @@ import { headers } from 'next/headers';
 import nodemailer from 'nodemailer';
 import { getContactFormTemplate } from '@/lib/email-templates/contact-form-template';
 import { appConfig } from '@/lib/config';
+import { getOrgPlan } from '@/lib/billing/plan-gating';
+import { requireSessionViewer } from '@/lib/video-project/session';
 
 const contactSchema = z.object({
   fullName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -15,6 +17,18 @@ const contactSchema = z.object({
 });
 
 export type ContactFormData = z.infer<typeof contactSchema>;
+
+// Anonymous visitors and free plans get the normal queue; a failure here must not block the message.
+async function priorityPlanName(): Promise<string | null> {
+  try {
+    const viewer = await requireSessionViewer();
+    if (!viewer.organizationId) return null;
+    const plan = await getOrgPlan(viewer.organizationId);
+    return plan.features.priority_support === true ? plan.name : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function submitContact(
   formData: ContactFormData
@@ -33,8 +47,9 @@ export async function submitContact(
     headersList.get('x-real-ip') ||
     null;
 
+  const priorityPlan = await priorityPlanName();
+
   try {
-    
     await prisma.contactSubmission.create({
       data: {
         fullName,
@@ -73,7 +88,7 @@ export async function submitContact(
           from: process.env.SMTP_FROM_EMAIL,
           to: toEmail,
           replyTo: email,
-          subject: `New Contact Form Inquiry from ${fullName} — ${appConfig.name}`,
+          subject: `${priorityPlan ? `[PRIORITY · ${priorityPlan}] ` : ''}New Contact Form Inquiry from ${fullName} — ${appConfig.name}`,
           html: htmlContent,
         });
       }

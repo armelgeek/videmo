@@ -1,7 +1,7 @@
 import { createCanvas } from "canvas";
 import { describe, expect, it } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { createWatermarkStamp } = require("./watermark");
+const { createWatermarkStamp, createLogoStamp } = require("./watermark");
 
 const W = 640;
 const H = 360;
@@ -40,5 +40,21 @@ describe("createWatermarkStamp", () => {
       }
     }
     expect(changedInCorner).toBeGreaterThan(100);
+  });
+});
+
+describe("createLogoStamp", () => {
+  it("pose le logo de l'organisation en bas a droite", async () => {
+    const logo = createCanvas(200, 80);
+    const lctx = logo.getContext("2d");
+    lctx.fillStyle = "#d00";
+    lctx.fillRect(0, 0, 200, 80);
+
+    const stamp = await createLogoStamp({ width: W, height: H, logoUrl: logo.toDataURL("image/png") });
+    const frame = whiteFrame();
+    const out: Buffer = stamp(frame);
+
+    expect(pixel(out, 5, 5)).toEqual(pixel(frame, 5, 5));
+    expect(pixel(out, W - 30, H - 20)).not.toEqual(pixel(frame, W - 30, H - 20));
   });
 });

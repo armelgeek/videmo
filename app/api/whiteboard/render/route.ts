@@ -3,6 +3,7 @@ import { assertExportResolution, assertVideoDuration } from "@/lib/billing/org-u
 import { getOrgPlan } from "@/lib/billing/plan-gating";
 import { premiumStylesIn } from "@/lib/whiteboard-animation/style-tiers";
 import { appConfig } from "@/lib/config";
+import { prisma } from "@/lib/prisma";
 import { billingErrorResponse } from "@/lib/billing/with-credits";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse, type Viewer } from "@/lib/video-project/session";
@@ -136,6 +137,15 @@ export async function POST(request: NextRequest) {
   }
 
   const watermark = plan?.features.remove_watermark === true ? null : `Made with ${appConfig.name}`;
+  const brandLogoUrl =
+    plan?.features.custom_branding === true && viewer.organizationId
+      ? ((
+          await prisma.organization.findUnique({
+            where: { id: viewer.organizationId },
+            select: { logo: true },
+          })
+        )?.logo ?? null)
+      : null;
 
   let storage: ReturnType<typeof getObjectStorage>;
   try {
@@ -287,6 +297,7 @@ export async function POST(request: NextRequest) {
     fps: 30,
     outputPath,
     watermark,
+    brandLogoUrl,
   });
 
   return NextResponse.json({ jobId: job.id }, { status: 202 });

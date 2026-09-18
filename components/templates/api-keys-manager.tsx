@@ -86,7 +86,9 @@ export function ApiKeyManager() {
           <CardTitle className="text-lg">API Keys</CardTitle>
         </div>
         <CardDescription>
-          Create and manage API keys for programmatic access to your account.
+          Keys act on your current organization, with its credits and plan limits. Send them as{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">Authorization: Bearer sk_live_…</code>{" "}
+          to the same endpoints the app uses. Included in Pro and Enterprise.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

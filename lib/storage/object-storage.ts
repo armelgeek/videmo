@@ -123,6 +123,20 @@ export function buildImageKey(input: {
   return `projects/${safeProject}/scenes/${input.sceneIndex}-${stamp}-${random}.${extension}`;
 }
 
+export function buildBrandLogoKey(input: {
+  organizationId: string;
+  extension: string;
+  now?: number;
+  random?: string;
+}): string {
+  const stamp = input.now ?? Date.now();
+  const random = input.random ?? Math.random().toString(36).slice(2, 8);
+  const safeOrg = input.organizationId.replace(/[^A-Za-z0-9_-]/g, "");
+  const extension = input.extension.replace(/[^a-z0-9]/gi, "").toLowerCase();
+
+  return `organizations/${safeOrg}/branding/logo-${stamp}-${random}.${extension}`;
+}
+
 export function buildBlogCoverKey(input: {
   extension: string;
   now?: number;

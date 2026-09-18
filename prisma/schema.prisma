@@ -245,6 +245,8 @@ model ApiKey {
   keyPrefix   String    // First 12 chars for display (e.g., "sk_live_xxxx")
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lastUsedAt  DateTime?
   expiresAt   DateTime?
   createdAt   DateTime  @default(now())
@@ -268,6 +270,8 @@ model Organization {
   creditWallet       CreditWallet?
   creditTransactions CreditTransaction[]
   creditPurchases    CreditPurchase[]
+  apiKeys            ApiKey[]
+  storedObjects      StoredObject[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }
@@ -387,6 +391,7 @@ model VideoProject {
 
   @@index([organizationId, deletedAt, updatedAt])
   @@index([lockExpiresAt])
+  storedObjects StoredObject[]
 }
 
 model Annotation {
@@ -560,4 +565,20 @@ model ScheduledEmail {
 
   @@unique([userId, kind])
   @@index([sentAt, sendAt])
+}
+
+// One row per file an organization keeps in the bucket, so storage quotas can be summed.
+model StoredObject {
+  id             String       @id @default(cuid())
+  key            String       @unique
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        VideoProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bytes          Int
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@index([projectId])
+  @@map("stored_objects")
 }

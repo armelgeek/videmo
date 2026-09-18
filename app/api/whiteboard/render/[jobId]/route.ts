@@ -1,5 +1,4 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireViewer, toErrorResponse, type Viewer } from "@/lib/video-project/session";
 import { NextRequest, NextResponse } from "next/server";
 import {
   cancelRenderJob,
@@ -10,13 +9,15 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let viewer: Viewer;
+  try {
+    viewer = await requireViewer();
+  } catch (error) {
+    return toErrorResponse(error);
   }
 
   const { jobId } = await params;
-  const job = await getRenderJob(jobId, session.user.id);
+  const job = await getRenderJob(jobId, viewer.userId);
   // 404 et non 403 sur le job d'un autre : un 403 confirmerait son existence.
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -32,15 +33,17 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ jobId: string }> },
 ) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  let viewer: Viewer;
+  try {
+    viewer = await requireViewer();
+  } catch (error) {
+    return toErrorResponse(error);
   }
 
   const { jobId } = await params;
   // Un job deja conclu refuse l'annulation : rien a annuler, et sa video reste
   // telechargeable.
-  if (!(await cancelRenderJob(jobId, session.user.id))) {
+  if (!(await cancelRenderJob(jobId, viewer.userId))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
   return NextResponse.json({ cancelled: true });

@@ -18,7 +18,12 @@ const UNLIMITED = -1;
 const PRIMARY_ACTION =
   "inline-flex h-10 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-semibold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px";
 
-function UsageRow({ label, current, limit }: { label: string; current: number; limit: number }) {
+function UsageRow({
+  label,
+  current,
+  limit,
+  unit = "",
+}: { label: string; current: number; limit: number; unit?: string }) {
   const unlimited = limit === UNLIMITED;
   const percent = unlimited || limit <= 0 ? 0 : Math.min(100, Math.round((current / limit) * 100));
 
@@ -28,6 +33,7 @@ function UsageRow({ label, current, limit }: { label: string; current: number; l
         <span className="text-foreground">{label}</span>
         <span className="tabular-nums text-muted-foreground">
           {current.toLocaleString("en-US")} / {unlimited ? "∞" : limit.toLocaleString("en-US")}
+          {unit}
         </span>
       </div>
       {!unlimited && <Progress value={percent} className="h-1.5" aria-label={`${label}: ${percent}% used`} />}
@@ -155,6 +161,12 @@ export function BillingOverview({ hasSubscription, subscriptionSlot }: BillingOv
               label="Members"
               current={summary.usage.members.current}
               limit={summary.usage.members.limit}
+            />
+            <UsageRow
+              label="Storage"
+              current={summary.usage.storageGb.current}
+              limit={summary.usage.storageGb.limit}
+              unit=" GB"
             />
             {summary.usage.organizations && (
               <UsageRow

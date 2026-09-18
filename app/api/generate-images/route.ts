@@ -16,7 +16,8 @@ import {
   generateImageRequestSchema,
   imageSizeForAspectRatio,
 } from "@/lib/storyboard/image-generation";
-import { chargeFor } from "@/lib/billing/with-credits";
+import { billingErrorResponse, chargeFor } from "@/lib/billing/with-credits";
+import { assertStorageAvailable, recordStoredObject } from "@/lib/billing/org-usage";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest) {
     const generator = getImageGenerator();
     const storage = getObjectStorage();
 
+    if (viewer.organizationId) await assertStorageAvailable(viewer.organizationId);
+
     return await chargeFor(
       viewer,
       "generate_image",
@@ -78,21 +81,32 @@ export async function POST(request: NextRequest) {
         });
 
         const encoded = await encodeSceneImage(image);
+        const key = buildImageKey({
+          projectId: input.projectId,
+          sceneIndex: input.sceneIndex,
+          extension: encoded.extension,
+        });
         const url = await storage.put({
-          key: buildImageKey({
-            projectId: input.projectId,
-            sceneIndex: input.sceneIndex,
-            extension: encoded.extension,
-          }),
+          key,
           body: encoded.body,
           contentType: encoded.contentType,
         });
+        if (viewer.organizationId) {
+          await recordStoredObject({
+            organizationId: viewer.organizationId,
+            projectId: input.projectId,
+            key,
+            bytes: encoded.body.byteLength,
+          });
+        }
 
         return NextResponse.json({ url });
       },
       { referenceId: input.projectId },
     );
   } catch (error) {
+    const billing = billingErrorResponse(error);
+    if (billing) return billing;
     if (
       error instanceof StorageNotConfiguredError ||
       error instanceof ImageGeneratorNotConfiguredError
