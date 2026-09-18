@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ANIMATION_STYLES } from './animation-styles';
+import { isPremiumStyle } from '../../../../lib/whiteboard-animation/style-tiers';
 
 import { AnimationFactory } from '../../../../lib/whiteboard-animation/AnimationFactory';
 
@@ -43,5 +44,12 @@ describe('styles annonces sur la landing', () => {
   it('n annoncent pas deux fois le meme style', () => {
     const ids = ANIMATION_STYLES.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('affichent le meme badge free/pro que la regle appliquee a l export', () => {
+    const ecarts = ANIMATION_STYLES.filter(
+      (s) => (s.tier === 'premium') !== isPremiumStyle(s.id),
+    );
+    expect(ecarts.map((s) => s.id)).toEqual([]);
   });
 });

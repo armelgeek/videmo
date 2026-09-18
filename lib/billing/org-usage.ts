@@ -51,3 +51,12 @@ export async function assertExportResolution(
     throw new QuotaExceededError("max_export_resolution", limit, requestedShortSide);
   }
 }
+
+export async function assertVideoDuration(organizationId: string, durationMs: number): Promise<void> {
+  const plan = await getOrgPlan(organizationId);
+  const limit = plan.quotas.max_video_duration_sec ?? 0;
+  const seconds = Math.ceil(durationMs / 1000);
+  if (limit !== UNLIMITED && seconds > limit) {
+    throw new QuotaExceededError("max_video_duration_sec", limit, seconds);
+  }
+}

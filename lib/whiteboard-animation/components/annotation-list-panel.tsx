@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 import { SketchHint } from '@/components/molecules/sketch-hint';
 import { Hint } from '@/components/molecules/hint';
 import { DEFAULT_ANIM_STYLE, annotationColors } from '../schema';
+import { isPremiumStyle } from '../style-tiers';
+import { useCreditSummary } from '@/lib/billing/use-credit-summary';
 
 /** Couleur de repli du calque d'annotations — meme valeur qu'AnnotationOverlay. */
 
@@ -55,6 +57,8 @@ function AnnotationListPanelImpl({
   const storeAnnotations = useUnifiedEngineStore(selectSceneAnnotations);
   const updateAnnotation = useUnifiedEngineStore((s) => s.updateAnnotation);
   const annotations = annotationsProp ?? storeAnnotations;
+  const { summary } = useCreditSummary();
+  const premiumLocked = summary ? !summary.features.premiumStyles : false;
   const selectedIndex = useUnifiedEngineStore(
     (s) => s.ui.selectedAnnotationIndex,
   );
@@ -175,11 +179,20 @@ function AnnotationListPanelImpl({
                         </SelectTrigger>
                       </Hint>
                       <SelectContent>
-                        {ANIM_STYLES.map((st) => (
-                          <SelectItem key={st.value} value={st.value} className="text-xs">
-                            {st.label}
-                          </SelectItem>
-                        ))}
+                        {ANIM_STYLES.map((st) => {
+                          const pro = isPremiumStyle(st.value);
+                          return (
+                            <SelectItem
+                              key={st.value}
+                              value={st.value}
+                              disabled={pro && premiumLocked && st.value !== currentAnimStyle}
+                              className="text-xs"
+                            >
+                              {st.label}
+                              {pro && <span className="ml-1.5 text-[9px] font-bold uppercase text-muted-foreground">pro</span>}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>

@@ -21,6 +21,8 @@ export interface CreditSummary {
   monthlyAllowance: number;
   resetAt: string;
   maxExportResolution: number;
+  maxVideoDurationSec: number;
+  features: { premiumStyles: boolean; removeWatermark: boolean; apiAccess: boolean };
   usage: {
     projects: { current: number; limit: number };
     members: { current: number; limit: number };
@@ -52,6 +54,12 @@ export async function getCreditSummary(): Promise<{ summary: CreditSummary } | {
         monthlyAllowance: plan.quotas.monthly_credits ?? 0,
         resetAt: wallet.resetAt.toISOString(),
         maxExportResolution: plan.quotas.max_export_resolution ?? 0,
+        maxVideoDurationSec: plan.quotas.max_video_duration_sec ?? 0,
+        features: {
+          premiumStyles: plan.features.premium_templates === true,
+          removeWatermark: plan.features.remove_watermark === true,
+          apiAccess: plan.features.api_access === true,
+        },
         usage: {
           projects: { current: projects, limit: plan.quotas.max_projects ?? 0 },
           members: { current: seats, limit: plan.quotas.max_org_members ?? 1 },

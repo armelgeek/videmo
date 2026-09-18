@@ -6,12 +6,17 @@ import {
   QuotaExceededError,
 } from "./errors";
 
+const formatDuration = (seconds: number) =>
+  seconds % 60 === 0 ? `${seconds / 60} min` : `${seconds} s`;
+
 const QUOTA_MESSAGES: Record<string, (limit: number) => string> = {
   max_projects: (limit) =>
     `Your plan allows ${limit} project${limit === 1 ? "" : "s"}. Upgrade or delete a project to create another.`,
   max_org_members: (limit) =>
     `Your plan allows ${limit} member${limit === 1 ? "" : "s"}, pending invitations included. Upgrade to invite more.`,
   max_export_resolution: (limit) => `Your plan exports up to ${limit}p. Upgrade for a higher resolution.`,
+  max_video_duration_sec: (limit) =>
+    `Your plan exports videos up to ${formatDuration(limit)}. Shorten this one or upgrade.`,
 };
 
 export function billingErrorResponse(error: unknown): Response | null {

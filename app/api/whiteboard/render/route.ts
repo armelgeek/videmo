@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { assertExportResolution } from "@/lib/billing/org-usage";
+import { assertExportResolution, assertVideoDuration } from "@/lib/billing/org-usage";
+import { getOrgPlan } from "@/lib/billing/plan-gating";
+import { premiumStylesIn } from "@/lib/whiteboard-animation/style-tiers";
+import { appConfig } from "@/lib/config";
 import { billingErrorResponse } from "@/lib/billing/with-credits";
 import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse, type Viewer } from "@/lib/video-project/session";
@@ -55,6 +58,11 @@ const WORKER = join(
   "lib/whiteboard-animation/server/render-worker.js",
 );
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { projectDurationMs } = require("../../../../lib/whiteboard-animation/lib/project") as {
+  projectDurationMs: (project: unknown) => number;
+};
+
 const logError = (context: string) => (error: unknown) =>
   console.error(`[render] ${context}:`, error);
 
@@ -104,12 +112,30 @@ export async function POST(request: NextRequest) {
         viewer.organizationId,
         Number.parseInt(parsed.data.quality, 10),
       );
+      await assertVideoDuration(viewer.organizationId, projectDurationMs(parsed.data.project));
     } catch (error) {
       const billing = billingErrorResponse(error);
       if (billing) return billing;
       throw error;
     }
   }
+
+  const plan = viewer.organizationId ? await getOrgPlan(viewer.organizationId) : null;
+
+  const premiumStyles = premiumStylesIn(parsed.data.project);
+  if (premiumStyles.length > 0 && plan?.features.premium_templates !== true) {
+    return NextResponse.json(
+      {
+        error: `${premiumStyles.join(", ")} ${premiumStyles.length === 1 ? "is a Pro drawing style" : "are Pro drawing styles"}. Switch to a free style or upgrade to export.`,
+        code: "feature_unavailable",
+        feature: "premium_templates",
+        styles: premiumStyles,
+      },
+      { status: 403 },
+    );
+  }
+
+  const watermark = plan?.features.remove_watermark === true ? null : `Made with ${appConfig.name}`;
 
   let storage: ReturnType<typeof getObjectStorage>;
   try {
@@ -260,6 +286,7 @@ export async function POST(request: NextRequest) {
     height,
     fps: 30,
     outputPath,
+    watermark,
   });
 
   return NextResponse.json({ jobId: job.id }, { status: 202 });

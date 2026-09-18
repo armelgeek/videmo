@@ -55,8 +55,8 @@ export function ApiKeyManager() {
       setNewKeyName("")
       await fetchKeys()
       toast.success("API key created!")
-    } catch {
-      toast.error("Failed to create API key")
+    } catch (error) {
+      toast.error(error instanceof Error && error.message ? error.message : "Failed to create API key")
     } finally {
       setIsCreating(false)
     }

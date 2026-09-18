@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play } from 'lucide-react';
+import { isPremiumStyle } from '../style-tiers';
+import { useCreditSummary } from '@/lib/billing/use-credit-summary';
 
 interface InkplainerSidebarProps {
   selectedLayerName?: string;
@@ -33,6 +35,9 @@ export const InkplainerSidebar: React.FC<InkplainerSidebarProps> = ({
     if (onActiveTabChange) onActiveTabChange(t);
     else setInternalTab(t);
   };
+
+  const { summary } = useCreditSummary();
+  const premiumLocked = summary ? !summary.features.premiumStyles : false;
 
   const animStyles = [
     { key: 'contour', label: 'Contour' },
@@ -107,11 +112,15 @@ export const InkplainerSidebar: React.FC<InkplainerSidebarProps> = ({
                 onChange={(e) => onAnimStyleChange(e.target.value)}
                 className="w-full bg-background border border-border rounded-md px-3 py-2 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                {animStyles.map((s) => (
-                  <option key={s.key} value={s.key}>
-                    {s.label}
-                  </option>
-                ))}
+                {animStyles.map((s) => {
+                  const pro = isPremiumStyle(s.key);
+                  return (
+                    <option key={s.key} value={s.key} disabled={pro && premiumLocked && s.key !== animStyle}>
+                      {s.label}
+                      {pro ? ' · Pro' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
