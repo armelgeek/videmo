@@ -160,8 +160,12 @@ export async function POST(request: NextRequest) {
     const { organizationId, role } = await requireOrganizationRole(viewer);
     if (!canAct(role, "create")) throw new ProjectForbiddenError();
 
-    const { title, aspectRatio } = createVideoProjectSchema.parse(await request.json());
+    const { title, aspectRatio, script } = createVideoProjectSchema.parse(await request.json());
     await assertProjectQuota(organizationId);
+
+    const scriptData = script
+      ? { title, text: script }
+      : (DEFAULT_DOCUMENTS.script as Prisma.InputJsonValue);
 
     const project = await prisma.videoProject.create({
       data: {
@@ -170,7 +174,7 @@ export async function POST(request: NextRequest) {
         title,
         aspectRatio,
         params: DEFAULT_DOCUMENTS.params as Prisma.InputJsonValue,
-        script: DEFAULT_DOCUMENTS.script as Prisma.InputJsonValue,
+        script: scriptData as Prisma.InputJsonValue,
         panels: DEFAULT_DOCUMENTS.panels as Prisma.InputJsonValue,
         whiteboardConfig: DEFAULT_DOCUMENTS.whiteboardConfig as Prisma.InputJsonValue,
       },

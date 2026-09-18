@@ -20,17 +20,18 @@ type Format = (typeof FORMATS)[number]['value'];
 
 export default function NewProjectPage() {
   const router = useRouter();
-  const [title, setTitle] = useState('');
+  const [script, setScript] = useState('');
   const [aspectRatio, setAspectRatio] = useState<Format>('16:9');
   const [isCreating, setIsCreating] = useState(false);
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!title.trim()) return;
+    if (!script.trim()) return;
 
     setIsCreating(true);
     const res = await api.post<{ id: string }>('/api/video-projects', {
-      title: title.trim(),
+      title: `Project ${new Date().toLocaleDateString()}`,
+      script: script.trim(),
       aspectRatio,
     });
     if (!res.ok) {
@@ -54,31 +55,24 @@ export default function NewProjectPage() {
 
         <form onSubmit={handleCreate} className="mx-auto mt-10 max-w-2xl space-y-10">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">New project</h1>
+            <h1 className="text-3xl font-bold text-foreground">Create your video</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Name it and pick a format. You write the script next.
+              Write your script, pick a format, and we'll generate it.
             </p>
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-end justify-between gap-4">
-              <label htmlFor="project-title" className="block text-sm font-semibold text-foreground">
-                Project name
-              </label>
-              {!title && (
-                <SketchHint direction="left" className="hidden text-lg sm:flex">
-                  a working title is fine, rename it anytime
-                </SketchHint>
-              )}
-            </div>
-            <input
-              id="project-title"
+            <label htmlFor="script" className="block text-sm font-semibold text-foreground">
+              Your script
+            </label>
+            <textarea
+              id="script"
               autoFocus
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              maxLength={255}
-              placeholder="How photosynthesis works"
-              className="h-12 w-full rounded-lg border border-border bg-card px-4 text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-ink focus:bg-accent"
+              value={script}
+              onChange={(event) => setScript(event.target.value)}
+              rows={6}
+              placeholder="Describe what you want to show: the message, key points, your audience…"
+              className="w-full rounded-lg border border-border bg-card px-4 py-3 text-base text-foreground placeholder:text-muted-foreground outline-none transition focus:border-ink focus:bg-accent resize-none"
             />
           </div>
 
@@ -133,11 +127,11 @@ export default function NewProjectPage() {
             </Link>
             <button
               type="submit"
-              disabled={!title.trim() || isCreating}
+              disabled={!script.trim() || isCreating}
               className="inline-flex items-center gap-2 rounded-lg bg-highlight text-highlight-foreground border-2 border-ink px-5 py-2.5 text-sm font-semibold outline-none transition hover:shadow-lg hover:shadow-rose-500/20 focus-visible:ring-2 focus-visible:ring-highlight disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isCreating && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isCreating ? 'Creating…' : 'Create project'}
+              {isCreating ? 'Generating…' : 'Generate video'}
             </button>
           </div>
         </form>
