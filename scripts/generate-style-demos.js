@@ -48,7 +48,7 @@ const SORTIE = path.join(RACINE, 'public', 'demos', 'styles');
 const STYLES = [
   'chunkjump', 'contour', 'scanner', 'outlineonly',
   'illustfill', 'outlinefill', 'brushfill', 'outlinechunks',
-  'scribble', 'nervous', 'topanchor', 'gesture',
+  'scribble', 'nervous', 'topanchor', 'gesture', 'skeletontrace',
 ];
 
 const DEFAUTS = {

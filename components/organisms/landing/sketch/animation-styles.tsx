@@ -80,7 +80,7 @@ export const ANIMATION_STYLES: AnimationStyleCard[] = [
   {
     id: "topanchor",
     label: "Top Anchor",
-    description: "Everything drops in from the top edge.",
+    description: "Column by column, each one pulled down from the top.",
     tier: "premium",
   },
   {
@@ -149,7 +149,7 @@ export function AnimationStylesShowcase() {
       <div className="style-stage-side">
         <p className="sk-eyebrow">Hand animation styles</p>
         <h2 className="style-stage-title">
-          One script, <span className="sk-hl">twelve ways to draw it.</span>
+          One script, <span className="sk-hl">thirteen ways to draw it.</span>
         </h2>
         <p className="sec-lede">
           Pick a style per project, or per scene. Every preview is a real

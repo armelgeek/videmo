@@ -990,7 +990,7 @@ export function useWhiteboardRenderer({
     octx?.drawImage(img, rect.x, rect.y, rect.w, rect.h);
     // Meme normalisation qu'au rendu serveur : sans elle l'apercu montre des
     // rectangles gris la ou les regions ont ete revelees.
-    if (octx) blanchirFond(octx, width, height);
+    if (octx) blanchirFond(octx, width, height, rect);
     // Never drawn into again: the engine may cache what it reads from it.
     (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable = true;
 
