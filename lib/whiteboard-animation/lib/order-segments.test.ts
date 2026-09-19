@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-const { ordonnerSegments, ordonnerSegmentsNaif } = require('./ordonner-segments');
+const { orderSegments, orderSegmentsNaive } = require('./order-segments');
 
 type Pt = { x: number; y: number };
 
@@ -29,13 +29,13 @@ function segmentsAleatoires(n: number, graine: number, grille = 1000): Pt[][] {
 
 const trace = (segs: Pt[][]) => segs.map((s) => s.map((p) => `${p.x},${p.y}`).join(' '));
 
-describe('ordonnerSegments', () => {
+describe('orderSegments', () => {
   it('rend le meme ordre que le balayage complet', () => {
     for (const graine of [1, 7, 42, 1234]) {
       const segs = segmentsAleatoires(300, graine);
       const depart = { x: 0, y: 0 };
-      expect(trace(ordonnerSegments(segs, depart))).toEqual(
-        trace(ordonnerSegmentsNaif(segs, depart)),
+      expect(trace(orderSegments(segs, depart))).toEqual(
+        trace(orderSegmentsNaive(segs, depart)),
       );
     }
   });
@@ -45,26 +45,26 @@ describe('ordonnerSegments', () => {
     // une petite grille les multiplie.
     const segs = segmentsAleatoires(400, 99, 12);
     const depart = { x: 6, y: 6 };
-    expect(trace(ordonnerSegments(segs, depart))).toEqual(
-      trace(ordonnerSegmentsNaif(segs, depart)),
+    expect(trace(orderSegments(segs, depart))).toEqual(
+      trace(orderSegmentsNaive(segs, depart)),
     );
   });
 
   it('conserve tous les segments', () => {
     const segs = segmentsAleatoires(200, 5);
-    expect(ordonnerSegments(segs, { x: 0, y: 0 })).toHaveLength(segs.length);
+    expect(orderSegments(segs, { x: 0, y: 0 })).toHaveLength(segs.length);
   });
 
   it('passe par le balayage complet sous le seuil, avec le meme resultat', () => {
     const segs = segmentsAleatoires(10, 3);
     const depart = { x: 500, y: 500 };
-    expect(trace(ordonnerSegments(segs, depart))).toEqual(
-      trace(ordonnerSegmentsNaif(segs, depart)),
+    expect(trace(orderSegments(segs, depart))).toEqual(
+      trace(orderSegmentsNaive(segs, depart)),
     );
   });
 
   it('accepte une liste vide', () => {
-    expect(ordonnerSegments([], { x: 0, y: 0 })).toEqual([]);
+    expect(orderSegments([], { x: 0, y: 0 })).toEqual([]);
   });
 
   it('coute nettement moins que le balayage complet a grande taille', () => {
@@ -72,11 +72,11 @@ describe('ordonnerSegments', () => {
     const depart = { x: 0, y: 0 };
 
     const t0 = performance.now();
-    ordonnerSegmentsNaif(segs, depart);
+    orderSegmentsNaive(segs, depart);
     const naif = performance.now() - t0;
 
     const t1 = performance.now();
-    ordonnerSegments(segs, depart);
+    orderSegments(segs, depart);
     const grille = performance.now() - t1;
 
     expect(grille).toBeLessThan(naif / 2);

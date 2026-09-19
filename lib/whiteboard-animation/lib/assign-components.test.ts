@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 const {
-  normaliserBoite,
-  normaliserComposant,
-  extraireComposantsEnglobants,
-  assignerComposantsAuxRegions,
-} = require('./assigner-composants');
+  normalizeBox,
+  normalizeComponent,
+  extractEnclosingComponents,
+  assignComponentsToRegions,
+} = require('./assign-components');
 
-describe('assigner-composants', () => {
-  describe('normaliserBoite', () => {
+describe('assign-components', () => {
+  describe('normalizeBox', () => {
     it('normalise [x1, y1, x2, y2]', () => {
-      const b = normaliserBoite([10, 20, 110, 220]);
+      const b = normalizeBox([10, 20, 110, 220]);
       expect(b).toEqual({
         x1: 10,
         y1: 20,
@@ -26,7 +26,7 @@ describe('assigner-composants', () => {
     });
 
     it('normalise { x, y, width, height }', () => {
-      const b = normaliserBoite({ x: 50, y: 60, width: 40, height: 30 });
+      const b = normalizeBox({ x: 50, y: 60, width: 40, height: 30 });
       expect(b).toMatchObject({
         x1: 50,
         y1: 60,
@@ -41,7 +41,7 @@ describe('assigner-composants', () => {
     });
 
     it('gère l inversion min/max', () => {
-      const b = normaliserBoite([100, 200, 10, 20]);
+      const b = normalizeBox([100, 200, 10, 20]);
       expect(b).toMatchObject({
         x1: 10,
         y1: 20,
@@ -51,7 +51,7 @@ describe('assigner-composants', () => {
     });
   });
 
-  describe('assignerComposantsAuxRegions', () => {
+  describe('assignComponentsToRegions', () => {
     it('AC-1: assigne par center containment', () => {
       const comp = { left: 50, top: 50, right: 70, bottom: 70 }; // cx=60, cy=60
       const regions = [
@@ -59,7 +59,7 @@ describe('assigner-composants', () => {
         { x: 200, y: 200, width: 100, height: 100 }, // R1 distant
       ];
 
-      const { perRegion, unmatched } = assignerComposantsAuxRegions([comp], regions);
+      const { perRegion, unmatched } = assignComponentsToRegions([comp], regions);
       expect(perRegion[0]).toEqual([comp]);
       expect(perRegion[1]).toEqual([]);
       expect(unmatched).toEqual([]);
@@ -70,7 +70,7 @@ describe('assigner-composants', () => {
       const grande = { x: 0, y: 0, width: 200, height: 200 }; // area=40000
       const petite = { x: 30, y: 30, width: 50, height: 50 }; // area=2500
 
-      const { perRegion } = assignerComposantsAuxRegions([comp], [grande, petite]);
+      const { perRegion } = assignComponentsToRegions([comp], [grande, petite]);
       expect(perRegion[0]).toEqual([]); // pas la grande
       expect(perRegion[1]).toEqual([comp]); // la plus petite
     });
@@ -82,7 +82,7 @@ describe('assigner-composants', () => {
       const comp = { left: 85, top: 40, right: 125, bottom: 60 };
       const boite = { x: 0, y: 0, width: 100, height: 100 };
 
-      const { perRegion, unmatched } = assignerComposantsAuxRegions([comp], [boite]);
+      const { perRegion, unmatched } = assignComponentsToRegions([comp], [boite]);
       expect(perRegion[0]).toEqual([comp]);
       expect(unmatched).toEqual([]);
     });
@@ -94,7 +94,7 @@ describe('assigner-composants', () => {
       const comp = { left: 105, top: 45, right: 115, bottom: 55 };
       const boite = { x: 0, y: 0, width: 100, height: 100 };
 
-      const { perRegion, unmatched } = assignerComposantsAuxRegions([comp], [boite]);
+      const { perRegion, unmatched } = assignComponentsToRegions([comp], [boite]);
       expect(perRegion[0]).toEqual([comp]);
       expect(unmatched).toHaveLength(0);
     });
@@ -103,25 +103,25 @@ describe('assigner-composants', () => {
       const comp = { left: 800, top: 800, right: 850, bottom: 850 };
       const boite = { x: 0, y: 0, width: 100, height: 100 };
 
-      const { perRegion, unmatched } = assignerComposantsAuxRegions([comp], [boite]);
+      const { perRegion, unmatched } = assignComponentsToRegions([comp], [boite]);
       expect(perRegion[0]).toHaveLength(0);
       expect(unmatched).toEqual([comp]);
     });
 
     it('gere des entrees vides ou nulles sans crasher', () => {
-      expect(assignerComposantsAuxRegions([], [])).toEqual({ perRegion: [], unmatched: [] });
-      expect(assignerComposantsAuxRegions([{ x: 1, y: 1, width: 2, height: 2 }], [])).toEqual({
+      expect(assignComponentsToRegions([], [])).toEqual({ perRegion: [], unmatched: [] });
+      expect(assignComponentsToRegions([{ x: 1, y: 1, width: 2, height: 2 }], [])).toEqual({
         perRegion: [],
         unmatched: [{ x: 1, y: 1, width: 2, height: 2 }],
       });
-      expect(assignerComposantsAuxRegions([], [{ x: 0, y: 0, width: 10, height: 10 }])).toEqual({
+      expect(assignComponentsToRegions([], [{ x: 0, y: 0, width: 10, height: 10 }])).toEqual({
         perRegion: [[]],
         unmatched: [],
       });
     });
   });
 
-  describe('extraireComposantsEnglobants (Spanning)', () => {
+  describe('extractEnclosingComponents (Spanning)', () => {
     it('AC-4: extrait un cadre englobant et l affecte a la premiere region', () => {
       // Region 0: [10..90, 10..90], area = 6400
       // Region 1: [110..190, 10..90], area = 6400
@@ -133,7 +133,7 @@ describe('assigner-composants', () => {
       // Trait interne a r0 : [20..30, 20..30]
       const traitR0 = { left: 20, top: 20, right: 30, bottom: 30 };
 
-      const { spanning, rest } = extraireComposantsEnglobants([cadre, traitR0], [r0, r1]);
+      const { spanning, rest } = extractEnclosingComponents([cadre, traitR0], [r0, r1]);
 
       expect(spanning).toHaveLength(1);
       expect(spanning[0]).toEqual({ comp: cadre, regionIndex: 0 }); // region 0 (la premiere)

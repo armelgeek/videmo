@@ -13,7 +13,7 @@ Le parcours `app/(protected)/storyboard/page.tsx` fait déjà « contenu → vid
 | Script | `POST /api/generate-script` | `content` : 10 à 50 000 caractères |
 | Découpage | `POST /api/generate-storyboard` | `script` validé par l'utilisateur |
 | Images, narration | `/api/generate-images`, `/api/generate-narration` | scènes |
-| `whiteboard` | `WhiteboardEditorStep` + `resoudreStyleAnnotation` | annotations |
+| `whiteboard` | `WhiteboardEditorStep` + `resolveAnnotationStyle` | annotations |
 | Export | `RenderJob` | projet |
 
 Persistance : `VideoProject` (`params`, `script`, `panels`, `whiteboardConfig` en JSON). Facturation : `chargeFor(viewer, action, ...)`. Débit : `aiGenerationRateLimit`.
@@ -59,9 +59,9 @@ Aucune modification de `page.tsx` n'est nécessaire au-delà de ce que `PromptWi
 
 ## 3. Place de SkeletonTrace
 
-SkeletonTrace reste un style parmi d'autres, et il n'est pas propre au flux document. Aujourd'hui il est enregistré dans `AnimationFactory` mais **aucun chemin automatique ne le choisit** : `resoudreStyleAnnotation` n'y mène jamais.
+SkeletonTrace reste un style parmi d'autres, et il n'est pas propre au flux document. Aujourd'hui il est enregistré dans `AnimationFactory` mais **aucun chemin automatique ne le choisit** : `resolveAnnotationStyle` n'y mène jamais.
 
-Branchement proposé, dans `lib/whiteboard-animation/lib/resoudre-style-annotation.js` :
+Branchement proposé, dans `lib/whiteboard-animation/lib/resolve-annotation-style.js` :
 
 - un rôle `drawing` dont la région est majoritairement du trait fin (peu de remplissage) → `skeletontrace` ;
 - `diagram` / `flow` si le modèle d'annotation émet ces rôles → `skeletontrace`.
@@ -80,5 +80,5 @@ Le choix manuel (`animStyle`) garde la priorité, comme pour les autres styles. 
 1. `npm i pdf-parse mammoth`, puis la route `app/api/documents/extract/route.ts` avec son schéma Zod et ses tests (md, txt, pdf avec texte, pdf vide → 422, troncature).
 2. Bouton d'import dans `prompt-wizard.tsx`, avec états de chargement, d'erreur et de troncature.
 3. Diagramme `docs/storyboard/document-import.puml` : cas nominal, 400, 401, 422, 429.
-4. Règle `skeletontrace` dans `resoudreStyleAnnotation`, avec un test.
+4. Règle `skeletontrace` dans `resolveAnnotationStyle`, avec un test.
 5. Phase 2, selon les retours : `format: "training"`.

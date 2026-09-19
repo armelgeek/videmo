@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-const { rattacherPoints } = require('./rattacher-points');
+const { attachPoints } = require('./attach-points');
 
-describe('rattacherPoints', () => {
+describe('attachPoints', () => {
   it('AC-5: rattache le point d un ? immediatement apres son glyphe', () => {
     const bouclePointInterrogation = {
       id: 'interrogation-loop',
@@ -31,7 +31,7 @@ describe('rattacherPoints', () => {
 
     // Ordre initial : boucle, autre mot, puis le point plus tard
     const initial = [bouclePointInterrogation, autreMot, pointInterrogation];
-    const ordonnes = rattacherPoints(initial);
+    const ordonnes = attachPoints(initial);
 
     // Ordre attendu : boucle, point, puis autre mot
     expect(ordonnes).toHaveLength(3);
@@ -67,7 +67,7 @@ describe('rattacherPoints', () => {
     };
 
     const initial = [barreDuI, lettreSuivante, pointDuI];
-    const ordonnes = rattacherPoints(initial);
+    const ordonnes = attachPoints(initial);
 
     expect(ordonnes[0].id).toBe('i-stem');
     expect(ordonnes[1].id).toBe('i-dot');
@@ -82,7 +82,7 @@ describe('rattacherPoints', () => {
     const p2Point = { id: 'd2', left: 106, top: 66, right: 114, bottom: 74, area: 64 };
 
     const initial = [p1Glyphe, p2Glyphe, mot, p1Point, p2Point];
-    const ordonnes = rattacherPoints(initial);
+    const ordonnes = attachPoints(initial);
 
     expect(ordonnes.map((c) => c.id)).toEqual(['g1', 'd1', 'g2', 'd2', 'mot']);
   });
@@ -90,12 +90,12 @@ describe('rattacherPoints', () => {
   it('ne modifie pas les formes sans points ou les aplats', () => {
     const forme1 = { left: 10, top: 10, right: 80, bottom: 80, area: 4900 };
     const forme2 = { left: 90, top: 10, right: 160, bottom: 80, area: 4900 };
-    expect(rattacherPoints([forme1, forme2])).toEqual([forme1, forme2]);
+    expect(attachPoints([forme1, forme2])).toEqual([forme1, forme2]);
   });
 
   it('gere les tableaux de 0 ou 1 element sans erreur', () => {
-    expect(rattacherPoints([])).toEqual([]);
+    expect(attachPoints([])).toEqual([]);
     const c = { left: 0, top: 0, right: 10, bottom: 10 };
-    expect(rattacherPoints([c])).toEqual([c]);
+    expect(attachPoints([c])).toEqual([c]);
   });
 });

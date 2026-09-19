@@ -12,7 +12,7 @@ import { rectContenu } from "@/lib/whiteboard-animation/canvas-size";
 const AnimationFactory = require("@/lib/whiteboard-animation/lib/index");
 const { CUSTOM_HANDS } = require("@/lib/whiteboard-animation/lib/hands");
 const { handDrawRect } = require("@/lib/whiteboard-animation/lib/handLayout");
-const { blanchirFond } = require("@/lib/whiteboard-animation/lib/fond-blanc");
+const { whitenBackground } = require("@/lib/whiteboard-animation/lib/white-background");
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 const W = 1280;
@@ -73,7 +73,7 @@ export function EngineScene({
       const octx = offscreen.getContext("2d", { willReadFrequently: true });
       if (!octx) return;
       octx.drawImage(scene, artwork.x, artwork.y, artwork.w, artwork.h);
-      blanchirFond(octx, W, H);
+      whitenBackground(octx, W, H);
       (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable =
         true;
 

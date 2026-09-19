@@ -27,7 +27,7 @@ const AnimationFactory = require('../lib/index');
 const { CUSTOM_HANDS } = require('../lib/hands');
 const { handDrawRect } = require('../lib/handLayout');
 const { resoudreTransition } = require('../lib/transitions');
-const { blanchirFond } = require('../lib/fond-blanc');
+const { whitenBackground } = require('../lib/white-background');
 const { warmPresenceMap, seedPresenceMap } = require('../lib/presence-map');
 
 type PreparedSheet = { sheet: ImageBitmap; map: Uint8Array };
@@ -990,7 +990,7 @@ export function useWhiteboardRenderer({
     octx?.drawImage(img, rect.x, rect.y, rect.w, rect.h);
     // Meme normalisation qu'au rendu serveur : sans elle l'apercu montre des
     // rectangles gris la ou les regions ont ete revelees.
-    if (octx) blanchirFond(octx, width, height, rect);
+    if (octx) whitenBackground(octx, width, height, rect);
     // Never drawn into again: the engine may cache what it reads from it.
     (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable = true;
 

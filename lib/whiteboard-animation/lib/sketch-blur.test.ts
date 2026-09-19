@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { esquisserPixels } = require("./esquisse-floue");
+const { sketchPixels } = require("./sketch-blur");
 
 const W = 40, H = 40;
 
@@ -13,32 +13,32 @@ function image(fn: (x: number, y: number) => number[]) {
 
 const px = (d: Uint8ClampedArray, x: number, y: number) => Array.from(d.slice((y * W + x) * 4, (y * W + x) * 4 + 4));
 
-describe("esquisserPixels", () => {
-  it("garde le papier blanc", () => {
+describe("sketchPixels", () => {
+  it("keeps the paper white", () => {
     const d = image(() => [255, 255, 255]);
-    esquisserPixels(d, W, H);
+    sketchPixels(d, W, H);
     expect(px(d, 20, 20)).toEqual([255, 255, 255, 184]);
   });
 
-  it("estompe l'encre sans la faire disparaitre", () => {
+  it("fades ink without erasing it", () => {
     const d = image(() => [0, 0, 0]);
-    esquisserPixels(d, W, H);
+    sketchPixels(d, W, H);
     const [r] = px(d, 20, 20);
     expect(r).toBeGreaterThan(60);
     expect(r).toBeLessThan(90);
   });
 
-  it("floute un bord net", () => {
+  it("blurs a sharp edge", () => {
     const d = image((x) => (x < 20 ? [0, 0, 0] : [255, 255, 255]));
-    esquisserPixels(d, W, H);
+    sketchPixels(d, W, H);
     const [a] = px(d, 17, 20), [b] = px(d, 22, 20);
     expect(a).toBeGreaterThan(80);
     expect(b).toBeLessThan(250);
   });
 
-  it("desature la couleur", () => {
+  it("desaturates colour", () => {
     const d = image(() => [255, 0, 0]);
-    esquisserPixels(d, W, H);
+    sketchPixels(d, W, H);
     const [r, g] = px(d, 20, 20);
     expect(r - g).toBeLessThan(130);
   });

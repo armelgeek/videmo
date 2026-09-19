@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const AnimationFactory = require("./index");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { calculerDureeNaturelle } = require("./rythme-naturel");
+const { computeNaturalDuration } = require("./natural-pacing");
 
 /**
  * Chaque style doit finir son trace a la duree NATURELLE du geste, puis tenir
@@ -71,7 +71,7 @@ describe("cadence des styles : geste naturel puis maintien", () => {
 
   it.each(STYLES)("%s finit a la duree naturelle dans une fenetre longue", (style) => {
     const fenetre = 4000;
-    const naturelle = calculerDureeNaturelle({ w: W, h: H }, fenetre);
+    const naturelle = computeNaturalDuration({ w: W, h: H }, fenetre);
     expect(naturelle).toBeLessThan(fenetre - 1000);
     const fin = finDuTrace(style, fenetre);
     expect(Math.abs(fin - naturelle)).toBeLessThanOrEqual(tolerance);
