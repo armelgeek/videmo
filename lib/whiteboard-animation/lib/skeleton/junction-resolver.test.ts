@@ -52,7 +52,7 @@ describe('junction-resolver (R2)', () => {
 
     // 2 strokes: 1 continuous through-bar (left+right) and 1 stem
     expect(strokes.length).toBe(2);
-    const lengths = strokes.map(s => s.waypoints.length).sort((a, b) => b - a);
+    const lengths = strokes.map((s: any) => s.waypoints.length).sort((a: number, b: number) => b - a);
     expect(lengths[0]).toBeGreaterThanOrEqual(10); // through bar
     expect(lengths[1]).toBeGreaterThanOrEqual(5);  // stem
   });

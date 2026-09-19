@@ -21,7 +21,8 @@ export type AnimationStyle =
   | "spec-landscape"
   | "spec-spiral"
   | "spec-nature"
-  | "spec-explode";
+  | "spec-explode"
+  | "skeletontrace";
 
 export interface AnimationOptions {
   lineColor?: string;
