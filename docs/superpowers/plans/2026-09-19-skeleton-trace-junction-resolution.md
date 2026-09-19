@@ -27,7 +27,7 @@
 - Consumes: `mask: Uint8Array`, `width: number`, `height: number` where `mask[y * width + x] === 1` for foreground pixels and `0` for background.
 - Produces: `thinZhangSuen(mask: Uint8Array, width: number, height: number): Uint8Array` returning a new `Uint8Array` of size `width * height` containing the 1-pixel skeleton.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/whiteboard-animation/lib/skeleton/thinning.test.ts`:
 ```typescript
@@ -83,12 +83,12 @@ describe('thinZhangSuen', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/whiteboard-animation/lib/skeleton/thinning.test.ts`
 Expected: FAIL with `Cannot find module './thinning'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `lib/whiteboard-animation/lib/skeleton/thinning.js`:
 ```javascript
@@ -200,12 +200,12 @@ function thinZhangSuen(mask, width, height) {
 module.exports = { thinZhangSuen };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run lib/whiteboard-animation/lib/skeleton/thinning.test.ts`
 Expected: PASS (3 tests passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/whiteboard-animation/lib/skeleton/thinning.js lib/whiteboard-animation/lib/skeleton/thinning.test.ts
@@ -224,7 +224,7 @@ git commit -m "feat(skeleton): add Zhang-Suen morphological thinning module"
 - Consumes: `mask: Uint8Array`, `width: number`, `height: number`
 - Produces: `distanceTransformChamfer(mask: Uint8Array, width: number, height: number): Float32Array` returning local radius in pixels for each pixel.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/whiteboard-animation/lib/skeleton/distance-transform.test.ts`:
 ```typescript
@@ -267,12 +267,12 @@ describe('distanceTransformChamfer', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/whiteboard-animation/lib/skeleton/distance-transform.test.ts`
 Expected: FAIL with `Cannot find module './distance-transform'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `lib/whiteboard-animation/lib/skeleton/distance-transform.js`:
 ```javascript
@@ -343,12 +343,12 @@ function distanceTransformChamfer(mask, width, height) {
 module.exports = { distanceTransformChamfer };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run lib/whiteboard-animation/lib/skeleton/distance-transform.test.ts`
 Expected: PASS (3 tests passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/whiteboard-animation/lib/skeleton/distance-transform.js lib/whiteboard-animation/lib/skeleton/distance-transform.test.ts
