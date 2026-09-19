@@ -367,7 +367,7 @@ git commit -m "feat(skeleton): add Chamfer 3-4 distance transform module"
 - Consumes: `skeleton: Uint8Array`, `width: number`, `height: number`
 - Produces: `extractSkeletonPaths(skeleton: Uint8Array, width: number, height: number): SkeletonPath[]` where each path has `{ coords: Array<{x, y}>, core: Array<{x, y}>, startNode, endNode, start: {x,y}, end: {x,y}, startIsEndpoint: boolean, endIsEndpoint: boolean }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/whiteboard-animation/lib/skeleton/skeleton-graph.test.ts`:
 ```typescript
@@ -431,12 +431,12 @@ describe('skeleton-graph', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/whiteboard-animation/lib/skeleton/skeleton-graph.test.ts`
 Expected: FAIL with `Cannot find module './skeleton-graph'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `lib/whiteboard-animation/lib/skeleton/skeleton-graph.js`:
 ```javascript
@@ -703,12 +703,12 @@ function extractCyclePaths(skeleton, W, H) {
 module.exports = { extractSkeletonPaths, skeletonDegree };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run lib/whiteboard-animation/lib/skeleton/skeleton-graph.test.ts`
 Expected: PASS (4 tests passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/whiteboard-animation/lib/skeleton/skeleton-graph.js lib/whiteboard-animation/lib/skeleton/skeleton-graph.test.ts
