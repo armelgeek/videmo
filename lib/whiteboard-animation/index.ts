@@ -15,6 +15,24 @@ export type {
   TimelineConfig,
 } from './types';
 
+// Export annotation schemas and types
+export {
+  AnnotationSchema,
+  AnnotationRoleSchema,
+  RevealTypeSchema,
+  AnnotationRegionSchema,
+  AnnotationRevealSchema,
+  createAnnotation,
+} from './schema';
+export type {
+  Annotation,
+  AnnotationRole,
+  RevealType,
+  AnnotationRegion,
+  AnnotationReveal,
+} from './schema';
+
+
 // Export hooks
 export { useWhiteboard, defaultWhiteboardState } from './hooks/use-whiteboard';
 export type { UseWhiteboardProps } from './hooks/use-whiteboard';

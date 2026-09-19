@@ -58,10 +58,31 @@ export const NarrationMetadataSchema = z.object({
 
 export type NarrationMetadata = z.infer<typeof NarrationMetadataSchema>;
 
+// Semantic roles recognised by AI or user
+export const AnnotationRoleSchema = z.enum([
+  'title',          // Main or section title
+  'text',           // Body text, sentence or bullet
+  'label',          // Short label or callout pointing to an object
+  'arrow',          // Directional arrow or connector
+  'container',      // Enclosure, box, cell, frame
+  'shape',          // Geometric shape (circle, rectangle...)
+  'drawing',        // Freehand drawing, icon or illustration
+  'decoration',     // Underline, checkmark, strikethrough, badge
+]);
+
+export type AnnotationRole = z.infer<typeof AnnotationRoleSchema>;
+
+// Reveal style hints from AI planner (aligned with whiteboard-animator)
+export const RevealTypeSchema = z.enum(['stroke', 'fill', 'fade']);
+export type RevealType = z.infer<typeof RevealTypeSchema>;
+
 // Complete annotation object
 export const AnnotationSchema = z.object({
   id: z.string().default(() => Math.random().toString(36).slice(2, 11)),
   text: z.string().optional(),
+  role: AnnotationRoleSchema.optional(),
+  object: z.string().optional(),
+  revealType: RevealTypeSchema.optional(),
   region: AnnotationRegionSchema,
   reveal: AnnotationRevealSchema.default({ durationMs: 1000 }),
   style: z.object({
@@ -74,6 +95,7 @@ export const AnnotationSchema = z.object({
   narration: NarrationMetadataSchema.optional(),
   animStyle: z.string().optional(),
 });
+
 
 export type Annotation = z.infer<typeof AnnotationSchema>;
 

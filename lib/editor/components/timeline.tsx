@@ -647,6 +647,7 @@ export const Timeline = memo(function Timeline({
                         return (
                           <TimelineClipItem
                             key={clip.id}
+                            clipIndex={index}
                             clip={clip}
                             media={media}
                             track={track}
@@ -722,11 +723,11 @@ export const Timeline = memo(function Timeline({
 });
 
 const COULEUR_PAR_TYPE: Record<string, string> = {
-  fade: "#2563eb", // Blue-600
-  slideup: "#0284c7", // Sky-600
-  slidedown: "#0369a1", // Sky-700
-  slideleft: "#0d9488", // Teal-600
-  slideright: "#3b82f6", // Blue-500
+  fade: "hsl(var(--highlight) / 0.85)",
+  slideup: "hsl(var(--highlight) / 0.75)",
+  slidedown: "hsl(var(--highlight) / 0.7)",
+  slideleft: "hsl(var(--highlight) / 0.65)",
+  slideright: "hsl(var(--highlight) / 0.8)",
 };
 
 const LIBELLES_TRANSITIONS: { value: string; label: string }[] = [
@@ -827,7 +828,7 @@ function TimelineTransitionCard({
       onMouseDown={(e) => {
         e.stopPropagation();
       }}
-      className="absolute top-1 bottom-1 rounded-md z-40 pointer-events-auto flex items-center justify-center border border-blue-300/60 shadow-md transition-all hover:brightness-110 cursor-pointer group/trans-card"
+      className="absolute top-1 bottom-1 rounded-md z-40 pointer-events-auto flex items-center justify-center border-2 border-ink shadow-[2px_2px_0_hsl(var(--offset))] transition-all hover:brightness-110 cursor-pointer group/trans-card"
       style={{
         left: `${marqueur.x}px`,
         width: `${Math.max(24, marqueur.width)}px`,
@@ -838,7 +839,7 @@ function TimelineTransitionCard({
     >
       <span
         ref={labelRef}
-        className="text-[10px] font-bold text-foreground uppercase tracking-tighter truncate px-1 select-none pointer-events-none drop-shadow"
+        className="text-[10px] font-bold text-highlight-foreground uppercase tracking-tighter truncate px-1 select-none pointer-events-none drop-shadow-sm"
       >
         {type} {initialDurationMs}ms
       </span>
@@ -848,15 +849,15 @@ function TimelineTransitionCard({
         onMouseDown={startDrag}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-1.5 h-6 bg-card rounded-full shadow-md ring-1 ring-black/20 group-hover/trans-handle:scale-125 group-hover/trans-handle:bg-white transition-transform" />
+        <div className="w-1.5 h-6 bg-highlight rounded-full shadow-[1px_1px_0_hsl(var(--offset))] ring-1 ring-ink group-hover/trans-handle:scale-125 transition-transform" />
       </div>
 
       {showMenu && (
         <div
-          className="absolute top-full mt-1.5 left-0 z-[100] w-48 bg-popover text-popover-foreground border border-border rounded-md shadow-2xl py-1 text-xs animate-in fade-in zoom-in-95 duration-75"
+          className="absolute top-full mt-1.5 left-0 z-[100] w-48 bg-card text-foreground border-2 border-ink rounded-md shadow-[3px_3px_0_hsl(var(--offset))] py-1 text-xs animate-in fade-in zoom-in-95 duration-75"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1">
+          <div className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b-2 border-ink mb-1">
             Change transition
           </div>
           {LIBELLES_TRANSITIONS.map((t) => (
@@ -866,14 +867,14 @@ function TimelineTransitionCard({
                 onTypeChange?.(marqueur.panelIdx, t.value);
                 setShowMenu(false);
               }}
-              className={`w-full text-left px-2.5 py-1.5 hover:bg-blue-600/30 flex items-center justify-between transition-colors ${
+              className={`w-full text-left px-2.5 py-1.5 hover:bg-accent flex items-center justify-between transition-colors ${
                 t.value === type
-                  ? "font-bold text-foreground bg-blue-500/10"
+                  ? "font-bold text-foreground bg-accent"
                   : "text-foreground"
               }`}
             >
               <span>{t.label}</span>
-              {t.value === type && <span className="text-foreground">✓</span>}
+              {t.value === type && <span className="text-highlight">✓</span>}
             </button>
           ))}
         </div>

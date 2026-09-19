@@ -812,7 +812,7 @@ export function WhiteboardEditorStep({
           <div className="flex-1 min-h-0 p-4 flex flex-col justify-center items-center">
           <div className="h-full w-full flex items-center justify-center [container-type:size]">
             <div
-              className="rounded-md bg-white overflow-hidden relative shadow-sm ring-1 ring-border"
+              className="rounded-lg border-2 border-ink bg-white overflow-hidden relative shadow-[3px_3px_0_hsl(var(--offset))]"
               style={{
                 aspectRatio: cssAspectRatio(aspectRatio),
                 width: `min(100cqw, calc(100cqh * ${canvasWidth} / ${canvasHeight}))`,

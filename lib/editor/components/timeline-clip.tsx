@@ -4,7 +4,17 @@ import type React from "react"
 import { memo } from "react"
 import type { TimelineClip, MediaItem, Track } from "../types"
 import { ClipWaveform } from "./clip-waveform"
-import { LockIcon } from "./icons"
+import {
+  LockIcon,
+  FilmIcon,
+  MusicIcon,
+  TypeIcon,
+  ImageIcon,
+  Sparkles,
+  VolumeIcon,
+  MuteIcon,
+  TransitionIcon,
+} from "./icons"
 
 interface TimelineClipItemProps {
   clip: TimelineClip
@@ -17,6 +27,7 @@ interface TimelineClipItemProps {
   onContextMenu: (e: React.MouseEvent) => void
   onKeyDown?: (e: React.KeyboardEvent) => void
   tabIndex?: number
+  clipIndex?: number
 }
 
 export const TimelineClipItem = memo(
@@ -31,10 +42,16 @@ export const TimelineClipItem = memo(
     onContextMenu,
     onKeyDown,
     tabIndex = 0,
+    clipIndex,
   }: TimelineClipItemProps) => {
     const isAudio = track.type === "audio"
     const isText = track.type === "text"
-    const isLocked = clip.isLocked || track.isLocked
+    const isImage = media?.type === "image"
+    const isLocked = Boolean(clip.isLocked || track.isLocked)
+
+    const clipWidth = clip.duration * zoomLevel
+    const isTiny = clipWidth < 48
+    const isCompact = clipWidth < 90
 
     const handleClipMouseDown = (e: React.MouseEvent, mode: "move" | "trim-start" | "trim-end") => {
       if (!isLocked) {
@@ -42,32 +59,36 @@ export const TimelineClipItem = memo(
       }
     }
 
-    const baseColor = isText ? "bg-purple-900/40" : isAudio ? "bg-emerald-900/40" : "bg-[var(--surface-2)]"
-    const hoverColor = isText
-      ? "hover:bg-purple-900/60"
-      : isAudio
-        ? "hover:bg-emerald-900/60"
-        : "hover:bg-[var(--surface-3)]"
-    const cursorClass = isLocked ? "cursor-not-allowed" : tool === "razor" ? "cursor-crosshair" : "cursor-pointer"
+    // Badge d'index (#1, #2...) déduit de l'ID (ex: p0-a) ou du rang
+    const pMatch = clip.id.match(/^p(\d+)-(.+)$/)
+    const indexBadge = pMatch
+      ? `#${Number(pMatch[1]) + 1}`
+      : typeof clipIndex === "number"
+        ? `#${clipIndex + 1}`
+        : null
 
-    const selectedClass = isSelected
-      ? isText
-        ? "bg-purple-900/60 border-purple-400 z-20 ring-1 ring-purple-400 shadow-md"
-        : isAudio
-          ? "bg-emerald-900/60 border-emerald-400 z-20 ring-1 ring-emerald-400 shadow-md"
-          : "bg-[var(--surface-3)] border-[var(--tertiary)] z-20 ring-1 ring-[var(--tertiary)] shadow-md"
-      : `${baseColor} ${hoverColor} border-transparent hover:border-[var(--border-emphasis)] z-10`
-    // Color is identity only; selection is a neutral ring so the two never read alike.
-    const tinted = clip.color
-      ? isSelected
-        ? "z-20 shadow-md ring-1 ring-[var(--text-primary)]"
-        : "z-10 hover:brightness-110"
-      : null
+    // Titre propre du clip
+    const rawTitle = isText
+      ? clip.textOverlay?.text || "Texte"
+      : media?.prompt || (isAudio ? "Piste audio" : isImage ? "Image" : "Clip vidéo")
+    const clipTitle = rawTitle.replace(/^p\d+-/, "").trim() || "Clip"
 
-    const lockedClass = isLocked ? "opacity-60 grayscale-[30%]" : ""
+    // Thème Sketch néo-brutaliste : fond card sobre, bordure franche et ombre décalée
+    const borderAndShadow = isSelected
+      ? "border-2 border-highlight ring-2 ring-highlight/50 shadow-[3px_3px_0_hsl(var(--offset))]"
+      : "border-2 border-ink/80 hover:border-highlight shadow-[2px_2px_0_hsl(var(--offset))] hover:shadow-[3px_3px_0_hsl(var(--offset))]"
 
-    const borderClass = "border"
-    const verticalPos = isText ? "top-1 bottom-1" : isAudio ? "top-1 bottom-1" : "top-0 bottom-0"
+    const bgSurface = isSelected
+      ? "bg-card/95"
+      : "bg-card/85 hover:bg-card"
+
+    const cursorClass = isLocked
+      ? "cursor-not-allowed"
+      : tool === "razor"
+        ? "cursor-crosshair"
+        : "cursor-pointer"
+
+    const verticalPos = isText || isAudio ? "top-1 bottom-1" : "top-0.5 bottom-0.5"
 
     const formatTimeForSR = (seconds: number) => {
       const mins = Math.floor(seconds / 60)
@@ -75,9 +96,18 @@ export const TimelineClipItem = memo(
       return `${mins} minutes ${secs} seconds`
     }
 
-    const clipLabel = isText
-      ? `Text clip: "${clip.textOverlay?.text || "Untitled"}". Duration: ${formatTimeForSR(clip.duration)}. Starts at ${formatTimeForSR(clip.start)}.${isSelected ? " Selected." : ""}${isLocked ? " Locked." : ""}`
-      : `${isAudio ? "Audio" : "Video"} clip: ${media?.prompt || "Untitled"}. Duration: ${formatTimeForSR(clip.duration)}. Starts at ${formatTimeForSR(clip.start)}.${isSelected ? " Selected." : ""}${isLocked ? " Locked." : ""}`
+    const clipLabel = `${isText ? "Texte" : isAudio ? "Audio" : isImage ? "Image" : "Vidéo"} ${indexBadge || ""} : ${clipTitle}. Durée : ${formatTimeForSR(clip.duration)}.`
+
+    // Effets actifs
+    const hasEffects =
+      clip.effects &&
+      Object.entries(clip.effects).some(([key, val]) => {
+        if (key === "opacity") return val !== 100
+        return val !== 0
+      })
+
+    const hasCustomVolume = clip.volume !== undefined && clip.volume !== 1
+    const isMuted = track.isMuted || clip.volume === 0
 
     return (
       <div
@@ -88,61 +118,82 @@ export const TimelineClipItem = memo(
         tabIndex={isLocked ? -1 : tabIndex}
         onKeyDown={onKeyDown}
         data-clip="true"
-        className={`clip-item absolute ${verticalPos} rounded-md overflow-visible ${cursorClass} flex flex-col ${borderClass} transition-colors select-none group/item ${tinted ?? selectedClass} ${lockedClass} focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--surface-0)] focus-visible:ring-[var(--tertiary)]`}
+        className={`clip-item absolute ${verticalPos} rounded-lg overflow-visible ${cursorClass} flex items-center transition-all duration-75 select-none group/item ${borderAndShadow} ${bgSurface} focus:outline-none focus-visible:ring-2 focus-visible:ring-highlight`}
         style={{
           left: `${clip.start * zoomLevel}px`,
-          width: `${clip.duration * zoomLevel}px`,
-          opacity: track.isMuted ? 0.5 : undefined,
-          ...(clip.color && {
-            backgroundColor: isSelected ? "var(--surface-2)" : "var(--surface-1)",
-            borderColor: clip.color,
-            borderWidth: 1.5,
-          }),
+          width: `${Math.max(16, clipWidth)}px`,
+          opacity: track.isMuted ? 0.6 : undefined,
         }}
         onMouseDown={(e) => handleClipMouseDown(e, "move")}
         onContextMenu={onContextMenu}
       >
+        {/* Accent strip si une couleur de trait spécifique existe */}
+        {clip.color && (
+          <div
+            className="absolute left-0 top-1 bottom-1 w-1 rounded-r-full pointer-events-none"
+            style={{ backgroundColor: clip.color }}
+          />
+        )}
+
+        {/* Motif hachuré si verrouillé */}
         {isLocked && (
-          <div className="absolute top-1 right-1 z-40 bg-black/60 rounded p-0.5" title="Clip is locked">
-            <LockIcon className="w-3 h-3 text-[var(--text-muted)]" />
+          <div
+            className="absolute inset-0 z-40 rounded-lg pointer-events-none opacity-25"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(0, 0, 0, 0.4) 6px, rgba(0, 0, 0, 0.4) 12px)",
+            }}
+          />
+        )}
+
+        {/* Cadenas si verrouillé */}
+        {isLocked && (
+          <div
+            className="absolute top-1 right-1 z-50 bg-card/90 rounded p-0.5 shadow-sm border border-border"
+            title="Clip verrouillé"
+          >
+            <LockIcon className="w-2.5 h-2.5 text-highlight" />
           </div>
         )}
 
+        {/* Fondu entrant */}
         {clip.fadeIn && clip.fadeIn > 0 && (
           <div
-            className="absolute left-0 top-0 bottom-0 z-20 pointer-events-none"
-            style={{ width: `${clip.fadeIn * zoomLevel}px` }}
+            className="absolute left-0 top-0 bottom-0 z-20 pointer-events-none overflow-hidden rounded-l-lg"
+            style={{ width: `${Math.min(clipWidth, clip.fadeIn * zoomLevel)}px` }}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent" />
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <polygon points={`0,100% 100%,0 100%,100%`} fill="white" fillOpacity="0.1" />
+            <div className="absolute inset-0 bg-gradient-to-r from-background/90 to-transparent" />
+            <svg className="absolute inset-0 w-full h-full opacity-20" preserveAspectRatio="none">
+              <polygon points="0,100% 100%,0 100%,100%" fill="hsl(var(--highlight))" />
             </svg>
           </div>
         )}
+
+        {/* Fondu sortant */}
         {clip.fadeOut && clip.fadeOut > 0 && (
           <div
-            className="absolute right-0 top-0 bottom-0 z-20 pointer-events-none"
-            style={{ width: `${clip.fadeOut * zoomLevel}px` }}
+            className="absolute right-0 top-0 bottom-0 z-20 pointer-events-none overflow-hidden rounded-r-lg"
+            style={{ width: `${Math.min(clipWidth, clip.fadeOut * zoomLevel)}px` }}
           >
-            <div className="absolute inset-0 bg-gradient-to-l from-black/60 to-transparent" />
-            <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
-              <polygon points={`0,0 100%,100% 0,100%`} fill="white" fillOpacity="0.1" />
+            <div className="absolute inset-0 bg-gradient-to-l from-background/90 to-transparent" />
+            <svg className="absolute inset-0 w-full h-full opacity-20" preserveAspectRatio="none">
+              <polygon points="0,0 100%,100% 0,100%" fill="hsl(var(--highlight))" />
             </svg>
           </div>
         )}
 
+        {/* Transition */}
         {clip.transition && clip.transition.type !== "none" && (
           <div
-            className="absolute left-0 top-0 bottom-0 z-30 bg-gradient-to-r from-white/30 to-transparent pointer-events-none border-r border-border flex items-center justify-start pl-1"
-            style={{ width: `${clip.transition.duration * zoomLevel}px` }}
+            className="absolute left-0 top-0 bottom-0 z-30 bg-gradient-to-r from-highlight/25 to-transparent pointer-events-none border-r border-highlight/60 flex items-center justify-start pl-1 rounded-l-lg"
+            style={{ width: `${Math.min(clipWidth, clip.transition.duration * zoomLevel)}px` }}
             aria-hidden="true"
           >
-            <div className="text-[9px] text-muted-foreground font-bold -rotate-90 origin-left translate-y-4 truncate w-full">
-              {clip.transition.type.replace("-", " ")}
-            </div>
+            <TransitionIcon className="w-2.5 h-2.5 shrink-0 text-highlight" />
           </div>
         )}
 
+        {/* Poignées de Trim */}
         {!isLocked && (
           <>
             <div
@@ -151,10 +202,16 @@ export const TimelineClipItem = memo(
               aria-valuemin={0}
               aria-valuemax={clip.start + clip.duration}
               aria-valuenow={clip.start}
-              className={`absolute -left-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle ${isSelected ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"}`}
+              className={`absolute -left-2 top-0 bottom-0 w-4 cursor-ew-resize z-40 flex items-center justify-center group/handle transition-opacity ${
+                isSelected ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"
+              }`}
               onMouseDown={(e) => handleClipMouseDown(e, "trim-start")}
             >
-              <div className="w-1.5 h-6 bg-highlight border border-ink rounded-sm shadow-[1px_1px_0_hsl(var(--offset))] group-hover/handle:scale-125 transition-transform" />
+              <div className="w-1.5 h-6 bg-highlight border border-ink rounded-sm shadow-[1px_1px_0_hsl(var(--offset))] group-hover/handle:scale-125 group-hover/handle:bg-white transition-all flex flex-col justify-center items-center gap-[2px]">
+                <div className="w-[2px] h-[2px] bg-ink rounded-full" />
+                <div className="w-[2px] h-[2px] bg-ink rounded-full" />
+                <div className="w-[2px] h-[2px] bg-ink rounded-full" />
+              </div>
             </div>
 
             <div
@@ -163,75 +220,87 @@ export const TimelineClipItem = memo(
               aria-valuemin={clip.start}
               aria-valuemax={clip.start + clip.duration + 10}
               aria-valuenow={clip.start + clip.duration}
-              className={`absolute -right-3 top-0 bottom-0 w-6 cursor-ew-resize z-30 flex items-center justify-center group/handle ${isSelected ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"}`}
+              className={`absolute -right-2 top-0 bottom-0 w-4 cursor-ew-resize z-40 flex items-center justify-center group/handle transition-opacity ${
+                isSelected ? "opacity-100" : "opacity-0 group-hover/item:opacity-100"
+              }`}
               onMouseDown={(e) => handleClipMouseDown(e, "trim-end")}
             >
-              <div className="w-1.5 h-6 bg-highlight border border-ink rounded-sm shadow-[1px_1px_0_hsl(var(--offset))] group-hover/handle:scale-125 transition-transform" />
+              <div className="w-1.5 h-6 bg-highlight border border-ink rounded-sm shadow-[1px_1px_0_hsl(var(--offset))] group-hover/handle:scale-125 group-hover/handle:bg-white transition-all flex flex-col justify-center items-center gap-[2px]">
+                <div className="w-[2px] h-[2px] bg-ink rounded-full" />
+                <div className="w-[2px] h-[2px] bg-ink rounded-full" />
+                <div className="w-[2px] h-[2px] bg-ink rounded-full" />
+              </div>
             </div>
           </>
         )}
 
-        <div className="flex-1 overflow-hidden relative px-2 py-1 flex flex-col justify-center" aria-hidden="true">
-          {isText && clip.textOverlay && (
-            <div className="relative z-10 flex items-center gap-2">
-              <span className="text-[10px] font-medium truncate drop-shadow-md text-purple-100">
-                {clip.textOverlay.text}
+        {/* Onde audio en arrière-plan bas */}
+        {!isText && !clip.isAudioDetached && media?.url && (
+          <div className="absolute inset-x-0 bottom-0 h-1/2 opacity-35 px-1 pointer-events-none">
+            <ClipWaveform
+              mediaUrl={media.url}
+              duration={clip.duration}
+              offset={clip.offset}
+              isAudio={isAudio}
+              isSelected={isSelected}
+              zoomLevel={zoomLevel}
+            />
+          </div>
+        )}
+
+        {/* Contenu principal : pleine hauteur 44px, centré, avec badge et typographie nette */}
+        <div className="relative z-10 w-full h-full flex items-center justify-between px-2 gap-2 overflow-hidden">
+          {/* Côté gauche : Badge #1 + Icône + Titre en text-xs font-bold */}
+          <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+            {indexBadge && !isTiny && (
+              <span className="shrink-0 flex items-center justify-center h-4.5 px-1.5 rounded border border-ink bg-highlight text-highlight-foreground font-mono text-[9px] font-black shadow-[1px_1px_0_hsl(var(--offset))]">
+                {indexBadge}
               </span>
-            </div>
-          )}
+            )}
 
-          {!isText &&
-            !isAudio &&
-            !clip.isAudioDetached &&
-            media?.status === "ready" &&
-            (media.type === "video" ? (
-              clip.duration * zoomLevel > 60 && (
-                <div className="absolute inset-0 flex opacity-20 pointer-events-none">
-                  {[...Array(Math.floor((clip.duration * zoomLevel) / 60))].map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-[60px] h-full border-r border-[var(--border-subtle)] overflow-hidden relative"
-                    >
-                      <video src={media.url} className="w-full h-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              )
-            ) : media.type === "image" && media.url ? (
-              <div className="absolute inset-0 opacity-30 pointer-events-none">
-                <img src={media.url} className="w-full h-full object-cover" alt="" />
-              </div>
-            ) : null)}
-
-          {!isText && (
-            <div className="relative z-10 flex items-center justify-center gap-2 text-center">
-              <span
-                className={`truncate text-[10px] font-semibold uppercase tracking-wide ${clip.color ? "" : isAudio ? "text-emerald-100 drop-shadow-md" : "text-[var(--text-primary)] drop-shadow-md"}`}
-                style={clip.color ? { color: clip.color } : undefined}
-              >
-                {media?.prompt || "Media"}
-              </span>
-            </div>
-          )}
-
-          {clip.color && clip.duration * zoomLevel > 48 && (
-            <span className="absolute bottom-0.5 right-1.5 z-10 text-[9px] font-medium tabular-nums text-[var(--text-secondary)]">
-              {clip.duration.toFixed(1)}s
-            </span>
-          )}
-
-          {!isText && (
-            <div className="absolute bottom-0 left-0 right-0 h-1/2 opacity-50 px-0.5">
-              {media && media.url && media.type !== "image" && (
-                <ClipWaveform
-                  mediaUrl={media.url}
-                  duration={clip.duration}
-                  offset={clip.offset}
-                  isAudio={isAudio}
-                  isSelected={isSelected}
-                  zoomLevel={zoomLevel}
-                />
+            <span className="shrink-0 text-highlight">
+              {isText ? (
+                <TypeIcon className="w-3.5 h-3.5" />
+              ) : isAudio ? (
+                <MusicIcon className="w-3.5 h-3.5" />
+              ) : isImage ? (
+                <ImageIcon className="w-3.5 h-3.5" />
+              ) : (
+                <FilmIcon className="w-3.5 h-3.5" />
               )}
+            </span>
+
+            {!isTiny && (
+              <span className="text-xs font-bold truncate tracking-tight text-foreground group-hover/item:text-highlight transition-colors">
+                {clipTitle}
+              </span>
+            )}
+          </div>
+
+          {/* Côté droit : Badges et Durée */}
+          {!isTiny && (
+            <div className="flex items-center gap-1 shrink-0">
+              {clip.speed && clip.speed !== 1 && !isCompact && (
+                <span className="px-1 py-0.5 rounded text-[9px] font-bold text-highlight border border-highlight/40">
+                  {clip.speed}x
+                </span>
+              )}
+
+              {hasEffects && !isCompact && (
+                <span className="text-highlight">
+                  <Sparkles className="w-3 h-3" />
+                </span>
+              )}
+
+              {(hasCustomVolume || isMuted) && !isCompact && (
+                <span className="text-destructive">
+                  {isMuted ? <MuteIcon className="w-3 h-3" /> : <VolumeIcon className="w-3 h-3" />}
+                </span>
+              )}
+
+              <span className="text-[10px] font-mono font-bold tabular-nums px-1.5 py-0.5 rounded bg-background/80 text-foreground border border-ink/40 shadow-2xs">
+                {clip.duration.toFixed(1)}s
+              </span>
             </div>
           )}
         </div>
