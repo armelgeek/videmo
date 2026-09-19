@@ -727,7 +727,7 @@ git commit -m "feat(skeleton): add skeleton graph extraction and BFS node cluste
 - Consumes: `paths: SkeletonPath[]`, `distMap: Float32Array`, `width: number`
 - Produces: `buildLineArtStrokes(paths: SkeletonPath[], distMap: Float32Array, width: number): Stroke[]` where each stroke has `{ waypoints: Array<{ x, y, r }>, weight: number }`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `lib/whiteboard-animation/lib/skeleton/junction-resolver.test.ts`:
 ```typescript
@@ -773,12 +773,12 @@ describe('junction-resolver (R2)', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run lib/whiteboard-animation/lib/skeleton/junction-resolver.test.ts`
 Expected: FAIL with `Cannot find module './junction-resolver'`
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 Create `lib/whiteboard-animation/lib/skeleton/junction-resolver.js`:
 ```javascript
@@ -960,12 +960,12 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run lib/whiteboard-animation/lib/skeleton/junction-resolver.test.ts`
 Expected: PASS (2 tests passed)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add lib/whiteboard-animation/lib/skeleton/junction-resolver.js lib/whiteboard-animation/lib/skeleton/junction-resolver.test.ts
