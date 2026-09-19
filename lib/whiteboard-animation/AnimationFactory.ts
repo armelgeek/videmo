@@ -83,6 +83,7 @@ class AnimationFactoryTS implements IAnimationFactory {
       'spec-spiral',
       'spec-nature',
       'spec-explode',
+      'skeletontrace',
     ];
   }
 

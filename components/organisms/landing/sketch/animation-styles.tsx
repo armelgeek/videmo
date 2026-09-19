@@ -89,6 +89,12 @@ export const ANIMATION_STYLES: AnimationStyleCard[] = [
     description: "Broad, confident strokes with few lifts.",
     tier: "premium",
   },
+  {
+    id: "skeletontrace",
+    label: "Skeleton Trace",
+    description: "Line art drawn along topological skeleton paths with adaptive pen width.",
+    tier: "premium",
+  },
 ];
 
 const AUTO_ADVANCE_MS = 6000;
