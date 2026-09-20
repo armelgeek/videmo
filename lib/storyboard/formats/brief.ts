@@ -1,4 +1,4 @@
-import { EXPLAINER_PRESET } from "./explainer-preset";
+import { EXPLAINER_PRESET } from "./visual-presets";
 import type { VideoFormat } from "./types";
 
 export const briefFormat: VideoFormat = {
@@ -10,9 +10,22 @@ export const briefFormat: VideoFormat = {
   thumbnailUrl: "/formats/brief.webp",
   script: {
     paragraphs: 6,
-    structure: [],
+    structure: [
+      "Hook (why care)",
+      "Problem",
+      "Solution",
+      "Key benefit",
+      "Proof or example",
+      "Call-to-action",
+    ],
     defaultTone: "professional",
   },
-  breakdown: { rules: [] },
+  breakdown: {
+    rules: [
+      "One idea per visual",
+      "Keep language simple and direct",
+      "End with clear next step",
+    ],
+  },
   visual: EXPLAINER_PRESET,
 };

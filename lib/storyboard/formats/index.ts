@@ -1,17 +1,34 @@
 import { briefFormat } from "./brief";
 import { explainerFormat } from "./explainer";
+import { tutorialFormat } from "./tutorial";
+import { storyFormat } from "./story";
+import { productDemoFormat } from "./product-demo";
+import { educationalFormat } from "./educational";
 import type { VideoFormat } from "./types";
 
 export type { FormatCharacter, FormatFamily, LabelPolicy, VideoFormat, VisualPreset } from "./types";
+export type { PromptConfig, PromptTemplateKey } from "./prompt-templates";
+export { generatePrompt, getPromptTemplate, PROMPT_TEMPLATES } from "./prompt-templates";
 
 export const DEFAULT_FORMAT_ID = "explainer";
 
-const FORMATS: readonly VideoFormat[] = [briefFormat, explainerFormat];
+const FORMATS: readonly VideoFormat[] = [
+  briefFormat,
+  explainerFormat,
+  tutorialFormat,
+  storyFormat,
+  productDemoFormat,
+  educationalFormat,
+];
 
 const BY_ID = new Map(FORMATS.map((f) => [f.id, f]));
 
 export function listFormats(): readonly VideoFormat[] {
   return FORMATS;
+}
+
+export function listFormatsByFamily(family: string): readonly VideoFormat[] {
+  return FORMATS.filter((f) => f.family === family);
 }
 
 export function isKnownFormat(id: string): boolean {
