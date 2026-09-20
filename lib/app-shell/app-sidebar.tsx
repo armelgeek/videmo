@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, Folder, LayoutTemplate, Loader2, LogOut, Mail, Plus, Settings, Users } from "lucide-react";
+import { CreditCard, Folder, LayoutTemplate, Loader2, LogOut, Mail, Palette, Plus, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { appConfig } from "@/lib/config";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -38,6 +38,7 @@ const NAV_ITEMS = [
   { href: "/workspace", icon: Folder, label: "Projects" },
   { href: "/workspace/members", icon: Users, label: "Members" },
   { href: "/workspace/formats", icon: LayoutTemplate, label: "Formats" },
+  { href: "/workspace/styles", icon: Palette, label: "Styles" },
   { href: "/billing", icon: CreditCard, label: "Billing" },
 ] as const;
 
