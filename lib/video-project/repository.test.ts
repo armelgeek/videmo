@@ -103,10 +103,10 @@ describe("requireOrganizationRole", () => {
 });
 
 /**
- * Les deux gardes portaient la même doctrine dans deux implémentations que rien
- * ne comparait. Ce test est ce qui les empêche de diverger à nouveau.
+ * The two guards carried the same doctrine in two implementations that
+ * nothing compared. This test is what keeps them from diverging again.
  */
-describe("les deux gardes s'accordent sur ce qu'elles ont en commun", () => {
+describe("both guards agree on what they have in common", () => {
   const CASES = [
     { name: "no active organization", viewer: { userId: "u1", organizationId: null }, overrides: {} },
     { name: "not a member", viewer: VIEWER, overrides: { findRole: async () => null } },

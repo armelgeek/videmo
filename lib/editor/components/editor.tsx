@@ -2,7 +2,7 @@
 
 import type React from "react";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { lirePositionLecture } from "@/lib/editor/playback-clock";
+import { readPlaybackPosition } from "@/lib/editor/playback-clock";
 import type {
   MediaItem,
   TimelineClip,
@@ -361,12 +361,12 @@ const EditorInner: React.FC<EditorProps> = ({
   // Add markers state after other useState hooks
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [showAddMarkerDialog, setShowAddMarkerDialog] = useState(false);
-  // Position capturee a l'ouverture du dialogue : c'est celle que l'auteur
-  // voyait en demandant le marqueur, et la lire ici evite de tenir tout
-  // l'editeur abonne a l'horloge.
+  // Position captured when the dialog opens: it is the one the author saw
+  // when requesting the marker, and reading it here avoids keeping the whole
+  // editor subscribed to the clock.
   const [positionMarqueur, setPositionMarqueur] = useState(0);
   const ouvrirAjoutMarqueur = useCallback(() => {
-    setPositionMarqueur(lirePositionLecture());
+    setPositionMarqueur(readPlaybackPosition());
     setShowAddMarkerDialog(true);
   }, []);
 
@@ -1543,18 +1543,18 @@ const EditorInner: React.FC<EditorProps> = ({
 
   const whiteboardCanvasRef = useRef<HTMLCanvasElement>(null);
   const whiteboardHandCanvasRef = useRef<HTMLCanvasElement>(null);
-  // Pas de useUnifiedEngine() ici : personne ne lisait le resultat, mais
-  // l'abonnement rendait TOUT l'editeur a chaque ecriture de currentTime,
-  // soit 60 fois par seconde pendant la lecture.
+  // No useUnifiedEngine() here: nobody read the result, but the subscription
+  // re-rendered the WHOLE editor on every currentTime write, i.e. 60 times
+  // per second during playback.
 
-  // Pas d'annotationCanvasRef : sur cette surface les regions sont rendues par
-  // AnnotationOverlay (Konva), qui les rend deplacables et redimensionnables.
-  // Le trace imperatif du renderer reste pour l'etape Whiteboard autonome.
+  // No annotationCanvasRef: on this surface regions are rendered by
+  // AnnotationOverlay (Konva), which makes them draggable and resizable.
+  // The renderer's imperative drawing remains for the standalone Whiteboard step.
   const { isOverlayHidden: isAnnotationOverlayHidden } = useWhiteboardRenderer({
     canvasRef: whiteboardCanvasRef,
     handCanvasRef: whiteboardHandCanvasRef,
-    // preview-player fixe ce canvas a 1920x1080. Il ne suit pas encore le
-    // ratio du projet, contrairement a l'etape Whiteboard.
+    // preview-player fixes this canvas at 1920x1080. It does not follow the
+    // project ratio yet, unlike the Whiteboard step.
     canvasWidth: 1920,
     canvasHeight: 1080,
   });

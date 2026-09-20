@@ -1,15 +1,15 @@
 import Image from "next/image";
 
 /**
- * Une capture de l'application, entouree a la main.
+ * An app screenshot, circled by hand.
  *
- * Extrait de how-it-works.tsx : la section equipe montre elle aussi un ecran
- * reel, et dupliquer le trace de l'ellipse aurait fait diverger les deux au
- * premier ajustement.
+ * Extracted from how-it-works.tsx: the team section also shows a real screen,
+ * and duplicating the ellipse path would have made the two diverge at the first
+ * tweak.
  *
- * Les reperes sont en POURCENTAGES de la capture, jamais en pixels : une
- * capture reprise a une autre definition garde alors ses annotations au bon
- * endroit.
+ * Marks are in PERCENTAGES of the screenshot, never pixels: a screenshot
+ * retaken at another resolution then keeps its annotations in the right
+ * place.
  */
 export type Mark = {
   x: number;
@@ -21,9 +21,8 @@ export type Mark = {
 };
 
 /**
- * Une ellipse tracee au feutre : jamais tout a fait fermee, jamais tout a fait
- * ronde. Un cercle parfait se lirait comme un element d'interface, pas comme
- * une annotation posee par-dessus.
+ * An ellipse drawn in marker: never quite closed, never quite round. A perfect
+ * circle would read as a UI element, not as an annotation laid on top.
  */
 export function ellipsePath(w: number, h: number) {
   return `M ${w * 0.52} 3 C ${w * 0.9} 1, ${w - 2} ${h * 0.3}, ${w - 3} ${h * 0.55} C ${w - 5} ${h * 0.9}, ${w * 0.6} ${h - 2}, ${w * 0.4} ${h - 3} C ${w * 0.1} ${h - 4}, 2 ${h * 0.7}, 3 ${h * 0.42} C 5 ${h * 0.12}, ${w * 0.3} 2, ${w * 0.62} 6`;

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useCallback, useRef } from "react"
-import { lirePositionLecture } from "@/lib/editor/playback-clock"
+import { readPlaybackPosition } from "@/lib/editor/playback-clock"
 import type { TimelineClip, Track } from "../types"
 
 interface UseTimelineKeyboardOptions {
@@ -133,8 +133,8 @@ export function useTimelineKeyboard({
       const amount = large ? 5 : 1 // 5 seconds or 1 second
       const newTime =
         direction === "left"
-          ? Math.max(0, lirePositionLecture() - amount)
-          : Math.min(duration, lirePositionLecture() + amount)
+          ? Math.max(0, readPlaybackPosition() - amount)
+          : Math.min(duration, readPlaybackPosition() + amount)
       onSeek(newTime)
     },
     [duration, onSeek],

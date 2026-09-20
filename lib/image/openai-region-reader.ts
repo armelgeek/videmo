@@ -26,16 +26,16 @@ export function readOpenAiVisionConfig(
   }
   return {
     apiKey: env.OPENAI_API_KEY,
-    // gpt-4o-mini situe les sujets dans le bon ordre mais ne les CADRE pas :
-    // verifie sur de vraies images, il posait des rectangles de 2 a 5 % de
-    // l'image au milieu du sujet, la ou gpt-4o rend 21 a 35 % autour de lui.
-    // Lire une image reste une fraction du prix d'en produire une, et une
-    // annotation mal cadree se repaie en reglages a la main.
+    // gpt-4o-mini locates subjects in the right order but does not FRAME them:
+    // checked on real images, it placed rectangles covering 2 to 5% of the
+    // image in the middle of the subject, where gpt-4o returns 21 to 35% around it.
+    // Reading an image costs a fraction of producing one, and a poorly framed
+    // annotation is paid back in manual adjustments.
     model: env.OPENAI_VISION_MODEL?.trim() || "gpt-4o",
   };
 }
 
-/** Le format impose a la reponse, pour qu'elle soit exploitable sans parsing. */
+/** The format enforced on the response, so it is usable without parsing. */
 const RESPONSE_FORMAT = {
   type: "json_schema" as const,
   json_schema: {

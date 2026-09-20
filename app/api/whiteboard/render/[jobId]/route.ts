@@ -18,7 +18,7 @@ export async function GET(
 
   const { jobId } = await params;
   const job = await getRenderJob(jobId, viewer.userId);
-  // 404 et non 403 sur le job d'un autre : un 403 confirmerait son existence.
+  // 404 rather than 403 on someone else's job: a 403 would confirm it exists.
   if (!job) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({
@@ -41,8 +41,8 @@ export async function DELETE(
   }
 
   const { jobId } = await params;
-  // Un job deja conclu refuse l'annulation : rien a annuler, et sa video reste
-  // telechargeable.
+  // An already finished job refuses cancellation: nothing to cancel, and its video
+  // stays downloadable.
   if (!(await cancelRenderJob(jobId, viewer.userId))) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

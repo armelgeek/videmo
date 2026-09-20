@@ -1,37 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { alignBeats, normalizeToken, tokenize } from "./beat-alignment";
 
-/** Une transcription regulière : un mot toutes les 500 ms. */
-function mots(phrase: string, depart = 0, pas = 500) {
+/** A regular transcription: one word every 500 ms. */
+function makeWords(phrase: string, start = 0, step = 500) {
   return phrase.split(/\s+/).map((word, i) => ({
     word,
-    startMs: depart + i * pas,
-    endMs: depart + i * pas + 400,
+    startMs: start + i * step,
+    endMs: start + i * step + 400,
   }));
 }
 
 describe("normalizeToken", () => {
-  it("ecarte casse, accents et ponctuation", () => {
+  it("strips case, accents and punctuation", () => {
     expect(normalizeToken("Café,")).toBe("cafe");
     expect(normalizeToken("«  RÉVEILLE ! »")).toBe("reveille");
   });
 
-  it("rend une chaine vide pour de la ponctuation seule", () => {
+  it("returns an empty string for punctuation only", () => {
     expect(normalizeToken("—")).toBe("");
   });
 });
 
 describe("tokenize", () => {
-  it("ecarte les jetons vides", () => {
+  it("drops empty tokens", () => {
     expect(tokenize("Le grain — vert.")).toEqual(["le", "grain", "vert"]);
   });
 });
 
 describe("alignBeats", () => {
-  const words = mots("tout commence par un grain la chaleur le reveille");
+  const words = makeWords("tout commence par un grain la chaleur le reveille");
 
-  it("donne a chaque temps son debut reel dans l'enregistrement", () => {
-    const [un, deux] = alignBeats({
+  it("gives each beat its real start in the recording", () => {
+    const [first, second] = alignBeats({
       beats: [
         { narration: "Tout commence par un grain." },
         { narration: "La chaleur le reveille." },
@@ -40,14 +40,14 @@ describe("alignBeats", () => {
       audioDurationMs: 5000,
     });
 
-    expect(un.startMs).toBe(0);
-    expect(deux.startMs).toBe(2500);
+    expect(first.startMs).toBe(0);
+    expect(second.startMs).toBe(2500);
   });
 
-  it("fait porter au temps la respiration qui le suit", () => {
-    // Le second temps demarre a 2500 : le premier occupe tout jusque-la,
-    // et non seulement sa parole (qui s'arrete a 2400).
-    const [un] = alignBeats({
+  it("makes the beat carry the breath that follows it", () => {
+    // The second beat starts at 2500: the first one occupies everything up to
+    // there, not only its speech (which stops at 2400).
+    const [first] = alignBeats({
       beats: [
         { narration: "Tout commence par un grain." },
         { narration: "La chaleur le reveille." },
@@ -56,12 +56,12 @@ describe("alignBeats", () => {
       audioDurationMs: 5000,
     });
 
-    expect(un.durationMs).toBe(2500);
-    expect(un.spokenEndMs).toBe(2400);
+    expect(first.durationMs).toBe(2500);
+    expect(first.spokenEndMs).toBe(2400);
   });
 
-  it("borne le dernier temps sur la fin de l'enregistrement", () => {
-    const [, deux] = alignBeats({
+  it("bounds the last beat to the end of the recording", () => {
+    const [, second] = alignBeats({
       beats: [
         { narration: "Tout commence par un grain." },
         { narration: "La chaleur le reveille." },
@@ -70,30 +70,30 @@ describe("alignBeats", () => {
       audioDurationMs: 5200,
     });
 
-    expect(deux.durationMs).toBe(5200 - 2500);
+    expect(second.durationMs).toBe(5200 - 2500);
   });
 
-  it("se recale quand la transcription a colle deux mots", () => {
-    // « par un » transcrit en un seul mot : sans correction, tout ce qui suit
-    // glisserait d'un mot.
-    const colles = mots("tout commence parun grain la chaleur le reveille");
+  it("realigns when the transcription merged two words", () => {
+    // « par un » transcribed as a single word: without correction, everything
+    // after would slip by one word.
+    const merged = makeWords("tout commence parun grain la chaleur le reveille");
 
-    const [, deux] = alignBeats({
+    const [, second] = alignBeats({
       beats: [
         { narration: "Tout commence par un grain." },
         { narration: "La chaleur le reveille." },
       ],
-      words: colles,
+      words: merged,
       audioDurationMs: 5000,
     });
 
-    // « grain » est le dernier mot du premier temps : il est retrouve en 3e
-    // position, donc le second temps demarre sur « la ».
-    expect(deux.startMs).toBe(2000);
+    // « grain » is the first beat's last word: it is found at position 3, so
+    // the second beat starts on « la ».
+    expect(second.startMs).toBe(2000);
   });
 
-  it("garde une place au temps qu'il ne retrouve pas", () => {
-    const [, deux] = alignBeats({
+  it("keeps a slot for a beat it cannot find", () => {
+    const [, second] = alignBeats({
       beats: [
         { narration: "Tout commence par un grain." },
         { narration: "Phrase absente de l'enregistrement." },
@@ -102,30 +102,30 @@ describe("alignBeats", () => {
       audioDurationMs: 5000,
     });
 
-    expect(deux.startMs).toBeGreaterThanOrEqual(0);
-    expect(deux.durationMs).toBeGreaterThan(0);
+    expect(second.startMs).toBeGreaterThanOrEqual(0);
+    expect(second.durationMs).toBeGreaterThan(0);
   });
 
-  it("fait porter au premier temps le silence qui ouvre l'enregistrement", () => {
-    // La voix ne commence qu'a 680 ms : sans cela le dessin partirait avec
-    // cette avance, et les temps ne couvriraient pas l'enregistrement.
-    const tardifs = mots("tout commence par un grain la chaleur le reveille", 680);
+  it("makes the first beat carry the silence that opens the recording", () => {
+    // The voice only starts at 680 ms: otherwise the drawing would start that
+    // much ahead, and the beats would not cover the recording.
+    const late = makeWords("tout commence par un grain la chaleur le reveille", 680);
 
-    const cales = alignBeats({
+    const aligned = alignBeats({
       beats: [
         { narration: "Tout commence par un grain." },
         { narration: "La chaleur le reveille." },
       ],
-      words: tardifs,
+      words: late,
       audioDurationMs: 5680,
     });
 
-    expect(cales[0].startMs).toBe(0);
-    const somme = cales.reduce((t, c) => t + c.durationMs, 0);
-    expect(somme).toBe(5680);
+    expect(aligned[0].startMs).toBe(0);
+    const total = aligned.reduce((t, c) => t + c.durationMs, 0);
+    expect(total).toBe(5680);
   });
 
-  it("ne rend rien sans transcription", () => {
+  it("returns nothing without a transcription", () => {
     expect(
       alignBeats({ beats: [{ narration: "x" }], words: [], audioDurationMs: 1 }),
     ).toEqual([]);

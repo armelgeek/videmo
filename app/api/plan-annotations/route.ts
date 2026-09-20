@@ -16,11 +16,11 @@ import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 export const maxDuration = 120;
 
 /**
- * Envoie l'image encodee plutot que son adresse.
+ * Sends the encoded image rather than its address.
  *
- * Le moteur doit telecharger ce qu'il lit : une URL de bac local — ou de bac
- * prive — lui est inaccessible. Le detour par le serveur, qui lui a acces,
- * fonctionne dans les deux cas.
+ * The engine must download what it reads: a local-bucket URL (or a private
+ * bucket) is out of its reach. Going through the server, which has access,
+ * works in both cases.
  */
 async function toInlineImage(url: string): Promise<string> {
   const response = await fetch(url);
@@ -42,9 +42,9 @@ const requestSchema = z.object({
   width: z.number().int().positive().default(1536),
   height: z.number().int().positive().default(1024),
   /**
-   * Les sujets reellement dessines, mesures sur l'image par l'appelant. La
-   * vision situe bien mais chiffre mal : quand ces rectangles existent, le
-   * sien ne sert plus qu'a designer lequel.
+   * The subjects actually drawn, measured on the image by the caller. Vision
+   * locates well but measures poorly: when these rectangles exist, its own
+   * only serves to designate which one.
    */
   candidates: z
     .array(
@@ -59,14 +59,14 @@ const requestSchema = z.object({
 });
 
 /**
- * Situe les annotations d'une image, et fixe leur entree.
+ * Locates an image's annotations and sets their entry time.
  *
- * Le decoupage du script ne peut pas placer ces rectangles : il est ecrit sans
- * voir l'illustration. Une lecture de l'image produite est le seul moyen de
- * savoir ou se trouve le sujet de chaque temps de narration.
+ * The script split cannot place these rectangles: it is written without
+ * seeing the illustration. Reading the produced image is the only way to
+ * know where each narration beat's subject is.
  *
- * Le moment d'entree, lui, ne demande aucun modele : il se deduit des durees
- * qui precedent, si bien que le trace suit la voix sans calage manuel.
+ * The entry time needs no model: it follows from the preceding durations,
+ * so the drawing follows the voice with no manual alignment.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -85,20 +85,20 @@ export async function POST(request: NextRequest) {
       });
       regions = plan.regions;
     } catch (error) {
-      // Une lecture ratee ne doit pas priver la scene de ses annotations :
-      // planAnnotations retombe sur l'image entiere, que l'utilisateur ajuste.
+      // A failed read must not deprive the scene of its annotations:
+      // planAnnotations falls back to the whole image, which the user adjusts.
       console.error("Region reading failed, falling back:", error);
     }
 
-    // Le rectangle devine est ramene sur le sujet qu'il designe : ce sont
-    // les bornes mesurees, et non le modele, qui cadrent. L'anti-collision
-    // preserve les regions distinctes face a un candidat fusionne.
+    // The guessed rectangle is snapped to the subject it designates: the
+    // measured bounds, not the model, do the framing. Anti-collision keeps
+    // distinct regions apart when facing a merged candidate.
     regions = snapRegionsToSubjects(regions, input.candidates);
 
-    // Les durees mesurees voyagent DANS la scene, portees par ses temps de
-    // narration depuis la synthese. Un temps dont la mesure a echoue rend 0,
-    // que planAnnotations traite comme une absence et remplace par
-    // l'estimation du decoupage.
+    // Measured durations travel INSIDE the scene, carried by its narration
+    // beats since synthesis. A beat whose measurement failed yields 0, which
+    // planAnnotations treats as missing and replaces with the split's
+    // estimate.
     const beatDurationsMs = input.scene.beats.map(
       (beat) => beat.audioDurationMs ?? 0,
     );

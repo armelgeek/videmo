@@ -4,10 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const AnimationFactory = require("./index");
 
 /**
- * Les valeurs proposees par le menu Animation Style de
- * components/whiteboard-config-panel.tsx. Un style expose dans l'UI mais
- * inconnu de la factory retombe silencieusement sur chunkjump : ce fichier
- * empeche cette derive.
+ * The values offered by the Animation Style menu of
+ * components/whiteboard-config-panel.tsx. A style exposed in the UI but
+ * unknown to the factory silently falls back to chunkjump: this file
+ * prevents that drift.
  */
 const UI_STYLES = [
   "brushfill",
@@ -29,7 +29,7 @@ const UI_STYLES = [
 const W = 200;
 const H = 120;
 
-/** Contexte 2D suffisant pour un tick : les styles lisent des pixels reels. */
+/** 2D context sufficient for a tick: styles read real pixels. */
 function fakeCtx() {
   const ctx: any = new Proxy(
     {},
@@ -39,7 +39,7 @@ function fakeCtx() {
           return (_x: number, _y: number, w: number, h: number) => ({
             width: w,
             height: h,
-            // Opaque et sombre : compte comme du trait pour buildPresenceMap.
+            // Opaque and dark: counts as stroke for buildPresenceMap.
             data: new Uint8ClampedArray(w * h * 4).fill(20),
           });
         }
@@ -98,12 +98,12 @@ function run(style: string) {
   });
 
   anim.setup?.();
-  // 1200 ms a 20 ms/tick : traverse les deux regions, la pause et la fin.
+  // 1200 ms at 20 ms/tick: goes through both regions, the pause and the end.
   for (let i = 0; i < 60; i++) anim.tick?.(40, 20);
   return { anim, finished };
 }
 
-/** Nombre de ticks de `deltaMs` avant que finishAnim ne soit appele. */
+/** Number of `deltaMs` ticks before finishAnim is called. */
 function ticksUntilFinish(globalStyle: string, annotStyles: (string | null)[]) {
   let ticks: number | null = null;
   const state: any = {
@@ -150,37 +150,37 @@ function ticksUntilFinish(globalStyle: string, annotStyles: (string | null)[]) {
   return ticks;
 }
 
-describe("styles exposes dans l'UI", () => {
+describe("styles exposed in the UI", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    // jsdom rend null sur getContext('2d') : plusieurs styles s'allouent des
-    // canvas de travail, il leur en faut un utilisable.
+    // jsdom returns null for getContext('2d'): several styles allocate
+    // working canvases, they need a usable one.
     const real = document.createElement.bind(document);
     vi.spyOn(document, "createElement").mockImplementation(((tag: string) =>
       tag === "canvas" ? fakeCanvas() : real(tag)) as never);
   });
 
-  it.each(UI_STYLES)("la factory connait %s", (style) => {
+  it.each(UI_STYLES)("the factory knows %s", (style) => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     run(style);
-    // create() avertit et retombe sur ChunkJump quand le nom est inconnu.
+    // create() warns and falls back to ChunkJump when the name is unknown.
     expect(warn).not.toHaveBeenCalledWith(
       expect.stringContaining("Unknown animation style"),
     );
   });
 
-  it.each(UI_STYLES)("%s traverse une timeline annotee sans planter", (style) => {
+  it.each(UI_STYLES)("%s runs through an annotated timeline without crashing", (style) => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     expect(() => run(style)).not.toThrow();
   });
 
-  it.each(UI_STYLES)("%s termine sa timeline", (style) => {
+  it.each(UI_STYLES)("%s finishes its timeline", (style) => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    // Sans cela le rAF tournerait indefiniment apres le dernier `to`.
+    // Without this the rAF would run forever after the last `to`.
     expect(run(style).finished.called).toBe(true);
   });
 
-  it("supporte des styles d'animation differents par annotation sans planter", () => {
+  it("supports different animation styles per annotation without crashing", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const finished = { called: false };
     const state: any = {
@@ -220,11 +220,11 @@ describe("styles exposes dans l'UI", () => {
     }).not.toThrow();
     expect(finished.called).toBe(true);
   });
-  it("un style par annotation ne fait pas avancer l'horloge deux fois", () => {
+  it("a per-annotation style does not advance the clock twice", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    // La timeline dure 1000 ms ; a 20 ms/tick la fin tombe au tick 50.
-    // Quand l'instance pretee rejouait son propre withAnnotationAwareness,
-    // elle re-incrementait elapsedMs et l'animation se terminait trop tot.
+    // The timeline lasts 1000 ms; at 20 ms/tick the end falls on tick 50.
+    // When the borrowed instance replayed its own withAnnotationAwareness,
+    // it re-incremented elapsedMs and the animation ended too early.
     const reference = ticksUntilFinish("chunkjump", [null, null]);
     expect(reference).toBe(50);
     expect(ticksUntilFinish("chunkjump", ["scribble", null])).toBe(reference);

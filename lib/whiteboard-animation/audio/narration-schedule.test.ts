@@ -13,7 +13,7 @@ const parts = [
 ];
 
 describe("partAt", () => {
-  it("rend le morceau qui couvre l'instant, et la position dedans", () => {
+  it("returns the part covering the instant, and the position within it", () => {
     expect(partAt(parts, 1500)).toEqual({
       index: 1,
       part: parts[1],
@@ -21,46 +21,46 @@ describe("partAt", () => {
     });
   });
 
-  it("bascule sur le suivant des la frontiere, sans rejouer la fin", () => {
+  it("switches to the next part at the boundary, without replaying the end", () => {
     expect(partAt(parts, 1000)?.index).toBe(1);
     expect(partAt(parts, 999)?.index).toBe(0);
   });
 
-  it("ne joue rien apres le dernier morceau", () => {
+  it("plays nothing after the last part", () => {
     expect(partAt(parts, 3000)).toBeNull();
   });
 
-  it("ne joue rien dans le trou laisse par un temps muet", () => {
-    const avecTrou = [
+  it("plays nothing in the gap left by a silent beat", () => {
+    const withGap = [
       { url: "/0.mp3", startMs: 0, durationMs: 1000 },
       { url: "/2.mp3", startMs: 3000, durationMs: 1000 },
     ];
 
-    expect(partAt(avecTrou, 2000)).toBeNull();
-    expect(partAt(avecTrou, 3500)?.index).toBe(1);
+    expect(partAt(withGap, 2000)).toBeNull();
+    expect(partAt(withGap, 3500)?.index).toBe(1);
   });
 
-  it("ne joue rien avant le premier morceau", () => {
+  it("plays nothing before the first part", () => {
     expect(partAt([{ url: "/a.mp3", startMs: 500, durationMs: 100 }], 200)).toBeNull();
   });
 
-  it("ne joue rien quand il n'y a aucun morceau", () => {
+  it("plays nothing when there are no parts", () => {
     expect(partAt([], 0)).toBeNull();
   });
 });
 
 describe("narrationEndMs", () => {
-  it("rend la fin du dernier morceau", () => {
+  it("returns the end of the last part", () => {
     expect(narrationEndMs(parts)).toBe(3000);
   });
 
-  it("rend zero sans morceau", () => {
+  it("returns zero without parts", () => {
     expect(narrationEndMs([])).toBe(0);
   });
 });
 
 describe("scheduleParts", () => {
-  it("pose les morceaux bout a bout", () => {
+  it("lays parts end to end", () => {
     expect(
       scheduleParts([
         { url: "/a.mp3", durationMs: 1100 },
@@ -72,7 +72,7 @@ describe("scheduleParts", () => {
     ]);
   });
 
-  it("laisse un temps muet avancer le curseur sans rien poser", () => {
+  it("lets a silent beat advance the cursor without placing anything", () => {
     expect(
       scheduleParts([
         { url: null, durationMs: 2000 },
@@ -83,63 +83,63 @@ describe("scheduleParts", () => {
 });
 
 describe("nextNarrationAction", () => {
-  it("charge le morceau du moment quand aucun n'est en place", () => {
+  it("loads the current part when none is in place", () => {
     expect(nextNarrationAction({ index: null, offsetMs: 0 }, parts, 1500)).toEqual({
-      type: "charger",
+      type: "load",
       index: 1,
       part: parts[1],
       offsetMs: 500,
     });
   });
 
-  it("ne fait rien tant que le bon morceau suit sa position", () => {
+  it("does nothing while the right part tracks its position", () => {
     expect(
       nextNarrationAction({ index: 1, offsetMs: 480 }, parts, 1500),
-    ).toEqual({ type: "rien" });
+    ).toEqual({ type: "none" });
   });
 
-  it("recale sans recharger quand la position a derive", () => {
+  it("resyncs without reloading when the position drifted", () => {
     expect(
       nextNarrationAction({ index: 1, offsetMs: 100 }, parts, 1500),
-    ).toEqual({ type: "recaler", index: 1, offsetMs: 500 });
+    ).toEqual({ type: "resync", index: 1, offsetMs: 500 });
   });
 
-  it("change de morceau a la frontiere", () => {
+  it("changes part at the boundary", () => {
     const action = nextNarrationAction({ index: 0, offsetMs: 990 }, parts, 1010);
 
-    expect(action).toMatchObject({ type: "charger", index: 1, offsetMs: 10 });
+    expect(action).toMatchObject({ type: "load", index: 1, offsetMs: 10 });
   });
 
-  it("se tait dans un trou, sans decharger inutilement ensuite", () => {
-    const avecTrou = [
+  it("goes silent in a gap, without needlessly unloading afterwards", () => {
+    const withGap = [
       { url: "/0.mp3", startMs: 0, durationMs: 1000 },
       { url: "/2.mp3", startMs: 3000, durationMs: 1000 },
     ];
 
-    expect(nextNarrationAction({ index: 0, offsetMs: 999 }, avecTrou, 2000)).toEqual({
-      type: "taire",
+    expect(nextNarrationAction({ index: 0, offsetMs: 999 }, withGap, 2000)).toEqual({
+      type: "silence",
     });
-    // Une fois tu, on ne redemande pas de se taire a chaque frame.
-    expect(nextNarrationAction({ index: null, offsetMs: 0 }, avecTrou, 2000)).toEqual({
-      type: "rien",
+    // Once silent, it does not request silence again every frame.
+    expect(nextNarrationAction({ index: null, offsetMs: 0 }, withGap, 2000)).toEqual({
+      type: "none",
     });
   });
 
-  it("recale des que la derive depasse le seuil du projet", () => {
-    // Le meme seuil que pour une piste unique : au-dela d'environ 125 ms, un
-    // decalage son/image se percoit.
+  it("resyncs as soon as drift exceeds the project threshold", () => {
+    // The same threshold as for a single track: beyond about 125 ms, an
+    // audio/video offset is noticeable.
     expect(NARRATION_DRIFT_MS).toBe(120);
     expect(
       nextNarrationAction({ index: 1, offsetMs: 500 - 130 }, parts, 1500),
-    ).toMatchObject({ type: "recaler" });
+    ).toMatchObject({ type: "resync" });
     expect(
       nextNarrationAction({ index: 1, offsetMs: 500 - 110 }, parts, 1500),
-    ).toEqual({ type: "rien" });
+    ).toEqual({ type: "none" });
   });
 
-  it("tolere une derive plus large si on le demande", () => {
+  it("tolerates a wider drift when asked", () => {
     expect(
       nextNarrationAction({ index: 1, offsetMs: 100 }, parts, 1500, 1000),
-    ).toEqual({ type: "rien" });
+    ).toEqual({ type: "none" });
   });
 });

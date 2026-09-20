@@ -78,7 +78,7 @@ import { measureImageSize } from "@/lib/storyboard/image-size";
 import { measureSubjectCandidates } from "@/lib/storyboard/image-subjects";
 import { narrationParts } from "@/lib/speech/narration-track";
 import { scheduleParts } from "@/lib/whiteboard-animation/audio/narration-schedule";
-import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
+import { canvasSize } from "@/lib/whiteboard-animation/canvas-size";
 import { WhiteboardEditorStep } from "@/lib/whiteboard-animation/components/whiteboard-editor-step";
 import { AudioPanel } from "@/lib/whiteboard-animation/components/audio-panel";
 
@@ -89,14 +89,13 @@ const STEPS = [
 ] as const;
 
 /**
- * Les voix reellement disponibles, dans l'ordre du catalogue.
+ * The voices actually available, in catalogue order.
  *
- * L'ecran presentait auparavant 18 personas inventes ranges par langue (Ron,
- * Pierre, Takeshi...) : le choix se faisait sur une fiction, et deux personas
- * pouvaient rendre le meme son. Ces voix-ci sont multilingues — la meme lit le
- * francais et l'anglais — donc aucun classement par langue n'a de sens, et
- * aucune description de timbre n'est donnee : l'apercu audio en est la seule
- * source honnete.
+ * The screen used to show 18 made-up personas sorted by language (Ron,
+ * Pierre, Takeshi...): the choice was made on a fiction, and two personas
+ * could produce the same sound. These voices are multilingual (the same one
+ * reads French and English), so sorting by language makes no sense, and no
+ * timbre description is given: the audio preview is the only honest source.
  */
 const VOICE_INITIALS: Record<string, string> = {
   alloy: "A",
@@ -112,17 +111,17 @@ const VOICE_INITIALS: Record<string, string> = {
   verse: "V",
 };
 
-/** La langue dans laquelle la voix lira le script, telle qu'on la nomme. */
+/** The language the voice will read the script in, as we name it. */
 const LANGUAGE_LABELS: Record<string, string> = {
   en: "English",
   fr: "French",
 };
 
 /**
- * Ce que dit l'apercu quand le script est encore vide.
+ * What the preview says when the script is still empty.
  *
- * Il etait en francais en dur : sur un projet anglais, on jugeait une voix sur
- * une phrase qui n'etait pas dans la langue qu'elle lira.
+ * It was hardcoded in French: on an English project, a voice was judged on
+ * a sentence that was not in the language it will read.
  */
 const PREVIEW_FALLBACK: Record<string, string> = {
   en: "Hi! This is how I'll narrate your video.",
@@ -136,9 +135,9 @@ const PREVIEW_FALLBACK: Record<string, string> = {
 };
 
 /**
- * La part de la barre de progression qui revient a la synthese. Le reste va au
- * placement des annotations, qui suit dans le meme temps d'attente : deux
- * barres qui repartent de zero donnaient l'impression d'une etape bloquee.
+ * The share of the progress bar that goes to synthesis. The rest goes to
+ * annotation placement, which follows within the same wait: two bars
+ * restarting from zero felt like a stuck step.
  */
 const NARRATION_SHARE = 70;
 
@@ -196,14 +195,14 @@ export default function StoryboardPage() {
   const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [selectedClipIndex, setSelectedClipIndex] = useState(0);
-  // Le champ en cours d'edition, pour la scene selectionnee : `${index}:field`.
+  // The field being edited, for the selected scene: `${index}:field`.
   const [editingField, setEditingField] = useState<string | null>(null);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [isPlanningAnnotations, setIsPlanningAnnotations] = useState(false);
   const [narrationProgress, setNarrationProgress] = useState(0);
 
-  // Le projet vit en base : useProjectSync le charge (ou le cree), tient le
-  // bail d'edition et ecrit chaque changement du store.
+  // The project lives in the database: useProjectSync loads (or creates) it,
+  // holds the editing lease and writes every store change.
   const projectSync = useProjectSync();
 
   // The render runs on the server; only its id lives here, so a reload can pick it back up.
@@ -230,14 +229,14 @@ export default function StoryboardPage() {
     setIsExporting(true);
     setExportPhase("encoding");
     try {
-      // Interrogation plutot qu'un websocket : un rendu dure des
-      // minutes, une seconde de latence sur une barre ne se voit pas.
+      // Polling rather than a websocket: a render lasts minutes, one second
+      // of latency on a progress bar goes unnoticed.
       for (;;) {
         await new Promise((r) => setTimeout(r, 1000));
         if (renderJobIdRef.current !== jobId) return;
         const r = await fetch(`/api/whiteboard/render/${jobId}`);
-        // Sur un 404 le corps est {error} : sans ce controle la boucle
-        // tournait a l'infini, la barre figee a 0 %.
+        // On a 404 the body is {error}: without this check the loop spun
+        // forever, the bar frozen at 0%.
         if (!r.ok) {
           throw new Error(
             r.status === 404
@@ -293,9 +292,9 @@ export default function StoryboardPage() {
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [scriptError, setScriptError] = useState<string | null>(null);
 
-  // Le script est ecrit par l'agent a partir du prompt et des parametres. Le
-  // garde sur les scenes deja presentes evite de regenerer — donc de repayer un
-  // appel modele — en revenant sur l'etape depuis le storyboard.
+  // The script is written by the agent from the prompt and parameters. The
+  // guard on already-present scenes avoids regenerating (and so paying for
+  // another model call) when coming back to this step from the storyboard.
   const generateScript = async (content = promptContent) => {
     if (!content.trim() || isGeneratingScript) return;
     setIsGeneratingScript(true);
@@ -326,8 +325,8 @@ export default function StoryboardPage() {
     const panels = clipsToSync
       .filter((clip) => !clip.isSection)
       .map((clip, i) => {
-        // Une image absente le reste : la remplacer par un visuel de
-        // demonstration l'enregistrait en base comme s'il avait ete produit.
+        // A missing image stays missing: replacing it with a demo visual
+        // saved it to the database as if it had been produced.
         const image = imagesToSync[i] || clip.imageUrl || "";
         const prompt = clip.visualPrompt || clip.summary || clip.title || `Clip ${i + 1}`;
         return {
@@ -340,14 +339,14 @@ export default function StoryboardPage() {
           visualPrompt: clip.visualPrompt || clip.summary || prompt,
           duration: typeof clip.duration === "number" ? clip.duration : 5,
           isGenerating: false,
-          // La voix, par image et par temps : sans ces deux champs elle etait
-          // produite puis perdue au premier enregistrement.
+          // The voice, per image and per beat: without these two fields it was
+          // produced then lost on the first save.
           audioUrl: clip.audioUrl,
           audioDurationMs: clip.audioDurationMs,
           beats: clip.beats,
-          // Les annotations vivent par image : c'est ce que l'editeur et le
-          // rendu lisent, whiteboardConfig.annotations n'etant qu'un repli
-          // commun a toutes.
+          // Annotations live per image: that is what the editor and the render
+          // read, whiteboardConfig.annotations being only a fallback shared by
+          // all of them.
           annotations: clip.annotations,
         };
       });
@@ -356,19 +355,19 @@ export default function StoryboardPage() {
   };
 
   /**
-   * Rend les clips et leurs images a partir de ce qui est enregistre.
+   * Rebuilds the clips and their images from what is saved.
    *
-   * Sans garde d'etape : ce ne sont que les panneaux du projet relus autrement,
-   * et l'etape courante n'a pas a decider si on les connait. La garde
-   * `step !== "storyboard"` d'avant laissait `generatedImages` vide partout
-   * ailleurs — or l'etape voix ne se rend que s'il est rempli, donc un
-   * rechargement sur la voix donnait une page BLANCHE, et le retour en arriere
-   * etait ferme lui aussi (canNavigateToStep en depend).
+   * No step guard: these are just the project's panels read differently,
+   * and the current step has no say in whether we know them. The former
+   * `step !== "storyboard"` guard left `generatedImages` empty everywhere
+   * else, yet the voice step only renders when it is filled, so a reload on
+   * the voice step gave a BLANK page, and going back was blocked too
+   * (canNavigateToStep depends on it).
    *
-   * Un etat local ne doit rien decider ici : l'ancien code retombait sur
-   * DEMO_FINAL_SEQUENCE des qu'une variable de session manquait, puis ecrivait
-   * ces panneaux de demonstration dans le store — la premiere frappe suivante
-   * les enregistrait par-dessus le vrai projet.
+   * Local state must decide nothing here: the old code fell back to
+   * DEMO_FINAL_SEQUENCE as soon as a session variable was missing, then wrote
+   * those demo panels into the store, and the next keystroke saved them over
+   * the real project.
    */
   useEffect(() => {
     if (editableClips.length > 0) return;
@@ -408,9 +407,9 @@ export default function StoryboardPage() {
   };
 
   const deleteClip = (index: number) => {
-    // Irreversible : l'image generee, sa narration et ses annotations
-    // disparaissent, et l'autosave enregistre la suppression dans la minute.
-    // Sans confirmation, un clic malencontreux ne se rattrape pas.
+    // Irreversible: the generated image, its narration and its annotations
+    // disappear, and autosave records the deletion within the minute.
+    // Without confirmation, an accidental click cannot be undone.
     if (!confirm("Delete this clip? This cannot be undone.")) return;
     const newClips = editableClips.filter((_, i) => i !== index);
     const newImages = generatedImages.filter((_, i) => i !== index);
@@ -488,11 +487,11 @@ export default function StoryboardPage() {
   };
 
   /**
-   * Demande un visuel au modele et rend son URL definitive.
+   * Asks the model for a visual and returns its final URL.
    *
-   * Le projet est designe par son id : la route verifie le droit d'ecriture
-   * AVANT d'appeler le modele, et l'image part au bac d'objets — une `data:`
-   * URL serait refusee a l'enregistrement.
+   * The project is identified by its id: the route checks write access
+   * BEFORE calling the model, and the image goes to the object bucket (a `data:`
+   * URL would be rejected on save).
    */
   const requestVisual = async (
     clip: any,
@@ -526,12 +525,12 @@ export default function StoryboardPage() {
   };
 
   /**
-   * Produit les visuels manquants.
+   * Produces the missing visuals.
    *
-   * `force` refait la serie entiere : c'est le sens du bouton « Regenerate All
-   * Visuals », et lui seul. Par defaut une image deja produite est gardee —
-   * rouvrir un projet termine et repasser par cette etape relancait un appel
-   * modele par image, pour remplacer des visuels que rien ne rendait caducs.
+   * `force` redoes the whole series: that is what the « Regenerate All
+   * Visuals » button means, and only it. By default an already-produced image is
+   * kept: reopening a finished project and going through this step again fired one
+   * model call per image, to replace visuals nothing had made obsolete.
    */
   const generateImagesProgressively = async ({ force = false } = {}) => {
     const clips = editableClips.filter((c) => !c.isSection);
@@ -541,11 +540,11 @@ export default function StoryboardPage() {
       return;
     }
 
-    // Une copie de travail : les visuels deja obtenus sont conserves meme si un
-    // appel echoue au milieu, plutot que de perdre le lot entier.
+    // A working copy: visuals already obtained are kept even if a call fails
+    // midway, rather than losing the whole batch.
     const newImages = [...generatedImages];
-    // L'index d'origine voyage avec le clip : c'est le `sceneIndex` sous lequel
-    // la route range l'image, et sauter des clips le desaligne du rang de boucle.
+    // The original index travels with the clip: it is the `sceneIndex` under
+    // which the route stores the image, and skipping clips misaligns it from the loop rank.
     const todo = clips
       .map((clip, index) => ({ clip, index }))
       .filter(({ index }) => force || !newImages[index]);
@@ -559,16 +558,16 @@ export default function StoryboardPage() {
     setGeneratingProgress({ current: 0, total: todo.length });
 
     let failed = 0;
-    // La premiere case produite sert de reference aux suivantes : c'est le seul
-    // moyen de tenir l'epaisseur de trait et la gamme de couleurs sur la serie.
-    // Un visuel deja en place fait cette reference quand on complete une serie,
-    // sinon les images ajoutees apres coup partiraient dans un autre style.
+    // The first panel produced serves as reference for the next ones: it is the only
+    // way to keep stroke thickness and color range consistent across the series.
+    // An existing visual serves as that reference when completing a series,
+    // otherwise images added later would drift into another style.
     let reference: string | undefined = force
       ? undefined
       : newImages.find((url) => !!url);
 
-    for (let rang = 0; rang < todo.length; rang++) {
-      const { clip, index } = todo[rang];
+    for (let rank = 0; rank < todo.length; rank++) {
+      const { clip, index } = todo[rank];
       setGeneratingClipIndex(index);
       try {
         newImages[index] = await requestVisual(clip, index, reference);
@@ -582,13 +581,13 @@ export default function StoryboardPage() {
             error instanceof Error ? error.message : "Visual generation failed",
           );
         }
-        // Inutile d'insister neuf fois sur une configuration absente.
+        // No point insisting nine times on a missing configuration.
         if ((error as Error & { fatal?: boolean }).fatal) {
           setGeneratingProgress({ current: todo.length, total: todo.length });
           break;
         }
       }
-      setGeneratingProgress({ current: rang + 1, total: todo.length });
+      setGeneratingProgress({ current: rank + 1, total: todo.length });
     }
 
     setGeneratingClipIndex(null);
@@ -610,8 +609,8 @@ export default function StoryboardPage() {
 
     try {
       const newImages = [...generatedImages];
-      // Regenerer une seule case : la premiere de la serie reste la reference,
-      // sinon la case refaite jurerait avec les autres.
+      // Regenerating a single panel: the first of the series stays the reference,
+      // otherwise the redone panel would clash with the others.
       const reference = generatedImages.find(
         (url, i) => i !== clipIndex && !!url,
       );
@@ -629,8 +628,8 @@ export default function StoryboardPage() {
     }
   };
 
-  // Arriver sur le storyboard dessine ce qui manque, une fois par arrivee :
-  // un visuel deja produit est garde, et un echec ne relance pas en boucle.
+  // Arriving on the storyboard draws what is missing, once per arrival:
+  // an already-produced visual is kept, and a failure does not retry in a loop.
   const autoVisualsRequested = useRef(false);
   useEffect(() => {
     if (step !== "storyboard") {
@@ -646,8 +645,8 @@ export default function StoryboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, projectSync.projectId, editableClips.length]);
 
-  // Des que tous les visuels sont la, la voix s'enregistre sans attendre le
-  // clic : la planification des annotations a besoin des images, d'ou l'ordre.
+  // As soon as all visuals are there, the voice records without waiting for
+  // the click: annotation planning needs the images, hence the order.
   const autoNarrationRequested = useRef(false);
   useEffect(() => {
     if (step !== "storyboard") {
@@ -667,10 +666,10 @@ export default function StoryboardPage() {
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   /**
-   * Fait entendre la voix qui sera reellement utilisee.
+   * Plays the voice that will actually be used.
    *
-   * L'apercu passait par speechSynthesis du navigateur : on ecoutait une voix
-   * systeme sans aucun rapport avec celle que le moteur allait produire.
+   * The preview used the browser's speechSynthesis: we heard a system
+   * voice unrelated to the one the engine would produce.
    */
   const playVoicePreview = async (voice: string) => {
     if (!projectSync.projectId || previewingVoice) return;
@@ -719,17 +718,17 @@ export default function StoryboardPage() {
   const [isBreakingDown, setIsBreakingDown] = useState(false);
 
   /**
-   * Le script qui a produit le decoupage actuellement en place.
+   * The script that produced the split currently in place.
    *
-   * Il distingue les deux clics sur « Approve Script » : celui qui suit une
-   * reecriture, qui doit redecouper, et celui qui ne fait que traverser une
-   * etape deja faite, qui ne doit rien refaire.
+   * It tells apart the two clicks on « Approve Script »: the one following a
+   * rewrite, which must split again, and the one merely passing through an
+   * already-done step, which must redo nothing.
    */
   const brokenDownScript = useRef<string | null>(null);
 
-  // Un projet rouvert porte deja son decoupage : il a ete enregistre avec le
-  // script qui l'a produit. Sans cette amorce, le premier passage par l'etape
-  // script le prenait pour un decoupage absent et relancait tout.
+  // A reopened project already carries its split: it was saved with the
+  // script that produced it. Without this seed, the first pass through the
+  // script step took it for a missing split and restarted everything.
   useEffect(() => {
     if (projectSync.status === "loading") return;
     if (brokenDownScript.current !== null) return;
@@ -738,19 +737,19 @@ export default function StoryboardPage() {
   }, [projectSync.status, storyboardPanels.length, scriptText]);
 
   /**
-   * Second temps : le texte valide est decoupe en scenes.
+   * Second stage: the approved text is split into scenes.
    *
-   * L'appel est distinct de l'ecriture parce que l'utilisateur a pu reecrire le
-   * script entre les deux — decouper des la premiere generation figeait des
-   * scenes que ses corrections n'atteignaient plus.
+   * The call is separate from writing because the user may have rewritten the
+   * script in between: splitting on the first generation froze
+   * scenes that their corrections no longer reached.
    */
   const handleScriptValidated = async () => {
     if (!scriptText.trim() || isBreakingDown) return;
 
-    // L'etape est deja faite et le script n'a pas bouge : on la traverse.
-    // La redecouper rappelait le modele, puis reecrivait des clips aux images
-    // vides (`clips.map(() => "")`) par-dessus le projet — visuels, voix et
-    // annotations deja produits partaient avec.
+    // The step is already done and the script has not changed: pass through.
+    // Splitting again called the model again, then rewrote clips with empty
+    // images (`clips.map(() => "")`) over the project, wiping visuals, voice and
+    // annotations already produced.
     if (
       brokenDownScript.current === scriptText &&
       (editableClips.length > 0 || storyboardPanels.length > 0)
@@ -781,8 +780,8 @@ export default function StoryboardPage() {
 
       const scenes = (body.scenes ?? []) as ScriptScene[];
 
-      // Une image, ses temps de narration. La duree suit ce qu'elle porte :
-      // une idee developpee garde son dessin a l'ecran plus longtemps.
+      // One image, its narration beats. The duration follows what it carries:
+      // a developed idea keeps its drawing on screen longer.
       const clips = scenes.map((scene) => ({
         id: `clip-${scene.index}`,
         index: scene.index,
@@ -811,16 +810,16 @@ export default function StoryboardPage() {
   };
 
   /**
-   * Situe les annotations de chaque image, et les cale sur la voix produite.
+   * Locates each image's annotations and aligns them to the produced voice.
    *
-   * Elles s'ecrivent dans `panel.annotations`, non dans
-   * `whiteboardConfig.annotations` : c'est ce que l'editeur et le rendu lisent
-   * en premier (to-render-project.ts, whiteboard-editor-step.tsx), le second
-   * n'etant qu'un repli commun a toutes les images — donc le meme dessin
-   * partout.
+   * They are written to `panel.annotations`, not to
+   * `whiteboardConfig.annotations`: that is what the editor and the render read
+   * first (to-render-project.ts, whiteboard-editor-step.tsx), the latter
+   * being only a fallback shared by all images, hence the same drawing
+   * everywhere.
    *
-   * Une image qui echoue laisse les autres passer : mieux vaut une scene sans
-   * annotation, ajustable a la main, qu'un lot entier perdu.
+   * A failing image lets the others through: better a scene without
+   * annotations, adjustable by hand, than a whole batch lost.
    */
   const planClipAnnotations = async (
     clips: any[],
@@ -828,31 +827,31 @@ export default function StoryboardPage() {
   ): Promise<any[]> => {
     if (!projectSync.projectId) return clips;
 
-    const canvas = tailleCanvas(projectParams.aspectRatio);
+    const canvas = canvasSize(projectParams.aspectRatio);
     const planned = [...clips];
     let failed = 0;
 
-    // `images` est indexe par les clips SANS section — c'est ainsi que
-    // generateImagesProgressively le remplit et que syncClipsToStore le relit.
-    // Cette boucle, elle, courait sur TOUS les clips : des qu'une section
-    // precedait une scene, celle-ci lisait l'image d'une autre, ou rien du
-    // tout, et repartait sans annotation. D'ou des scenes muettes dans
-    // l'editeur alors que la planification disait avoir tourne.
-    let rang = 0;
+    // `images` is indexed by clips WITHOUT sections: that is how
+    // generateImagesProgressively fills it and syncClipsToStore reads it back.
+    // This loop, however, ran over ALL clips: as soon as a section
+    // preceded a scene, that scene read another's image, or nothing at
+    // all, and came back without annotations. Hence silent scenes in
+    // the editor while planning claimed to have run.
+    let rank = 0;
 
     for (let i = 0; i < clips.length; i++) {
       const clip = clips[i];
       if (clip.isSection) continue;
 
-      const sceneIndex = rang;
+      const sceneIndex = rank;
       const imageUrl = images[sceneIndex] || "";
-      rang += 1;
+      rank += 1;
       if (!imageUrl || !clip.beats?.length) continue;
 
       try {
         const imageSize = await measureImageSize(imageUrl);
-        // Les sujets sont mesures ici, sur l'image : la vision situe bien mais
-        // chiffre mal, son rectangle ne sert plus qu'a designer lequel.
+        // Subjects are measured here, on the image: vision locates well but
+        // measures poorly, its rectangle only serves to designate which one.
         const candidates = await measureSubjectCandidates(imageUrl, imageSize);
         const response = await fetch("/api/plan-annotations", {
           method: "POST",
@@ -862,9 +861,9 @@ export default function StoryboardPage() {
             imageUrl,
             scene: {
               index: sceneIndex,
-              // Le schema de la route n'accepte que ces trois valeurs : un
-              // projet ancien porte parfois autre chose, qui ferait echouer
-              // toute la planification en 400.
+              // The route's schema accepts only these three values: an
+              // older project sometimes carries something else, which would fail
+              // the whole planning with a 400.
               clipType: ["intro", "content", "outro"].includes(clip.clipType)
                 ? clip.clipType
                 : "content",
@@ -891,8 +890,8 @@ export default function StoryboardPage() {
           }),
         };
       } catch (error) {
-        // Un echec avale ne laissait qu'une ligne de console : la scene
-        // revenait sans annotation et rien ne le disait.
+        // A swallowed failure left only a console line: the scene
+        // came back without annotations and nothing said so.
         failed += 1;
         console.error(`Annotation planning ${sceneIndex + 1} failed:`, error);
         if (failed === 1) {
@@ -917,16 +916,16 @@ export default function StoryboardPage() {
   };
 
   /**
-   * Synthetise la narration, temps par temps.
+   * Synthesizes the narration, beat by beat.
    *
-   * Par image, la voix se jouait mais ne se decoupait pas : les annotations se
-   * calent sur la duree de CHAQUE temps, et l'estimation du decoupage derive de
-   * 15 %. Le TTS etant facture au caractere, un appel par temps coute le meme
-   * prix que le meme texte en un seul appel.
+   * Per image, the voice played but was not split: annotations
+   * align to the duration of EACH beat, and the split's estimate drifts by
+   * 15%. TTS being billed per character, one call per beat costs the same
+   * as the same text in a single call.
    *
-   * La progression suit le lot reel : elle etait auparavant une animation de
-   * trois secondes qui n'attendait rien, et l'etape suivante s'ouvrait sur des
-   * clips sans audio.
+   * Progress follows the actual batch: it used to be a three-second
+   * animation that waited for nothing, and the next step opened on
+   * clips without audio.
    */
   const handleVoiceSelected = async (
     voiceId: string,
@@ -939,10 +938,10 @@ export default function StoryboardPage() {
 
     const voice = normalizeVoice(voiceId);
 
-    // L'etape est deja faite, et sur cette meme voix : on la traverse. Le
-    // script part d'une traite, donc relancer refaisait la bande ENTIERE et
-    // remplacait des calages deja mesures. Choisir une AUTRE voix reste un
-    // ordre de refaire — c'est le seul moyen d'en changer.
+    // The step is already done, with this same voice: pass through. The
+    // script goes in one take, so rerunning redid the ENTIRE track and
+    // replaced alignments already measured. Choosing ANOTHER voice remains an
+    // order to redo: it is the only way to change it.
     const parlantes = editableClips.filter(
       (c) =>
         !c.isSection &&
@@ -962,17 +961,17 @@ export default function StoryboardPage() {
     setIsGeneratingNarration(true);
     setNarrationProgress(0);
 
-    // Une copie de travail : les narrations obtenues sont conservees meme si un
-    // appel echoue au milieu, plutot que de perdre le lot entier.
+    // A working copy: narrations obtained are kept even if a
+    // call fails midway, rather than losing the whole batch.
     const withAudio = [...editableClips];
     let failed = 0;
-    // Les images dont ce lot a deja pose la premiere voix. Une image peut en
-    // recevoir plusieurs quand elle est trop longue pour un seul appel, et sa
-    // duree les additionne — mais en repartant de zero, sinon elle s'ajouterait
-    // a celle d'un lot precedent.
-    const commencees = new Set<number>();
-    // Ce que chaque enregistrement dit, mot par mot : produit pour recaler les
-    // temps, il se garde au lieu d'etre jete.
+    // Images for which this batch has already set the first voice. An image can
+    // receive several when it is too long for a single call, and its
+    // duration sums them, but starting from zero, otherwise it would add
+    // to that of a previous batch.
+    const startedClips = new Set<number>();
+    // What each recording says, word by word: produced to realign the
+    // beats, it is kept instead of thrown away.
     const transcription: { url: string; words: { word: string; startMs: number; endMs: number }[] }[] = [];
 
     for (let i = 0; i < jobs.length; i++) {
@@ -1001,25 +1000,25 @@ export default function StoryboardPage() {
         }
         notifyCreditsChanged();
 
-        // L'enregistrement ne se decoupe pas : ses temps s'y REPERENT, chacun
-        // recevant l'instant ou il est dit et la place qu'il occupe — silence
-        // de fin compris, sinon le dessin devancerait la respiration.
-        const cales: { startMs: number; durationMs: number }[] | null =
+        // The recording is not split: its beats are LOCATED in it, each
+        // receiving the moment it is spoken and the space it occupies (trailing
+        // silence included, otherwise the drawing would get ahead of the breath).
+        const alignedBeats: { startMs: number; durationMs: number }[] | null =
           Array.isArray(body.beats) ? body.beats : null;
 
         if (Array.isArray(body.words) && body.words.length > 0) {
           transcription.push({ url: body.url, words: body.words });
         }
 
-        job.places.forEach((place, rang) => {
+        job.places.forEach((place, rank) => {
           const clip = withAudio[place.clipIndex];
           if (!clip) return;
 
-          const cale = cales?.[rang];
-          // Un meme enregistrement porte plusieurs images : chacune le
-          // designe, et ses temps disent ou ils sont dedans.
-          const commencee = commencees.has(place.clipIndex);
-          commencees.add(place.clipIndex);
+          const aligned = alignedBeats?.[rank];
+          // One recording carries several images: each one
+          // references it, and its beats say where they sit inside it.
+          const alreadyStarted = startedClips.has(place.clipIndex);
+          startedClips.add(place.clipIndex);
 
           const beats = (clip.beats ?? []).map(
             (beat: ScriptBeat, index: number) =>
@@ -1027,20 +1026,20 @@ export default function StoryboardPage() {
                 ? {
                     ...beat,
                     audioUrl: body.url,
-                    startMs: cale?.startMs,
-                    audioDurationMs: cale?.durationMs,
+                    startMs: aligned?.startMs,
+                    audioDurationMs: aligned?.durationMs,
                   }
                 : beat,
           );
 
           withAudio[place.clipIndex] = {
             ...clip,
-            audioUrl: commencee ? clip.audioUrl : body.url,
-            // Ce que CETTE image occupe dans la voix, et non la duree du
-            // fichier : plusieurs images le partagent.
+            audioUrl: alreadyStarted ? clip.audioUrl : body.url,
+            // What THIS image occupies in the voice, not the duration of the
+            // file: several images share it.
             audioDurationMs:
-              (commencee ? (clip.audioDurationMs ?? 0) : 0) +
-                (cale?.durationMs ?? 0) || undefined,
+              (alreadyStarted ? (clip.audioDurationMs ?? 0) : 0) +
+                (aligned?.durationMs ?? 0) || undefined,
             beats,
           };
         });
@@ -1059,18 +1058,18 @@ export default function StoryboardPage() {
       );
     }
 
-    // La planification vient APRES : elle a besoin des durees mesurees pour
-    // faire entrer chaque annotation quand son texte est dit.
+    // Planning comes AFTER: it needs the measured durations to
+    // bring in each annotation when its text is spoken.
     const planned = await planClipAnnotations(withAudio, generatedImages);
 
     setEditableClips(planned);
     const panels = syncClipsToStore(planned, generatedImages);
-    // Le lien entre un temps de narration et ce qui se dessine pendant qu'il
-    // est dit se remplissait a la main dans l'editeur : la planification le
-    // connait par construction.
+    // The link between a narration beat and what is drawn while it
+    // is spoken used to be filled in by hand in the editor: planning
+    // knows it by construction.
     setTranscript(transcriptFromPanels(panels));
-    // La piste : un enregistrement par image, pose a sa place. Plus rien a
-    // coller — chaque image est dite d'une traite.
+    // The track: one recording per image, placed where it belongs. Nothing left to
+    // stitch: each image is spoken in one take.
     setNarrationParts(scheduleParts(narrationParts(panels)));
     setNarrationTranscription(transcription);
     setIsGeneratingNarration(false);
@@ -1087,12 +1086,12 @@ export default function StoryboardPage() {
 
 
   /**
-   * Replace les annotations sans retoucher a la voix.
+   * Re-places the annotations without touching the voice.
    *
-   * La planification ne consomme que les temps DEJA mesures et les images :
-   * elle etait pourtant soudee a la synthese, donc la refaire imposait de
-   * repayer tout le script. Une scene revenue muette — planification en echec,
-   * image absente — se rattrape maintenant seule.
+   * Planning only consumes ALREADY measured beats and the images:
+   * yet it was welded to synthesis, so redoing it meant paying for the
+   * whole script again. A scene that came back silent (planning failed,
+   * image missing) can now be recovered on its own.
    */
   const replanAnnotations = async () => {
     if (!projectSync.projectId || isPlanningAnnotations) return;
@@ -1139,8 +1138,8 @@ export default function StoryboardPage() {
     if (confirm("Clear all saved progress? This cannot be undone.")) {
       resetWorkflow();
       setGeneratedImages([]);
-      // resetWorkflow repart de l'etape prompt : l'abonnement du hook ecrit
-      // cet etat vide dans le projet, donc rien a effacer a la main.
+      // resetWorkflow restarts from the prompt step: the hook's subscription writes
+      // this empty state into the project, so nothing to clear by hand.
       toast.info("Session cleared");
     }
   };
@@ -1163,7 +1162,7 @@ export default function StoryboardPage() {
     return false;
   };
 
-  // Ne pas afficher l'interface tant que le projet n'est pas chargé
+  // Do not render the UI until the project is loaded
   if (projectSync.status === "loading") {
     return (
       <AppShell showSidebar={false} contentClassName="h-screen overflow-hidden">
@@ -1197,9 +1196,9 @@ export default function StoryboardPage() {
         <DevPanel currentStep={step} />
 
         {projectSync.status === "read-only" && (
-          // Visible tant que le bail n'est pas repris : sans cette bannière,
-          // l'edition continuait sur une interface normale alors que plus
-          // rien ne s'enregistrait — le travail se perdait en silence.
+          // Visible until the lease is taken back: without this banner,
+          // editing went on in a normal-looking UI while nothing was
+          // being saved anymore, and work was silently lost.
           <div className="shrink-0 z-50 border-b border-destructive/30 bg-destructive/10 px-6 py-2 flex items-center justify-center gap-2 text-sm text-destructive">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>
@@ -1786,9 +1785,9 @@ export default function StoryboardPage() {
           )}
 
 
-          {/* Sans clips, le bloc ci-dessus ne rend RIEN : l'ecran restait
-              vide et sans issue. Mieux vaut dire ce qui manque et rouvrir le
-              chemin qui le produit. */}
+          {/* Without clips, the block above renders NOTHING: the screen stayed
+              empty with no way out. Better to say what is missing and reopen the
+              path that produces it. */}
 
 
         </div>
@@ -1869,8 +1868,8 @@ export default function StoryboardPage() {
           downloadUrl={downloadUrl}
           onCancel={() => {
             const id = renderJobIdRef.current;
-            // Remis a null AVANT la requete : la boucle d'interrogation compare
-            // cette reference et s'arrete d'elle-meme.
+            // Reset to null BEFORE the request: the polling loop compares
+            // this reference and stops on its own.
             renderJobIdRef.current = null;
             rememberRender(null);
             if (id) {

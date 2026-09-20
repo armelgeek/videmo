@@ -4,8 +4,8 @@ import { create } from 'zustand';
 import type { UnifiedEngineStore, UnifiedEngineState, Annotation, InkplainerLayer } from '../types';
 import { belongsToScene } from '../hooks/selectors';
 
-/** Les positions, dans le tableau de toutes les scenes, des annotations d'une scene. */
-function indicesDeScene(annotations: Annotation[], panelId: string | null): number[] {
+/** The positions, in the array of all scenes, of one scene's annotations. */
+function sceneIndices(annotations: Annotation[], panelId: string | null): number[] {
   const out: number[] = [];
   annotations.forEach((a, i) => {
     if (belongsToScene(a, panelId)) out.push(i);
@@ -152,12 +152,12 @@ export const useUnifiedEngineStore = create<UnifiedEngineStore>((set, get) => ({
 
   // Annotations
   //
-  // Le tableau porte TOUTES les scenes. Les index recus ici sont locaux a la
-  // scene active : ils sont traduits en positions du tableau complet.
+  // The array holds ALL scenes. The indices received here are local to the
+  // active scene: they are translated into positions in the full array.
   updateAnnotation: (index: number, data: Partial<Annotation>) => {
     set((state) => {
       const panelId = state.ui.activeScenePanelId;
-      const flat = indicesDeScene(state.animation.annotations, panelId);
+      const flat = sceneIndices(state.animation.annotations, panelId);
       const target = flat[index];
       if (target === undefined) return state;
       const annotations = [...state.animation.annotations];
@@ -174,7 +174,7 @@ export const useUnifiedEngineStore = create<UnifiedEngineStore>((set, get) => ({
           ? { ...annotation, panelId }
           : annotation;
       const annotations = [...state.animation.annotations];
-      const flat = indicesDeScene(annotations, panelId);
+      const flat = sceneIndices(annotations, panelId);
       const after = flat.length > 0 ? flat[flat.length - 1] + 1 : annotations.length;
       annotations.splice(after, 0, tagged);
       return { animation: { ...state.animation, annotations } };
@@ -194,7 +194,7 @@ export const useUnifiedEngineStore = create<UnifiedEngineStore>((set, get) => ({
     });
   },
 
-  // Chargement unique : toutes les scenes d'un coup.
+  // One-shot load: all scenes at once.
   setAnnotations: (annotations: Annotation[]) => {
     set((state) => ({
       animation: { ...state.animation, annotations },
@@ -210,8 +210,8 @@ export const useUnifiedEngineStore = create<UnifiedEngineStore>((set, get) => ({
       const tagged = sceneAnnotations.map((a) =>
         a.panelId === panelId ? a : { ...a, panelId },
       );
-      // La scene reprend sa place dans l'ordre des scenes : l'ordre porte le
-      // minutage de la sequence globale.
+      // The scene keeps its place in the scene order: the order carries the
+      // timing of the overall sequence.
       const first = current.findIndex((a) => a.panelId === panelId);
       const others = current.filter((a) => a.panelId !== panelId);
       const insertAt =

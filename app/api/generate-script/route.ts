@@ -9,7 +9,7 @@ import {
   generatedScriptSchema,
 } from "@/lib/storyboard/script-generation";
 
-// La generation depasse largement le budget par defaut d'une fonction edge.
+// Generation far exceeds the default budget of an edge function.
 export const maxDuration = 120;
 
 const requestSchema = z.object({
@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
         structuredOutput: { schema: generatedScriptSchema },
       });
 
-      // Le modele peut rendre un objet hors schema malgre la contrainte : on
-      // prefere un 502 explicite a un script vide affiche comme un succes.
+      // The model can return an off-schema object despite the constraint: we
+      // prefer an explicit 502 over an empty script shown as a success.
       const parsed = generatedScriptSchema.safeParse(result.object);
       if (!parsed.success) {
         return NextResponse.json(
@@ -45,8 +45,8 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Un texte, rien d'autre : le decoupage en scenes attend que l'utilisateur
-      // ait valide, et corrige, ce qui sera dit.
+      // Text, nothing else: splitting into scenes waits until the user has
+      // approved, and corrected, what will be said.
       return NextResponse.json(parsed.data);
     });
   } catch (error) {

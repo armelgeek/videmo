@@ -160,8 +160,8 @@ export async function POST(request: NextRequest) {
       }
     );
   } catch (error) {
-    // Rendu a Stripe : son renvoi doit pouvoir le traiter, et non le trouver
-    // deja reclame.
+    // Released back to Stripe: its retry must be able to process it, not find
+    // it already claimed.
     await eventGuard.release();
     auditLogger.logWebhook(
       AuditEventType.WEBHOOK_PROCESSING_ERROR,

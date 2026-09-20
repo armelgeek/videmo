@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef } from "react"
-import { lirePositionLecture } from "@/lib/editor/playback-clock"
+import { readPlaybackPosition } from "@/lib/editor/playback-clock"
 import type { TimelineClip } from "../types"
 
 const SNAP_THRESHOLD_PX = 15
@@ -51,10 +51,10 @@ export function useTimelineSnap({ clips, zoomLevel, isDraggingPlayhead = false }
         snapPoints.push(nearestGrid)
       }
       if (config.toPlayhead && !isDraggingPlayhead) {
-        // Position LUE ici : l'aimantation ne s'en sert qu'au moment d'un
-        // glisser. La recevoir en prop obligeait l'appelant a se rendre a
-        // chaque frame pour la tenir a jour.
-        snapPoints.push(lirePositionLecture())
+        // Position READ here: snapping only needs it during a drag. Receiving
+        // it as a prop forced the caller to re-render every frame to keep it
+        // up to date.
+        snapPoints.push(readPlaybackPosition())
       }
       if (config.toClips) {
         clipsRef.current.forEach((c) => {

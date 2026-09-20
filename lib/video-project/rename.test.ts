@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renameWithLock } from "./rename";
 
 describe("renameWithLock", () => {
-  it("appelle takeLock, patchTitle puis releaseLock dans cet ordre", async () => {
+  it("calls takeLock, patchTitle then releaseLock in that order", async () => {
     const calls: string[] = [];
     const deps = {
       takeLock: vi.fn(async () => {
@@ -23,7 +23,7 @@ describe("renameWithLock", () => {
     expect(calls).toEqual(["takeLock", "patchTitle", "releaseLock"]);
   });
 
-  it("relâche le bail et remonte l'erreur quand patchTitle rend ok: false", async () => {
+  it("releases the lease and surfaces the error when patchTitle returns ok: false", async () => {
     const deps = {
       takeLock: vi.fn(async () => ({ ok: true })),
       patchTitle: vi.fn(async () => ({ ok: false, error: "Titre invalide" })),
@@ -34,7 +34,7 @@ describe("renameWithLock", () => {
     expect(deps.releaseLock).toHaveBeenCalledWith("p1");
   });
 
-  it("relâche le bail quand patchTitle lève une exception", async () => {
+  it("releases the lease when patchTitle throws", async () => {
     const deps = {
       takeLock: vi.fn(async () => ({ ok: true })),
       patchTitle: vi.fn(async () => {
@@ -47,7 +47,7 @@ describe("renameWithLock", () => {
     expect(deps.releaseLock).toHaveBeenCalledWith("p1");
   });
 
-  it("remonte l'erreur de patchTitle meme si releaseLock rejette aussi", async () => {
+  it("surfaces the patchTitle error even if releaseLock also rejects", async () => {
     const deps = {
       takeLock: vi.fn(async () => ({ ok: true })),
       patchTitle: vi.fn(async () => ({ ok: false, error: "Titre invalide" })),
@@ -60,7 +60,7 @@ describe("renameWithLock", () => {
     expect(deps.releaseLock).toHaveBeenCalledWith("p1");
   });
 
-  it("ne leve pas quand seul releaseLock rejette apres un PATCH reussi", async () => {
+  it("does not throw when only releaseLock rejects after a successful PATCH", async () => {
     const deps = {
       takeLock: vi.fn(async () => ({ ok: true })),
       patchTitle: vi.fn(async () => ({ ok: true })),
@@ -73,7 +73,7 @@ describe("renameWithLock", () => {
     expect(deps.releaseLock).toHaveBeenCalledWith("p1");
   });
 
-  it("n'appelle ni patchTitle ni releaseLock quand takeLock échoue", async () => {
+  it("calls neither patchTitle nor releaseLock when takeLock fails", async () => {
     const deps = {
       takeLock: vi.fn(async () => ({ ok: false })),
       patchTitle: vi.fn(async () => ({ ok: true })),

@@ -11,12 +11,11 @@ const INITIAL_TRACKS: Track[] = [
 ]
 
 /**
- * Un pas d'annulation.
+ * One undo step.
  *
- * L'historique ne portait que `timelineClips`. Un Ctrl+Z apres la suppression
- * d'un media ressuscitait donc des clips dont le `mediaId` n'existait plus dans
- * `mediaMap` : muets, invisibles, et sans la moindre erreur. Les pistes avaient
- * le meme trou.
+ * History used to hold only `timelineClips`. A Ctrl+Z after deleting a media
+ * therefore resurrected clips whose `mediaId` no longer existed in `mediaMap`:
+ * silent, invisible, and without any error. Tracks had the same gap.
  */
 export interface TimelineSnapshot {
   clips: TimelineClip[]
@@ -89,11 +88,11 @@ export interface UseTimelineStateResult {
 }
 
 /**
- * Identifiants de clip.
+ * Clip identifiers.
  *
- * `clip-${Date.now()}` collisionnait des que deux clips naissaient dans la meme
- * milliseconde (drop multiple, split au clavier en rafale) : cles React
- * dupliquees, et handleClipUpdate modifiait les deux clips a la fois.
+ * `clip-${Date.now()}` collided as soon as two clips were created in the same
+ * millisecond (multi-drop, rapid keyboard splits): duplicate React keys, and
+ * handleClipUpdate modified both clips at once.
  */
 let _clipSeq = 0
 function newClipId(prefix: string) {
@@ -161,10 +160,10 @@ export function useTimelineState({
   }, [])
 
   /**
-   * `pushToHistory` est branche sur le mousedown d'un clip (`onDragStart`), donc
-   * un simple clic de selection empilait un snapshot identique : il fallait
-   * ensuite autant de Ctrl+Z que de clics pour defaire une seule modification.
-   * On ignore un etat rigoureusement identique au sommet de la pile.
+   * `pushToHistory` is wired to a clip's mousedown (`onDragStart`), so a plain
+   * selection click pushed an identical snapshot: it then took as many Ctrl+Z
+   * as clicks to undo a single change. A state strictly identical to the top
+   * of the stack is ignored.
    */
   const pushToHistory = useCallback(() => {
     const snap = snapshot()
@@ -275,17 +274,16 @@ export function useTimelineState({
       const remaining = timelineClips.filter((c) => c.mediaId !== item.id)
       setTimelineClips(remaining)
       setMedia((prev) => prev.filter((m) => m.id !== item.id))
-      // Pas de URL.revokeObjectURL ici : le media fait desormais partie du
-      // snapshot d'annulation, et revoquer l'URL rendrait le Ctrl+Z inoperant
-      // (clips restaures pointant sur un blob mort). Les blobs sont liberes au
-      // dechargement de la page.
-      // La selection se purge des clips SUPPRIMES. Le test portait sur
-      // `timelineClips`, la liste d'AVANT le filtre : il etait vrai des qu'une
-      // selection existait, donc jamais purge. Les ids fantomes restants
-      // faisaient ensuite planter le drag (initialStates[id] undefined).
+      // No URL.revokeObjectURL here: the media is now part of the undo
+      // snapshot, and revoking the URL would break Ctrl+Z (restored clips
+      // pointing at a dead blob). Blobs are released on page unload.
+      // The selection is purged of DELETED clips. The check used to run on
+      // `timelineClips`, the list from BEFORE the filter: it was true as soon
+      // as a selection existed, so nothing was ever purged. The leftover ghost
+      // ids then crashed the drag (initialStates[id] undefined).
       if (selectedClipIds.length > 0) {
-        const survivants = selectedClipIds.filter((id) => remaining.some((c) => c.id === id))
-        if (survivants.length !== selectedClipIds.length) setSelectedClipIds(survivants)
+        const survivors = selectedClipIds.filter((id) => remaining.some((c) => c.id === id))
+        if (survivors.length !== selectedClipIds.length) setSelectedClipIds(survivors)
       }
     },
     [timelineClips, selectedClipIds, pushToHistory],
@@ -298,8 +296,8 @@ export function useTimelineState({
       const relativeSplit = splitTime - clip.start
       const firstDuration = relativeSplit
       const secondDuration = clip.duration - relativeSplit
-      // Le garde passe AVANT pushToHistory : un split refuse empilait quand meme
-      // un snapshot, et le Ctrl+Z suivant ne faisait rien de visible.
+      // The guard runs BEFORE pushToHistory: a rejected split still pushed a
+      // snapshot, and the next Ctrl+Z did nothing visible.
       if (firstDuration < 0.1 || secondDuration < 0.1) return
       pushToHistory()
       const clip1: TimelineClip = { ...clip, duration: firstDuration }
@@ -322,8 +320,8 @@ export function useTimelineState({
       const clip = timelineClips.find((c) => c.id === clipId)
       if (!clip) return
       pushToHistory()
-      // Toutes les pistes audio REELLES, pas ["a1","a2"] en dur : avec une piste
-      // a3 creee par l'utilisateur on retombait sur a1 et on superposait.
+      // All ACTUAL audio tracks, not a hardcoded ["a1","a2"]: with a
+      // user-created a3 track we fell back to a1 and overlapped.
       const audioTrackIds = tracks.filter((t) => t.type === "audio").map((t) => t.id)
       const targetTrackId =
         audioTrackIds.find((tid) => {
@@ -369,13 +367,13 @@ export function useTimelineState({
       pushToHistory()
       const clipsToDelete = timelineClips.filter((c) => clipIds.includes(c.id))
       setTimelineClips((prev) => {
-        // Le decalage de chaque survivant est la somme des durees supprimees
-        // AVANT lui, mesuree sur les positions d'ORIGINE.
+        // Each survivor's shift is the sum of the durations deleted BEFORE it,
+        // measured on the ORIGINAL positions.
         //
-        // L'ancienne version appliquait les suppressions l'une apres l'autre en
-        // comparant le `start` deja decale du survivant au `start` d'origine du
-        // clip supprime : des deux suppressions sur une meme piste, les
-        // positions finales etaient fausses.
+        // The old version applied deletions one after another, comparing the
+        // survivor's already-shifted `start` to the deleted clip's original
+        // `start`: from two deletions on the same track onwards, the final
+        // positions were wrong.
         return prev
           .filter((c) => !clipIds.includes(c.id))
           .map((c) => {
@@ -397,12 +395,12 @@ export function useTimelineState({
       if (clipIds.length === 0) return
       pushToHistory()
       const clipsToDuplicate = timelineClips.filter((c) => clipIds.includes(c.id))
-      // Point d'insertion de chaque copie, sur les positions d'ORIGINE.
+      // Insertion point of each copy, on the ORIGINAL positions.
       const inserts = clipsToDuplicate.map((clip) => ({ clip, at: clip.start + clip.duration }))
 
       setTimelineClips((prev) => {
-        // Les clips EXISTANTS reculent de la somme des copies inserees avant eux.
-        const decale = prev.map((c) => {
+        // EXISTING clips shift by the sum of the copies inserted before them.
+        const shifted = prev.map((c) => {
           const shift = inserts.reduce(
             (n, ins) => (ins.clip.trackId === c.trackId && ins.at <= c.start ? n + ins.clip.duration : n),
             0,
@@ -410,16 +408,15 @@ export function useTimelineState({
           return shift > 0 ? { ...c, start: c.start + shift } : c
         })
 
-        // Les copies elles-memes ne sont decalees que par les insertions qui les
-        // PRECEDENT. L'ancienne version les poussait dans `updated` au fur et a
-        // mesure, si bien que l'iteration suivante les redecalait comme des
-        // clips existants : dupliquer trois clips d'un coup en deplacait deux de
-        // trop.
+        // The copies themselves are only shifted by the insertions that
+        // PRECEDE them. The old version pushed them into `updated` as it went,
+        // so the next iteration shifted them again like existing clips:
+        // duplicating three clips at once moved two of them too far.
         const copies = inserts.map(({ clip, at }) => {
           const shift = inserts.reduce(
-            (n, autre) =>
-              autre.clip.id !== clip.id && autre.clip.trackId === clip.trackId && autre.at <= at
-                ? n + autre.clip.duration
+            (n, other) =>
+              other.clip.id !== clip.id && other.clip.trackId === clip.trackId && other.at <= at
+                ? n + other.clip.duration
                 : n,
             0,
           )
@@ -432,7 +429,7 @@ export function useTimelineState({
           }
         })
 
-        return [...decale, ...copies]
+        return [...shifted, ...copies]
       })
       markPreviewStale()
     },
@@ -445,10 +442,10 @@ export function useTimelineState({
       if (movedClips.length === 0) return
 
       let clipsModified = false
-      // Une SEULE liste vivante. L'ancienne version accumulait `clipsToDelete` et
-      // `clipsToAdd` a cote de `updatedClips` et ne les appliquait qu'a la fin :
-      // un clip deja marque pour suppression par un premier clip deplace pouvait
-      // etre splitte par un second, et le fragment ressuscitait a l'ajout final.
+      // A SINGLE live list. The old version accumulated `clipsToDelete` and
+      // `clipsToAdd` alongside `updatedClips` and only applied them at the end:
+      // a clip already marked for deletion by a first moved clip could be split
+      // by a second one, and the fragment came back at the final add.
       let updatedClips = [...timelineClips]
 
       movedClips.forEach((movedClip) => {
@@ -469,12 +466,12 @@ export function useTimelineState({
           const overlapStart = overlapClip.start
           const overlapEnd = overlapClip.start + overlapClip.duration
 
-          // Cas 1 : le clip deplace recouvre entierement — on supprime.
+          // Case 1: the moved clip fully covers it — delete.
           if (movedStart <= overlapStart && movedEnd >= overlapEnd) {
             updatedClips = updatedClips.filter((c) => c.id !== overlapClip.id)
             clipsModified = true
           }
-          // Cas 2 : le clip deplace tombe au milieu — on coupe en deux.
+          // Case 2: the moved clip lands in the middle — split in two.
           else if (movedStart > overlapStart && movedEnd < overlapEnd) {
             const firstPartDuration = movedStart - overlapStart
             const secondPart: TimelineClip = {
@@ -490,7 +487,7 @@ export function useTimelineState({
             updatedClips.push(secondPart)
             clipsModified = true
           }
-          // Cas 3 : recouvrement du debut — on rogne le debut.
+          // Case 3: overlaps the start — trim the start.
           else if (movedStart <= overlapStart && movedEnd > overlapStart && movedEnd < overlapEnd) {
             const trimAmount = movedEnd - overlapStart
             updatedClips = updatedClips.map((c) =>
@@ -500,7 +497,7 @@ export function useTimelineState({
             )
             clipsModified = true
           }
-          // Cas 4 : recouvrement de la fin — on rogne la fin.
+          // Case 4: overlaps the end — trim the end.
           else if (movedStart > overlapStart && movedStart < overlapEnd && movedEnd >= overlapEnd) {
             updatedClips = updatedClips.map((c) =>
               c.id === overlapClip.id ? { ...c, duration: movedStart - overlapStart } : c,

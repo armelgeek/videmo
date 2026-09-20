@@ -26,9 +26,9 @@ export interface Annotation {
   };
   animStyle?: string;
   /**
-   * La scene (panneau) a laquelle appartient l'annotation. Le store tient les
-   * annotations de TOUTES les scenes dans un seul tableau : c'est ce champ qui
-   * les separe. Absent en mode demo, sans panneau.
+   * The scene (panel) the annotation belongs to. The store holds the
+   * annotations of ALL scenes in a single array: this field is what separates
+   * them. Absent in demo mode, without a panel.
    */
   panelId?: string;
 }
@@ -93,9 +93,9 @@ export interface UnifiedEngineState {
   // ===== UI STATE =====
   ui: {
     selectedClipId: string | null;
-    /** Index DANS la scene active, pas dans le tableau de toutes les scenes. */
+    /** Index WITHIN the active scene, not in the array of all scenes. */
     selectedAnnotationIndex: number | null;
-    /** La scene dont on edite et dessine les annotations, deduite de la lecture. */
+    /** The scene whose annotations are edited and drawn, derived from playback. */
     activeScenePanelId: string | null;
     activePanel: 'timeline' | 'whiteboard' | 'inspector';
     isLoading: boolean;
@@ -122,14 +122,14 @@ export interface UnifiedEngineActions {
 
   // Annotations
   //
-  // Le store tient TOUTES les scenes a plat. `setAnnotations` remplace ce
-  // tableau entier (chargement unique) ; les autres actions agissent sur la
-  // scene active, avec des index LOCAUX a cette scene.
+  // The store holds ALL scenes flat. `setAnnotations` replaces that whole
+  // array (one-shot load); the other actions act on the active scene, with
+  // indices LOCAL to that scene.
   updateAnnotation(index: number, data: Partial<Annotation>): void;
   addAnnotation(annotation: Annotation): void;
   removeAnnotation(id: string): void;
   setAnnotations(annotations: Annotation[]): void;
-  /** Remplace les seules annotations d'une scene, sans toucher aux autres. */
+  /** Replaces only one scene's annotations, leaving the others untouched. */
   setSceneAnnotations(panelId: string | null, annotations: Annotation[]): void;
   setActiveScenePanelId(panelId: string | null): void;
 

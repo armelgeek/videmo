@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 /**
- * Le script : un texte narratif continu, rien d'autre.
+ * The script: a continuous narrative text, nothing else.
  *
- * C'est ce que le narrateur dit, dans la forme ou un humain le relit et le
- * reecrit. Y melanger des prompts d'image en faisait un document technique
- * qu'on ne pouvait plus lire comme un texte — et le decoupage en scenes, fige
- * des la premiere generation, ignorait ensuite les corrections.
+ * It is what the narrator says, in the form a human rereads and rewrites.
+ * Mixing image prompts into it made it a technical document that could no
+ * longer be read as text — and the scene split, frozen at the first
+ * generation, then ignored the corrections.
  */
 export const generatedScriptSchema = z.object({
   title: z.string(),
@@ -15,47 +15,47 @@ export const generatedScriptSchema = z.object({
 export type GeneratedScript = z.infer<typeof generatedScriptSchema>;
 
 /**
- * Un temps de narration a l'interieur d'une image.
+ * A narration beat inside an image.
  *
- * C'est ce qu'une annotation revelera : le stylo dessine une zone pendant que
- * ce segment est dit, puis passe a la suivante. Sa region — le rectangle dans
- * l'image — ne peut pas etre decidee ici : le modele ecrit le decoupage sans
- * voir l'illustration, elle se pose dans l'editeur.
+ * It is what an annotation will reveal: the pen draws a region while this
+ * segment is spoken, then moves to the next. Its region — the rectangle in
+ * the image — cannot be decided here: the model writes the split without
+ * seeing the illustration, so it is placed in the editor.
  */
 export const scriptBeatSchema = z.object({
   narration: z.string(),
   durationSec: z.number().positive().default(5),
   /**
-   * La voix de CE temps, et sa duree mesuree sur le fichier produit.
+   * The voice of THIS beat, and its duration measured on the produced file.
    *
-   * Synthetiser par image suffisait a jouer la narration, mais pas a la
-   * decouper : les annotations se placent sur la duree de chaque temps, et
-   * l'estimation du decoupage derive de 15 % — pres de sept secondes sur un
-   * script de neuf temps. Absents tant que la synthese n'a pas eu lieu : le
-   * decoupage precede toujours la voix.
+   * Synthesizing per image was enough to play the narration, but not to
+   * split it: annotations are placed on each beat's duration, and the
+   * breakdown's estimate drifts by 15% — nearly seven seconds on a
+   * nine-beat script. Absent until synthesis has happened: the
+   * breakdown always precedes the voice.
    */
   audioUrl: z.string().optional(),
   audioDurationMs: z.number().nonnegative().optional(),
   /**
-   * Ou ce temps commence DANS l'enregistrement de son image.
+   * Where this beat starts WITHIN its image's recording.
    *
-   * L'image est dite d'une traite, et ses temps y sont retrouves par la
-   * transcription : `audioUrl` designe donc la meme voix pour tous, et c'est
-   * cet instant qui les distingue.
+   * The image is spoken in one take, and its beats are located in it by the
+   * transcription: `audioUrl` therefore points to the same voice for all, and
+   * this instant is what tells them apart.
    */
   startMs: z.number().nonnegative().optional(),
 });
 export type ScriptBeat = z.infer<typeof scriptBeatSchema>;
 
 /**
- * Une scene, telle que le decoupage la produit : UNE image, et les temps de
- * narration qu'elle porte.
+ * A scene, as the breakdown produces it: ONE image, and the narration beats
+ * it carries.
  *
- * Une image n'est plus liee a une seule phrase. Le modele regroupe ce qui
- * partage un meme visuel, si bien qu'une idee simple tient en une image breve
- * et qu'une idee developpee garde la sienne a l'ecran, revelee morceau par
- * morceau. Chaque image coute un appel au moteur : en produire une par phrase
- * multipliait la depense et l'attente sans rien ajouter au film.
+ * An image is no longer tied to a single sentence. The model groups what
+ * shares the same visual, so a simple idea fits in one brief image and a
+ * developed idea keeps its own on screen, revealed piece by
+ * piece. Each image costs an engine call: producing one per sentence
+ * multiplied cost and waiting without adding anything to the film.
  */
 export const scriptSceneSchema = z.object({
   index: z.number().int().nonnegative(),
@@ -74,22 +74,22 @@ export const storyboardBreakdownSchema = z.object({
 export type StoryboardBreakdown = z.infer<typeof storyboardBreakdownSchema>;
 
 /**
- * Renumerote les scenes sur leur position.
+ * Renumbers scenes by their position.
  *
- * `index` porte l'ordre du film et sert de cle d'affichage : apres une
- * suppression ou un deplacement, le laisser tel quel produisait deux scenes de
- * meme index, donc une liste qui se melange au rendu.
+ * `index` carries the film order and serves as display key: after a
+ * deletion or a move, leaving it as-is produced two scenes with the
+ * same index, hence a list that gets shuffled on render.
  */
 export function reindexScenes(scenes: ScriptScene[]): ScriptScene[] {
   return scenes.map((scene, index) => ({ ...scene, index }));
 }
 
-/** La narration entiere d'une image, dans l'ordre de ses temps. */
+/** The whole narration of an image, in the order of its beats. */
 export function sceneNarration(scene: ScriptScene): string {
   return scene.beats.map((beat) => beat.narration.trim()).join(" ");
 }
 
-/** Sa duree : la somme de ses temps, jamais une constante. */
+/** Its duration: the sum of its beats, never a constant. */
 export function sceneDuration(scene: ScriptScene): number {
   return scene.beats.reduce((total, beat) => total + beat.durationSec, 0);
 }
@@ -105,12 +105,12 @@ export interface ScriptParams {
 }
 
 /**
- * Combien d'images viser pour un script donne.
+ * How many images to aim for with a given script.
  *
- * Une consigne qualitative ne suffisait pas : le modele revenait a une image
- * par paragraphe, donc au meme cout qu'avant. Une cible chiffree, tiree du
- * script lui-meme, le fait regrouper sans figer le decoupage — le contenu
- * decide toujours, dans une fourchette.
+ * A qualitative instruction was not enough: the model went back to one image
+ * per paragraph, hence the same cost as before. A numeric target, derived from
+ * the script itself, makes it group without freezing the split — the content
+ * still decides, within a range.
  */
 export function suggestedImageCount(script: string): number {
   const paragraphs = script
@@ -118,21 +118,21 @@ export function suggestedImageCount(script: string): number {
     .map((p) => p.trim())
     .filter(Boolean).length;
 
-  // Un dessin porte en general deux paragraphes ; jamais moins de deux images,
-  // sans quoi une video courte tiendrait sur un seul plan fixe.
+  // A drawing usually carries two paragraphs; never fewer than two images,
+  // otherwise a short video would fit in a single still shot.
   return Math.max(2, Math.ceil(paragraphs / 2));
 }
 
-/** Le nombre de paragraphes vise pour le script, selon le format. */
+/** The target paragraph count for the script, depending on the format. */
 export function paragraphCountForFormat(format: string): number {
   return format === "brief" ? 6 : 10;
 }
 
 /**
- * Premier appel : ecrire le texte.
+ * First call: write the text.
  *
- * Aucune consigne de mise en forme — ni titres de scene, ni marqueurs. Le
- * decoupage vient apres, sur le texte que l'utilisateur aura valide.
+ * No formatting instruction — no scene headings, no markers. The
+ * split comes afterwards, on the text the user will have approved.
  */
 export function buildScriptPrompt(input: ScriptParams): string {
   return [
@@ -152,10 +152,10 @@ export function buildScriptPrompt(input: ScriptParams): string {
 }
 
 /**
- * Second appel : decouper le texte valide.
+ * Second call: split the approved text.
  *
- * La narration de chaque scene doit etre reprise du texte, non reecrite —
- * sinon les corrections faites a l'etape Script seraient perdues au passage.
+ * Each scene's narration must be taken from the text, not rewritten —
+ * otherwise the corrections made at the Script step would be lost on the way.
  */
 export function buildBreakdownPrompt(input: {
   script: string;
@@ -174,16 +174,16 @@ export function buildBreakdownPrompt(input: {
     "group together everything that a single illustration can carry, and start",
     "a new one when the subject genuinely changes.",
     "",
-    // Aucun nombre impose : une idee simple tient en une image breve, une idee
-    // developpee en garde une seule, revelee morceau par morceau. Fixer un
-    // compte forcait a decouper ce qui allait ensemble — et chaque image de
-    // plus est un appel au moteur payé pour rien.
+    // No imposed count: a simple idea fits in one brief image, a developed
+    // idea keeps a single one, revealed piece by piece. Fixing a count forced
+    // splitting what belonged together — and each extra image is a paid
+    // engine call for nothing.
     "Let the content decide how many images there are — a simple idea needs",
     "one short image, a developed one keeps a single image on screen longer.",
     "Do not split a subject just to reach a count.",
     "",
-    // Chaque image est un appel au moteur, facture et lent. Le modele revenait
-    // spontanement a une image par paragraphe, ce qui annulait le regroupement.
+    // Each image is an engine call, billed and slow. The model spontaneously
+    // went back to one image per paragraph, which cancelled the grouping.
     `PREFER FEWER IMAGES: aim for about ${suggestedImageCount(input.script)},`,
     "and never exceed that by more than one. Several consecutive paragraphs",
     "usually share one drawing: merge them into a single image with several",
@@ -193,8 +193,8 @@ export function buildBreakdownPrompt(input: {
     "carries, revealed one after another while the drawing stays on screen.",
     "Each beat's narration MUST be taken verbatim from the script above:",
     "split it, never rewrite it, and cover the whole script in order.",
-    // Le modele recopiait une phrase deja utilisee pour se fabriquer un outro,
-    // si bien que le narrateur la disait deux fois.
+    // The model copied an already-used sentence to make up an outro,
+    // so the narrator said it twice.
     "Every sentence of the script appears in EXACTLY ONE beat: never repeat a",
     "sentence across beats, and never invent an intro or outro that is not in",
     "the script. The last image is simply the one carrying the final text.",
@@ -205,8 +205,8 @@ export function buildBreakdownPrompt(input: {
     "Give every image a title describing its content, and an imagePrompt",
     "describing the single drawing that covers all of its beats.",
     "",
-    // Le titre est montre a l'utilisateur : le laisser en anglais sous une
-    // narration francaise donnait un storyboard bilingue.
+    // The title is shown to the user: leaving it in English under a
+    // French narration produced a bilingual storyboard.
     `Write the titles in the same language as the script (${input.params.language}).`,
     "Write the imagePrompt in English, whatever the script language:",
     "image models follow it more closely.",

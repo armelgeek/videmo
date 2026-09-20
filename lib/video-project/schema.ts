@@ -10,11 +10,11 @@ export const projectStatusSchema = z.enum(["draft", "ready", "archived"]);
 export const aspectRatioSchema = z.enum(["16:9", "9:16", "1:1"]);
 
 /**
- * Le script enregistre : un texte narratif, pas un decoupage.
+ * The saved script: a narrative text, not a breakdown.
  *
- * Les scenes qui en derivent vivent dans `panels` : elles appartiennent au
- * storyboard, et les fondre ici melangeait ce que l'utilisateur ecrit avec ce
- * que la mise en images produit.
+ * The scenes derived from it live in `panels`: they belong to the
+ * storyboard, and merging them here mixed what the user writes with what
+ * the visualization produces.
  */
 export const projectScriptSchema = z.object({
   title: z.string().default(""),
@@ -22,35 +22,35 @@ export const projectScriptSchema = z.object({
 });
 
 /**
- * Les parametres du store, plus les deux valeurs de l'editeur qui n'ont pas de
- * colonne a elles. Sans ces cles declarees, z.object les retirait en silence :
- * le PATCH repondait 200 et le prompt disparaissait a la relecture.
+ * The store params, plus the two editor values that have no column of
+ * their own. Without these keys declared, z.object silently stripped them:
+ * the PATCH answered 200 and the prompt vanished on reload.
  */
 export const persistedProjectParamsSchema = projectParamsSchema.extend({
   promptContent: z.string().optional(),
   selectedVoice: z.string().optional(),
 });
 
-// Insensible a la casse (le RFC 2397 autorise `DATA:`) et tolerant a un espace
-// de tete, sans quoi le filtre se contourne d'un caractere.
+// Case-insensitive (RFC 2397 allows `DATA:`) and tolerant of a leading
+// space, otherwise the filter is bypassed with one character.
 const EPHEMERAL_URL = /^\s*(?:data|blob):/i;
 
 /**
- * Une URL n'est durable que si elle survit à l'onglet : `blob:` meurt avec la
- * page, `data:` porte le contenu inline que ce chantier refuse d'écrire en base.
+ * A URL is durable only if it outlives the tab: `blob:` dies with the
+ * page, `data:` carries inline content this workstream refuses to write to the DB.
  */
 function isDurableUrl(url: string): boolean {
   return !EPHEMERAL_URL.test(url);
 }
 
 /**
- * Toutes les métadonnées d'`AudioTrack` (lib/whiteboard-animation/audio/types.ts)
- * sauf `persistUrl` : c'est précisément le porteur du contenu (une `data:` URL
- * pour un téléversement), que la spec exclut de la base jusqu'au chantier 1.
- * Pour une piste TTS il duplique `url`, donc rien d'irrécupérable n'est perdu.
+ * All `AudioTrack` metadata (lib/whiteboard-animation/audio/types.ts)
+ * except `persistUrl`: it is precisely the content carrier (a `data:` URL
+ * for an upload), which the spec keeps out of the DB until workstream 1.
+ * For a TTS track it duplicates `url`, so nothing unrecoverable is lost.
  *
- * `url` est conservée seulement si elle est durable ; une `blob:` de session
- * est ramenée à `null` plutôt que de faire échouer toute la sauvegarde.
+ * `url` is kept only if it is durable; a session `blob:` is reduced to
+ * `null` rather than failing the whole save.
  */
 export const persistedAudioTrackSchema = z.object({
   id: z.string().optional(),
@@ -70,8 +70,8 @@ export const whiteboardConfigSchema = z.object({
   animStyle: z.string(),
   handStyle: z.string(),
   canvasBg: z.string(),
-  // Champs legacy de WhiteboardConfig (lib/storyboard/store.ts) : ignorés au
-  // runtime mais conservés, sans quoi z.object les effacerait en silence.
+  // Legacy WhiteboardConfig fields (lib/storyboard/store.ts): ignored at
+  // runtime but kept, otherwise z.object would silently erase them.
   revealSpeed: z.number().optional(),
   handSpeed: z.number().optional(),
   chunks: z.number().optional(),
@@ -80,9 +80,9 @@ export const whiteboardConfigSchema = z.object({
   annotationConfig: z.record(z.string(), z.unknown()).default({}),
   audio: persistedAudioTrackSchema.nullable().default(null),
   /**
-   * La voix par temps de narration. Les URL sont celles du bac, deja durables :
-   * contrairement a `audio`, rien a filtrer — une piste televersee, elle, peut
-   * porter une blob: qui meurt avec l'onglet.
+   * The voice per narration beat. The URLs come from the tray, already durable:
+   * unlike `audio`, nothing to filter — an uploaded track, by contrast, can
+   * carry a blob: that dies with the tab.
    */
   narration: z
     .array(
@@ -95,9 +95,9 @@ export const whiteboardConfigSchema = z.object({
     .default([]),
   transcript: z.array(z.unknown()).default([]),
   /**
-   * La transcription des enregistrements, mot par mot. Declaree en clair et non
-   * en z.unknown() : c'est la seule facon qu'un champ mal forme se voie au
-   * PATCH plutot qu'a la relecture, un jour ou une autre route l'ecrira.
+   * The word-by-word transcript of the recordings. Declared explicitly, not
+   * as z.unknown(): it is the only way a malformed field shows up at
+   * PATCH time rather than on reload, the day another route writes it.
    */
   transcription: z
     .array(

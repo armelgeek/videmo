@@ -19,7 +19,7 @@ import type { NarrationPart } from "@/lib/whiteboard-animation/audio/narration-s
 import { dataUrlToBlobUrl } from "@/lib/whiteboard-animation/audio/audio-serialization";
 import { panelAudioSegments } from "./audio-segments";
 
-/** L'identifiant du media audio d'une image. */
+/** The id of an image's audio media. */
 function audioMediaId(panelKey: string): string {
   return `media-audio-${panelKey}`;
 }
@@ -30,7 +30,7 @@ export interface MediaItem {
   url: string;
   prompt: string;
   duration: number;
-  // Suit projectParams.aspectRatio, qui couvre les trois formats du menu.
+  // Follows projectParams.aspectRatio, which covers the menu's three formats.
   aspectRatio: "16:9" | "9:16" | "1:1";
   status: "ready" | "generating" | "error";
   type: "video" | "audio" | "image";
@@ -49,13 +49,13 @@ export interface TimelineClip {
 }
 
 /**
- * Ce qu'un enregistrement dit, mot par mot, avec l'instant de chacun.
+ * What a recording says, word by word, with the instant of each.
  *
- * Une entree par enregistrement et non par image : le script part d'une traite,
- * donc un meme fichier porte plusieurs images.
+ * One entry per recording and not per image: the script goes out in one take,
+ * so a single file carries several images.
  */
 export interface NarrationTranscript {
-  /** L'enregistrement transcrit, tel que le bac le sert. */
+  /** The transcribed recording, as the bucket serves it. */
   url: string;
   words: { word: string; startMs: number; endMs: number }[];
 }
@@ -71,25 +71,25 @@ export interface WhiteboardConfig {
   handSpeed?: number;
   chunks?: number;
   useAnnotation?: boolean;
-  // Ni aspectRatio ni resolution ici : le ratio appartient a projectParams
-  // (choisi des l'etape Prompt, une seule source), et la resolution est un
-  // choix d'EXPORT — l'apercu rend toujours au petit cote 720.
+  // Neither aspectRatio nor resolution here: the ratio belongs to projectParams
+  // (chosen at the Prompt step, a single source), and resolution is an
+  // EXPORT choice — the preview always renders at 720 on the short side.
   annotations: Annotation[];
   annotationConfig: AnnotationConfig;
   audio: AudioTrack | null;
   /**
-   * La voix telle que la chaine la produit : un morceau par temps de
-   * narration, place a son debut absolu. Elle prime sur `audio`, qui reste la
-   * piste d'un televersement a la main et celle des projets anterieurs.
+   * The voice as the pipeline produces it: one chunk per narration
+   * beat, placed at its absolute start. It takes precedence over `audio`, which
+   * remains the track of a manual upload and that of older projects.
    */
   narration: NarrationPart[];
   transcript: TranscriptCue[];
   /**
-   * La transcription des enregistrements.
+   * The transcription of the recordings.
    *
-   * Elle etait produite pour recaler les temps de narration, puis jetee : la
-   * moindre reprise — des sous-titres, une recherche dans la voix — obligeait a
-   * repayer une transcription du meme audio.
+   * It was produced to realign the narration beats, then thrown away: the
+   * slightest reuse — subtitles, a search in the voice — required
+   * paying again for a transcription of the same audio.
    */
   transcription: NarrationTranscript[];
 }
@@ -200,12 +200,12 @@ export function serializeAudioTrack(audio: AudioTrack | null): AudioTrack | null
 }
 
 /**
- * Ramene une etape enregistree vers une etape qui existe encore.
+ * Maps a saved step to a step that still exists.
  *
- * "editor" et "editor-summary" ont ete retires du parcours : un projet
- * enregistre a ces etapes revenait sur une valeur qui ne correspond a aucun
- * bloc de rendu, et la page s'affichait vide. Les deux se situaient APRES la
- * voix, donc "whiteboard" — desormais la derniere etape — preserve l'intention.
+ * "editor" and "editor-summary" were removed from the flow: a project
+ * saved at those steps came back on a value matching no render
+ * block, and the page showed up empty. Both came AFTER the
+ * voice, so "whiteboard" — now the last step — preserves the intent.
  */
 export function normalizeWorkflowStep(step: unknown): WorkflowStep {
   const parsed = workflowStepSchema.safeParse(step);
@@ -245,10 +245,10 @@ export function mergeStoryboardStorePersistedState(
 }
 
 /**
- * Aucune persistance locale : le projet vit en base, et lib/storyboard/
- * use-project-sync.ts fait l'aller-retour. Deux copies concurrentes du meme
- * document — une en localStorage, une en base — divergeaient des qu'un projet
- * etait ouvert sur une autre machine.
+ * No local persistence: the project lives in the database, and lib/storyboard/
+ * use-project-sync.ts does the round trip. Two competing copies of the same
+ * document — one in localStorage, one in the database — diverged as soon as a
+ * project was opened on another machine.
  */
 export const useStoryboardStore = create<StoryboardStoreState>()(
   ((set, get) => ({
@@ -475,8 +475,8 @@ export const useStoryboardStore = create<StoryboardStoreState>()(
               trackId: "a1",
                 start: startTime,
               duration: segment.durationSec,
-              // Ou entrer dans le fichier : plusieurs images le partagent, et
-              // sans ce decalage chacune rejouerait le debut de la narration.
+              // Where to enter the file: several images share it, and
+              // without this offset each would replay the start of the narration.
               offset: segment.offsetSec,
             });
           }

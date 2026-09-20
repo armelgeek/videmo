@@ -6,10 +6,9 @@ const AnimationFactory = require("./index");
 const { computeNaturalDuration } = require("./natural-pacing");
 
 /**
- * Chaque style doit finir son trace a la duree NATURELLE du geste, puis tenir
- * le dessin jusqu'a la fin de la fenetre. Un style cadence sur la fenetre
- * entiere finissait sur la derniere frame, sans maintien ; d'autres finissaient
- * a mi-chemin.
+ * Each style must finish its drawing at the NATURAL gesture duration, then
+ * hold the drawing until the end of the window. A style paced on the whole
+ * window finished on the last frame, with no hold; others finished halfway.
  */
 const STYLES = [
   "chunkjump", "contour", "scanner", "outlineonly", "illustfill", "outlinefill",
@@ -25,7 +24,7 @@ function canvas() {
   return c;
 }
 
-function dessin() {
+function drawing() {
   const c = canvas();
   const x = c.getContext("2d")!;
   x.fillStyle = "#fff";
@@ -43,22 +42,22 @@ function dessin() {
   return c;
 }
 
-function finDuTrace(style: string, fenetreMs: number) {
+function traceEnd(style: string, windowMs: number) {
   const state: any = {
     canvasW: W, canvasH: H, speed: 40, handSpeed: 5, hand: "custom1", tileSlider: 30,
     animStyle: style,
     contentBounds: { x: 0, y: 0, w: W, h: H },
-    annotations: [{ region: { x: 0, y: 0, width: W, height: H }, reveal: { from: 0, to: fenetreMs } }],
+    annotations: [{ region: { x: 0, y: 0, width: W, height: H }, reveal: { from: 0, to: windowMs } }],
   };
   const anim = AnimationFactory.create(style, {
     state,
     ctx: canvas().getContext("2d"),
     hctx: canvas().getContext("2d"),
-    offscreen: dessin(),
+    offscreen: drawing(),
     callbacks: {},
   });
   anim.setup();
-  const maxTicks = Math.ceil(fenetreMs / DT) + 5;
+  const maxTicks = Math.ceil(windowMs / DT) + 5;
   for (let i = 0; i < maxTicks; i++) {
     anim.tick(state.speed, DT);
     if (anim._regionDone) return anim.annotationManager.elapsedMs;
@@ -66,21 +65,21 @@ function finDuTrace(style: string, fenetreMs: number) {
   return Infinity;
 }
 
-describe("cadence des styles : geste naturel puis maintien", () => {
+describe("style pacing: natural gesture then hold", () => {
   const tolerance = 2 * DT;
 
-  it.each(STYLES)("%s finit a la duree naturelle dans une fenetre longue", (style) => {
-    const fenetre = 4000;
-    const naturelle = computeNaturalDuration({ w: W, h: H }, fenetre);
-    expect(naturelle).toBeLessThan(fenetre - 1000);
-    const fin = finDuTrace(style, fenetre);
-    expect(Math.abs(fin - naturelle)).toBeLessThanOrEqual(tolerance);
+  it.each(STYLES)("%s finishes at the natural duration in a long window", (style) => {
+    const windowLen = 4000;
+    const natural = computeNaturalDuration({ w: W, h: H }, windowLen);
+    expect(natural).toBeLessThan(windowLen - 1000);
+    const end = traceEnd(style, windowLen);
+    expect(Math.abs(end - natural)).toBeLessThanOrEqual(tolerance);
   });
 
-  it.each(STYLES)("%s occupe toute une fenetre plus courte que le geste", (style) => {
-    const fenetre = 600;
-    const fin = finDuTrace(style, fenetre);
-    expect(fin).toBeGreaterThanOrEqual(fenetre - tolerance);
-    expect(fin).toBeLessThanOrEqual(fenetre + DT);
+  it.each(STYLES)("%s fills a whole window shorter than the gesture", (style) => {
+    const windowLen = 600;
+    const end = traceEnd(style, windowLen);
+    expect(end).toBeGreaterThanOrEqual(windowLen - tolerance);
+    expect(end).toBeLessThanOrEqual(windowLen + DT);
   });
 });

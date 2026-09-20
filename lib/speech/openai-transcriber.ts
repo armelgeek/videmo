@@ -21,8 +21,8 @@ export function readOpenAiTranscriberConfig(
   }
   return {
     apiKey: env.OPENAI_API_KEY,
-    // whisper-1 et non un modele plus recent : c'est le seul qui rende des
-    // instants PAR MOT, et ce sont eux, non le texte, qu'on vient chercher.
+    // whisper-1 rather than a newer model: it is the only one returning
+    // PER-WORD timestamps, and those, not the text, are what we are after.
     model: env.OPENAI_TRANSCRIBE_MODEL?.trim() || "whisper-1",
   };
 }
@@ -64,24 +64,24 @@ export class OpenAiTranscriber implements Transcriber {
 }
 
 /**
- * Les mots et leurs instants, en millisecondes entieres.
+ * The words and their timestamps, in whole milliseconds.
  *
- * L'API rend des secondes flottantes ; tout le reste du chantier compte en
- * millisecondes entieres, et la conversion se fait une seule fois, ici.
+ * The API returns float seconds; everything else in the pipeline counts in
+ * whole milliseconds, and the conversion happens once, here.
  */
 export function readWords(body: unknown): TranscriptWord[] {
-  const mots = (body as { words?: unknown })?.words;
-  if (!Array.isArray(mots)) {
+  const rawWords = (body as { words?: unknown })?.words;
+  if (!Array.isArray(rawWords)) {
     throw new TranscriptionFailedError("The model returned no word timings");
   }
 
-  return mots
+  return rawWords
     .map((m) => {
-      const mot = m as { word?: unknown; start?: unknown; end?: unknown };
+      const word = m as { word?: unknown; start?: unknown; end?: unknown };
       return {
-        word: typeof mot.word === "string" ? mot.word : "",
-        startMs: Math.round(Number(mot.start) * 1000),
-        endMs: Math.round(Number(mot.end) * 1000),
+        word: typeof word.word === "string" ? word.word : "",
+        startMs: Math.round(Number(word.start) * 1000),
+        endMs: Math.round(Number(word.end) * 1000),
       };
     })
     .filter(

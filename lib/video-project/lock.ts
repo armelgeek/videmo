@@ -8,8 +8,8 @@ export interface LockableProject {
 }
 
 /**
- * L'expiration est une lecture, jamais une écriture : un bail périmé se lit
- * comme libre, donc aucune tâche de nettoyage n'est nécessaire.
+ * Expiry is a read, never a write: a stale lease reads as free, so no
+ * cleanup job is needed.
  */
 export function lockState(
   project: LockableProject,

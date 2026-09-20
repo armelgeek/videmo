@@ -10,7 +10,7 @@ const { renderProjectToVideo } = require("./canvas-renderer");
 const dir = mkdtempSync(join(tmpdir(), "wb-render-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-// Une scene minuscule : le but est de prouver que la chaine complete produit un
+// Une scene minuscule : le but est de prouver que la chaine complete produit one
 // mp4 lisible, pas de juger le rendu.
 const project = {
   animStyle: "chunkjump",
@@ -30,7 +30,7 @@ const project = {
 };
 
 describe("renderProjectToVideo (lent : lance ffmpeg)", () => {
-  it("produit un mp4 lisible avec le bon nombre d'images", async () => {
+  it("produit one mp4 lisible avec le bon nombre d'images", async () => {
     const out = join(dir, "out.mp4");
     const res = await renderProjectToVideo(project, out, {
       width: 128, height: 96, fps: 10,
@@ -54,13 +54,13 @@ describe("renderProjectToVideo (lent : lance ffmpeg)", () => {
 
   /**
    * La voix est produite par temps : chacun reste une entree, retardee de son
-   * debut absolu. Ce test verifie que le son SORT, et qu'il commence bien la
-   * ou le second morceau est place — pas au debut de la video.
+   * start absolu. Ce test verifie que le son SORT, et qu'il commence bien la
+   * ou le second morceau est place — pas au start de la video.
    */
   it("muxe plusieurs temps de narration, chacun a sa place", async () => {
-    const un = join(dir, "un.mp3");
-    const deux = join(dir, "deux.mp3");
-    for (const [file, freq] of [[un, 440], [deux, 880]] as [string, number][]) {
+    const one = join(dir, "one.mp3");
+    const two = join(dir, "two.mp3");
+    for (const [file, freq] of [[one, 440], [two, 880]] as [string, number][]) {
       execFileSync("ffmpeg", [
         "-v", "error", "-f", "lavfi",
         "-i", `sine=frequency=${freq}:sample_rate=24000`,
@@ -72,7 +72,7 @@ describe("renderProjectToVideo (lent : lance ffmpeg)", () => {
     await renderProjectToVideo(
       {
         ...project,
-        // Le second temps commence a deux secondes : entre les deux, le
+        // Le second temps commence a two secondes : entre les two, le
         // silence doit rester du silence.
         // La scene doit durer plus que le second temps : `-shortest` couperait
         // sinon la video avant qu'il ne se fasse entendre.
@@ -87,8 +87,8 @@ describe("renderProjectToVideo (lent : lance ffmpeg)", () => {
         ],
         narration: {
           parts: [
-            { url: un, startMs: 0, durationMs: 500 },
-            { url: deux, startMs: 2000, durationMs: 500 },
+            { url: one, startMs: 0, durationMs: 500 },
+            { url: two, startMs: 2000, durationMs: 500 },
           ],
         },
       },
@@ -96,25 +96,25 @@ describe("renderProjectToVideo (lent : lance ffmpeg)", () => {
       { width: 128, height: 96, fps: 10 },
     );
 
-    const flux = execFileSync("ffprobe", [
+    const stream = execFileSync("ffprobe", [
       "-v", "error", "-select_streams", "a:0",
       "-show_entries", "stream=codec_name", "-of", "csv=p=0", out,
     ]).toString().trim();
-    expect(flux).toBe("aac");
+    expect(stream).toBe("aac");
 
-    // Le niveau sur la seconde qui precede le second temps, puis sur celle qui
+    // Le level sur la seconde qui precede le second temps, puis sur celle qui
     // le contient : le premier doit etre silencieux, le second non.
     // volumedetect ecrit son rapport sur la sortie d'ERREUR, pas sur stdout.
-    const niveau = (debut: string) => {
+    const level = (start: string) => {
       const { stderr } = spawnSync("ffmpeg", [
-        "-v", "info", "-ss", debut, "-t", "0.4", "-i", out,
+        "-v", "info", "-ss", start, "-t", "0.4", "-i", out,
         "-af", "volumedetect", "-f", "null", "-",
       ]);
-      const trouve = stderr.toString().match(/max_volume:\s*(-?\d+(?:\.\d+)?)/);
-      return trouve ? Number(trouve[1]) : Number.NaN;
+      const match = stderr.toString().match(/max_volume:\s*(-?\d+(?:\.\d+)?)/);
+      return match ? Number(match[1]) : Number.NaN;
     };
 
-    expect(niveau("1.2")).toBeLessThan(-60);
-    expect(niveau("2.05")).toBeGreaterThan(-30);
+    expect(level("1.2")).toBeLessThan(-60);
+    expect(level("2.05")).toBeGreaterThan(-30);
   }, 180_000);
 });

@@ -59,7 +59,7 @@ export const TimelineClipItem = memo(
       }
     }
 
-    // Badge d'index (#1, #2...) déduit de l'ID (ex: p0-a) ou du rang
+    // Index badge (#1, #2...) derived from the ID (e.g. p0-a) or the rank
     const pMatch = clip.id.match(/^p(\d+)-(.+)$/)
     const indexBadge = pMatch
       ? `#${Number(pMatch[1]) + 1}`
@@ -67,13 +67,13 @@ export const TimelineClipItem = memo(
         ? `#${clipIndex + 1}`
         : null
 
-    // Titre propre du clip
+    // Clean clip title
     const rawTitle = isText
       ? clip.textOverlay?.text || "Texte"
       : media?.prompt || (isAudio ? "Piste audio" : isImage ? "Image" : "Clip vidéo")
     const clipTitle = rawTitle.replace(/^p\d+-/, "").trim() || "Clip"
 
-    // Thème Sketch néo-brutaliste : fond card sobre, bordure franche et ombre décalée
+    // Neo-brutalist Sketch theme: plain card background, hard border and offset shadow
     const borderAndShadow = isSelected
       ? "border-2 border-highlight ring-2 ring-highlight/50 shadow-[3px_3px_0_hsl(var(--offset))]"
       : "border-2 border-ink/80 hover:border-highlight shadow-[2px_2px_0_hsl(var(--offset))] hover:shadow-[3px_3px_0_hsl(var(--offset))]"
@@ -98,7 +98,7 @@ export const TimelineClipItem = memo(
 
     const clipLabel = `${isText ? "Texte" : isAudio ? "Audio" : isImage ? "Image" : "Vidéo"} ${indexBadge || ""} : ${clipTitle}. Durée : ${formatTimeForSR(clip.duration)}.`
 
-    // Effets actifs
+    // Active effects
     const hasEffects =
       clip.effects &&
       Object.entries(clip.effects).some(([key, val]) => {
@@ -127,7 +127,7 @@ export const TimelineClipItem = memo(
         onMouseDown={(e) => handleClipMouseDown(e, "move")}
         onContextMenu={onContextMenu}
       >
-        {/* Accent strip si une couleur de trait spécifique existe */}
+        {/* Accent strip if a specific stroke colour exists */}
         {clip.color && (
           <div
             className="absolute left-0 top-1 bottom-1 w-1 rounded-r-full pointer-events-none"
@@ -135,7 +135,7 @@ export const TimelineClipItem = memo(
           />
         )}
 
-        {/* Motif hachuré si verrouillé */}
+        {/* Hatched pattern when locked */}
         {isLocked && (
           <div
             className="absolute inset-0 z-40 rounded-lg pointer-events-none opacity-25"
@@ -146,7 +146,7 @@ export const TimelineClipItem = memo(
           />
         )}
 
-        {/* Cadenas si verrouillé */}
+        {/* Padlock when locked */}
         {isLocked && (
           <div
             className="absolute top-1 right-1 z-50 bg-card/90 rounded p-0.5 shadow-sm border border-border"
@@ -156,7 +156,7 @@ export const TimelineClipItem = memo(
           </div>
         )}
 
-        {/* Fondu entrant */}
+        {/* Fade in */}
         {clip.fadeIn && clip.fadeIn > 0 && (
           <div
             className="absolute left-0 top-0 bottom-0 z-20 pointer-events-none overflow-hidden rounded-l-lg"
@@ -169,7 +169,7 @@ export const TimelineClipItem = memo(
           </div>
         )}
 
-        {/* Fondu sortant */}
+        {/* Fade out */}
         {clip.fadeOut && clip.fadeOut > 0 && (
           <div
             className="absolute right-0 top-0 bottom-0 z-20 pointer-events-none overflow-hidden rounded-r-lg"
@@ -193,7 +193,7 @@ export const TimelineClipItem = memo(
           </div>
         )}
 
-        {/* Poignées de Trim */}
+        {/* Trim handles */}
         {!isLocked && (
           <>
             <div
@@ -234,7 +234,7 @@ export const TimelineClipItem = memo(
           </>
         )}
 
-        {/* Onde audio en arrière-plan bas */}
+        {/* Audio waveform in the bottom background */}
         {!isText && !clip.isAudioDetached && media?.url && (
           <div className="absolute inset-x-0 bottom-0 h-1/2 opacity-35 px-1 pointer-events-none">
             <ClipWaveform
@@ -248,9 +248,9 @@ export const TimelineClipItem = memo(
           </div>
         )}
 
-        {/* Contenu principal : pleine hauteur 44px, centré, avec badge et typographie nette */}
+        {/* Main content: full 44px height, centred, with badge and crisp typography */}
         <div className="relative z-10 w-full h-full flex items-center justify-between px-2 gap-2 overflow-hidden">
-          {/* Côté gauche : Badge #1 + Icône + Titre en text-xs font-bold */}
+          {/* Left side: #1 badge + icon + title in text-xs font-bold */}
           <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
             {indexBadge && !isTiny && (
               <span className="shrink-0 flex items-center justify-center h-4.5 px-1.5 rounded border border-ink bg-highlight text-highlight-foreground font-mono text-[9px] font-black shadow-[1px_1px_0_hsl(var(--offset))]">
@@ -277,7 +277,7 @@ export const TimelineClipItem = memo(
             )}
           </div>
 
-          {/* Côté droit : Badges et Durée */}
+          {/* Right side: badges and duration */}
           {!isTiny && (
             <div className="flex items-center gap-1 shrink-0">
               {clip.speed && clip.speed !== 1 && !isCompact && (

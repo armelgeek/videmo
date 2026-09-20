@@ -29,11 +29,11 @@ function fakeCtx() {
 const fakeCanvas = () => ({ width: W, height: H, getContext: () => fakeCtx() });
 
 /**
- * Ce qui restait a emettre quand la derniere annotation s'acheve. Chaque cle de
- * _paceCarry encode son total ("total:phases:tag"), donc le reste se lit sans
- * instrumenter les styles.
+ * What was left to emit when the last annotation ends. Each _paceCarry key
+ * encodes its total ("total:phases:tag"), so the remainder can be read without
+ * instrumenting the styles.
  */
-function resteALaFin(style: string) {
+function remainingAtEnd(style: string) {
   const state: any = {
     canvasW: W, canvasH: H, speed: 40, handSpeed: 5, hand: "custom1",
     tileSlider: 30,
@@ -54,43 +54,43 @@ function resteALaFin(style: string) {
   });
   anim.setup?.();
 
-  let reste = 0;
-  const mesurer = () => {
-    reste = 0;
+  let remaining = 0;
+  const measure = () => {
+    remaining = 0;
     for (const inst of [anim, ...Object.values(anim._annotStyleCache || {})] as any[]) {
       const carry = inst?._paceCarry;
       if (!carry) continue;
       for (const key of Object.keys(carry)) {
         const total = Number(key.split(":")[0]);
         if (!Number.isFinite(total) || total <= 0) continue;
-        reste = Math.max(reste, total - carry[key].emitted);
+        remaining = Math.max(remaining, total - carry[key].emitted);
       }
     }
   };
 
-  // 20 ms/tick. La derniere annotation court de 600 a 1000 ms : on releve juste
-  // avant que isFinished ne declenche _flushRegion (qui masquerait le reste).
+  // 20 ms/tick. The last annotation runs from 600 to 1000 ms: we sample just
+  // before isFinished triggers _flushRegion (which would hide the remainder).
   for (let t = 20; t <= 980; t += 20) {
     anim.tick?.(40, 20);
-    if (t >= 980) mesurer();
+    if (t >= 980) measure();
   }
-  return reste;
+  return remaining;
 }
 
 const STYLES = ["chunkjump", "contour", "gesture", "illust", "nervous",
   "outlinechunks", "outlinefill", "scribble", "specialized", "topanchor"];
 
-describe("la derniere annotation va au bout de son trace", () => {
+describe("the last annotation draws all the way to the end", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    // jsdom rend null sur getContext('2d') : les styles s'allouent des canvas
-    // de travail, il leur en faut un utilisable.
+    // jsdom returns null from getContext('2d'): the styles allocate working
+    // canvases, they need a usable one.
     const real = document.createElement.bind(document);
     vi.spyOn(document, "createElement").mockImplementation(((tag: string) =>
       tag === "canvas" ? fakeCanvas() : real(tag)) as never);
   });
 
-  it.each(STYLES)("%s ne laisse rien a estampiller a la fin", (style) => {
-    expect(resteALaFin(style)).toBe(0);
+  it.each(STYLES)("%s leaves nothing to stamp at the end", (style) => {
+    expect(remainingAtEnd(style)).toBe(0);
   });
 });

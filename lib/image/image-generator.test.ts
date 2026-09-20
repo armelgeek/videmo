@@ -12,7 +12,7 @@ import {
 
 const config = { apiKey: "sk-test", model: "gpt-image-1", quality: "medium" };
 
-/** Un fetch qui repond ce qu'on lui dit et retient ce qu'il a recu. */
+/** A fetch that answers what it is told and records what it received. */
 function stubFetch(response: {
   ok?: boolean;
   status?: number;
@@ -37,7 +37,7 @@ const validResponse = {
 };
 
 describe("readOpenAiImageConfig", () => {
-  it("nomme la variable manquante", () => {
+  it("names the missing variable", () => {
     try {
       readOpenAiImageConfig({});
       expect.unreachable("aurait du lever");
@@ -49,7 +49,7 @@ describe("readOpenAiImageConfig", () => {
     }
   });
 
-  it("laisse choisir le modele sans toucher au code", () => {
+  it("lets the model be chosen without touching the code", () => {
     expect(readOpenAiImageConfig({ OPENAI_API_KEY: "k" }).model).toBe(
       "gpt-image-1",
     );
@@ -59,7 +59,7 @@ describe("readOpenAiImageConfig", () => {
     ).toBe("autre");
   });
 
-  it("fixe la qualite a medium par defaut pour ne pas payer high en silence", () => {
+  it("defaults quality to medium to avoid silently paying for high", () => {
     expect(readOpenAiImageConfig({ OPENAI_API_KEY: "k" }).quality).toBe("medium");
     expect(
       readOpenAiImageConfig({ OPENAI_API_KEY: "k", OPENAI_IMAGE_QUALITY: "low" }).quality,
@@ -68,7 +68,7 @@ describe("readOpenAiImageConfig", () => {
 });
 
 describe("OpenAiImageGenerator", () => {
-  it("decode l'image rendue par le moteur", async () => {
+  it("decodes the image returned by the engine", async () => {
     const { impl } = stubFetch({ json: validResponse });
     const image = await new OpenAiImageGenerator(config, impl).generate({
       prompt: "un grain",
@@ -78,7 +78,7 @@ describe("OpenAiImageGenerator", () => {
     expect(Array.from(image)).toEqual(Array.from(TRANSPARENT_PNG));
   });
 
-  it("passe par generations quand il n'y a pas de reference", async () => {
+  it("uses generations when there is no reference", async () => {
     const { impl, calls } = stubFetch({ json: validResponse });
     await new OpenAiImageGenerator(config, impl).generate({
       prompt: "un grain",
@@ -94,9 +94,9 @@ describe("OpenAiImageGenerator", () => {
     });
   });
 
-  it("bascule sur edits des qu'une reference accompagne l'appel", async () => {
-    // C'est le seul endpoint qui accepte une image d'entree, donc le seul
-    // moyen de tenir le meme trait sur toute la serie.
+  it("switches to edits as soon as a reference comes with the call", async () => {
+    // It is the only endpoint that accepts an input image, hence the only
+    // way to keep the same stroke across the whole series.
     const { impl, calls } = stubFetch({ json: validResponse });
     await new OpenAiImageGenerator(config, impl).generate({
       prompt: "un grain",
@@ -109,8 +109,8 @@ describe("OpenAiImageGenerator", () => {
     expect((calls[0].init.body as FormData).get("image")).toBeInstanceOf(Blob);
   });
 
-  it("ne pose pas de Content-Type sur le multipart", async () => {
-    // Le poser ecraserait la frontiere calculee par undici, et l'API rejette.
+  it("does not set Content-Type on the multipart", async () => {
+    // Setting it would overwrite the boundary computed by undici, and the API rejects.
     const { impl, calls } = stubFetch({ json: validResponse });
     await new OpenAiImageGenerator(config, impl).generate({
       prompt: "x",
@@ -121,7 +121,7 @@ describe("OpenAiImageGenerator", () => {
     expect(calls[0].init.headers).not.toHaveProperty("Content-Type");
   });
 
-  it("leve une erreur typee sur refus du moteur", async () => {
+  it("throws a typed error when the engine refuses", async () => {
     const { impl } = stubFetch({ ok: false, status: 429, text: "rate limited" });
 
     await expect(
@@ -132,7 +132,7 @@ describe("OpenAiImageGenerator", () => {
     ).rejects.toBeInstanceOf(ImageGenerationFailedError);
   });
 
-  it("refuse une reponse sans image plutot que d'ecrire un fichier vide", async () => {
+  it("rejects a response without an image rather than writing an empty file", async () => {
     const { impl } = stubFetch({ json: { data: [] } });
 
     await expect(
@@ -145,17 +145,17 @@ describe("OpenAiImageGenerator", () => {
 });
 
 describe("FakeImageGenerator", () => {
-  it("rend un PNG valide sans reseau", async () => {
+  it("returns a valid PNG without network", async () => {
     const image = await new FakeImageGenerator().generate({
       prompt: "x",
       size: "1024x1024",
     });
 
-    // Signature PNG : les octets doivent passer un vrai decodeur.
+    // PNG signature: the bytes must pass a real decoder.
     expect(Array.from(image.slice(0, 4))).toEqual([137, 80, 78, 71]);
   });
 
-  it("retient ce qui lui a ete demande", async () => {
+  it("records what it was asked", async () => {
     const fake = new FakeImageGenerator();
     await fake.generate({ prompt: "une scene", size: "1536x1024" });
 
@@ -163,7 +163,7 @@ describe("FakeImageGenerator", () => {
     expect(fake.calls[0].prompt).toBe("une scene");
   });
 
-  it("sait simuler une panne du moteur", async () => {
+  it("can simulate an engine failure", async () => {
     const fake = new FakeImageGenerator({
       failWith: new ImageGenerationFailedError("quota"),
     });

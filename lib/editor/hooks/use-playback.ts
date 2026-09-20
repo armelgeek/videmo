@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useRef, useCallback, useEffect } from "react"
-import { poserPositionLecture } from "@/lib/editor/playback-clock"
+import { setPlaybackPosition } from "@/lib/editor/playback-clock"
 import type { TimelineClip, Track, MediaItem, ClipEffects, TextOverlayStyle } from "../types"
 
 export interface UsePlaybackOptions {
@@ -61,9 +61,9 @@ export function usePlayback({
   const [isPreviewPlayback, setIsPreviewPlayback] = useState(false)
 
   const currentTimeRef = useRef(0)
-  // Position ou la lecture reprendra. Posee par un seek, par un deplacement
-  // venu de l'exterieur, et par l'arret de la lecture — jamais deduite du
-  // rendu : `currentTime` ne suit plus l'horloge pendant la lecture.
+  // Position playback will resume from. Set by a seek, by a move coming from
+  // outside, and by stopping playback — never derived from rendering:
+  // `currentTime` no longer follows the clock during playback.
   const seekTargetRef = useRef(0)
 
   // Refs for video/audio elements
@@ -163,25 +163,24 @@ export function usePlayback({
         if (player && clip) {
           const mediaItem = mediaMap[clip.mediaId]
           if (mediaItem) {
-            // Une source qui vient de changer n'a pas encore ses metadonnees :
-            // ecrire `currentTime` dessus est ignore, et `play()` est
-            // interrompu par le chargement — l'erreur partait dans le `catch`
-            // vide, et le clip suivant demarrait au debut du fichier au lieu de
-            // son point d'entree. On laisse donc le chargement se faire et on
-            // reprend a la frame suivante.
-            const sourceChangee = !player.src.includes(mediaItem.url)
-            if (sourceChangee) {
+            // A source that just changed has no metadata yet: writing
+            // `currentTime` on it is ignored, and `play()` is interrupted by
+            // loading — the error went into the empty `catch`, and the next
+            // clip started at the beginning of the file instead of its in
+            // point. So we let loading happen and resume on the next frame.
+            const sourceChanged = !player.src.includes(mediaItem.url)
+            if (sourceChanged) {
               player.src = mediaItem.url
             }
-            if (sourceChangee || player.readyState < 1) {
+            if (sourceChanged || player.readyState < 1) {
               if (player.style.opacity !== opacity.toString()) {
                 player.style.opacity = opacity.toString()
               }
               return
             }
-            // `clip.speed` etait un champ mort : il etait ecrit partout mais ni
-            // la position ni le playbackRate ne le lisaient, si bien que changer
-            // la vitesse d'un clip n'avait aucun effet.
+            // `clip.speed` was a dead field: written everywhere but read by
+            // neither the position nor the playbackRate, so changing a clip's
+            // speed had no effect.
             const speed = clip.speed && clip.speed > 0 ? clip.speed : 1
             const timeInClip = (time - clip.start) * speed + clip.offset
             if (isExportingNow || Math.abs(player.currentTime - timeInClip) > 0.1) {
@@ -335,10 +334,10 @@ export function usePlayback({
         let offsetY = 0
         let displayText = overlay.text
 
-        // Les deux fondus durent 0,3 SECONDE, exprimees ici en fraction de clip
-        // puisque `progress` en est une. `fadeInDuration` valait 0.3 tel quel et
-        // etait compare a `progress` : le fade-in durait 30 % du clip pendant que
-        // le fade-out durait 0,3 s — sur un clip de 10 s, 3 s contre 0,3 s.
+        // Both fades last 0.3 SECONDS, expressed here as a fraction of the clip
+        // since `progress` is one. `fadeInDuration` was 0.3 as is and compared
+        // to `progress`: the fade-in lasted 30% of the clip while the fade-out
+        // lasted 0.3 s — on a 10 s clip, 3 s versus 0.3 s.
         const FADE_SECONDS = 0.3
         const fadeInDuration = clipDuration > 0 ? FADE_SECONDS / clipDuration : 1
         const fadeOutStart = 1 - fadeInDuration
@@ -446,10 +445,10 @@ export function usePlayback({
           ctx.beginPath()
           const vals =
             clipPathB
-              // La regex d'origine s'ecrivait /inset$$([^)]+)$$/ : `$$` est une
-              // double ancre de fin, elle ne matchait JAMAIS. Les transitions
-              // wipe n'etaient donc pas decoupees dans le rendu canvas (export),
-              // alors qu'elles l'etaient dans l'apercu DOM.
+              // The original regex was /inset$$([^)]+)$$/: `$$` is a double
+              // end anchor, it NEVER matched. So wipe transitions were not
+              // clipped in the canvas render (export), while they were in the
+              // DOM preview.
               .match(/inset\(([^)]+)\)/)?.[1]
               .split(" ")
               .map((s) => Number.parseFloat(s)) || []
@@ -544,12 +543,12 @@ export function usePlayback({
   }, [])
 
   const handleSeek = useCallback((time: number) => {
-    // On deplace l'horloge de lecture ET la position de reprise : l'effet de
-    // demarrage ne relit plus `currentTime`, c'est donc ici que le scrub en
-    // cours de lecture doit atterrir.
+    // Move both the playback clock AND the resume position: the start effect
+    // no longer reads `currentTime`, so this is where a scrub during playback
+    // must land.
     currentTimeRef.current = time
     seekTargetRef.current = time
-    poserPositionLecture(time)
+    setPlaybackPosition(time)
     setCurrentTime((prev) => (prev === time ? prev : time))
   }, [])
 
@@ -577,17 +576,16 @@ export function usePlayback({
     }
   }, [isPreviewPlayback])
 
-  // La boucle est relancee par une ref, jamais par une dependance d'effet.
+  // The loop is re-armed through a ref, never through an effect dependency.
   //
-  // `animate` depend de `syncMediaToTime`, donc des clips, des pistes et du
-  // media : la moindre nouvelle reference en amont lui donnait une nouvelle
-  // identite, l'effet de demarrage se rejouait, et sa premiere ligne
-  // (`currentTimeRef = seekTargetRef`) ramenait la tete de lecture a la
-  // position de reprise. La lecture repartait du debut toutes les deux
-  // secondes. `battre` est stable : la frame suivante appelle toujours la
-  // derniere version d'`animate` sans que rien n'ait a se redemarrer.
+  // `animate` depends on `syncMediaToTime`, hence on clips, tracks and media:
+  // any new upstream reference gave it a new identity, the start effect
+  // re-ran, and its first line (`currentTimeRef = seekTargetRef`) sent the
+  // playhead back to the resume position. Playback restarted from the
+  // beginning every couple of seconds. `tick` is stable: the next frame always
+  // calls the latest `animate` without anything having to restart.
   const animateRef = useRef<(time: number) => void>(() => {})
-  const battre = useCallback((time: number) => {
+  const tick = useCallback((time: number) => {
     animateRef.current(time)
   }, [])
 
@@ -595,31 +593,31 @@ export function usePlayback({
     (time: number) => {
       if (isExporting || isRendering) return
       if (lastTimeRef.current !== null) {
-        // Le pas d'une frame est BORNE.
+        // A frame's step is BOUNDED.
         //
-        // Sans borne, il vaut tout le temps ecoule depuis la frame precedente —
-        // y compris un gel du thread principal. Au passage au clip suivant,
-        // `syncMediaToTime` reassigne `src` et rappelle `play()` : le
-        // chargement gele la boucle, et la frame d'apres arrivait avec un pas
-        // de plusieurs secondes. Un seul de ces pas suffisait a franchir
-        // `timelineDuration`, et la tete de lecture bondissait a la fin.
+        // Unbounded, it equals all the time elapsed since the previous frame —
+        // including a main-thread freeze. When moving to the next clip,
+        // `syncMediaToTime` reassigns `src` and calls `play()` again: loading
+        // freezes the loop, and the following frame arrived with a step of
+        // several seconds. A single such step was enough to cross
+        // `timelineDuration`, and the playhead jumped to the end.
         //
-        // Un quart de seconde est bien au-dela d'une frame normale (16 ms a
-        // 60 Hz) tout en gardant la lecture proche du temps reel : un gel plus
-        // long prend du retard, il ne saute plus.
-        const PAS_MAX_SECONDES = 0.25
-        const deltaTime = Math.min((time - lastTimeRef.current) / 1000, PAS_MAX_SECONDES)
+        // A quarter second is well beyond a normal frame (16 ms at 60 Hz)
+        // while keeping playback close to real time: a longer freeze falls
+        // behind, it no longer jumps.
+        const MAX_STEP_SECONDS = 0.25
+        const deltaTime = Math.min((time - lastTimeRef.current) / 1000, MAX_STEP_SECONDS)
         const nextTime = currentTimeRef.current + deltaTime
 
         if (nextTime >= timelineDuration) {
           if (isLooping) {
             currentTimeRef.current = 0
-            poserPositionLecture(0)
+            setPlaybackPosition(0)
             setCurrentTime(0)
           } else {
             setIsPlaying(false)
             currentTimeRef.current = 0
-            poserPositionLecture(0)
+            setPlaybackPosition(0)
             setCurrentTime(0)
             lastTimeRef.current = time
             return
@@ -628,25 +626,24 @@ export function usePlayback({
           currentTimeRef.current = nextTime
         }
 
-        // L'horloge externe est posee a CHAQUE frame : elle ne rend que ses
-        // abonnes — le curseur, la reglette — pas l'editeur entier.
-        poserPositionLecture(currentTimeRef.current)
+        // The external clock is set on EVERY frame: it only re-renders its
+        // subscribers — the cursor, the ruler — not the whole editor.
+        setPlaybackPosition(currentTimeRef.current)
 
         syncMediaToTime(currentTimeRef.current, false)
 
-        // Plus d'ecriture dans l'etat React pendant la lecture. Meme ramenee a
-        // 30 Hz, elle rendait l'editeur entier — timeline, apercu, dialogues —
-        // trente fois par seconde pour deplacer un curseur. Ce qui suit
-        // l'horloge y est abonne (cf. playback-clock) ; `currentTime` ne porte
-        // plus que les deplacements DISCRETS : un seek, un arret, un retour au
-        // debut.
+        // No more writes to React state during playback. Even throttled to
+        // 30 Hz, it re-rendered the whole editor — timeline, preview, dialogs —
+        // thirty times per second to move a cursor. Whatever follows the clock
+        // subscribes to it (see playback-clock); `currentTime` only carries
+        // DISCRETE moves: a seek, a stop, a return to the start.
       }
       lastTimeRef.current = time
       if (isPlaying) {
-        requestRef.current = requestAnimationFrame(battre)
+        requestRef.current = requestAnimationFrame(tick)
       }
     },
-    [isPlaying, timelineDuration, isExporting, isRendering, isLooping, syncMediaToTime, battre],
+    [isPlaying, timelineDuration, isExporting, isRendering, isLooping, syncMediaToTime, tick],
   )
 
   useEffect(() => {
@@ -658,23 +655,23 @@ export function usePlayback({
   animateRef.current = animate
 
   useEffect(() => {
-    // Ni `currentTime` ni `animate` ne sont des dependances.
+    // Neither `currentTime` nor `animate` are dependencies.
     //
-    // La boucle ecrit currentTime 30 fois par seconde ; l'effet se reexecutait
-    // donc 30 fois par seconde, annulant et recreant le requestAnimationFrame a
-    // chaque passage et reecrivant currentTimeRef avec la valeur throttlee,
-    // c'est-a-dire en retard d'une frame sur l'horloge reelle.
+    // The loop wrote currentTime 30 times per second; the effect therefore
+    // re-ran 30 times per second, cancelling and recreating the
+    // requestAnimationFrame each time and overwriting currentTimeRef with the
+    // throttled value, i.e. one frame behind the real clock.
     if (isPlaying && !isExporting && !isRendering) {
       currentTimeRef.current = seekTargetRef.current
-      poserPositionLecture(currentTimeRef.current)
+      setPlaybackPosition(currentTimeRef.current)
       lastTimeRef.current = null
-      requestRef.current = requestAnimationFrame(battre)
+      requestRef.current = requestAnimationFrame(tick)
     } else {
       lastTimeRef.current = null
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
-      // L'arret est un instant DISCRET : c'est la que l'etat React reprend la
-      // main sur l'horloge. Sans cela il porterait encore la position du
-      // dernier seek, et reprendre la lecture repartirait de la.
+      // Stopping is a DISCRETE instant: this is where React state takes back
+      // control from the clock. Otherwise it would still hold the last seek's
+      // position, and resuming playback would restart from there.
       seekTargetRef.current = currentTimeRef.current
       setCurrentTime((prev) =>
         prev === currentTimeRef.current ? prev : currentTimeRef.current,
@@ -683,21 +680,21 @@ export function usePlayback({
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current)
     }
-  }, [isPlaying, battre, isExporting, isRendering])
+  }, [isPlaying, tick, isExporting, isRendering])
 
-  // Deplacer la tete de lecture depuis l'exterieur doit bouger les TROIS
-  // representations : l'horloge de la boucle, l'horloge externe a laquelle le
-  // curseur est abonne, et l'etat React que lisent encore quelques ecrans.
-  const placerPositionLecture = useCallback((time: number) => {
+  // Moving the playhead from outside must update all THREE representations:
+  // the loop's clock, the external clock the cursor subscribes to, and the
+  // React state a few screens still read.
+  const setPlaybackPosition = useCallback((time: number) => {
     currentTimeRef.current = time
     seekTargetRef.current = time
-    poserPositionLecture(time)
+    setPlaybackPosition(time)
     setCurrentTime(time)
   }, [])
 
   return {
     currentTime,
-    setCurrentTime: placerPositionLecture,
+    setCurrentTime: setPlaybackPosition,
     isPlaying,
     setIsPlaying,
     isPreviewPlayback,

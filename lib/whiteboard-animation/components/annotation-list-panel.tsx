@@ -19,7 +19,7 @@ import { DEFAULT_ANIM_STYLE, annotationColors } from '../schema';
 import { isPremiumStyle } from '../style-tiers';
 import { useCreditSummary } from '@/lib/billing/use-credit-summary';
 
-/** Couleur de repli du calque d'annotations — meme valeur qu'AnnotationOverlay. */
+/** Fallback colour of the annotation layer — same value as AnnotationOverlay. */
 
 const ANIM_STYLES = [
   { value: 'chunkjump', label: 'Chunk Jump' },
@@ -52,8 +52,8 @@ function AnnotationListPanelImpl({
   /** Where the scene's drawing starts on the project clock; annotation times are local to it. */
   sceneOffsetMs?: number;
 }) {
-  // La scene active seulement : le store porte toutes les scenes a plat, et
-  // les index de cette liste restent locaux a la scene.
+  // Active scene only: the store holds every scene flat, and the indices
+  // of this list stay local to the scene.
   const storeAnnotations = useUnifiedEngineStore(selectSceneAnnotations);
   const updateAnnotation = useUnifiedEngineStore((s) => s.updateAnnotation);
   const annotations = annotationsProp ?? storeAnnotations;
@@ -111,7 +111,7 @@ function AnnotationListPanelImpl({
         });
       }
     } catch (e) {
-      // Store non initialise dans certains environnements isoles
+      // Store not initialised in some isolated environments
     }
   };
 
@@ -207,10 +207,10 @@ function AnnotationListPanelImpl({
 }
 
 /**
- * Ce panneau ne lit ni l'horloge ni la progression : sans memo, il se
- * re-rendait quand meme a chaque frame en suivant le re-rendu de son parent
- * (whiteboard-editor-step.tsx), lui-meme abonne a currentTime avant que ce
- * dernier ne passe a un selecteur etroit. Garde defensive si une autre
- * source fait re-rendre le parent a l'avenir.
+  * This panel reads neither the clock nor the progress: without memo it
+  * still re-rendered every frame following its parent's re-render
+  * (whiteboard-editor-step.tsx), itself subscribed to currentTime before the
+  * latter moved to a narrow selector. Defensive guard in case another
+  * source makes the parent re-render in the future.
  */
 export const AnnotationListPanel = memo(AnnotationListPanelImpl);

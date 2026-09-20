@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
     select: { title: true, excerpt: true, coverImage: true, published: true },
   });
 
-  // Un brouillon ne doit pas fuiter son titre dans l'onglet ni dans un partage :
-  // seul un admin, qui peut le previsualiser, voit ses metadonnees.
+  // A draft must not leak its title into the tab or a share preview:
+  // only an admin, who can preview it, sees its metadata.
   if (!post || (!post.published && !(await isUserAdmin()))) {
     return { title: "Post not found", robots: { index: false, follow: false } };
   }
@@ -78,7 +78,7 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   const isAdmin = await isUserAdmin(session?.user?.id);
 
-  // Un brouillon reste invisible au public : seul un admin le previsualise.
+  // A draft stays hidden from the public: only an admin can preview it.
   if (!post.published && !isAdmin) notFound();
 
   // Approximate reading time (200 words/min)

@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { usePositionLecture } from "../playback-clock"
+import { usePlaybackPosition } from "../playback-clock"
 
 import { memo, useMemo } from "react"
 import type { TimelineClip, TextOverlayStyle } from "../types"
@@ -53,10 +53,10 @@ export const TextOverlayPreview = memo(function TextOverlayPreview({
   containerWidth,
   containerHeight,
 }: TextOverlayPreviewProps) {
-  // L'incrustation anime son texte : elle a besoin de la position a chaque
-  // frame. Elle s'y abonne donc elle-meme — c'est une feuille, se rendre ici
-  // ne rend rien d'autre. La recevoir en prop rendait tout l'apercu.
-  const currentTime = usePositionLecture()
+  // The overlay animates its text: it needs the position every frame. So it
+  // subscribes itself — it is a leaf, rendering here renders nothing else.
+  // Receiving it as a prop re-rendered the whole preview.
+  const currentTime = usePlaybackPosition()
 
   const activeTextClips = useMemo(() => {
     return clips.filter((clip) => {

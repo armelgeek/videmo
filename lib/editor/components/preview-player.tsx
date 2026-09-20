@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { lirePositionLecture, useValeurALaPosition } from "../playback-clock";
+import { readPlaybackPosition, useDerivedPlaybackValue } from "../playback-clock";
 import { memo, useCallback, useState, useRef, useEffect } from "react";
 import {
   PlayIcon,
@@ -30,8 +30,8 @@ import { TextOverlayPreview } from "./text-overlay-preview";
 import dynamic from "next/dynamic";
 
 /**
- * Konva touche `window` des son chargement : il ne peut pas etre evalue au
- * rendu serveur, d'ou l'import dynamique.
+ * Konva touches `window` as soon as it loads: it cannot be evaluated during
+ * server rendering, hence the dynamic import.
  */
 const AnnotationOverlay = dynamic(
   () =>
@@ -86,17 +86,17 @@ export interface PreviewPlayerProps {
   ffmpegLoaded: boolean;
   ffmpegLoading: boolean;
   /**
-   * Les clips video, parmi lesquels l'apercu choisit lui-meme celui qui est
-   * sous le curseur. C'etait a l'appelant de le faire, ce qui l'obligeait a se
-   * rendre a chaque frame pour un resultat qui change quelques fois par minute.
+   * The video clips, among which the preview itself picks the one under the
+   * cursor. The caller used to do it, which forced it to render every frame
+   * for a result that changes a few times per minute.
    */
   videoClips?: TimelineClip[];
   textClips?: TimelineClip[];
   isWhiteboardView?: boolean;
   whiteboardCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
   whiteboardHandCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
-  /** Vrai pendant la lecture et le scrub : les poignees d'edition masquent le
-   *  dessin qu'on est venu regarder. Fourni par useWhiteboardRenderer. */
+  /** True during playback and scrubbing: the edit handles hide the drawing
+   *  the viewer came to watch. Provided by useWhiteboardRenderer. */
   isAnnotationOverlayHidden?: boolean;
   whiteboardAspectRatio?: "16:9" | "9:16" | "1:1";
   onCancelRender: () => void;
@@ -188,14 +188,14 @@ export const PreviewPlayer = memo(function PreviewPlayer({
     return () => window.removeEventListener("resize", updateSize);
   }, []);
 
-  const choisirClip = useCallback(
+  const selectClip = useCallback(
     (position: number) =>
       videoClips.find(
         (c) => position >= c.start && position < c.start + c.duration,
       ) ?? null,
     [videoClips],
   );
-  const activeClip = useValeurALaPosition(choisirClip);
+  const activeClip = useDerivedPlaybackValue(selectClip);
 
   const cssFilter = effectsToCSSFilter(activeClip?.effects);
   const clipOpacity = activeClip?.effects?.opacity ?? 100;
@@ -266,7 +266,7 @@ export const PreviewPlayer = memo(function PreviewPlayer({
           ctx.drawImage(videoElement, 0, 0, width, height);
         }
 
-        const timecode = formatTimecodeForFilename(lirePositionLecture());
+        const timecode = formatTimecodeForFilename(readPlaybackPosition());
         const extension = format === "jpeg" ? "jpg" : format;
         const filename = `frame_${timecode}_${width}x${height}.${extension}`;
 
@@ -357,9 +357,9 @@ export const PreviewPlayer = memo(function PreviewPlayer({
                   className="w-full h-full object-contain absolute inset-0 z-20 pointer-events-none"
                 />
               )}
-              {/* Les regions d'annotation etaient un canvas inerte : un
-                  fillRect/strokeRect qu'on ne pouvait ni saisir ni
-                  redimensionner. Konva les rend manipulables. */}
+              {/* Annotation regions used to be an inert canvas: a
+                  fillRect/strokeRect that could be neither grabbed nor
+                  resized. Konva makes them interactive. */}
               <AnnotationOverlay
                 canvasWidth={whiteboardSize.width}
                 canvasHeight={whiteboardSize.height}

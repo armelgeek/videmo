@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Le style de tout projet : une annotation sans style propre se dessine ainsi. */
+/** The style of every project: an annotation without its own style is drawn this way. */
 export const DEFAULT_ANIM_STYLE = 'chunkjump';
 
 export const ANNOTATION_PALETTE = [

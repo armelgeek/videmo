@@ -21,8 +21,8 @@ export function readOpenAiSpeechConfig(
   }
   return {
     apiKey: env.OPENAI_API_KEY,
-    // Le plus rapide des trois : la narration se genere scene par scene, et
-    // chaque seconde s'y multiplie par le nombre de clips.
+    // The fastest of the three: narration is generated scene by scene, and
+    // every second is multiplied by the number of clips.
     model: env.OPENAI_SPEECH_MODEL?.trim() || "gpt-4o-mini-tts",
   };
 }
@@ -42,8 +42,8 @@ export class OpenAiSpeechGenerator implements SpeechGenerator {
       },
       body: JSON.stringify({
         model: this.config.model,
-        // Une voix inconnue fait echouer l'appel : mieux vaut la voix par
-        // defaut qu'une scene muette au milieu du montage.
+        // An unknown voice makes the call fail: better the default voice than a
+        // silent scene in the middle of the edit.
         voice: normalizeVoice(input.voice),
         input: input.text,
         response_format: "mp3",

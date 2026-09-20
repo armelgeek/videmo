@@ -10,27 +10,27 @@ import type { ImageSize, PlannedAnnotation } from "./annotation-planning";
 import type { StoryboardPanel } from "./schema";
 
 /**
- * La marque des annotations posees par la planification.
+ * The marker of annotations placed by planning.
  *
- * Elle distingue ce que la machine a place de ce que l'utilisateur a dessine :
- * une seconde passe remplace les siennes et garde celles de l'utilisateur.
+ * It separates what the machine placed from what the user drew: a second pass
+ * replaces its own and keeps the user's.
  */
 export const PLANNED_SOURCE = "plan";
 
 /**
- * L'identifiant d'une annotation planifiee : stable, donc remplacable.
+ * The id of a planned annotation: stable, hence replaceable.
  *
- * Le rang n'apparait qu'a partir de la seconde zone d'un meme temps : les
- * identifiants deja enregistres, du temps ou chaque temps n'en avait qu'une,
- * restent inchanges et se remplacent au lieu de se dupliquer.
+ * The rank only appears from the second zone of a same beat onwards: ids
+ * already saved, from when each beat had only one, stay unchanged and get
+ * replaced instead of duplicated.
  */
 export function plannedAnnotationId(
   panelId: string,
   beatIndex: number,
-  rang = 0,
+  rank = 0,
 ): string {
   const base = `${panelId}-beat-${beatIndex}`;
-  return rang === 0 ? base : `${base}-${rang}`;
+  return rank === 0 ? base : `${base}-${rank}`;
 }
 
 function isPlanned(annotation: Annotation): boolean {
@@ -38,18 +38,17 @@ function isPlanned(annotation: Annotation): boolean {
 }
 
 /**
- * Traduit les annotations planifiees dans le repere ou l'editeur les ecrit.
+ * Translates planned annotations into the coordinate space the editor writes.
  *
- * La vision repond en pixels de l'image ; les annotations enregistrees, elles,
- * sont en pixels du canvas d'apercu, ou le dessin tient centre sans
- * deformation (`rectContenu`). Ecrire les unes pour les autres placerait le
- * stylo a cote du sujet des que le ratio du projet ne suit pas celui de
- * l'image.
+ * Vision answers in image pixels; saved annotations are in preview canvas
+ * pixels, where the drawing sits centered without distortion (`rectContenu`).
+ * Writing one for the other would put the pen beside the subject as soon as
+ * the project ratio differs from the image's.
  *
- * L'ordre du tableau porte le temps — `deriveTimeline` recalcule `startMs`
- * depuis lui — donc les temps de narration viennent d'abord, dans leur ordre.
- * Une annotation dessinee a la main est conservee, a la suite : elle rallonge
- * la scene plutot que de decaler la voix des temps qui la precedent.
+ * Array order carries timing — `deriveTimeline` recomputes `startMs` from
+ * it — so narration beats come first, in order. A hand-drawn annotation is
+ * kept, after them: it extends the scene rather than shifting the voice of
+ * the beats before it.
  */
 export function adoptPlannedAnnotations(input: {
   panelId: string;
@@ -66,23 +65,23 @@ export function adoptPlannedAnnotations(input: {
     input.imageSize.height,
   );
 
-  // Indexer les annotations existantes pour conserver leurs personnalisations
-  // (couleur de trait, style d'animation) lors d'une replanification.
+  // Index existing annotations to keep their customizations (stroke color,
+  // animation style) on replanning.
   const existingById = new Map<string, Annotation>();
   for (const a of input.existing ?? []) {
     existingById.set(a.id, a);
   }
 
-  // Un temps peut porter plusieurs zones : le rang les distingue. L'index du
-  // tableau ne suffit plus, il ne designait le temps que tant qu'il n'y en
-  // avait qu'une par temps.
-  const rangs = new Map<number, number>();
+  // A beat can carry several zones: the rank tells them apart. The array
+  // index no longer suffices, it only identified the beat while there was
+  // one per beat.
+  const ranks = new Map<number, number>();
   const planned: Annotation[] = input.planned.map((annotation, index) => {
     const beatIndex = annotation.beatIndex;
-    const rang = rangs.get(beatIndex) ?? 0;
-    rangs.set(beatIndex, rang + 1);
+    const rank = ranks.get(beatIndex) ?? 0;
+    ranks.set(beatIndex, rank + 1);
 
-    const id = plannedAnnotationId(input.panelId, beatIndex, rang);
+    const id = plannedAnnotationId(input.panelId, beatIndex, rank);
     const prev = existingById.get(id);
 
     return {
@@ -113,14 +112,14 @@ export function adoptPlannedAnnotations(input: {
 }
 
 /**
- * Le transcript du projet, deduit des annotations planifiees.
+ * The project transcript, derived from planned annotations.
  *
- * Chaque cue porte deja `annotationId` : le lien entre un temps de narration et
- * ce qui se dessine pendant qu'il est dit se remplissait a la main dans
- * l'editeur, alors que la planification le connait par construction.
+ * Each cue already carries `annotationId`: the link between a narration beat
+ * and what is drawn while it is spoken used to be filled by hand in the
+ * editor, whereas planning knows it by construction.
  *
- * Les bornes sont absolues sur l'horloge du projet, comme le rendu les attend :
- * chaque scene commence ou la precedente s'est terminee.
+ * Bounds are absolute on the project clock, as the renderer expects: each
+ * scene starts where the previous one ended.
  */
 export function transcriptFromPanels(panels: StoryboardPanel[]): TranscriptCue[] {
   const cues: TranscriptCue[] = [];
@@ -132,8 +131,8 @@ export function transcriptFromPanels(panels: StoryboardPanel[]): TranscriptCue[]
       const startMs = cursor + (annotation.reveal?.gapBeforeMs ?? 0);
       cursor = startMs + durationMs;
 
-      // Une annotation sans texte n'est pas un temps de narration : elle
-      // occupe le temps de la scene, mais n'a rien a lire.
+      // An annotation without text is not a narration beat: it takes up
+      // scene time but has nothing to read.
       if (annotation.text) {
         cues.push({
           id: `cue-${annotation.id}`,

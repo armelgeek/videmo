@@ -104,13 +104,13 @@ const requestPreparedSheet = async (
 const SCENE_IMAGE = '/scene-premium-bag.png';
 
 /**
- * Le 1x du moteur (Animation.DEFAULT_SPEED). A cette valeur la durationMs de
- * chaque annotation est honoree exactement.
+ * The engine's 1x (Animation.DEFAULT_SPEED). At this value each annotation's
+ * durationMs is honoured exactly.
  *
- * L'horloge est figee ici plutot que branchee sur un reglage : reveal.from/to
- * sont des timestamps de la NARRATION, donc tout multiplicateur ferait deriver
- * le dessin par rapport a sa bande-son. config.revealSpeed subsiste pour les
- * projets deja enregistres mais n'est plus lu.
+ * The clock is fixed here rather than wired to a setting: reveal.from/to are
+ * NARRATION timestamps, so any multiplier would make the drawing drift from
+ * its soundtrack. config.revealSpeed remains for already saved projects but
+ * is no longer read.
  */
 const ENGINE_DEFAULT_SPEED = 40;
 
@@ -127,13 +127,13 @@ const ENGINE_DEFAULT_SPEED = 40;
  */
 const BIG_GAP_MS = 1000;
 
-/** Nombre d'images decodees gardees en cache, au-dela duquel la plus vieille cede sa place. */
+/** Number of decoded images kept in cache, beyond which the oldest gives way. */
 const IMAGE_CACHE_MAX = 32;
 
 /**
- * Caches au niveau du module : persistent d'un rendu/montage à l'autre.
- * Revenir sur une scène déjà visitée ou switcher de tab ne refait aucun fetch,
- * aucun décodage CPU/GPU ni calcul Web Worker.
+ * Module-level caches: they persist from one render/mount to the next.
+ * Returning to an already visited scene or switching tabs redoes no fetch,
+ * no CPU/GPU decoding and no Web Worker computation.
  */
 const globalImageCache = new Map<string, HTMLImageElement>();
 const globalOffscreenCache = new Map<string, HTMLCanvasElement>();
@@ -165,34 +165,34 @@ const RESYNC_COOLDOWN_MS = 1000;
 const EXTERNAL_SEEK_MS = 100;
 
 /**
- * Cadence de PUBLICATION de l'horloge dans le store.
+ * Rate at which the clock is PUBLISHED to the store.
  *
- * Le moteur avance a chaque frame, mais chaque ecriture de currentTime rend
- * tous les abonnes — la timeline entiere, ses regles, ses pistes. A 60 Hz le
- * rendu React coutait plus cher que le dessin lui-meme. L'horloge REELLE reste
- * engineTimeRef, mise a jour a chaque tick : seule sa publication est ralentie,
- * donc rien ne derive. Doit rester nettement sous EXTERNAL_SEEK_MS, sans quoi
- * le retard de publication passerait pour un deplacement du curseur.
+ * The engine advances every frame, but each currentTime write re-renders
+ * every subscriber — the whole timeline, its rulers, its tracks. At 60 Hz the
+ * React render cost more than the drawing itself. The REAL clock remains
+ * engineTimeRef, updated every tick: only its publication is slowed down,
+ * so nothing drifts. Must stay well under EXTERNAL_SEEK_MS, otherwise the
+ * publication lag would pass for a cursor move.
  */
 const PUBLISH_INTERVAL_MS = 1000 / 30;
 
 /**
- * Paliers d'assets de main, du plus petit au plus grand. CUSTOM_HANDS decrit
- * chacun avec ses propres coordonnees de pointe, et handDrawRect attend le
- * palier NOMINAL correspondant : le figer alors que le canvas change de taille
- * revenait a agrandir le sprite 720p au lieu de prendre le bon fichier.
+ * Hand asset tiers, smallest to largest. CUSTOM_HANDS describes each with its
+ * own tip coordinates, and handDrawRect expects the matching NOMINAL tier:
+ * freezing it while the canvas changed size amounted to upscaling the 720p
+ * sprite instead of taking the right file.
  */
-const PALIERS_MAIN = [720, 1080, 1440] as const;
+const HAND_TIERS = [720, 1080, 1440] as const;
 
-/** Palier dont la taille nominale couvre le grand cote du canvas. */
-function palierPourCanvas(grandCote: number): (typeof PALIERS_MAIN)[number] {
-  if (grandCote > 1920) return 1440;
-  if (grandCote > 1280) return 1080;
+/** Tier whose nominal size covers the canvas's long side. */
+function tierForCanvas(longSide: number): (typeof HAND_TIERS)[number] {
+  if (longSide > 1920) return 1440;
+  if (longSide > 1280) return 1080;
   return 720;
 }
 
-const handAssetUrl = (key: string, palier: number) =>
-  `/images/hand${key.replace('custom', '')}-${palier}p.png`;
+const handAssetUrl = (key: string, tier: number) =>
+  `/images/hand${key.replace('custom', '')}-${tier}p.png`;
 
 /** Accepts "hand1", "Hand 1", "custom1"… and returns a CUSTOM_HANDS key. */
 function normalizeHandKey(handStyle: string): string {
@@ -205,8 +205,8 @@ function normalizeHandKey(handStyle: string): string {
 
 export interface UseWhiteboardRendererProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
-  /** Dimensions du canvas. Passees explicitement : muter l'attribut width ne
-   *  redeclenche aucun effet, or un changement de forme doit reprojeter. */
+  /** Canvas dimensions. Passed explicitly: mutating the width attribute
+   *  re-triggers no effect, yet a shape change must reproject. */
   canvasWidth: number;
   canvasHeight: number;
   handCanvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -221,8 +221,8 @@ export interface UseWhiteboardRendererProps {
    *  of wall-clock time — see docs/superpowers/specs/2026-07-29-whiteboard-audio-design.md */
   audioUrl?: string | null;
   /**
-   * La voix produite temps par temps. Elle prime sur `audioUrl`, qui reste le
-   * chemin d'une piste televersee et celui des projets anterieurs.
+   * The voice produced beat by beat. It takes precedence over `audioUrl`,
+   * which remains the path for an uploaded track and for older projects.
    */
   narrationParts?: NarrationPart[];
   /** 0..1. Muted still plays silently: it must keep driving the clock. */
@@ -242,10 +242,10 @@ export interface UseWhiteboardRendererProps {
    */
   savedAnnotations?: Annotation[] | null;
   /**
-   * La scene dessinee : le store moteur porte toutes les scenes a plat, ce id
-   * dit laquelle lire/ecrire ici. `null` (par defaut) desactive le filtrage —
-   * comportement d'avant le passage au tableau plat, pour un usage standalone
-   * sans notion de scene.
+   * The scene being drawn: the engine store holds every scene flat, this id
+   * says which one to read/write here. `null` (the default) disables filtering —
+   * the behaviour from before the flat array, for standalone use with no
+   * notion of scene.
    */
   scenePanelId?: string | null;
   /**
@@ -260,9 +260,9 @@ export interface UseWhiteboardRendererProps {
    */
   clipOffsetMs?: number;
   /**
-   * Sequence complete, pour savoir ou tombent les blancs entre clips.
-   * clipOffsetMs reste par ailleurs inchange : il designe le clip ACTIF et sert
-   * a passer de l'horloge globale a l'horloge locale du moteur.
+   * Full sequence, to know where the gaps between clips fall.
+   * clipOffsetMs is otherwise unchanged: it designates the ACTIVE clip and is
+   * used to convert the global clock to the engine's local clock.
    */
   clips?: ClipWindow[];
   /**
@@ -270,9 +270,9 @@ export interface UseWhiteboardRendererProps {
    */
   onError?: (message: string) => void;
   /**
-   * Notifie quand la préparation de l'artwork démarre ou se termine.
-   * Permet à l'appelant de gérer un indicateur de chargement avec debounce
-   * sans forcer un re-render systématique du composant parent via un state retourné.
+   * Notified when artwork preparation starts or ends.
+   * Lets the caller manage a debounced loading indicator without forcing a
+   * systematic re-render of the parent component through returned state.
    */
   onArtworkPendingChange?: (pending: boolean) => void;
 }
@@ -300,17 +300,17 @@ export function useWhiteboardRenderer({
   onError = NOOP_ON_ERROR,
   onArtworkPendingChange,
 }: UseWhiteboardRendererProps) {
-  // Toujours la derniere fonction recue, sans rentrer dans les dependances
-  // des effets qui l'appellent : un composant qui passe une closure inline
-  // en ferait une nouvelle a chaque rendu, et chaque effet se relancerait.
+  // Always the latest function received, without entering the dependencies
+  // of the effects that call it: a component passing an inline closure would
+  // make a new one every render, and every effect would re-run.
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const onArtworkPendingChangeRef = useRef(onArtworkPendingChange);
   onArtworkPendingChangeRef.current = onArtworkPendingChange;
-  // Ni `progress` ni `currentTime` : lus par selecteur, ils re-rendaient le
-  // composant hote — tout l'editeur et sa timeline — a chaque publication de
-  // l'horloge pendant la lecture. Les effets qui suivent la position
-  // s'abonnent au store directement.
+  // Neither `progress` nor `currentTime`: read through a selector, they
+  // re-rendered the host component — the whole editor and its timeline — on
+  // every clock publication during playback. Effects that follow the position
+  // subscribe to the store directly.
   const {
     isPlaying,
     canvasBg,
@@ -352,15 +352,15 @@ export function useWhiteboardRenderer({
   const { annotations } = derivedAnnotations;
 
   const imageRef = useRef<HTMLImageElement | null>(null);
-  // Une image deja decodee, par URL : revenir sur un clip deja vu ne doit ni
-  // la retelecharger ni la redecoder. Partage au niveau du module (globalImageCache).
+  // An already decoded image, by URL: returning to an already seen clip must
+  // neither re-download nor re-decode it. Shared at module level (globalImageCache).
   const imageCacheRef = useRef<Map<string, HTMLImageElement>>(globalImageCache);
   const offscreenCacheRef = useRef<Map<string, HTMLCanvasElement>>(globalOffscreenCache);
-  // Rectangle ou l'artwork est dessine, PAR SCENE (cle = scenePanelId, ou une
-  // cle fixe en mode standalone) : chaque scene a sa propre image, donc son
-  // propre rectangle, et le transport de regions au redimensionnement ne doit
-  // jamais melanger le rectangle d'une scene avec les regions d'une autre.
-  const rectParSceneRef = useRef<Map<string | null, RectContenu>>(new Map());
+  // Rectangle where the artwork is drawn, PER SCENE (key = scenePanelId, or a
+  // fixed key in standalone mode): each scene has its own image, hence its
+  // own rectangle, and carrying regions over on resize must never mix one
+  // scene's rectangle with another's regions.
+  const rectBySceneRef = useRef<Map<string | null, RectContenu>>(new Map());
   const offscreenRef = useRef<HTMLCanvasElement | null>(null);
   const handImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const animRef = useRef<any>(null);
@@ -369,26 +369,26 @@ export function useWhiteboardRenderer({
   // instance outlives a run (pause/resume, StrictMode remount) and a stale
   // closure flag would silently disable its callbacks forever.
   const stoppedRef = useRef(false);
-  // Vrai pendant qu'on rejoue le moteur pour atteindre une position cherchee :
-  // les callbacks ne doivent alors rien ecrire dans le store, sinon le seek se
-  // battrait avec la valeur que l'utilisateur vient de poser.
+  // True while the engine is replayed to reach a sought position: callbacks
+  // must then write nothing to the store, otherwise the seek would fight the
+  // value the user just set.
   const seekingRef = useRef(false);
-  // Dernier currentTime ECRIT par le moteur. Sert a distinguer un seek de
-  // l'utilisateur d'une simple progression de lecture.
+  // Last currentTime WRITTEN by the engine. Used to tell a user seek from
+  // plain playback progress.
   const engineTimeRef = useRef(0);
-  // Instant de la derniere PUBLICATION dans le store, cf. PUBLISH_INTERVAL_MS.
+  // Time of the last PUBLICATION to the store, cf. PUBLISH_INTERVAL_MS.
   const lastPublishRef = useRef(0);
-  // La POSITION portee par la derniere publication — la derniere valeur que le
-  // moteur a lui-meme ecrite dans le store.
+  // The POSITION carried by the last publication — the last value the engine
+  // itself wrote to the store.
   //
-  // C'est elle, et non l'horloge courante du moteur, qui dit si le store a ete
-  // change par QUELQU'UN D'AUTRE. Le store est publie a intervalle : entre deux
-  // publications il retarde par construction, et comparer l'horloge courante a
-  // ce retard normal faisait prendre la lenteur du rendu pour un clic sur la
-  // reglette. Le moteur se replacait alors sur une valeur perimee, a chaque
-  // frame trop longue — la lecture reculait sans jamais avancer.
-  const dernierePositionPublieeRef = useRef(0);
-  // Instant du dernier rejeu de seek, cf. SEEK_COOLDOWN_MS.
+  // It is this, not the engine's current clock, that tells whether the store
+  // was changed by SOMEONE ELSE. The store is published at intervals: between
+  // two publications it lags by construction, and comparing the current clock
+  // to that normal lag mistook slow rendering for a click on the ruler. The
+  // engine then repositioned onto a stale value on every overlong frame —
+  // playback went backwards without ever advancing.
+  const lastPublishedPositionRef = useRef(0);
+  // Time of the last seek replay, cf. SEEK_COOLDOWN_MS.
   const lastSeekAtRef = useRef(0);
   // The drawing reached the end of its schedule. The video can still be
   // running: with narration longer than the schedule, the finished image is
@@ -407,15 +407,15 @@ export function useWhiteboardRenderer({
     audioClock.manager?.setMuted(audioMuted);
   }, [audioClock.manager, audioVolume, audioMuted]);
   const [imageLoaded, setImageLoaded] = useState(false);
-  // Incremente a CHAQUE illustration posee, la premiere comprise. imageLoaded ne
-  // bascule que pour la premiere (voir le chargement plus bas) : sans ce
-  // compteur, l'arrivee d'une illustration de clip suivant ne reveille aucun
-  // effet, l'image etant portee par une ref.
+  // Incremented on EVERY illustration set, the first included. imageLoaded only
+  // flips for the first (see the loading below): without this counter, the
+  // arrival of the next clip's illustration wakes no effect, since the image
+  // is held in a ref.
   const [artworkVersion, setArtworkVersion] = useState(0);
-  // Vrai pendant qu'on scrube. Le seek ne "joue" pas — isPlaying reste faux —
-  // mais l'utilisateur regarde le dessin, pas les cadres : le calque doit
-  // s'effacer la aussi. Un delai de retour evite qu'il ne clignote entre deux
-  // positions pendant un drag.
+  // True while scrubbing. The seek does not "play" — isPlaying stays false —
+  // but the user is watching the drawing, not the frames: the overlay must
+  // fade out there too. A return delay keeps it from flickering between two
+  // positions during a drag.
   const [scrubbing, setScrubbing] = useState(false);
   // Read by the artwork effect, which must not re-run when scrubbing toggles.
   const scrubbingRef = useRef(scrubbing);
@@ -446,10 +446,10 @@ export function useWhiteboardRenderer({
   const clipOffsetMsRef = useRef(0);
   clipOffsetMsRef.current = clipOffsetMs;
 
-  // Meme raison que clipOffsetMsRef : la scene active change a chaque
-  // frontiere franchie en lecture continue, et buildEngine (appele depuis la
-  // boucle rAF persistante) doit toujours lire la bonne, pas celle du rendu
-  // qui a mis en place cette boucle.
+  // Same reason as clipOffsetMsRef: the active scene changes at every
+  // boundary crossed during continuous playback, and buildEngine (called from
+  // the persistent rAF loop) must always read the right one, not that of the
+  // render that set up the loop.
   const scenePanelIdRef = useRef<string | null>(null);
   scenePanelIdRef.current = scenePanelId;
 
@@ -462,9 +462,9 @@ export function useWhiteboardRenderer({
   useEffect(() => {
     if (handStyle === 'ghost') return;
     const key = normalizeHandKey(handStyle);
-    const paliers = new Set([720, palierPourCanvas(Math.max(canvasWidth, canvasHeight))]);
-    for (const palier of paliers) {
-      const cacheKey = `${key}@${palier}`;
+    const tiers = new Set([720, tierForCanvas(Math.max(canvasWidth, canvasHeight))]);
+    for (const tier of tiers) {
+      const cacheKey = `${key}@${tier}`;
       if (handRequestedRef.current.has(cacheKey)) continue;
       handRequestedRef.current.add(cacheKey);
       const h = new Image();
@@ -472,17 +472,17 @@ export function useWhiteboardRenderer({
         handImagesRef.current[cacheKey] = h;
       };
       h.onerror = () => handRequestedRef.current.delete(cacheKey);
-      h.src = handAssetUrl(key, palier);
+      h.src = handAssetUrl(key, tier);
     }
   }, [handStyle, canvasWidth, canvasHeight]);
 
   useEffect(() => {
     const targetSrc = imageUrl || SCENE_IMAGE;
 
-    // Deja affichee a l'identique : rien a refaire. Sans ce court-circuit,
-    // revenir sur un clip deja vu recreait un Image(), la redecodait, et
-    // invalidait le moteur (offscreen, instance d'animation) pour un artwork
-    // strictement inchange.
+    // Already displayed as is: nothing to redo. Without this short-circuit,
+    // returning to an already seen clip recreated an Image(), re-decoded it,
+    // and invalidated the engine (offscreen, animation instance) for a
+    // strictly unchanged artwork.
     if (
       imageRef.current &&
       imageRef.current.src === targetSrc &&
@@ -502,9 +502,9 @@ export function useWhiteboardRenderer({
     const isFirstArtwork = !imageRef.current;
     if (isFirstArtwork) setImageLoaded(false);
 
-    // Si la ressource (sheet dans offscreenCache ou image décodée en mémoire)
-    // est déjà présente, ne jamais activer le verrou artworkPending pour éviter
-    // de figer le rendu et faire disparaître la main.
+    // If the resource (sheet in offscreenCache or decoded image in memory)
+    // is already present, never engage the artworkPending lock, to avoid
+    // freezing the render and making the hand disappear.
     const canvas = canvasRef.current;
     const key = canvas ? `${targetSrc}@${canvas.width}x${canvas.height}` : '';
     const isAlreadyCached = Boolean(
@@ -564,8 +564,8 @@ export function useWhiteboardRenderer({
       }
     };
 
-    // Un clip deja visite plus tot dans la session (A -> B -> A) retrouve son
-    // element deja decode, sans nouvelle requete ni nouveau decodage.
+    // A clip already visited earlier in the session (A -> B -> A) gets back its
+    // already decoded element, with no new request nor new decoding.
     const cached = imageCacheRef.current.get(targetSrc);
     if (cached && cached.complete && cached.naturalWidth > 0) {
       touch(imageCacheRef.current, targetSrc, cached);
@@ -574,11 +574,11 @@ export function useWhiteboardRenderer({
     }
 
     const img = new Image();
-    // Le moteur revele le dessin en LISANT les pixels du canvas
-    // (`getImageData`). Sans cet attribut, une image servie par le bac — donc
-    // par une autre origine — teinte le canvas, et la lecture leve une
-    // SecurityError qui empeche l'animation de demarrer. Le bac repond en
-    // CORS ; il suffit de le demander.
+    // The engine reveals the drawing by READING the canvas pixels
+    // (`getImageData`). Without this attribute, an image served by the bucket —
+    // hence from another origin — taints the canvas, and the read throws a
+    // SecurityError that keeps the animation from starting. The bucket answers
+    // with CORS; it only has to be asked.
     img.crossOrigin = 'anonymous';
     img.src = targetSrc;
 
@@ -609,10 +609,10 @@ export function useWhiteboardRenderer({
   }, [imageUrl]);
 
   // ── Look-ahead pre-caching ────────────────────────────────────────────────
-  // Pendant qu'une scène joue, précharger en tâche de fond l'image et la feuille
-  // (sheet) du Web Worker pour la scène suivante.
-  // Quand la lecture arrive sur cette scène, tout est déjà prêt en cache mémoire :
-  // l'enchaînement est instantané, sans freeze de rendu ni disparition de la main.
+  // While a scene plays, preload in the background the image and the Web
+  // Worker sheet for the next scene.
+  // When playback reaches that scene, everything is already ready in memory:
+  // the transition is instant, with no render freeze nor the hand disappearing.
   useEffect(() => {
     const targets = (upcomingImageUrls && upcomingImageUrls.length > 0)
       ? upcomingImageUrls.filter((u): u is string => Boolean(u))
@@ -648,7 +648,7 @@ export function useWhiteboardRenderer({
       const onImageAvailable = () => {
         if (cancelled) return;
         imageCacheRef.current.set(targetSrc, img);
-        // Décodage asynchrone pour éviter tout freeze GPU sur le thread principal
+        // Asynchronous decoding to avoid any GPU freeze on the main thread
         if (typeof img.decode === 'function') {
           img.decode()
             .then(() => prep(img))
@@ -675,32 +675,32 @@ export function useWhiteboardRenderer({
     };
   }, [nextImageUrl, upcomingImageUrls, canvasWidth, canvasHeight]);
 
-  // Amorcage de la scene de demo, puis suivi de la forme du canvas — par
-  // scene : chacune a sa propre image, donc son propre rectangle d'artwork,
-  // et n'est amorcee qu'une fois (au lieu d'une fois pour tout le hook).
+  // Seeding of the demo scene, then tracking of the canvas shape — per
+  // scene: each has its own image, hence its own artwork rectangle, and is
+  // seeded only once (instead of once for the whole hook).
   const seededScenesRef = useRef<Set<string | null>>(new Set());
-  // Garde la VRAIE taille du canvas pour ne reprojeter que si elle change
-  // reellement. Sans ca, un changement de scenePanelId relancait l'effet,
-  // rectArtwork() lisait l'ANCIEN imageRef (pas encore swap), produisait un
-  // rect different du precedent, et declenchait reprojeterRegion → cascade
-  // de re-renders (setSceneAnnotations → annotationsEqual → updatePanel).
+  // Keeps the REAL canvas size so as to reproject only when it actually
+  // changes. Without it, a scenePanelId change re-ran the effect,
+  // artworkRect() read the OLD imageRef (not swapped yet), produced a rect
+  // different from the previous one, and triggered reprojeterRegion → cascade
+  // of re-renders (setSceneAnnotations → annotationsEqual → updatePanel).
   const lastCanvasSizeRef = useRef<{ w: number; h: number } | null>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !imageLoaded) return;
 
-    const rect = rectArtwork(canvas);
+    const rect = artworkRect(canvas);
     const store = useUnifiedEngineStore.getState();
-    const sceneVide = filterScene(store.animation.annotations, scenePanelId).length === 0;
-    const dejaAmorcee = seededScenesRef.current.has(scenePanelId);
+    const sceneEmpty = filterScene(store.animation.annotations, scenePanelId).length === 0;
+    const alreadySeeded = seededScenesRef.current.has(scenePanelId);
 
-    // Mode standalone (pas de scene) : amorce la scene de demo, comme avant
-    // le passage au tableau plat. L'editeur multi-scenes, lui, charge toutes
-    // les scenes en un seul passage (voir whiteboard-editor-step.tsx) — ce
-    // n'est ici qu'un filet pour le tout premier montage, avant ce chargement.
-    if (!dejaAmorcee && sceneVide && scenePanelId === null) {
+    // Standalone mode (no scene): seeds the demo scene, as before the flat
+    // array. The multi-scene editor loads every scene in a single pass (see
+    // whiteboard-editor-step.tsx) — this is only a safety net for the very
+    // first mount, before that load.
+    if (!alreadySeeded && sceneEmpty && scenePanelId === null) {
       seededScenesRef.current.add(scenePanelId);
-      rectParSceneRef.current.set(scenePanelId, rect);
+      rectBySceneRef.current.set(scenePanelId, rect);
       lastCanvasSizeRef.current = { w: canvasWidth, h: canvasHeight };
 
       // A saved project wins over the demo scene. Its regions are already in
@@ -713,8 +713,8 @@ export function useWhiteboardRenderer({
 
       // normalizeGaps turns the authored absolute startMs into the derived
       // model (order + duration + gap) the timeline editor works with.
-      // Les regions sont projetees sur le RECTANGLE D'ARTWORK, pas sur le
-      // canvas : hors de ce rectangle il n'y a que du fond.
+      // Regions are projected onto the ARTWORK RECTANGLE, not onto the
+      // canvas: outside that rectangle there is only background.
       normalizeGaps(
         projectAnnotations(SCENE_PREMIUM_BAG_ANNOTATIONS, rect.w, rect.h)
       ).forEach((a) =>
@@ -730,12 +730,12 @@ export function useWhiteboardRenderer({
       return;
     }
 
-    // Filet pour le mode multi-scenes : cette scene precise n'a encore rien
-    // dans le tableau plat (premier montage avant le chargement global, ou
-    // scene jamais visitee). On y verse juste ses propres annotations.
-    if (!dejaAmorcee && sceneVide && scenePanelId !== null) {
+    // Safety net for multi-scene mode: this particular scene has nothing yet
+    // in the flat array (first mount before the global load, or a scene
+    // never visited). Only its own annotations are poured in.
+    if (!alreadySeeded && sceneEmpty && scenePanelId !== null) {
       seededScenesRef.current.add(scenePanelId);
-      rectParSceneRef.current.set(scenePanelId, rect);
+      rectBySceneRef.current.set(scenePanelId, rect);
       lastCanvasSizeRef.current = { w: canvasWidth, h: canvasHeight };
       if (savedAnnotations && savedAnnotations.length > 0) {
         store.setSceneAnnotations(scenePanelId, savedAnnotations);
@@ -745,12 +745,11 @@ export function useWhiteboardRenderer({
     seededScenesRef.current.add(scenePanelId);
 
     // ── Reprojection guard ────────────────────────────────────────────────
-    // Ne reprojeter QUE si les dimensions du canvas ont reellement change.
-    // Un changement de scenePanelId seul ne doit PAS declencher de
-    // reprojection : imageRef pointe encore sur l'ancienne image, donc
-    // rectArtwork() retourne un rect qui ne correspond pas a la nouvelle
-    // scene — c'est la source du lag (reprojection parasite → ecriture
-    // dans le store → auto-save reseau → cascade de re-renders).
+    // Reproject ONLY if the canvas dimensions actually changed.
+    // A scenePanelId change alone must NOT trigger a reprojection: imageRef
+    // still points to the old image, so artworkRect() returns a rect that
+    // does not match the new scene — that was the source of the lag (spurious
+    // reprojection → store write → network auto-save → cascade of re-renders).
     const prevCanvasSize = lastCanvasSizeRef.current;
     lastCanvasSizeRef.current = { w: canvasWidth, h: canvasHeight };
     const canvasSizeChanged = !prevCanvasSize
@@ -758,47 +757,47 @@ export function useWhiteboardRenderer({
       || prevCanvasSize.h !== canvasHeight;
 
     if (!canvasSizeChanged) {
-      // Le canvas n'a pas change de taille : on met a jour le rect de la
-      // scene courante (pour les futures reproj.) mais on ne reprojete pas.
-      rectParSceneRef.current.set(scenePanelId, rect);
+      // The canvas did not change size: update the current scene's rect
+      // (for future reprojections) but do not reproject.
+      rectBySceneRef.current.set(scenePanelId, rect);
       return;
     }
 
-    const precedent = rectParSceneRef.current.get(scenePanelId) ?? null;
-    rectParSceneRef.current.set(scenePanelId, rect);
+    const previous = rectBySceneRef.current.get(scenePanelId) ?? null;
+    rectBySceneRef.current.set(scenePanelId, rect);
     if (
-      !precedent ||
-      (precedent.x === rect.x &&
-        precedent.y === rect.y &&
-        precedent.w === rect.w &&
-        precedent.h === rect.h)
+      !previous ||
+      (previous.x === rect.x &&
+        previous.y === rect.y &&
+        previous.w === rect.w &&
+        previous.h === rect.h)
     ) {
       return;
     }
 
-    // Le canvas a change de forme. Les regions sont stockees en pixels de
-    // canvas : sans cela elles resteraient aux coordonnees de l'ancienne
-    // forme, a cote du dessin. On les TRANSPORTE plutot que de les regenerer
-    // depuis la scene de demo, pour ne pas perdre les annotations editees.
-    // Uniquement la scene active : les autres n'ont pas ce canvas sous les yeux.
+    // The canvas changed shape. Regions are stored in canvas pixels: otherwise
+    // they would stay at the old shape's coordinates, beside the drawing. They
+    // are CARRIED OVER rather than regenerated from the demo scene, so edited
+    // annotations are not lost.
+    // Only the active scene: the others do not have this canvas in front of them.
     const annots = filterScene(store.animation.annotations, scenePanelId);
     if (annots.length) {
-      const reprojetees = annots.map((a: any) =>
+      const reprojected = annots.map((a: any) =>
         a.region
-          ? { ...a, region: { ...a.region, ...reprojeterRegion(a.region, precedent, rect) } }
+          ? { ...a, region: { ...a.region, ...reprojeterRegion(a.region, previous, rect) } }
           : a
       );
-      if (scenePanelId === null) store.setAnnotations(reprojetees);
-      else store.setSceneAnnotations(scenePanelId, reprojetees);
+      if (scenePanelId === null) store.setAnnotations(reprojected);
+      else store.setSceneAnnotations(scenePanelId, reprojected);
     }
-    // L'instance a ete batie sur les anciennes bornes.
+    // The instance was built on the old bounds.
     animRef.current = null;
   }, [canvasRef, imageLoaded, canvasWidth, canvasHeight, scenePanelId]);
 
   // ---- helpers ------------------------------------------------------------
 
-  /** Rectangle d'artwork pour ce canvas, sans deformation. */
-  const rectArtwork = (canvas: HTMLCanvasElement): RectContenu => {
+  /** Artwork rectangle for this canvas, without distortion. */
+  const artworkRect = (canvas: HTMLCanvasElement): RectContenu => {
     const img = imageRef.current;
     return rectContenu(
       canvas.width,
@@ -815,15 +814,15 @@ export function useWhiteboardRenderer({
     ctx.fillRect(0, 0, w, h);
   };
 
-  // Lue depuis la closure rAF, qui ne se reconstruit pas a chaque rendu.
+  // Read from the rAF closure, which is not rebuilt on every render.
   const clipsRef = useRef<ClipWindow[]>(clips);
   clipsRef.current = clips;
 
   const snapshotRef = useRef<HTMLCanvasElement | null>(null);
-  const snapshotValideRef = useRef(false);
-  const fondRef = useRef<HTMLCanvasElement | null>(null);
+  const snapshotValidRef = useRef(false);
+  const backgroundRef = useRef<HTMLCanvasElement | null>(null);
 
-  const canvasTampon = (
+  const bufferCanvas = (
     ref: React.MutableRefObject<HTMLCanvasElement | null>,
     w: number,
     h: number
@@ -841,37 +840,37 @@ export function useWhiteboardRenderer({
   };
 
   /**
-   * Applique la transition PAR-DESSUS le dessin deja compose.
+   * Applies the transition ON TOP of the already composed drawing.
    *
-   * Le cote entrant est le FOND, pas le clip suivant : pendant le blanc, le
-   * sortant a fini de tracer et l'entrant n'a rien a montrer. La transition lit
-   * donc « le sortant s'en va ».
+   * The incoming side is the BACKGROUND, not the next clip: during the gap,
+   * the outgoing clip has finished drawing and the incoming one has nothing
+   * to show. The transition therefore reads as "the outgoing one leaves".
    */
-  const appliquerTransition = (
+  const applyTransition = (
     active: { name: string; t: number },
     ctx: CanvasRenderingContext2D,
-    sortante: HTMLCanvasElement,
+    outgoing: HTMLCanvasElement,
     w: number,
     h: number
   ) => {
     const fn = resoudreTransition(active.name);
     if (!fn) return;
 
-    const fond = canvasTampon(fondRef, w, h);
-    const fctx = fond.getContext('2d');
+    const background = bufferCanvas(backgroundRef, w, h);
+    const fctx = background.getContext('2d');
     if (!fctx) return;
     fctx.clearRect(0, 0, w, h);
     paintBackground(fctx, w, h);
 
     ctx.clearRect(0, 0, w, h);
-    fn(ctx, sortante, fond, active.t, w, h);
+    fn(ctx, outgoing, background, active.t, w, h);
   };
 
   /**
-   * `target` permet de peindre AILLEURS que sur le canvas visible. Le rejeu de
-   * seek compose dans un tampon puis le blitte : en visant le canvas visible en
-   * dur, la main y etait bien dessinee, puis aussitot effacee par la copie du
-   * tampon reste vide. Elle ne s'affichait donc jamais pendant un scrub.
+   * `target` allows painting ELSEWHERE than on the visible canvas. The seek
+   * replay composes into a buffer then blits it: with the visible canvas
+   * hard-coded as target, the hand was drawn there, then immediately erased
+   * by the copy of the buffer, which stayed empty. So it never showed during a scrub.
    */
   const drawHandSprite = (
     tipX: number,
@@ -887,21 +886,21 @@ export function useWhiteboardRenderer({
     if (cfgRef.current.handStyle === 'ghost') return;
 
     const key = normalizeHandKey(cfgRef.current.handStyle);
-    const palier = palierPourCanvas(
+    const tier = tierForCanvas(
       Math.max(handCanvas.width, handCanvas.height)
     );
-    const imgConfig = CUSTOM_HANDS[key]?.images?.[palier];
-    // Un palier peut ne pas etre encore charge : on retombe sur le 720, qui
-    // l'est en premier, plutot que de sauter la frame et faire clignoter la main.
+    const imgConfig = CUSTOM_HANDS[key]?.images?.[tier];
+    // A tier may not be loaded yet: fall back on the 720 one, which loads
+    // first, rather than skip the frame and make the hand flicker.
     const sprite =
-      handImagesRef.current[`${key}@${palier}`] ??
+      handImagesRef.current[`${key}@${tier}`] ??
       handImagesRef.current[`${key}@720`] ??
       handImagesRef.current['custom1@720'];
 
     if (imgConfig && sprite?.complete) {
       const r = handDrawRect(
         imgConfig,
-        palier,
+        tier,
         tipX,
         tipY,
         handCanvas.width,
@@ -988,8 +987,8 @@ export function useWhiteboardRenderer({
     // measured on a 295×412 region.
     const octx = offscreen.getContext('2d', { willReadFrequently: true });
     octx?.drawImage(img, rect.x, rect.y, rect.w, rect.h);
-    // Meme normalisation qu'au rendu serveur : sans elle l'apercu montre des
-    // rectangles gris la ou les regions ont ete revelees.
+    // Same normalisation as the server render: without it the preview shows
+    // grey rectangles where regions were revealed.
     if (octx) whitenBackground(octx, width, height, rect);
     // Never drawn into again: the engine may cache what it reads from it.
     (offscreen as HTMLCanvasElement & { __immutable?: boolean }).__immutable = true;
@@ -1049,23 +1048,23 @@ export function useWhiteboardRenderer({
   };
 
   /**
-   * Pose l'horloge du moteur, et la publie dans le store au plus a la cadence
-   * de PUBLISH_INTERVAL_MS.
+   * Sets the engine clock, and publishes it to the store at most at the
+   * PUBLISH_INTERVAL_MS rate.
    *
-   * engineTimeRef est TOUJOURS ecrit : c'est lui qui fait foi pour le dessin,
-   * la narration et la detection de seek. Le store, lui, n'a besoin d'etre
-   * juste que pour l'affichage — le publier a chaque frame rendait toute la
-   * timeline 60 fois par seconde.
+   * engineTimeRef is ALWAYS written: it is the source of truth for the drawing,
+   * the narration and seek detection. The store only needs to be accurate for
+   * display — publishing it every frame re-rendered the whole timeline 60
+   * times per second.
    *
-   * `force` sert aux instants qui doivent etre exacts a l'ecran tout de suite :
-   * fin du dessin, fin de la video, arrivee d'un seek.
+   * `force` is for moments that must be exact on screen right away:
+   * end of the drawing, end of the video, arrival of a seek.
    */
   const publishTime = (ms: number, force = false) => {
     engineTimeRef.current = ms;
     const now = performance.now();
     if (!force && now - lastPublishRef.current < PUBLISH_INTERVAL_MS) return;
     lastPublishRef.current = now;
-    dernierePositionPublieeRef.current = ms;
+    lastPublishedPositionRef.current = ms;
     useUnifiedEngineStore.getState().setCurrentTime(ms);
   };
 
@@ -1081,26 +1080,25 @@ export function useWhiteboardRenderer({
     hctx: CanvasRenderingContext2D,
     offscreen: HTMLCanvasElement
   ) => {
-    // Renseigne juste apres la construction : les callbacks y relisent la cible
-    // de rendu courante, que repositionTo rebranche.
+    // Filled right after construction: the callbacks re-read from it the
+    // current render target, which repositionTo rewires.
     let built: any = null;
 
     const store = useUnifiedEngineStore.getState();
     const engineState: any = {
       canvasW: canvas.width,
       canvasH: canvas.height,
-      // Fige au 1x fidele : voir le commentaire de ENGINE_DEFAULT_SPEED.
+      // Fixed at faithful 1x: see the comment on ENGINE_DEFAULT_SPEED.
       speed: ENGINE_DEFAULT_SPEED,
       handSpeed,
       hand: normalizeHandKey(handStyle),
       tileSlider: chunks,
       animStyle,
-      // Les bornes suivent l'artwork : hors de ce rectangle il n'y a que du
-      // fond, et le tampon de fin ne doit pas y baver.
-      contentBounds: rectArtwork(canvas),
-      // Toujours en mode annotation : c'est le modele de l'editeur, pas une
-      // option. config.useAnnotation subsiste pour les projets enregistres
-      // mais n'est plus lu.
+      // The bounds follow the artwork: outside that rectangle there is only
+      // background, and the final stamp must not bleed into it.
+      contentBounds: artworkRect(canvas),
+      // Always in annotation mode: it is the editor's model, not an option.
+      // config.useAnnotation remains for saved projects but is no longer read.
       annotations: deriveTimeline(
         sansAttenteInitiale(filterScene(store.animation.annotations, scenePanelIdRef.current)),
       ).annotations,
@@ -1120,11 +1118,11 @@ export function useWhiteboardRenderer({
           const tipX = typeof a === 'number' ? a : b;
           const tipY = typeof a === 'number' ? b : c;
           if (typeof tipX === 'number' && typeof tipY === 'number') {
-            // On relit la cible sur l'instance a CHAQUE appel plutot que de
-            // capturer hctx : repositionTo rebranche anim.hctx du tampon vers
-            // le canvas visible pour que la reprise apres un seek dessine a
-            // l'ecran. Une cible capturee resterait sur le tampon, et la main
-            // disparaitrait a la reprise.
+            // The target is re-read from the instance on EVERY call rather
+            // than capturing hctx: repositionTo rewires anim.hctx from the
+            // buffer to the visible canvas so that resuming after a seek draws
+            // on screen. A captured target would stay on the buffer, and the
+            // hand would disappear on resume.
             drawHandSprite(tipX, tipY, built?.hctx ?? hctx);
           }
         },
@@ -1154,15 +1152,15 @@ export function useWhiteboardRenderer({
           const s = useUnifiedEngineStore.getState();
           const localSpan = drawingSpanRef.current || s.timeline.duration;
           const globalEnd = localSpan + clipOffsetMsRef.current;
-          // Force : la fin du trace est un instant qu'on doit voir a l'ecran,
-          // pas au prochain creneau de publication.
+          // Forced: the end of the stroke is a moment that must be seen on
+          // screen, not at the next publication slot.
           //
-          // On publie la position REELLE, pas `globalEnd`. Poser globalEnd
-          // tirait l'horloge en avant chaque fois que le trace s'achevait
-          // avant la fin de sa fenetre — mesure : des bonds de 12 s et 15 s,
-          // le dernier atterrissant a 88161 pour une fenetre finissant a
-          // 88912. Le temps appartient a l'horloge murale ; finir de dessiner
-          // ne le deplace pas, cela ne fait que tenir l'image jusqu'au bout.
+          // The REAL position is published, not `globalEnd`. Setting globalEnd
+          // pulled the clock forward whenever the stroke finished before the
+          // end of its window — measured: jumps of 12 s and 15 s, the last
+          // landing at 88161 for a window ending at 88912. Time belongs to
+          // the wall clock; finishing the drawing does not move it, it only
+          // holds the image until the end.
           publishTime(engineTimeRef.current, true);
           if (globalEnd >= s.timeline.duration - 1) {
             // No narration left to play out: the video ends with the drawing.
@@ -1224,11 +1222,11 @@ export function useWhiteboardRenderer({
   };
 
   /**
-   * Repositionne le moteur sans passer par la boucle rAF.
+   * Repositions the engine without going through the rAF loop.
    *
-   * Utilise un canvas buffer en memoire pour assembler la frame (fond, regions
-   * tamponnees et rejeu) avant de la copier en une seule passe atomique sur le
-   * canvas visible. Cela elimine tout clignotement/flash d'ecran pendant le drag.
+   * Uses an in-memory buffer canvas to assemble the frame (background, stamped
+   * regions and replay) before copying it in a single atomic pass onto the
+   * visible canvas. This removes any screen flicker/flash during the drag.
    */
   const repositionTo = (
     targetMs: number,
@@ -1242,7 +1240,7 @@ export function useWhiteboardRenderer({
     const localTarget = Math.max(0, targetMs - clipOffsetMsRef.current);
     const offscreen = ensureOffscreen(canvas);
 
-    // Buffer canvas pour le double-buffering de l'image et de la main
+    // Buffer canvas for double-buffering the image and the hand
     const buffer = getSeekBuffer(canvas.width, canvas.height);
     const bctx = buffer.getContext('2d');
     if (!bctx) return;
@@ -1260,8 +1258,8 @@ export function useWhiteboardRenderer({
     try {
       const anim = buildEngine(canvas, handCanvas, bctx, hbctx, offscreen);
 
-      // Le moteur tournant au 1x fidele, son horloge avance exactement du
-      // delta fourni : le pas du rejeu est donc la ms demandee.
+      // With the engine running at faithful 1x, its clock advances by exactly
+      // the delta given: the replay step is therefore the requested ms.
       const advance = (from: number, to: number) => {
         for (let elapsed = from; elapsed < to; elapsed += SEEK_STEP_MS) {
           if (stoppedRef.current) break;
@@ -1270,12 +1268,12 @@ export function useWhiteboardRenderer({
         }
       };
 
-      // Le rejeu est borne a UNE region : l'image a la frontiere d'une
-      // annotation est le fond plus les regions precedentes estampillees, on la
-      // peint au lieu de la rejouer. Sans cela le cout croit avec la position
-      // cherchee (134 ms en bout de timeline sur une scene de 11 s).
+      // The replay is bounded to ONE region: the image at an annotation
+      // boundary is the background plus the previous stamped regions, so it is
+      // painted instead of replayed. Otherwise the cost grows with the sought
+      // position (134 ms at the end of the timeline on an 11 s scene).
       const plan = planSeek(anim.annotationManager?.schedule, localTarget);
-      const artwork = rectArtwork(canvas);
+      const artwork = artworkRect(canvas);
       const schedule = anim.annotationManager?.schedule;
 
       if (plan.stampAll) {
@@ -1315,7 +1313,7 @@ export function useWhiteboardRenderer({
         drawingSpanRef.current > 0 && localTarget >= drawingSpanRef.current;
     }
 
-    // Copie atomique des deux buffers vers les canvas d'affichage
+    // Atomic copy of both buffers to the display canvases
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(buffer, 0, 0);
 
@@ -1324,24 +1322,24 @@ export function useWhiteboardRenderer({
       hctx.drawImage(handBuffer, 0, 0);
     }
 
-    // Au scrub, pas besoin d'instantane : le rejeu vient de composer le clip
-    // sortant jusqu'a la fin de son trace dans `buffer`, ce qui EST l'image
-    // recherchee. Sans ce bloc, traverser une frontiere au curseur ne montrerait
-    // aucune transition.
-    const enTransition = transitionAt(clipsRef.current, targetMs);
-    if (enTransition) {
-      appliquerTransition(enTransition, ctx, buffer, canvas.width, canvas.height);
+    // When scrubbing, no snapshot is needed: the replay has just composed the
+    // outgoing clip up to the end of its stroke in `buffer`, which IS the
+    // image sought. Without this block, crossing a boundary with the cursor
+    // would show no transition.
+    const activeTransition = transitionAt(clipsRef.current, targetMs);
+    if (activeTransition) {
+      applyTransition(activeTransition, ctx, buffer, canvas.width, canvas.height);
       hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
     }
 
-    // Le store porte deja targetMs — c'est lui qui a demande ce deplacement.
-    // Seul le creneau de publication est reamorce, pour que la premiere frame
-    // de lecture qui suit ne soit pas retenue.
+    // The store already holds targetMs — it asked for this move.
+    // Only the publication slot is reset, so the first playback frame that
+    // follows is not held back.
     engineTimeRef.current = targetMs;
     lastPublishRef.current = 0;
-    // Le moteur est desormais LA ou le store le demandait : sans cela l'ecart
-    // subsisterait et la frame suivante rejouerait le meme replacement.
-    dernierePositionPublieeRef.current = targetMs;
+    // The engine is now WHERE the store asked: otherwise the gap would remain
+    // and the next frame would replay the same repositioning.
+    lastPublishedPositionRef.current = targetMs;
   };
 
   useEffect(() => {
@@ -1371,10 +1369,10 @@ export function useWhiteboardRenderer({
       }
     }
 
-    // Demarrer AU DEBUT d'un clip est un rejeu, pas une reprise. Un moteur
-    // conserve d'une lecture precedente redemarrerait la ou il s'etait arrete,
-    // alors que l'horloge, elle, est revenue au debut : le trace repartirait
-    // du milieu. On le consomme pour forcer la reconstruction plus bas.
+    // Starting AT THE BEGINNING of a clip is a replay, not a resume. An engine
+    // kept from a previous playback would restart where it stopped, whereas
+    // the clock has gone back to the start: the stroke would resume from the
+    // middle. It is consumed to force the rebuild below.
     {
       const s = useUnifiedEngineStore.getState();
       if (s.timeline.currentTime - clipOffsetMsRef.current <= 0) {
@@ -1384,15 +1382,15 @@ export function useWhiteboardRenderer({
       }
     }
 
-    // Un rejeu de seek atteignant la fin du trace passe par finishAnim, qui
-    // vide animRef et leve drawingDone. Si la position courante est EN DECA de
-    // cette fin, le dessin n'est pourtant pas derriere nous : sans reamorcage
-    // le bloc suivant ne reconstruit rien et la lecture fait tourner l'horloge
-    // sur une image figee, sans main ni progression.
+    // A seek replay reaching the end of the stroke goes through finishAnim,
+    // which empties animRef and raises drawingDone. If the current position is
+    // BEFORE that end, the drawing is not behind us though: without re-priming,
+    // the next block rebuilds nothing and playback runs the clock over a
+    // frozen image, with no hand nor progress.
     //
-    // On reamorce a la position courante plutot que de laisser reconstruire
-    // depuis zero : un moteur neuf repartirait du debut du trace alors que
-    // l'horloge, elle, est deja au milieu.
+    // Re-prime at the current position rather than letting it rebuild from
+    // zero: a fresh engine would restart from the beginning of the stroke
+    // while the clock is already in the middle.
     if (!animRef.current && drawingDoneRef.current) {
       const s = useUnifiedEngineStore.getState();
       const local = Math.max(0, s.timeline.currentTime - clipOffsetMsRef.current);
@@ -1437,19 +1435,18 @@ export function useWhiteboardRenderer({
     const step = (now: number) => {
       if (stoppedRef.current) return;
 
-      // L'arret suit le STORE, pas le nettoyage de l'effet.
+      // Stopping follows the STORE, not the effect cleanup.
       //
-      // Le clic pose isPlaying a faux, mais React doit d'abord se rendre avant
-      // que le nettoyage n'annule la boucle : une ou deux frames passaient
-      // encore entre les deux. A la cadence du moteur, chacune trace tout un
-      // paquet de traits — la main se figeait, puis avancait encore un peu.
+      // The click sets isPlaying to false, but React must render first before
+      // the cleanup cancels the loop: one or two frames still slipped through
+      // in between. At the engine's rate, each one draws a whole batch of
+      // strokes — the hand froze, then moved on a little more.
       if (!useUnifiedEngineStore.getState().timeline.isPlaying) {
-        // On SUSPEND, on ne tue pas. Poser stoppedRef ici rendait l'arret
-        // definitif : seul un changement de isPlaying relance la boucle, donc
-        // un passage a faux d'une seule frame — une bascule de clip, un rendu
-        // intermediaire — arretait la lecture pour de bon. La frame est
-        // simplement replanifiee sans rien dessiner ; c'est le nettoyage de
-        // l'effet qui annule pour de vrai.
+        // SUSPEND, do not kill. Setting stoppedRef here made the stop final:
+        // only an isPlaying change restarts the loop, so a single-frame flip
+        // to false — a clip switch, an intermediate render — stopped playback
+        // for good. The frame is simply rescheduled without drawing anything;
+        // the effect cleanup is what cancels for real.
         last = now;
         frame = requestAnimationFrame(step);
         return;
@@ -1498,7 +1495,7 @@ export function useWhiteboardRenderer({
       // has to be replayed to the new position, or the very next tick writes
       // the old one back and the click looks like it did nothing.
       if (
-        Math.abs(s.timeline.currentTime - dernierePositionPublieeRef.current) >
+        Math.abs(s.timeline.currentTime - lastPublishedPositionRef.current) >
         EXTERNAL_SEEK_MS
       ) {
         repositionTo(s.timeline.currentTime, canvas, handCanvas, ctx, hctx);
@@ -1514,47 +1511,47 @@ export function useWhiteboardRenderer({
         // Drawing complete, narration still running: hold the image and run
         // the clock out to the end of the video.
         //
-        // On avance depuis engineTimeRef, pas depuis le store : celui-ci n'est
-        // publie que 30 fois par seconde, et repartir de sa valeur perdrait le
-        // delta des frames non publiees — l'horloge avancerait au ralenti.
+        // Advance from engineTimeRef, not from the store: the store is only
+        // published 30 times per second, and restarting from its value would
+        // lose the delta of unpublished frames — the clock would run slow.
         publishTime(engineTimeRef.current + delta);
         hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
       } else {
         animRef.current?.tick?.(ENGINE_DEFAULT_SPEED, delta);
       }
 
-      // Post-composition. Pendant un blanc le moteur ne dessine plus — le bloc
-      // ci-dessus a pris la branche « image tenue » — donc le canvas porte
-      // encore la derniere image du clip sortant. On la fige au premier passage,
-      // puis on repeint depuis elle a chaque frame : sans instantane, la frame
-      // suivante fondrait le resultat du fondu precedent.
-      // L'horloge lue ici est celle du MOTEUR, pas le store : le fondu doit
-      // demarrer a la frame ou la frontiere est franchie, pas au prochain
-      // creneau de publication.
-      const enTransition = transitionAt(clipsRef.current, engineTimeRef.current);
-      if (enTransition) {
-        const snap = canvasTampon(snapshotRef, canvas.width, canvas.height);
-        if (!snapshotValideRef.current) {
+      // Post-composition. During a gap the engine no longer draws — the block
+      // above took the "held image" branch — so the canvas still holds the
+      // outgoing clip's last image. It is frozen on the first pass, then
+      // repainted from on every frame: without a snapshot, the next frame
+      // would fade the result of the previous fade.
+      // The clock read here is the ENGINE's, not the store: the fade must
+      // start on the frame where the boundary is crossed, not at the next
+      // publication slot.
+      const activeTransition = transitionAt(clipsRef.current, engineTimeRef.current);
+      if (activeTransition) {
+        const snap = bufferCanvas(snapshotRef, canvas.width, canvas.height);
+        if (!snapshotValidRef.current) {
           const sctx = snap.getContext('2d');
           if (sctx) {
             sctx.clearRect(0, 0, snap.width, snap.height);
             sctx.drawImage(canvas, 0, 0);
           }
-          snapshotValideRef.current = true;
+          snapshotValidRef.current = true;
         }
-        appliquerTransition(enTransition, ctx, snap, canvas.width, canvas.height);
+        applyTransition(activeTransition, ctx, snap, canvas.width, canvas.height);
         hctx.clearRect(0, 0, handCanvas.width, handCanvas.height);
       } else {
-        snapshotValideRef.current = false;
+        snapshotValidRef.current = false;
       }
 
       // The narration FOLLOWS the drawing. A track that cannot report a
       // position is left alone rather than allowed to hold up the picture.
       if (manager?.isUsableClock()) {
-        // La voix est produite temps par temps : ce suivi bascule sur le
-        // morceau du moment. Sans lui, la bascule attendrait que la derive
-        // atteigne le seuil de recalage, et le silence s'entendrait. Une
-        // piste unique n'a rien a suivre et l'ignore.
+        // The voice is produced beat by beat: this follow switches to the
+        // current chunk. Without it, the switch would wait for the drift to
+        // reach the resync threshold, and the silence would be audible. A
+        // single track has nothing to follow and ignores it.
         if (audioStarted) manager.follow(engineTimeRef.current);
         if (!audioStarted) {
           // First moment it can actually play. Align it on the drawing, which
@@ -1586,8 +1583,8 @@ export function useWhiteboardRenderer({
       // stayed on Pause and the run was never marked stopped. Ending it here
       // makes "finished" observable to the rest of the renderer.
       //
-      // La fin se juge sur l'horloge du MOTEUR : le store, publie a intervalle,
-      // porte encore la position d'avant ce tick.
+      // The end is judged on the ENGINE clock: the store, published at
+      // intervals, still holds the position from before this tick.
       if (
         s.timeline.duration > 0 &&
         engineTimeRef.current >= s.timeline.duration - 1
@@ -1603,11 +1600,11 @@ export function useWhiteboardRenderer({
 
       if (!stoppedRef.current) frame = requestAnimationFrame(step);
     };
-    // La boucle demarre en phase avec le store : tant qu'elle n'y a rien publie,
-    // c'est sa valeur d'entree qui fait foi pour juger d'un seek exterieur. Pose
-    // ICI, apres les remises a zero ci-dessus, sinon elle porterait la position
-    // d'avant et la premiere frame croirait a un seek.
-    dernierePositionPublieeRef.current =
+    // The loop starts in phase with the store: until it has published
+    // anything, its starting value is what judges an external seek. Set
+    // HERE, after the resets above, otherwise it would hold the previous
+    // position and the first frame would think it was a seek.
+    lastPublishedPositionRef.current =
       useUnifiedEngineStore.getState().timeline.currentTime;
 
     frame = requestAnimationFrame(step);
@@ -1617,39 +1614,39 @@ export function useWhiteboardRenderer({
       stoppedRef.current = true;
       cancelAnimationFrame(frame);
       manager?.pause();
-      // La derniere frame DESSINEE fait foi.
+      // The last DRAWN frame is the source of truth.
       //
-      // Le store est publie a intervalle : a l'arret il portait donc une
-      // position anterieure a ce que le canvas montre. Le repeint d'inactivite
-      // y voyait un ecart, le prenait pour un seek de l'utilisateur, et
-      // rejouait le moteur jusqu'a cette position perimee — la main sautait
-      // sur une autre frame que celle ou la pause avait ete demandee.
+      // The store is published at intervals: on stop it therefore held a
+      // position earlier than what the canvas shows. The idle repaint saw a
+      // gap there, took it for a user seek, and replayed the engine up to that
+      // stale position — the hand jumped to another frame than the one where
+      // pause was requested.
       //
-      // En publiant de force la position reelle, l'ecart tombe sous le seuil
-      // et le repeint ne se declenche pas : l'image reste exactement celle
-      // qu'on voyait.
+      // By force-publishing the real position, the gap falls under the
+      // threshold and the repaint does not trigger: the image stays exactly
+      // the one being shown.
       publishTime(engineTimeRef.current, true);
     };
   }, [isPlaying, imageLoaded, audioClock.manager]);
 
   // ---- seek ---------------------------------------------------------------
 
-  // Pas fixe utilise pour rejouer le moteur jusqu'a la position cherchee. La
-  // cadence des styles est pilotee par le temps ecoule et non par un nombre de
-  // frames, donc un pas grossier tombe sur la meme image que la lecture reelle.
+  // Fixed step used to replay the engine up to the sought position. Style
+  // pacing is driven by elapsed time, not by a frame count, so a coarse step
+  // lands on the same image as real playback.
   const SEEK_STEP_MS = 33.34;
 
-  /** Delai avant que le calque d'annotations ne revienne apres un scrub. */
-  const SCRUB_RETOUR_MS = 400;
+  /** Delay before the annotation overlay comes back after a scrub. */
+  const SCRUB_RETURN_MS = 400;
 
   /**
-   * Palier minimal entre deux rejeux de seek. Un rejeu reconstruit un moteur
-   * entier, ce qui coute bien plus qu'une frame : en emettre un par frame de
-   * drag saturait le fil principal, et le curseur lui-meme devenait saccade.
+   * Minimum interval between two seek replays. A replay rebuilds a whole
+   * engine, which costs far more than a frame: issuing one per drag frame
+   * saturated the main thread, and the cursor itself became jerky.
    */
   const SEEK_COOLDOWN_MS = 120;
 
-  /** Rect d'une region, borne a l'artwork — meme calcul que _enterRegion. */
+  /** Rect of a region, clamped to the artwork — same computation as _enterRegion. */
   const regionRect = (
     r: any,
     bounds: { x: number; y: number; w: number; h: number }
@@ -1661,16 +1658,16 @@ export function useWhiteboardRenderer({
     return x2 <= x || y2 <= y ? null : { x, y, w: x2 - x, h: y2 - y };
   };
 
-  // Scrub de la timeline. Sans cela currentTime n'est qu'une SORTIE du moteur :
-  // rien ne repeignait, et se placer a 0:00.4 laissait le dessin termine a
-  // l'ecran.
+  // Timeline scrub. Without it currentTime is only an OUTPUT of the engine:
+  // nothing repainted, and moving to 0:00.4 left the finished drawing on
+  // screen.
   //
-  // L'image a la FRONTIERE d'une annotation est connue en forme close : le
-  // moteur tamponne chaque region en entier avant de passer a la suivante, donc
-  // c'est le fond plus les regions precedentes tamponnees. On la peint
-  // directement au lieu de la mettre en cache, puis on n'anime que la region
-  // courante. Le rejeu est ainsi borne par la duree d'UNE region au lieu de
-  // croitre avec la position cherchee.
+  // The image at an annotation BOUNDARY is known in closed form: the engine
+  // stamps each region in full before moving to the next, so it is the
+  // background plus the previous stamped regions. It is painted directly
+  // instead of being cached, then only the current region is animated. The
+  // replay is thus bounded by the duration of ONE region instead of growing
+  // with the sought position.
   useEffect(() => {
     if (isPlaying || !imageLoaded) return;
 
@@ -1680,7 +1677,7 @@ export function useWhiteboardRenderer({
 
     const onPosition = (currentTime: number) => {
       if (currentTime < 0) return;
-      // Ecriture du moteur lui-meme (progression, fin de lecture) : rien a faire.
+      // Write from the engine itself (progress, end of playback): nothing to do.
       if (Math.abs(currentTime - engineTimeRef.current) < 1) return;
 
       const canvas = canvasRef.current;
@@ -1691,16 +1688,15 @@ export function useWhiteboardRenderer({
 
       setScrubbing(true);
       if (scrubTimer.current) clearTimeout(scrubTimer.current);
-      scrubTimer.current = setTimeout(() => setScrubbing(false), SCRUB_RETOUR_MS);
+      scrubTimer.current = setTimeout(() => setScrubbing(false), SCRUB_RETURN_MS);
 
-      // Un drag emet un flot de seeks, et CHAQUE rejeu reconstruit un moteur
-      // complet — le setup() d'un style parcourt l'image entiere. On en garde un
-      // par palier de SEEK_COOLDOWN_MS : le premier part tout de suite, les
-      // suivants attendent la fin du palier, et la derniere position est
-      // toujours rejouee.
+      // A drag emits a stream of seeks, and EVERY replay rebuilds a full
+      // engine — a style's setup() walks the whole image. One is kept per
+      // SEEK_COOLDOWN_MS window: the first fires right away, the next ones
+      // wait for the window to end, and the last position is always replayed.
       cancelAnimationFrame(raf);
       if (timer) clearTimeout(timer);
-      const lancer = () => {
+      const launch = () => {
         lastSeekAtRef.current = performance.now();
         raf = requestAnimationFrame(() => {
           // The artwork effect repaints at the playhead once it lands.
@@ -1708,9 +1704,9 @@ export function useWhiteboardRenderer({
           repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
         });
       };
-      const reste = SEEK_COOLDOWN_MS - (performance.now() - lastSeekAtRef.current);
-      if (reste <= 0) lancer();
-      else timer = setTimeout(lancer, reste);
+      const remaining = SEEK_COOLDOWN_MS - (performance.now() - lastSeekAtRef.current);
+      if (remaining <= 0) launch();
+      else timer = setTimeout(launch, remaining);
     };
 
     const unsubscribe = useUnifiedEngineStore.subscribe((state) => {
@@ -1726,20 +1722,20 @@ export function useWhiteboardRenderer({
     };
   }, [isPlaying, imageLoaded]);
 
-  // Apercu statique au DEBUT DU CLIP (rien de revele encore, ou Reset).
+  // Static preview at the START OF THE CLIP (nothing revealed yet, or Reset).
   //
-  // Le critere est le temps LOCAL au clip, pas la position globale. Le garde
-  // d'origine comparait currentTime a 0 : au debut du deuxieme clip il vaut
-  // deja plusieurs milliers de ms, l'apercu se retirait donc et plus rien ne
-  // peignait l'illustration — les annotations flottaient sur un canvas vide.
+  // The criterion is the clip-LOCAL time, not the global position. The
+  // original guard compared currentTime to 0: at the start of the second clip
+  // it is already several thousand ms, so the preview withdrew and nothing
+  // painted the illustration anymore — annotations floated over an empty canvas.
   //
-  // Au-dela de ce debut on ne repeint pas : une lecture mise en pause doit
-  // garder son image revelee, et pouvoir reprendre la ou elle en etait.
+  // Past that start there is no repaint: a paused playback must keep its
+  // revealed image, and be able to resume where it was.
   useEffect(() => {
     if (isPlaying) return;
-    // Pendant un scrub c'est le seek qui peint : deplacer le curseur doit
-    // montrer ou en est le dessin. On reprend la main quand il se calme, d'ou
-    // scrubbing dans les deps — le meme delai que le retour du calque.
+    // During a scrub the seek does the painting: moving the cursor must show
+    // where the drawing stands. Control is taken back once it settles, hence
+    // scrubbing in the deps — the same delay as the overlay's return.
     if (scrubbing) return;
 
     const showPreviewIfAtStart = (currentTime: number) => {
@@ -1773,31 +1769,31 @@ export function useWhiteboardRenderer({
     imageUrl,
   ]);
 
-  // Repeint a l'ARRIVEE de l'illustration quand on est a l'arret.
+  // Repaint on the ARRIVAL of the illustration while stopped.
   //
-  // Elle est posee de facon asynchrone, et pour tout clip place apres 0 rien ne
-  // la peignait : l'apercu statique ci-dessus se retire des que currentTime > 0,
-  // et le seek ne se redeclenche pas — son garde engineTimeRef voit une position
-  // inchangee, et imageLoaded ne bascule que pour la PREMIERE illustration. Le
-  // canvas gardait donc celle du clip precedent, ou rien, sous un calque
-  // d'annotations redevenu visible : les cadres flottaient sans dessin.
+  // It is set asynchronously, and for any clip placed after 0 nothing painted
+  // it: the static preview above withdraws as soon as currentTime > 0, and the
+  // seek does not re-trigger — its engineTimeRef guard sees an unchanged
+  // position, and imageLoaded only flips for the FIRST illustration. The
+  // canvas therefore kept the previous clip's one, or nothing, under an
+  // annotation overlay visible again: the frames floated with no drawing.
   //
-  // applyImage vient de vider animRef et offscreenRef : il n'y a aucun etat
-  // d'animation en cours a preserver ici.
-  // La version d'illustration DEJA repeinte. `isPlaying` figure dans les
-  // dependances pour attendre l'arret quand l'illustration arrive en pleine
-  // lecture — mais sans cette marque, chaque PAUSE relancait le repeint. Le
-  // rejeu procede par pas fixes et ne retombe pas sur le point du trace ou la
-  // lecture en direct s'etait arretee : la main sautait ailleurs et le dessin
-  // avancait, a l'instant meme ou l'on demandait a figer l'image.
-  const versionRepeinteRef = useRef(0);
+  // applyImage has just emptied animRef and offscreenRef: there is no ongoing
+  // animation state to preserve here.
+  // The illustration version ALREADY repainted. `isPlaying` is in the
+  // dependencies to wait for the stop when the illustration arrives mid
+  // playback — but without this mark, every PAUSE re-ran the repaint. The
+  // replay proceeds by fixed steps and does not land back on the stroke point
+  // where live playback stopped: the hand jumped elsewhere and the drawing
+  // moved on, at the very moment the image was asked to freeze.
+  const repaintedVersionRef = useRef(0);
   useEffect(() => {
     if (artworkVersion === 0 || isPlaying) return;
-    if (versionRepeinteRef.current === artworkVersion) return;
-    // Le debut de clip est couvert par l'apercu statique, qui suit desormais
-    // artworkVersion. Ne reste ici que le cas d'une illustration remplacee
-    // ALORS qu'on est deja engage dans le clip : il faut alors rejouer le
-    // reveal pour la montrer a la bonne etape.
+    if (repaintedVersionRef.current === artworkVersion) return;
+    // The start of the clip is covered by the static preview, which now
+    // follows artworkVersion. All that remains here is an illustration replaced
+    // WHILE already into the clip: the reveal must then be replayed to show
+    // it at the right stage.
     const currentTime = useUnifiedEngineStore.getState().timeline.currentTime;
     if (currentTime - clipOffsetMsRef.current <= 0) return;
 
@@ -1808,22 +1804,22 @@ export function useWhiteboardRenderer({
     if (!canvas || !handCanvas || !ctx || !hctx || !imageRef.current) return;
 
     if (artworkPendingRef.current) return;
-    versionRepeinteRef.current = artworkVersion;
+    repaintedVersionRef.current = artworkVersion;
     repositionTo(currentTime, canvas, handCanvas, ctx, hctx);
-    // currentTime hors des deps : on repeint quand l'illustration change, pas a
-    // chaque tick d'horloge — le scrub ci-dessus s'en charge deja.
+    // currentTime out of the deps: repaint when the illustration changes, not
+    // on every clock tick — the scrub above already handles that.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [artworkVersion, isPlaying]);
 
   // ---- annotation overlay -------------------------------------------------
 
-  // Le calque est un repere d'EDITION : il masque le dessin qu'on est venu
-  // regarder. Il s'efface donc des que ca bouge — lecture ou scrub — et revient
-  // a l'arret, fin de lecture comprise.
+  // The overlay is an EDITING aid: it hides the drawing one came to watch.
+  // So it fades out as soon as anything moves — playback or scrub — and comes
+  // back when stopped, end of playback included.
   //
-  // Expose parce que le calque Konva (AnnotationOverlay), qui remplace le
-  // trace imperatif ci-dessous sur la surface de l'editeur, doit se masquer
-  // exactement aux memes instants.
+  // Exposed because the Konva overlay (AnnotationOverlay), which replaces the
+  // imperative drawing below on the editor surface, must hide at exactly the
+  // same moments.
   const isOverlayHidden = isPlaying || scrubbing;
 
   useEffect(() => {
@@ -1833,11 +1829,11 @@ export function useWhiteboardRenderer({
     const actx = annCanvas.getContext('2d');
     if (!actx) return;
 
-    const masque = isOverlayHidden;
-    annCanvas.style.opacity = masque ? '0' : '1';
+    const hidden = isOverlayHidden;
+    annCanvas.style.opacity = hidden ? '0' : '1';
 
     actx.clearRect(0, 0, annCanvas.width, annCanvas.height);
-    if (masque || annotations.length === 0) return;
+    if (hidden || annotations.length === 0) return;
 
     annotations.forEach((annot, i) => {
       const region = annot.region;
@@ -1865,9 +1861,8 @@ export function useWhiteboardRenderer({
     });
   }, [annotations, annotationCanvasRef, isOverlayHidden]);
 
-  // isScrubbing sort d'ici parce que le deplacement du curseur n'est pas qu'une
-  // affaire de rendu : franchir une frontiere de clip change le clip actif, et
-  // l'appelant ne doit pas replacer la tete de lecture sous les doigts de qui
-  // scrube.
+  // isScrubbing is returned because moving the cursor is not only a rendering
+  // matter: crossing a clip boundary changes the active clip, and the caller
+  // must not reposition the playhead under the fingers of whoever is scrubbing.
   return { isOverlayHidden, isScrubbing: scrubbing, isPreparingArtwork: artworkPendingRef.current };
 }

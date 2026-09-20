@@ -7,15 +7,14 @@ const { CUSTOM_HANDS } = require('@/lib/whiteboard-animation/lib/hands');
 const { handDrawRect } = require('@/lib/whiteboard-animation/lib/handLayout');
 
 /**
- * Le 1x du moteur (Animation.DEFAULT_SPEED). A cette valeur la durationMs de
- * chaque annotation est honoree exactement et le rendu correspond au moteur de
- * reference.
+ * The engine's 1x (Animation.DEFAULT_SPEED). At this value each annotation's
+ * durationMs is honoured exactly and the output matches the reference engine.
  *
- * L'horloge du moteur est volontairement figee ici plutot que branchee sur un
- * reglage : les bornes reveal.from/to sont des timestamps de la NARRATION, donc
- * tout multiplicateur ferait deriver le dessin par rapport a sa bande-son.
+ * The engine clock is deliberately fixed here rather than wired to a setting:
+ * the reveal.from/to bounds are NARRATION timestamps, so any multiplier would
+ * make the drawing drift away from its soundtrack.
  */
-const FIDELE_1X = 40;
+const FAITHFUL_1X = 40;
 
 export interface AnimationEngineConfig {
   state: UnifiedEngineState;
@@ -42,7 +41,7 @@ export class AnimationEngine {
     const engineState = {
       canvasW: config.state.canvas.width,
       canvasH: config.state.canvas.height,
-      speed: FIDELE_1X,
+      speed: FAITHFUL_1X,
       handSpeed: config.state.animation.handSpeed,
       hand: config.state.animation.handStyle,
       tileSlider: config.state.animation.chunks,

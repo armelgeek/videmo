@@ -11,23 +11,23 @@ import {
 import { useStoryboardStore } from "./store";
 
 /**
- * Le bail expire au bout de LOCK_TTL_MS et le PATCH le REFUSE des qu'il est
- * perime : sans renouvellement, toute session d'edition plus longue que deux
- * minutes cesse silencieusement d'enregistrer. On renouvelle a la moitie du
- * bail pour qu'une requete perdue laisse une seconde chance avant l'expiration.
+ * The lease expires after LOCK_TTL_MS and the PATCH REJECTS it as soon as it is
+ * stale: without renewal, any editing session longer than two
+ * minutes silently stops saving. We renew at half the
+ * lease so a lost request leaves a second chance before expiry.
  */
 const LOCK_RENEW_MS = LOCK_TTL_MS / 2;
 
-/** Le temps de frappe laisse au titre avant d'ecrire. */
+/** The typing time given to the title before writing. */
 const SAVE_DEBOUNCE_MS = 1200;
 
 /**
- * Frequence de reprise du bail une fois en lecture seule.
+ * How often to retry taking the lease while read-only.
  *
- * Sans cette reprise, un projet ouvert pendant que le bail etait pris par
- * quelqu'un d'autre restait en lecture seule pour toujours, meme apres le
- * depart de l'autre membre : rien ne redemandait le bail, il fallait
- * recharger la page a la main pour retenter.
+ * Without this retry, a project opened while the lease was held by
+ * someone else stayed read-only forever, even after the other member
+ * left: nothing asked for the lease again, the page had to be
+ * reloaded by hand to retry.
  */
 const LOCK_RETRY_MS = 15_000;
 
@@ -41,13 +41,13 @@ export type SyncStatus =
 export interface ProjectSyncState {
   projectId: string | null;
   status: SyncStatus;
-  /** Renseigne quand un autre membre tient le bail, pour l'afficher. */
+  /** Set when another member holds the lease, to display it. */
   lockedBy: string | null;
   error: string | null;
   /**
-   * Force une ecriture immediate, sans attendre le debounce. Rend `true` si
-   * l'ecriture a reellement abouti — un appelant qui affiche "Enregistre"
-   * sans le lire confirmerait une sauvegarde qui n'a pas eu lieu.
+   * Forces an immediate write, without waiting for the debounce. Returns `true` if
+   * the write actually succeeded — a caller that shows "Saved"
+   * without reading it would confirm a save that never happened.
    */
   saveNow: () => Promise<boolean>;
 }
@@ -72,11 +72,11 @@ function readSlice(): ProjectSlice {
 }
 
 /**
- * Relie l'editeur a sa ligne en base.
+ * Binds the editor to its database row.
  *
- * A l'ouverture : charge le projet designe par l'URL, ou en cree un et inscrit
- * son id dans l'URL — sans quoi un simple rechargement creerait un doublon.
- * Ensuite : prend le bail, le renouvelle, et ecrit chaque changement du store.
+ * On open: loads the project named by the URL, or creates one and writes
+ * its id into the URL — otherwise a simple reload would create a duplicate.
+ * Then: takes the lease, renews it, and writes every store change.
  */
 export function useProjectSync(): ProjectSyncState {
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -84,21 +84,21 @@ export function useProjectSync(): ProjectSyncState {
   const [lockedBy, setLockedBy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // React 18 monte deux fois en developpement : sans ce garde, l'ouverture
-  // creait deux projets.
+  // React 18 mounts twice in development: without this guard, opening
+  // created two projects.
   const bootstrapped = useRef(false);
   const projectIdRef = useRef<string | null>(null);
   const writable = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef(false);
   /**
-   * Le PATCH en vol, pour pouvoir l'annuler. Sans ca, un `saveNow` declenche
-   * pendant qu'une ecriture debounced est deja partie faisait courir DEUX
-   * requetes a la fois ; si la premiere (plus ancienne) revenait apres la
-   * seconde, son etat ecrasait le plus recent sans que rien ne le remarque.
+   * The in-flight PATCH, so it can be aborted. Without it, a `saveNow` triggered
+   * while a debounced write had already gone out ran TWO
+   * requests at once; if the first (older) one came back after the
+   * second, its state overwrote the newer one without anyone noticing.
    */
   const inFlight = useRef<AbortController | null>(null);
-  /** Incremente a chaque ecriture : une reponse perimee n'ecrit plus l'etat. */
+  /** Incremented on each write: a stale response no longer writes the state. */
   const writeSeq = useRef(0);
 
   const write = useCallback(async (): Promise<boolean> => {
@@ -120,13 +120,13 @@ export function useProjectSync(): ProjectSyncState {
         signal: controller.signal,
       });
 
-      // Une ecriture plus recente est deja partie (ou revenue) entre-temps :
-      // cette reponse ne represente plus l'etat courant, on ne l'applique pas.
+      // A newer write has already gone out (or come back) in the meantime:
+      // this response no longer reflects the current state, so we don't apply it.
       if (seq !== writeSeq.current) return false;
 
       if (response.status === 409) {
-        // Un autre membre a pris la main : on cesse d'ecrire plutot que
-        // d'ecraser son travail.
+        // Another member took over: we stop writing rather than
+        // overwrite their work.
         writable.current = false;
         const body = await response.json().catch(() => ({}));
         setLockedBy(body.lockedBy ?? null);
@@ -145,8 +145,8 @@ export function useProjectSync(): ProjectSyncState {
       setStatus("saved");
       return true;
     } catch (cause) {
-      // Un abort volontaire (write plus recent, ou demontage) n'est pas un
-      // echec a signaler : la requete qui le remplace porte le vrai resultat.
+      // A deliberate abort (newer write, or unmount) is not a
+      // failure to report: the request replacing it carries the real result.
       if (cause instanceof DOMException && cause.name === "AbortError") {
         return false;
       }
@@ -173,10 +173,10 @@ export function useProjectSync(): ProjectSyncState {
     if (bootstrapped.current) return;
     bootstrapped.current = true;
 
-    // Pas de drapeau d'annulation ici : le garde ci-dessus suffit a empecher le
-    // second bootstrap du double-montage StrictMode. Un `cancelled` pose au
-    // demontage simule abandonnait la SEULE course en vol — le store n'etait
-    // jamais rempli et le statut restait "loading" indefiniment.
+    // No cancellation flag here: the guard above is enough to prevent the
+    // second bootstrap of the StrictMode double mount. A `cancelled` set on the
+    // simulated unmount abandoned the ONLY in-flight run — the store was
+    // never filled and the status stayed "loading" forever.
     const bootstrap = async () => {
       try {
         const url = new URL(window.location.href);
@@ -213,8 +213,8 @@ export function useProjectSync(): ProjectSyncState {
           }
           const created = await response.json();
           id = created.id;
-          // Remplace l'entree d'historique : un retour arriere ne doit pas
-          // ramener sur une URL sans projet, qui en creerait un autre.
+          // Replace the history entry: going back must not
+          // land on a URL without a project, which would create another one.
           url.searchParams.set("project", id as string);
           window.history.replaceState(null, "", url);
           projectIdRef.current = id;
@@ -244,13 +244,13 @@ export function useProjectSync(): ProjectSyncState {
     void bootstrap();
   }, []);
 
-  // Renouvellement du bail pendant toute la duree de l'edition.
+  // Lease renewal for the whole editing session.
   //
-  // Le resultat compte : un renouvellement refuse (bail repris entre-temps)
-  // laissait `writable` a `true` cote client sans que personne ne le sache
-  // avant le PROCHAIN write — qui peut tarder si l'edition est calme. Le
-  // bascule en lecture seule des ce renouvellement, pas au prochain essai
-  // d'ecriture.
+  // The result matters: a rejected renewal (lease taken over in the meantime)
+  // left `writable` at `true` on the client without anyone knowing
+  // until the NEXT write — which may be a while if editing is quiet. This
+  // switches to read-only on this renewal, not on the next write
+  // attempt.
   useEffect(() => {
     if (!projectId) return;
 
@@ -267,19 +267,19 @@ export function useProjectSync(): ProjectSyncState {
           setStatus("read-only");
         })
         .catch(() => {
-          // Un echec reseau ponctuel ne bascule pas en lecture seule : le
-          // bail cote serveur tient encore LOCK_TTL_MS, le prochain
-          // renouvellement peut reussir. Seul un refus explicite du serveur
-          // (409, ou reponse non ok) signifie que le bail est vraiment perdu.
+          // A one-off network failure does not switch to read-only: the
+          // server-side lease still holds for LOCK_TTL_MS, the next
+          // renewal may succeed. Only an explicit server refusal
+          // (409, or non-ok response) means the lease is really lost.
         });
     }, LOCK_RENEW_MS);
 
     return () => clearInterval(renew);
   }, [projectId]);
 
-  // En lecture seule, retente periodiquement de reprendre le bail : sans
-  // cela, un projet ouvert pendant qu'un autre membre editait restait bloque
-  // meme apres son depart, jusqu'a un rechargement manuel de la page.
+  // While read-only, periodically retry taking the lease: without
+  // this, a project opened while another member was editing stayed blocked
+  // even after they left, until a manual page reload.
   useEffect(() => {
     if (!projectId || status !== "read-only") return;
 
@@ -298,7 +298,7 @@ export function useProjectSync(): ProjectSyncState {
     return () => clearInterval(retry);
   }, [projectId, status]);
 
-  // Ecrit a chaque changement du document, jamais sur l'etat d'ecran.
+  // Write on every document change, never on screen state.
   useEffect(() => {
     if (!projectId) return;
 
@@ -313,15 +313,15 @@ export function useProjectSync(): ProjectSyncState {
     });
   }, [projectId, scheduleWrite]);
 
-  // Rend la main en quittant, pour ne pas laisser le projet verrouille deux
-  // minutes apres le depart. keepalive : la page peut disparaitre avant la fin.
+  // Release the lock when leaving, so the project isn't left locked two
+  // minutes after departure. keepalive: the page may disappear before completion.
   useEffect(() => {
     if (!projectId) return;
 
     const release = () => {
       if (!writable.current) return;
-      // sendBeacon n'emet que des POST, verbe que la route n'expose pas :
-      // keepalive est le seul moyen de finir un PATCH apres le depart.
+      // sendBeacon only sends POSTs, a verb the route does not expose:
+      // keepalive is the only way to finish a PATCH after leaving.
       if (pending.current) {
         void fetch(`/api/video-projects/${projectId}`, {
           method: "PATCH",

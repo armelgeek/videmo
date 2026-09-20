@@ -8,8 +8,8 @@ import { TimelineClipItem } from "./timeline-clip";
 import { TimelineToolbar } from "./timeline-toolbar";
 import { PlayheadCursor } from "./playhead-cursor";
 import {
-  abonnerPositionLecture,
-  lirePositionLecture,
+  subscribeToPlaybackPosition,
+  readPlaybackPosition,
 } from "../playback-clock";
 import { TimelineTrackHeaders } from "./timeline-track-headers";
 import { TimelineContextMenu } from "./timeline-context-menu";
@@ -219,10 +219,10 @@ export const Timeline = memo(function Timeline({
       clips.length > 0
         ? Math.max(...clips.map((c) => c.start + c.duration))
         : 0;
-    // La position de lecture n'entre PLUS dans ce calcul : elle changeait a la
-    // frame et refaisait la mesure autant de fois. Le remplissage de fin — un
-    // viewport entier par defaut — laisse deja de quoi mener le curseur au-dela
-    // du dernier clip.
+    // The playback position NO LONGER enters this calculation: it changed every
+    // frame and redid the measurement as often. The trailing padding — a full
+    // viewport by default — already leaves room to move the cursor past the
+    // last clip.
     const maxTime = Math.max(maxClipEnd, duration || 0);
     const padding = endPadding ?? Math.max(viewportWidth, 300);
     const calculatedWidth = maxTime * zoomLevel + padding;
@@ -272,8 +272,8 @@ export const Timeline = memo(function Timeline({
     onSplitClip,
     onDragStart,
     onOverwriteClips: onOverwriteClips || (() => {}),
-    // Borne le trim de fin a la duree reelle du media source. Les clips de texte
-    // (mediaId vide) n'ont pas de source : ils restent libres.
+    // Clamp the end trim to the source media's real duration. Text clips
+    // (empty mediaId) have no source: they stay unconstrained.
     getClipMaxDuration: (clip) => mediaMap[clip.mediaId]?.duration,
   });
 
@@ -353,28 +353,27 @@ export const Timeline = memo(function Timeline({
 
   // Auto-scroll timeline to center playhead during playback or dragging.
   //
-  // Abonne a l'horloge plutot que dependant d'une prop : le defilement est un
-  // geste imperatif sur un element, il n'a jamais eu besoin d'un rendu. Cet
-  // effet ne se refait donc qu'au changement de zoom ou de largeur, pas vingt
-  // fois par seconde.
+  // Subscribed to the clock rather than depending on a prop: scrolling is an
+  // imperative action on an element, it never needed a render. So this effect
+  // only reruns on zoom or width changes, not twenty times per second.
   useEffect(() => {
     const suivre = () => {
-      const conteneur = scrollContainerRef.current;
-      if (!conteneur) return;
-      const playheadX = lirePositionLecture() * zoomLevel;
-      const currentScrollLeft = conteneur.scrollLeft;
-      const viewWidth = viewportWidth || conteneur.clientWidth || 800;
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const playheadX = readPlaybackPosition() * zoomLevel;
+      const currentScrollLeft = container.scrollLeft;
+      const viewWidth = viewportWidth || container.clientWidth || 800;
       const halfWidth = viewWidth / 2;
 
       if (
         playheadX >= currentScrollLeft + halfWidth ||
         playheadX < currentScrollLeft
       ) {
-        conteneur.scrollLeft = Math.max(0, playheadX - halfWidth);
+        container.scrollLeft = Math.max(0, playheadX - halfWidth);
       }
     };
     suivre();
-    return abonnerPositionLecture(suivre);
+    return subscribeToPlaybackPosition(suivre);
   }, [zoomLevel, viewportWidth]);
 
   useEffect(() => {
@@ -461,9 +460,9 @@ export const Timeline = memo(function Timeline({
         onToolChange={onToolChange}
         onSplitAtPlayhead={() => {
           if (selectedClipIds.length > 0) {
-            // La position est LUE au moment de la coupe : c'est la seule ou
-            // elle compte, et s'y abonner rendrait la timeline a la frame.
-            const position = lirePositionLecture();
+            // The position is READ at split time: the only moment it matters,
+            // and subscribing to it would re-render the timeline every frame.
+            const position = readPlaybackPosition();
             selectedClipIds.forEach((id) => {
               const clip = clips.find((c) => c.id === id);
               if (
@@ -706,7 +705,7 @@ export const Timeline = memo(function Timeline({
             clipId={contextMenu.clipId}
             clips={clips}
             tracks={tracks}
-            currentTime={lirePositionLecture()}
+            currentTime={readPlaybackPosition()}
             selectedClipIds={selectedClipIds}
             onSplitClip={onSplitClip}
             onDuplicateClip={onDuplicateClip}

@@ -22,14 +22,14 @@ import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
 
-// Une image prend plusieurs dizaines de secondes, l'envoi au bac s'y ajoute.
+// An image takes several tens of seconds; uploading to the bucket adds to that.
 export const maxDuration = 180;
 
 /**
- * Recupere la case de reference.
+ * Fetches the reference panel.
  *
- * Un echec n'interrompt rien : perdre la coherence de style coute moins cher
- * que de perdre le visuel, donc l'appel repart sans reference.
+ * A failure interrupts nothing: losing style consistency costs less than
+ * losing the visual, so the call goes ahead without a reference.
  */
 async function fetchReference(url: string): Promise<Uint8Array | undefined> {
   try {
@@ -49,13 +49,13 @@ export async function POST(request: NextRequest) {
     if (!limit.success) return tooManyGenerations(limit.resetAt);
     const input = generateImageRequestSchema.parse(await request.json());
 
-    // Generer coute de l'argent : le droit d'ecrire sur CE projet est verifie
-    // avant d'appeler le moteur, pas apres.
+    // Generating costs money: the right to write to THIS project is checked
+    // before calling the engine, not after.
     await requireProjectAccess(input.projectId, viewer, "update");
 
-    // Moteur et bac sont resolus avant la generation : une configuration
-    // incomplete doit se voir tout de suite, pas apres avoir paye une image
-    // qu'on n'aurait nulle part ou ecrire.
+    // Engine and bucket are resolved before generating: an incomplete
+    // configuration must show up immediately, not after paying for an image
+    // we would have nowhere to write.
     const generator = getImageGenerator();
     const storage = getObjectStorage();
 

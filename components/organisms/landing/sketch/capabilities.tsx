@@ -1,15 +1,15 @@
 import { VOICES } from '@/lib/speech/speech-generator';
 
 /**
- * Les trois choses que la page ne dit nulle part ailleurs.
+ * The three things the page says nowhere else.
  *
- * La liste en comptait cinq, dont les ratios et le nombre de styles : les
- * premiers sont deja dans le hero, le tableau comparatif ET la FAQ, le second
- * arrive juste sous la section qui montre les douze styles a l'ecran. Une
- * capacite repetee ne se lit plus, elle meuble.
+ * The list used to have five, including ratios and the style count: the former
+ * are already in the hero, the comparison table AND the FAQ; the latter comes
+ * right below the section showing the twelve styles on screen. A repeated
+ * capability no longer gets read, it just fills space.
  *
- * Le nombre de voix est derive de speech-generator.ts : en retirer une corrige
- * la vitrine au meme commit.
+ * The voice count is derived from speech-generator.ts: removing one fixes the
+ * showcase in the same commit.
  */
 const doodle = (d: string) => (
   <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true">

@@ -1,7 +1,7 @@
 import { DEFAULT_ANIM_STYLE } from "../schema";
 import { toEngineAnnotations } from "@/lib/whiteboard-animation/timeline/annotation-interop";
 import { deriveTimeline } from "@/lib/whiteboard-animation/timeline/derive-timeline";
-import { tailleCanvas } from "@/lib/whiteboard-animation/canvas-size";
+import { canvasSize } from "@/lib/whiteboard-animation/canvas-size";
 import type { WhiteboardConfig } from "@/lib/storyboard/store";
 import type { StoryboardPanel } from "@/lib/storyboard/schema";
 import type { NarrationPart } from "@/lib/whiteboard-animation/audio/narration-schedule";
@@ -57,7 +57,7 @@ export function toRenderProject({
     // Les regions sont enregistrees en pixels du canvas d'apercu, dont la
     // taille ne depend que du ratio. Le renderer en a besoin pour les ramener
     // dans l'espace naturel de l'image avant SA propre projection.
-    annotationSpace: tailleCanvas(aspectRatio),
+    annotationSpace: canvasSize(aspectRatio),
     animStyle: DEFAULT_ANIM_STYLE,
     hand: config.handStyle,
     handSpeed: config.handSpeed ?? 5,

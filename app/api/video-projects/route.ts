@@ -17,8 +17,8 @@ import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 /** Same lifetime as the render route keeps a video in storage. */
 const RENDER_DOWNLOAD_TTL_MS = 24 * 60 * 60 * 1000;
 
-// Jamais les colonnes Json : un panels[] complet par ligne rendrait la liste
-// inutilisable.
+// Never the Json columns: a full panels[] per row would make the list
+// unusable.
 const LIST_SELECT = {
   id: true,
   title: true,

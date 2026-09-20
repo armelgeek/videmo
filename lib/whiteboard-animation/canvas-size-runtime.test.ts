@@ -4,11 +4,11 @@ import { rectContenu } from "./canvas-size";
 const { rectContenu: rectContenuJS } = require("./canvas-size-runtime");
 
 /**
- * Le worker est un process Node nu : il ne sait pas charger canvas-size.ts.
- * La copie CommonJS est donc inevitable — ce test interdit qu'elle derive.
+ * The worker is a bare Node process: it cannot load canvas-size.ts.
+ * The CommonJS copy is therefore unavoidable — this test forbids it drifting.
  */
-describe("parite rectContenu TypeScript / CommonJS", () => {
-  const cas: [number, number, number, number][] = [
+describe("rectContenu TypeScript / CommonJS parity", () => {
+  const cases: [number, number, number, number][] = [
     [1280, 720, 1920, 1080],
     [1280, 720, 720, 1280],
     [720, 1280, 1920, 1080],
@@ -19,7 +19,7 @@ describe("parite rectContenu TypeScript / CommonJS", () => {
     [1080, 1920, 3, 7],
   ];
 
-  it.each(cas)("canvas %ix%i, source %ix%i", (cw, ch, sw, sh) => {
+  it.each(cases)("canvas %ix%i, source %ix%i", (cw, ch, sw, sh) => {
     expect(rectContenuJS(cw, ch, sw, sh)).toEqual(rectContenu(cw, ch, sw, sh));
   });
 });

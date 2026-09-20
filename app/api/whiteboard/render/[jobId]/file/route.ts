@@ -20,9 +20,8 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Relue depuis le bac, pas depuis le disque : n'importe quelle instance peut
-  // servir la video, pas seulement celle qui l'a rendue. Diffusee en flux, elle
-  // ne transite jamais entiere par la memoire.
+  // Read back from the bucket, not from disk: any instance can serve the video,
+  // not just the one that rendered it. Streamed, it never sits whole in memory.
   const object = await getObjectStorage().getStream(job.outputKey);
   if (!object) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

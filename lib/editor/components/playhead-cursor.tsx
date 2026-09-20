@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { abonnerPositionLecture, lirePositionLecture } from "../playback-clock";
+import { subscribeToPlaybackPosition, readPlaybackPosition } from "../playback-clock";
 
 interface PlayheadCursorProps {
   zoomLevel: number;
@@ -11,16 +11,16 @@ interface PlayheadCursorProps {
 }
 
 /**
- * Le curseur de lecture.
+ * The playhead cursor.
  *
- * Il suit l'horloge SANS passer par le rendu React : l'abonnement pose
- * directement le `transform`. Rendre ce composant a chaque frame serait deja
- * bien moins cher que de rendre la timeline entiere, mais ce curseur ne change
- * qu'une chose — sa position — et une affectation de style la change plus vite
- * que n'importe quel rendu.
+ * It follows the clock WITHOUT going through React rendering: the subscription
+ * sets the `transform` directly. Rendering this component every frame would
+ * already be far cheaper than rendering the whole timeline, but this cursor
+ * changes only one thing — its position — and a style assignment changes it
+ * faster than any render.
  *
- * Le reste de son apparence (epaisseur, couleur pendant un glisser) vient de
- * props ordinaires : ca ne bouge pas a la frame.
+ * The rest of its appearance (thickness, colour while dragging) comes from
+ * ordinary props: it does not change per frame.
  */
 export function PlayheadCursor({
   zoomLevel,
@@ -28,8 +28,8 @@ export function PlayheadCursor({
   onStartDrag,
 }: PlayheadCursorProps) {
   const elementRef = useRef<HTMLDivElement>(null);
-  // Le zoom est lu par l'abonnement, qui ne se refait pas a chaque changement
-  // de zoom : sans cette ref il poserait la position a l'ancienne echelle.
+  // Zoom is read by the subscription, which is not recreated on every zoom
+  // change: without this ref it would set the position at the old scale.
   const zoomRef = useRef(zoomLevel);
   zoomRef.current = zoomLevel;
 
@@ -37,17 +37,17 @@ export function PlayheadCursor({
     const placer = () => {
       const el = elementRef.current;
       if (!el) return;
-      el.style.transform = `translateX(${lirePositionLecture() * zoomRef.current}px)`;
+      el.style.transform = `translateX(${readPlaybackPosition() * zoomRef.current}px)`;
     };
     placer();
-    return abonnerPositionLecture(placer);
+    return subscribeToPlaybackPosition(placer);
   }, []);
 
-  // Un changement de zoom ne passe pas par l'horloge : il faut replacer le
-  // curseur ici, sinon il reste a sa position en pixels d'avant le zoom.
+  // A zoom change does not go through the clock: the cursor must be
+  // repositioned here, otherwise it stays at its pre-zoom pixel position.
   useEffect(() => {
     const el = elementRef.current;
-    if (el) el.style.transform = `translateX(${lirePositionLecture() * zoomLevel}px)`;
+    if (el) el.style.transform = `translateX(${readPlaybackPosition() * zoomLevel}px)`;
   }, [zoomLevel]);
 
   return (

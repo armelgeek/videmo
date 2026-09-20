@@ -5,18 +5,18 @@ import { useUnifiedEngineStore } from '../context';
 import * as selectors from './selectors';
 import type { UnifiedEngineStore } from '../types';
 
-// UnifiedEngineStore, pas UnifiedEngineState : ce dernier omet les actions,
-// or un selecteur personnalise en lit couramment (setAnimStyle, etc.) au
-// meme titre que l'etat.
+// UnifiedEngineStore, not UnifiedEngineState: the latter omits the actions,
+// yet a custom selector commonly reads them (setAnimStyle, etc.) just like
+// the state.
 type Selector = (state: UnifiedEngineStore) => any;
 
 export function useUnifiedEngine<T = any>(selector?: Selector): T {
-  // useShallow s'applique aux DEUX branches : un selecteur personnalise qui
-  // rend un objet litteral (comme ceux plus bas) le reconstruit a chaque
-  // rendu, et sans shallow-compare ca re-rendrait sur CHAQUE changement du
-  // store entier, pas seulement les champs lus. Une comparaison superficielle
-  // sur une primitive ou reste equivalente a l'egalite stricte : rien ne
-  // change pour un selecteur qui rend deja une valeur simple.
+  // useShallow applies to BOTH branches: a custom selector returning an
+  // object literal (like the ones below) rebuilds it on every render, and
+  // without shallow-compare it would re-render on EVERY change of the whole
+  // store, not just the fields read. A shallow comparison on a primitive
+  // stays equivalent to strict equality: nothing changes for a selector that
+  // already returns a plain value.
   if (selector) {
     return useUnifiedEngineStore(useShallow(selector)) as T;
   }

@@ -16,13 +16,13 @@ export async function renameWithLock(
     const res = await deps.patchTitle(projectId, title);
     if (!res.ok) throw new Error(res.error);
   } finally {
-    // Un relâchement raté ne doit pas masquer la raison de l'échec : le bail
-    // expire de lui-même, l'erreur du PATCH est la seule utile à l'appelant.
+    // A failed release must not hide the reason for the failure: the lease
+    // expires on its own, the PATCH error is the only one useful to the caller.
     try {
       await deps.releaseLock(projectId);
     } catch (error) {
-      // Tracé et non remonté : sans cette ligne, un bail resté pris jusqu'à son
-      // expiration n'aurait aucune explication nulle part.
+      // Logged, not rethrown: without this line, a lease held until its
+      // expiry would have no explanation anywhere.
       console.warn("releaseLock failed", { projectId, error });
     }
   }

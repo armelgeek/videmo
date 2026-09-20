@@ -6,8 +6,8 @@ import { NarrationPlayer } from './narration-player';
 import type { NarrationPart } from './narration-schedule';
 
 /**
- * Ce que la boucle de rendu attend d'une source sonore, quelle qu'elle soit :
- * une piste unique televersee, ou la voix produite temps par temps.
+ * What the render loop expects from a sound source, whatever it is: a single
+ * uploaded track, or the voice produced beat by beat.
  */
 export interface NarrationClock {
   isUsableClock(): boolean;
@@ -32,22 +32,22 @@ export interface NarrationClockState {
 }
 
 /**
- * L'horloge sonore de l'apercu.
+ * The preview's audio clock.
  *
- * `parts` prime : c'est la voix telle que la chaine la produit. `url` reste le
- * chemin d'une piste televersee a la main, et celui des projets enregistres
- * avant le decoupage par temps.
+ * `parts` takes precedence: it is the voice as the pipeline produces it. `url`
+ * remains the path for a manually uploaded track, and for projects saved
+ * before the per-beat split.
  *
- * Le decoupage est identifie par sa forme et non par sa reference : le tableau
- * est recree a chaque rendu de React, et s'y abonner rechargerait la voix
- * plusieurs fois par seconde.
+ * The split is identified by its shape, not its reference: the array is
+ * recreated on every React render, and subscribing to it would reload the
+ * voice several times per second.
  */
 export function useNarrationClock(
   parts: NarrationPart[],
   url: string | null,
   onError: (message: string) => void = () => {},
 ): NarrationClockState {
-  const empreinte = parts.map((p) => `${p.url}@${p.startMs}`).join("|");
+  const fingerprint = parts.map((p) => `${p.url}@${p.startMs}`).join("|");
   const managerRef = useRef<NarrationClock | null>(null);
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
@@ -61,17 +61,17 @@ export function useNarrationClock(
     managerRef.current?.destroy();
     managerRef.current = null;
 
-    if (empreinte) {
+    if (fingerprint) {
       const player = new NarrationPlayer(parts, (m) => onErrorRef.current(m));
-      // Charge des maintenant : au clic, l'element doit etre pret, sinon la
-      // voix demarre en retard sur le dessin et perd son attaque.
+      // Load right away: on click the element must be ready, otherwise the
+      // voice starts late relative to the drawing and loses its attack.
       player.prepare();
       managerRef.current = player;
       setState({
         manager: player,
         durationMs: player.getDurationMs(),
-        // Les durees sont deja connues, mesurees a la synthese : rien a
-        // attendre d'un chargement pour savoir combien de temps ca dure.
+        // Durations are already known, measured at synthesis: no need to wait
+        // for a load to know how long it lasts.
         isReady: true,
       });
       return () => {
@@ -103,9 +103,9 @@ export function useNarrationClock(
       el.removeEventListener('loadedmetadata', onLoadedMetadata);
       manager.destroy();
     };
-    // parts est volontairement absent : `empreinte` en porte le contenu.
+    // parts is deliberately omitted: `fingerprint` carries its content.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empreinte, url]);
+  }, [fingerprint, url]);
 
   return state;
 }

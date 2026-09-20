@@ -1,14 +1,14 @@
 import type { Annotation, UnifiedEngineState } from '../types';
 
-/** Une annotation sans scene (mode demo) appartient a toutes. */
+/** An annotation without a scene (demo mode) belongs to all of them. */
 export const belongsToScene = (a: Annotation, panelId: string | null) =>
   panelId === null || a.panelId === undefined || a.panelId === panelId;
 
 /**
- * Extrait les annotations d'une scene depuis le tableau de toutes les scenes.
+ * Extracts one scene's annotations from the array of all scenes.
  *
- * `panelId: null` rend le tableau tel quel (pas de notion de scene — mode
- * demo/standalone, comportement d'avant le passage au tableau plat).
+ * `panelId: null` returns the array as-is (no notion of scene — demo/standalone
+ * mode, the behaviour from before the switch to a flat array).
  */
 export function filterScene(
   annotations: Annotation[],
@@ -22,11 +22,11 @@ let scenePanelId: string | null = null;
 let sceneResult: Annotation[] = [];
 
 /**
- * Version memorisee de `filterScene`, pour l'utiliser comme selecteur zustand.
+ * Memoized version of `filterScene`, for use as a zustand selector.
  *
- * Un selecteur qui rend un tableau neuf a chaque appel fait re-rendre sans
- * fin. Et quand seule une AUTRE scene a change, la meme reference est rendue,
- * pour ne pas reconstruire le moteur de dessin de la scene affichee.
+ * A selector that returns a new array on every call causes endless re-renders.
+ * And when only ANOTHER scene changed, the same reference is returned so the
+ * drawing engine of the displayed scene is not rebuilt.
  */
 export const selectSceneAnnotations = (state: UnifiedEngineState): Annotation[] => {
   const source = state.animation.annotations;

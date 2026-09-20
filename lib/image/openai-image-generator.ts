@@ -9,7 +9,7 @@ import {
 const GENERATIONS_URL = "https://api.openai.com/v1/images/generations";
 const EDITS_URL = "https://api.openai.com/v1/images/edits";
 
-/** L'API rend l'image encodee, jamais une URL a telecharger. */
+/** The API returns the encoded image, never a URL to download. */
 const responseSchema = z.object({
   data: z.array(z.object({ b64_json: z.string().min(1) })).min(1),
 });
@@ -79,10 +79,10 @@ export class OpenAiImageGenerator implements ImageGenerator {
   }
 
   /**
-   * `edits` est le seul endpoint qui accepte une image d'entree : la coherence
-   * de trait entre les cases d'une serie ne s'obtient pas par la consigne
-   * seule. Il exige du multipart, d'ou l'absence de Content-Type ici — le
-   * navigateur, ou undici, pose lui-meme la frontiere.
+   * `edits` is the only endpoint that accepts an input image: stroke
+   * consistency across the panels of a series cannot be achieved by the prompt
+   * alone. It requires multipart, hence no Content-Type here — the browser, or
+   * undici, sets the boundary itself.
    */
   private callEdits(input: GenerateImageInput, reference: Uint8Array) {
     const form = new FormData();
@@ -107,7 +107,7 @@ export class OpenAiImageGenerator implements ImageGenerator {
 
 let cached: ImageGenerator | null = null;
 
-/** Le client est garde entre les requetes, comme celui du bac d'objets. */
+/** The client is kept across requests, like the object storage one. */
 export function getImageGenerator(): ImageGenerator {
   if (!cached) cached = new OpenAiImageGenerator(readOpenAiImageConfig());
   return cached;

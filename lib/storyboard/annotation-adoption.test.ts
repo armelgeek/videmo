@@ -20,7 +20,7 @@ const image = { width: 1536, height: 1024 };
 const canvas16x9 = { width: 1280, height: 720 };
 
 describe("adoptPlannedAnnotations", () => {
-  it("ramene une region de l'image dans le canvas d'apercu", () => {
+  it("maps an image region into the preview canvas", () => {
     const [annotation] = adoptPlannedAnnotations({
       panelId: "p0",
       planned: [planned()],
@@ -28,11 +28,11 @@ describe("adoptPlannedAnnotations", () => {
       canvas: canvas16x9,
     });
 
-    // 1536x1024 tient en 1080x720 dans un canvas 1280x720, centre.
+    // 1536x1024 fits as 1080x720 in a 1280x720 canvas, centered.
     expect(annotation.region).toEqual({ x: 100, y: 0, width: 1080, height: 720 });
   });
 
-  it("garde le texte et la duree mesuree du temps de narration", () => {
+  it("keeps the text and measured duration of the narration beat", () => {
     const [annotation] = adoptPlannedAnnotations({
       panelId: "p0",
       planned: [planned()],
@@ -45,7 +45,7 @@ describe("adoptPlannedAnnotations", () => {
     expect(annotation.metadata).toEqual({ source: PLANNED_SOURCE, beatIndex: 0 });
   });
 
-  it("donne un identifiant stable, pour remplacer au lieu de dupliquer", () => {
+  it("gives a stable id, to replace instead of duplicate", () => {
     const args = {
       panelId: "p0",
       planned: [planned(), planned({ text: "Deux.", beatIndex: 1 })],
@@ -60,10 +60,10 @@ describe("adoptPlannedAnnotations", () => {
     expect(second.map((a) => a.id)).toEqual(["p0-beat-0", "p0-beat-1"]);
   });
 
-  it("distingue les zones d'un MEME temps sans casser les identifiants d'avant", () => {
-    // Le rang n'apparait qu'a partir de la seconde : la premiere garde
-    // l'identifiant qu'elle avait quand un temps n'avait qu'une zone, donc
-    // elle se remplace au lieu de se dupliquer.
+  it("tells apart zones of the SAME beat without breaking earlier ids", () => {
+    // The rank only appears from the second one: the first keeps the id it
+    // had when a beat had a single zone, so it is replaced instead of
+    // duplicated.
     const args = {
       panelId: "p0",
       planned: [
@@ -86,7 +86,7 @@ describe("adoptPlannedAnnotations", () => {
     expect(second).toHaveLength(3);
   });
 
-  it("conserve le style d'animation et la couleur personnalises lors d'une replanification", () => {
+  it("keeps customized animation style and color on replanning", () => {
     const args = {
       panelId: "p0",
       planned: [planned({ text: "Grain", beatIndex: 0 })],
@@ -112,8 +112,8 @@ describe("adoptPlannedAnnotations", () => {
     expect(result[0].style.strokeWidth).toBe(4);
   });
 
-  it("conserve ce que l'utilisateur a dessine a la main", () => {
-    const aLaMain = {
+  it("keeps what the user drew by hand", () => {
+    const handDrawn = {
       id: "mienne",
       text: "Ma fleche",
       region: { x: 10, y: 10, width: 50, height: 50 },
@@ -126,15 +126,15 @@ describe("adoptPlannedAnnotations", () => {
       planned: [planned()],
       imageSize: image,
       canvas: canvas16x9,
-      existing: [aLaMain],
+      existing: [handDrawn],
     });
 
-    // Apres les temps : l'ordre porte le temps, la placer avant decalerait la
-    // voix de tous ceux qui suivent.
+    // After the beats: order carries timing, placing it before would shift
+    // the voice of all the following ones.
     expect(result.map((a) => a.id)).toEqual(["p0-beat-0", "mienne"]);
   });
 
-  it("respecte un ratio different de celui de l'image", () => {
+  it("respects a ratio different from the image's", () => {
     const [annotation] = adoptPlannedAnnotations({
       panelId: "p0",
       planned: [planned()],
@@ -142,7 +142,7 @@ describe("adoptPlannedAnnotations", () => {
       canvas: { width: 720, height: 1280 },
     });
 
-    // Le dessin tient en largeur et se centre verticalement : jamais deforme.
+    // The drawing fits the width and is centered vertically: never distorted.
     expect(annotation.region).toEqual({ x: 0, y: 400, width: 720, height: 480 });
   });
 });
@@ -151,7 +151,7 @@ const panel = (over: Partial<StoryboardPanel> = {}): StoryboardPanel =>
   ({ id: "p", imageUrl: "", prompt: "p", duration: 5, isGenerating: false, ...over }) as StoryboardPanel;
 
 describe("transcriptFromPanels", () => {
-  it("chaine les temps sur l'horloge du projet, scenes comprises", () => {
+  it("chains beats on the project clock, across scenes", () => {
     const cues = transcriptFromPanels([
       panel({
         id: "a",
@@ -175,7 +175,7 @@ describe("transcriptFromPanels", () => {
     ]);
   });
 
-  it("laisse une annotation muette occuper son temps sans produire de cue", () => {
+  it("lets a silent annotation take its time without producing a cue", () => {
     const cues = transcriptFromPanels([
       panel({
         annotations: [
@@ -190,7 +190,7 @@ describe("transcriptFromPanels", () => {
     ]);
   });
 
-  it("tient compte du silence demande avant une annotation", () => {
+  it("accounts for the silence requested before an annotation", () => {
     const cues = transcriptFromPanels([
       panel({
         annotations: [

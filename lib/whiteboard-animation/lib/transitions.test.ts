@@ -4,115 +4,115 @@ const { resoudreTransition, nomsTransitions } = require("./transitions");
 
 const W = 1000;
 const H = 500;
-const SORTANTE = { nom: "sortante" } as never;
-const ENTRANTE = { nom: "entrante" } as never;
+const OUTGOING = { name: "outgoing" } as never;
+const INCOMING = { name: "incoming" } as never;
 
-/** Contexte espion : enregistre les dessins au lieu de les peindre. */
-function ctxEspion() {
-  const appels: { img: string; x: number; y: number; alpha: number }[] = [];
+/** Spy context: records draw calls instead of painting them. */
+function spyCtx() {
+  const calls: { img: string; x: number; y: number; alpha: number }[] = [];
   let alpha = 1;
   return {
-    appels,
+    calls,
     get globalAlpha() { return alpha; },
     set globalAlpha(v: number) { alpha = v; },
     save() {},
     restore() { alpha = 1; },
-    drawImage(img: { nom: string }, x: number, y: number) {
-      // `|| 0` ramene le zero NEGATIF a zero : a t = 0, -Math.round(H * 0)
-      // vaut -0, que toEqual distingue de 0 alors que le rendu est identique.
-      appels.push({ img: img.nom, x: x || 0, y: y || 0, alpha });
+    drawImage(img: { name: string }, x: number, y: number) {
+      // `|| 0` turns NEGATIVE zero into zero: at t = 0, -Math.round(H * 0)
+      // is -0, which toEqual distinguishes from 0 although rendering is identical.
+      calls.push({ img: img.name, x: x || 0, y: y || 0, alpha });
     },
   };
 }
 
-const jouer = (nom: string, t: number) => {
-  const fn = resoudreTransition(nom);
-  const ctx = ctxEspion();
-  fn(ctx, SORTANTE, ENTRANTE, t, W, H);
-  return ctx.appels;
+const play = (name: string, t: number) => {
+  const fn = resoudreTransition(name);
+  const ctx = spyCtx();
+  fn(ctx, OUTGOING, INCOMING, t, W, H);
+  return ctx.calls;
 };
 
 describe("resoudreTransition", () => {
-  it("expose les six transitions attendues", () => {
+  it("exposes the six expected transitions", () => {
     expect(nomsTransitions().sort()).toEqual(
       ["cut", "fade", "slidedown", "slideleft", "slideright", "slideup"].sort(),
     );
   });
 
-  it("rend null pour 'none' et pour l'absence de nom", () => {
+  it("returns null for 'none' and for a missing name", () => {
     expect(resoudreTransition("none")).toBeNull();
     expect(resoudreTransition("")).toBeNull();
     expect(resoudreTransition(undefined)).toBeNull();
   });
 
-  it("retombe sur le fondu pour un nom inconnu", () => {
+  it("falls back to fade for an unknown name", () => {
     expect(resoudreTransition("explode")).toBe(resoudreTransition("fade"));
   });
 
-  it("normalise la casse et les espaces", () => {
+  it("normalizes case and spaces", () => {
     expect(resoudreTransition("Slide Up")).toBe(resoudreTransition("slideup"));
   });
 });
 
 describe("cut", () => {
-  it("montre la sortante avant la moitie, l'entrante apres", () => {
-    expect(jouer("cut", 0.2)).toEqual([{ img: "sortante", x: 0, y: 0, alpha: 1 }]);
-    expect(jouer("cut", 0.8)).toEqual([{ img: "entrante", x: 0, y: 0, alpha: 1 }]);
+  it("shows the outgoing before halfway, the incoming after", () => {
+    expect(play("cut", 0.2)).toEqual([{ img: "outgoing", x: 0, y: 0, alpha: 1 }]);
+    expect(play("cut", 0.8)).toEqual([{ img: "incoming", x: 0, y: 0, alpha: 1 }]);
   });
 });
 
 describe("fade", () => {
-  it("superpose l'entrante avec une opacite egale a t", () => {
-    expect(jouer("fade", 0)).toEqual([
-      { img: "sortante", x: 0, y: 0, alpha: 1 },
-      { img: "entrante", x: 0, y: 0, alpha: 0 },
+  it("overlays the incoming with opacity equal to t", () => {
+    expect(play("fade", 0)).toEqual([
+      { img: "outgoing", x: 0, y: 0, alpha: 1 },
+      { img: "incoming", x: 0, y: 0, alpha: 0 },
     ]);
-    expect(jouer("fade", 0.5)).toEqual([
-      { img: "sortante", x: 0, y: 0, alpha: 1 },
-      { img: "entrante", x: 0, y: 0, alpha: 0.5 },
+    expect(play("fade", 0.5)).toEqual([
+      { img: "outgoing", x: 0, y: 0, alpha: 1 },
+      { img: "incoming", x: 0, y: 0, alpha: 0.5 },
     ]);
-    expect(jouer("fade", 1)).toEqual([
-      { img: "sortante", x: 0, y: 0, alpha: 1 },
-      { img: "entrante", x: 0, y: 0, alpha: 1 },
+    expect(play("fade", 1)).toEqual([
+      { img: "outgoing", x: 0, y: 0, alpha: 1 },
+      { img: "incoming", x: 0, y: 0, alpha: 1 },
     ]);
   });
 });
 
-describe("glissements", () => {
-  it("slideup : la sortante monte, l'entrante la suit par le bas", () => {
-    expect(jouer("slideup", 0.5)).toEqual([
-      { img: "sortante", x: 0, y: -250, alpha: 1 },
-      { img: "entrante", x: 0, y: 250, alpha: 1 },
+describe("slides", () => {
+  it("slideup: the outgoing moves up, the incoming follows from below", () => {
+    expect(play("slideup", 0.5)).toEqual([
+      { img: "outgoing", x: 0, y: -250, alpha: 1 },
+      { img: "incoming", x: 0, y: 250, alpha: 1 },
     ]);
   });
 
-  it("slidedown : symetrique du precedent", () => {
-    expect(jouer("slidedown", 0.5)).toEqual([
-      { img: "sortante", x: 0, y: 250, alpha: 1 },
-      { img: "entrante", x: 0, y: -250, alpha: 1 },
+  it("slidedown: mirror of the previous one", () => {
+    expect(play("slidedown", 0.5)).toEqual([
+      { img: "outgoing", x: 0, y: 250, alpha: 1 },
+      { img: "incoming", x: 0, y: -250, alpha: 1 },
     ]);
   });
 
-  it("slideleft : deplacement horizontal, pas vertical", () => {
-    expect(jouer("slideleft", 0.5)).toEqual([
-      { img: "sortante", x: -500, y: 0, alpha: 1 },
-      { img: "entrante", x: 500, y: 0, alpha: 1 },
+  it("slideleft: horizontal move, not vertical", () => {
+    expect(play("slideleft", 0.5)).toEqual([
+      { img: "outgoing", x: -500, y: 0, alpha: 1 },
+      { img: "incoming", x: 500, y: 0, alpha: 1 },
     ]);
   });
 
-  it("slideright : symetrique du precedent", () => {
-    expect(jouer("slideright", 0.5)).toEqual([
-      { img: "sortante", x: 500, y: 0, alpha: 1 },
-      { img: "entrante", x: -500, y: 0, alpha: 1 },
+  it("slideright: mirror of the previous one", () => {
+    expect(play("slideright", 0.5)).toEqual([
+      { img: "outgoing", x: 500, y: 0, alpha: 1 },
+      { img: "incoming", x: -500, y: 0, alpha: 1 },
     ]);
   });
 
-  it("part de la sortante en place et finit sur l'entrante en place", () => {
-    for (const nom of ["slideup", "slidedown", "slideleft", "slideright"]) {
-      const debut = jouer(nom, 0);
-      const fin = jouer(nom, 1);
-      expect(debut[0]).toEqual({ img: "sortante", x: 0, y: 0, alpha: 1 });
-      expect(fin[1]).toEqual({ img: "entrante", x: 0, y: 0, alpha: 1 });
+  it("starts with the outgoing in place and ends with the incoming in place", () => {
+    for (const name of ["slideup", "slidedown", "slideleft", "slideright"]) {
+      const start = play(name, 0);
+      const end = play(name, 1);
+      expect(start[0]).toEqual({ img: "outgoing", x: 0, y: 0, alpha: 1 });
+      expect(end[1]).toEqual({ img: "incoming", x: 0, y: 0, alpha: 1 });
     }
   });
 });

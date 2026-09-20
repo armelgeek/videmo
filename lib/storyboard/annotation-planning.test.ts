@@ -26,29 +26,29 @@ const scene: ScriptScene = {
 };
 
 describe("clampRegion", () => {
-  it("laisse intact un rectangle deja dans l'image", () => {
+  it("leaves a rectangle already inside the image untouched", () => {
     const r = clampRegion({ beatIndex: 0, x: 100, y: 200, width: 300, height: 400 }, SIZE);
 
     expect(r).toEqual({ beatIndex: 0, x: 100, y: 200, width: 300, height: 400 });
   });
 
-  it("rabote un rectangle qui deborde", () => {
-    // Une region hors cadre ferait dessiner le stylo dans le vide.
+  it("trims an overflowing rectangle", () => {
+    // An out-of-frame region would make the pen draw in the void.
     const r = clampRegion({ beatIndex: 0, x: 1400, y: 900, width: 800, height: 800 }, SIZE);
 
     expect(r.x + r.width).toBeLessThanOrEqual(SIZE.width);
     expect(r.y + r.height).toBeLessThanOrEqual(SIZE.height);
   });
 
-  it("ramene des coordonnees negatives dans l'image", () => {
+  it("brings negative coordinates back into the image", () => {
     const r = clampRegion({ beatIndex: 0, x: -50, y: -20, width: 200, height: 100 }, SIZE);
 
     expect(r.x).toBe(0);
     expect(r.y).toBe(0);
   });
 
-  it("interprete une reponse en fractions comme des pixels", () => {
-    // Les modeles de vision repondent parfois en proportions de l'image.
+  it("interprets a fractional answer as pixels", () => {
+    // Vision models sometimes answer in image proportions.
     const r = clampRegion({ beatIndex: 1, x: 0.5, y: 0.25, width: 0.25, height: 0.5 }, SIZE);
 
     expect(r.x).toBe(768);
@@ -57,7 +57,7 @@ describe("clampRegion", () => {
     expect(r.height).toBe(512);
   });
 
-  it("ne rend jamais une largeur nulle", () => {
+  it("never returns a zero width", () => {
     const r = clampRegion({ beatIndex: 0, x: 10, y: 10, width: -5, height: -5 }, SIZE);
 
     expect(r.width).toBeGreaterThan(0);
@@ -71,22 +71,22 @@ describe("planAnnotations", () => {
     { beatIndex: 1, x: 800, y: 0, width: 700, height: 1024 },
   ];
 
-  it("fait entrer chaque annotation apres les precedentes", () => {
-    // Le moment d'entree ne demande aucun modele : il se deduit des temps.
+  it("starts each annotation after the previous ones", () => {
+    // The entry time needs no model: it follows from the beats.
     const plan = planAnnotations({ scene, regions, size: SIZE });
 
     expect(plan[0].reveal).toEqual({ startMs: 0, durationMs: 6000 });
     expect(plan[1].reveal).toEqual({ startMs: 6000, durationMs: 4000 });
   });
 
-  it("porte le texte dit pendant le trace", () => {
+  it("carries the text spoken while drawing", () => {
     const plan = planAnnotations({ scene, regions, size: SIZE });
 
     expect(plan[0].text).toBe("Le levain est une culture vivante.");
     expect(plan[1].text).toBe("Il donne au pain son gout acidule.");
   });
 
-  it("couvre toute l'image quand la scene n'a aucun temps", () => {
+  it("covers the whole image when the scene has no beat", () => {
     const plan = planAnnotations({
       scene: { ...scene, beats: [] },
       regions: [],
@@ -104,7 +104,7 @@ describe("planAnnotations", () => {
     expect(plan[0].reveal.durationMs).toBeGreaterThan(0);
   });
 
-  it("cale l'image sans temps sur la voix mesuree", () => {
+  it("syncs the beatless image to the measured voice", () => {
     const plan = planAnnotations({
       scene: { ...scene, beats: [] },
       regions: [],
@@ -115,22 +115,22 @@ describe("planAnnotations", () => {
     expect(plan[0].reveal.durationMs).toBe(5500);
   });
 
-  it("place chaque annotation sur sa zone", () => {
+  it("places each annotation on its zone", () => {
     const plan = planAnnotations({ scene, regions, size: SIZE });
 
     expect(plan[0].region.x).toBe(0);
     expect(plan[1].region.x).toBe(800);
   });
 
-  it("garde l'image entiere pour un temps sans region lue", () => {
-    // Mieux vaut une zone trop large qu'une scene ou rien ne se dessine.
+  it("keeps the whole image for a beat with no read region", () => {
+    // A zone too wide beats a scene where nothing gets drawn.
     const plan = planAnnotations({ scene, regions: [regions[0]], size: SIZE });
 
     expect(plan[1].region).toEqual({ x: 0, y: 0, width: 1536, height: 1024 });
     expect(plan[1].reveal.startMs).toBe(6000);
   });
 
-  it("rabote une region debordante venue de la vision", () => {
+  it("trims an overflowing region coming from vision", () => {
     const plan = planAnnotations({
       scene,
       regions: [{ beatIndex: 0, x: 1500, y: 1000, width: 900, height: 900 }],
@@ -140,9 +140,9 @@ describe("planAnnotations", () => {
     expect(plan[0].region.x + plan[0].region.width).toBeLessThanOrEqual(1536);
   });
 
-  it("cale le trace sur la duree reellement mesuree", () => {
-    // Le decoupage estimait 6s puis 5s ; l'audio produit dure autrement, et
-    // c'est lui qui commande.
+  it("syncs drawing to the actually measured duration", () => {
+    // The breakdown estimated 6s then 5s; the produced audio lasts otherwise,
+    // and it is what rules.
     const plan = planAnnotations({
       scene,
       regions,
@@ -154,7 +154,7 @@ describe("planAnnotations", () => {
     expect(plan[1].reveal).toEqual({ startMs: 5200, durationMs: 3800 });
   });
 
-  it("retombe sur l'estimation quand la mesure manque", () => {
+  it("falls back on the estimate when the measurement is missing", () => {
     const plan = planAnnotations({
       scene,
       regions,
@@ -167,7 +167,7 @@ describe("planAnnotations", () => {
     expect(plan[1].reveal.startMs).toBe(5200);
   });
 
-  it("ignore une mesure aberrante", () => {
+  it("ignores an aberrant measurement", () => {
     const plan = planAnnotations({
       scene,
       regions,
@@ -179,14 +179,14 @@ describe("planAnnotations", () => {
     expect(plan[1].reveal.durationMs).toBe(4000);
   });
 
-  it("rend une annotation par temps quand chacun n'a qu'une zone", () => {
+  it("returns one annotation per beat when each has a single zone", () => {
     expect(planAnnotations({ scene, regions: [], size: SIZE })).toHaveLength(2);
   });
 
-  it("rend PLUSIEURS annotations pour un temps qui nomme plusieurs sujets", () => {
-    // Une narration decrit souvent plusieurs choses dessinees. L'ancienne Map
-    // indexee par beatIndex n'en gardait qu'une : la scene n'obtenait jamais
-    // qu'un rectangle par phrase, cadre si large qu'il couvrait le reste.
+  it("returns SEVERAL annotations for a beat naming several subjects", () => {
+    // A narration often describes several drawn things. The old Map keyed by
+    // beatIndex kept only one: the scene only ever got one rectangle per
+    // sentence, framed so wide it covered the rest.
     const plan = planAnnotations({
       scene,
       regions: [
@@ -202,9 +202,9 @@ describe("planAnnotations", () => {
     expect(plan.map((a) => a.text)).toEqual(["Grain", "Table", "Tasse"]);
   });
 
-  it("partage le temps du beat entre ses zones, sans en perdre une milliseconde", () => {
-    // La somme doit valoir EXACTEMENT la duree mesuree : un arrondi perdu se
-    // repercuterait sur tous les temps suivants.
+  it("splits the beat time among its zones without losing a millisecond", () => {
+    // The sum must equal the measured duration EXACTLY: a lost rounding would
+    // carry over to all following beats.
     const plan = planAnnotations({
       scene,
       regions: [
@@ -216,14 +216,14 @@ describe("planAnnotations", () => {
       beatDurationsMs: [5000, 4000],
     });
 
-    const duTemps0 = plan.filter((a) => a.beatIndex === 0);
-    expect(duTemps0.map((a) => a.reveal.durationMs)).toEqual([1666, 1666, 1668]);
+    const beat0Annotations = plan.filter((a) => a.beatIndex === 0);
+    expect(beat0Annotations.map((a) => a.reveal.durationMs)).toEqual([1666, 1666, 1668]);
     expect(
-      duTemps0.reduce((total, a) => total + a.reveal.durationMs, 0),
+      beat0Annotations.reduce((total, a) => total + a.reveal.durationMs, 0),
     ).toBe(5000);
   });
 
-  it("enchaine les zones d'un meme temps sans trou", () => {
+  it("chains zones of the same beat without gaps", () => {
     const plan = planAnnotations({
       scene,
       regions: [
@@ -237,9 +237,9 @@ describe("planAnnotations", () => {
     expect(plan.map((a) => a.reveal.startMs)).toEqual([0, 2500, 5000]);
   });
 
-  it("ne repete pas la phrase sur chaque sujet d'un meme temps", () => {
-    // Sans etiquette, seule la premiere zone la porte : la repeter remplirait
-    // la liste et le transcript de la meme ligne.
+  it("does not repeat the sentence on each subject of the same beat", () => {
+    // Without a label, only the first zone carries it: repeating it would fill
+    // the list and transcript with the same line.
     const plan = planAnnotations({
       scene,
       regions: [
@@ -253,7 +253,7 @@ describe("planAnnotations", () => {
     expect(plan[1].text).toBe("");
   });
 
-  it("rattache une zone au dernier beat si son index depasse, pour ne rien perdre", () => {
+  it("attaches a zone to the last beat if its index overflows, to lose nothing", () => {
     const plan = planAnnotations({
       scene,
       regions: [
@@ -268,9 +268,9 @@ describe("planAnnotations", () => {
     expect(plan[1].text).toBe("Hors borne");
   });
 
-  it("regroupe les zones en une seule englobante quand la duree totale est trop courte (< 800ms)", () => {
-    // Un beat court de 600ms avec deux zones de 300ms chacune (< 400ms)
-    // est fusionné en une zone englobante unique de 600ms
+  it("merges zones into a single enclosing one when total duration is too short (< 800ms)", () => {
+    // A short 600ms beat with two 300ms zones each (< 400ms)
+    // is merged into a single 600ms enclosing zone
     const plan = planAnnotations({
       scene,
       regions: [
@@ -284,14 +284,14 @@ describe("planAnnotations", () => {
     const beat0 = plan.filter((a) => a.beatIndex === 0);
     expect(beat0).toHaveLength(1);
     expect(beat0[0].reveal.durationMs).toBe(600);
-    // Zone englobante couvrant de x=100 à x=400 (largeur 300)
+    // Enclosing zone spanning x=100 to x=400 (width 300)
     expect(beat0[0].region.x).toBe(100);
     expect(beat0[0].region.width).toBe(300);
   });
 });
 
 describe("wholeImageRegion", () => {
-  it("couvre toute l'image", () => {
+  it("covers the whole image", () => {
     expect(wholeImageRegion(3, SIZE)).toEqual({
       beatIndex: 3,
       x: 0,
@@ -303,45 +303,45 @@ describe("wholeImageRegion", () => {
 });
 
 describe("snapToSubject", () => {
-  // Les deux sujets d'une vraie illustration : le grain, et la flamme.
-  const grain = { x: 309, y: 201, width: 426, height: 574 };
-  const flamme = { x: 1011, y: 361, width: 210, height: 330 };
+  // The two subjects of a real illustration: the bean, and the flame.
+  const bean = { x: 309, y: 201, width: 426, height: 574 };
+  const flame = { x: 1011, y: 361, width: 210, height: 330 };
 
-  it("ramene un rectangle devine sur le sujet qu'il recouvre", () => {
-    // Ce que gpt-4o a rendu pour le temps de la flamme : decale de 200 px.
-    const devine = { beatIndex: 1, x: 800, y: 300, width: 300, height: 500 };
+  it("snaps a guessed rectangle onto the subject it overlaps", () => {
+    // What gpt-4o returned for the flame beat: 200 px off.
+    const guessed = { beatIndex: 1, x: 800, y: 300, width: 300, height: 500 };
 
-    expect(snapToSubject(devine, [grain, flamme])).toEqual({
+    expect(snapToSubject(guessed, [bean, flame])).toEqual({
       beatIndex: 1,
-      ...flamme,
+      ...flame,
     });
   });
 
-  it("choisit le sujet le plus recouvert quand deux sont touches", () => {
-    const devine = { beatIndex: 0, x: 320, y: 210, width: 900, height: 400 };
+  it("picks the most overlapped subject when two are touched", () => {
+    const guessed = { beatIndex: 0, x: 320, y: 210, width: 900, height: 400 };
 
-    expect(snapToSubject(devine, [grain, flamme])).toMatchObject({ x: grain.x });
+    expect(snapToSubject(guessed, [bean, flame])).toMatchObject({ x: bean.x });
   });
 
-  it("garde le numero du temps, qui porte l'appariement", () => {
-    const devine = { beatIndex: 3, x: 1020, y: 370, width: 10, height: 10 };
+  it("keeps the beat number, which carries the matching", () => {
+    const guessed = { beatIndex: 3, x: 1020, y: 370, width: 10, height: 10 };
 
-    expect(snapToSubject(devine, [grain, flamme]).beatIndex).toBe(3);
+    expect(snapToSubject(guessed, [bean, flame]).beatIndex).toBe(3);
   });
 
-  it("prend le sujet le plus proche quand le modele a vise le papier vide", () => {
-    const devine = { beatIndex: 0, x: 1300, y: 400, width: 40, height: 40 };
+  it("takes the closest subject when the model aimed at blank paper", () => {
+    const guessed = { beatIndex: 0, x: 1300, y: 400, width: 40, height: 40 };
 
-    expect(snapToSubject(devine, [grain, flamme])).toMatchObject({ x: flamme.x });
+    expect(snapToSubject(guessed, [bean, flame])).toMatchObject({ x: flame.x });
   });
 
-  it("retaille un sujet ou deux choses ont fusionne", () => {
-    // Le grain de cafe touche les lignes de la table : la mesure rendait les
-    // trois comme un seul objet, large et plat.
-    const grainEtTable = { x: 118, y: 393, width: 1165, height: 378 };
-    const devine = { beatIndex: 0, x: 480, y: 380, width: 420, height: 340 };
+  it("resizes a subject where two things fused", () => {
+    // The coffee bean touches the table lines: the measurement returned all
+    // three as one wide flat object.
+    const beanAndTable = { x: 118, y: 393, width: 1165, height: 378 };
+    const guessed = { beatIndex: 0, x: 480, y: 380, width: 420, height: 340 };
 
-    expect(snapToSubject(devine, [grainEtTable])).toEqual({
+    expect(snapToSubject(guessed, [beanAndTable])).toEqual({
       beatIndex: 0,
       x: 480,
       y: 393,
@@ -350,36 +350,36 @@ describe("snapToSubject", () => {
     });
   });
 
-  it("garde le sujet mesure quand il parle bien du meme objet", () => {
-    // La tasse : mesuree 669x760, devinee 640x475. Meme objet, donc la mesure
-    // gagne — elle seule connait les bords exacts.
-    const tasse = { x: 449, y: 100, width: 669, height: 760 };
-    const devine = { beatIndex: 0, x: 460, y: 275, width: 640, height: 475 };
+  it("keeps the measured subject when it is the same object", () => {
+    // The cup: measured 669x760, guessed 640x475. Same object, so the
+    // measurement wins — only it knows the exact edges.
+    const cup = { x: 449, y: 100, width: 669, height: 760 };
+    const guessed = { beatIndex: 0, x: 460, y: 275, width: 640, height: 475 };
 
-    expect(snapToSubject(devine, [tasse])).toEqual({ beatIndex: 0, ...tasse });
+    expect(snapToSubject(guessed, [cup])).toEqual({ beatIndex: 0, ...cup });
   });
 
-  it("laisse passer le rectangle devine quand l'image n'a rendu aucun sujet", () => {
-    const devine = { beatIndex: 0, x: 10, y: 20, width: 30, height: 40 };
+  it("passes the guessed rectangle through when the image yielded no subject", () => {
+    const guessed = { beatIndex: 0, x: 10, y: 20, width: 30, height: 40 };
 
-    expect(snapToSubject(devine, [])).toEqual(devine);
+    expect(snapToSubject(guessed, [])).toEqual(guessed);
   });
 });
 
 describe("snapRegionsToSubjects", () => {
-  it("preserve deux regions distinctes de la vision face a un candidat fusionne", () => {
-    // Deux sujets distincts : par exemple un grain a gauche et une flamme a droite.
+  it("preserves two distinct vision regions against a fused candidate", () => {
+    // Two distinct subjects: e.g. a bean on the left and a flame on the right.
     const regions = [
       { beatIndex: 0, label: "Grain", x: 100, y: 100, width: 150, height: 150 },
       { beatIndex: 0, label: "Flamme", x: 300, y: 100, width: 150, height: 150 },
     ];
-    // La mesure a fusionne les deux en un seul grand bloc connecte
-    const candidats = [{ x: 90, y: 90, width: 380, height: 180 }];
+    // The measurement fused both into one large connected blob
+    const candidates = [{ x: 90, y: 90, width: 380, height: 180 }];
 
-    const snapped = snapRegionsToSubjects(regions, candidats);
+    const snapped = snapRegionsToSubjects(regions, candidates);
 
-    // L'anti-collision detecte que le snap les aurait ecrasees et conserve les
-    // deux rectangles separes de la vision
+    // Anti-collision detects the snap would have collapsed them and keeps the
+    // two separate vision rectangles
     expect(snapped[0].x).toBe(100);
     expect(snapped[1].x).toBe(300);
   });
@@ -388,46 +388,46 @@ describe("snapRegionsToSubjects", () => {
 describe("buildVisionPrompt", () => {
   const prompt = buildVisionPrompt({ scene, size: SIZE });
 
-  it("numerote les temps pour qu'ils soient apparies", () => {
+  it("numbers beats so they can be matched", () => {
     expect(prompt).toContain("0. Le levain est une culture vivante.");
     expect(prompt).toContain("1. Il donne au pain son gout acidule.");
   });
 
-  it("rappelle les dimensions de cette image", () => {
+  it("restates this image's dimensions", () => {
     expect(prompt).toContain("1536 wide");
     expect(prompt).toContain("1024 tall");
   });
 
-  it("demande une zone par SUJET dessine, pas une par temps", () => {
-    // Une phrase qui nomme trois choses n'en faisait dessiner qu'une, cadree
-    // si large qu'elle couvrait le reste.
+  it("asks for one zone per drawn SUBJECT, not one per beat", () => {
+    // A sentence naming three things drew only one, framed so wide it
+    // covered the rest.
     expect(prompt).toContain("ONE REGION PER DRAWN SUBJECT");
     expect(prompt).toContain("gets several regions");
   });
 
-  it("demande une etiquette courte pour chaque zone", () => {
+  it("asks for a short label for each zone", () => {
     expect(prompt).toContain("three words at most");
   });
 
-  it("exige d'englober le sujet entier, pas un point pose dessus", () => {
-    // Sans ces deux regles, la vision rendait des carres de 2 a 5 % de
-    // l'image au milieu du sujet : le stylo ne dessinait presque rien.
+  it("requires enclosing the whole subject, not a point on it", () => {
+    // Without these two rules, vision returned squares of 2 to 5% of the
+    // image in the middle of the subject: the pen drew almost nothing.
     expect(prompt).toContain("ENCLOSE THE WHOLE SUBJECT");
     expect(prompt).toContain("never a point on the subject");
   });
 
-  it("exige d'englober les etiquettes manuscrites et connecteurs adjacents", () => {
+  it("requires enclosing adjacent hand-lettered labels and connectors", () => {
     expect(prompt).toContain("INCLUDE ADJACENT LABELS AND CONNECTORS");
     expect(prompt).toContain("Never cut between a subject and its label");
   });
 
-  it("ordonne les regions selon l'ordre chronologique de narration", () => {
+  it("orders regions by narration chronology", () => {
     expect(prompt).toContain("Order regions in the chronological order");
   });
 });
 
 describe("annotationPlanSchema", () => {
-  it("accepte une reponse de vision", () => {
+  it("accepts a vision answer", () => {
     expect(() =>
       annotationPlanSchema.parse({
         regions: [{ beatIndex: 0, x: 1, y: 2, width: 3, height: 4 }],
@@ -435,7 +435,7 @@ describe("annotationPlanSchema", () => {
     ).not.toThrow();
   });
 
-  it("refuse une reponse vide", () => {
+  it("rejects an empty answer", () => {
     expect(() => annotationPlanSchema.parse({ regions: [] })).toThrow();
   });
 });

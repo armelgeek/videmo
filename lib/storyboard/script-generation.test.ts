@@ -36,7 +36,7 @@ const scene = (over: Partial<ScriptScene> = {}): ScriptScene => ({
 });
 
 describe("generatedScriptSchema", () => {
-  it("n'accepte qu'un titre et du texte", () => {
+  it("accepts only a title and text", () => {
     const parsed = generatedScriptSchema.parse({
       title: "La torrefaction",
       text: "Le cafe commence par un grain vert.",
@@ -46,7 +46,7 @@ describe("generatedScriptSchema", () => {
     expect(parsed).not.toHaveProperty("scenes");
   });
 
-  it("refuse un script vide", () => {
+  it("rejects an empty script", () => {
     expect(() =>
       generatedScriptSchema.parse({ title: "x", text: "" }),
     ).toThrow();
@@ -56,26 +56,26 @@ describe("generatedScriptSchema", () => {
 describe("buildScriptPrompt", () => {
   const prompt = buildScriptPrompt(params);
 
-  it("porte les parametres choisis a l'etape Prompt", () => {
+  it("carries the parameters chosen at the Prompt step", () => {
     expect(prompt).toContain("La torrefaction du cafe");
     expect(prompt).toContain("fr");
     expect(prompt).toContain("debutants");
     expect(prompt).toContain("professional");
   });
 
-  it("demande de la prose, sans aucune mise en forme", () => {
-    // Le decoupage vient apres : un script parseme de titres de scene ne se
-    // relit pas comme un texte.
+  it("asks for prose, without any formatting", () => {
+    // The breakdown comes afterwards: a script littered with scene headings
+    // does not read as text.
     expect(prompt).toContain("No scene headings");
     expect(prompt).toContain("only the spoken words");
   });
 
-  it("ne parle jamais de visuel a cette etape", () => {
+  it("never talks about visuals at this step", () => {
     expect(prompt.toLowerCase()).not.toContain("imageprompt");
     expect(prompt.toLowerCase()).not.toContain("draw");
   });
 
-  it("ajuste la longueur au format", () => {
+  it("adjusts the length to the format", () => {
     expect(buildScriptPrompt({ ...params, format: "brief" })).toContain("6 of them");
     expect(prompt).toContain("10 of them");
   });
@@ -87,52 +87,52 @@ describe("buildBreakdownPrompt", () => {
     params,
   });
 
-  it("transmet le script valide", () => {
+  it("passes the approved script", () => {
     expect(prompt).toContain("Le cafe commence par un grain vert.");
   });
 
-  it("exige une narration reprise mot pour mot", () => {
-    // Laisser le modele reecrire perdrait les corrections faites juste avant.
+  it("requires narration taken verbatim", () => {
+    // Letting the model rewrite would lose the corrections just made.
     expect(prompt).toContain("verbatim");
     expect(prompt).toContain("split it, never rewrite it");
   });
 
-  it("laisse le contenu decider du nombre d'images", () => {
-    // Imposer un compte forcait a decouper ce qui allait ensemble, et chaque
-    // image de plus est un appel au moteur paye pour rien.
+  it("lets the content decide the number of images", () => {
+    // Imposing a count forced splitting what belonged together, and each
+    // extra image is a paid engine call for nothing.
     expect(prompt).toContain("Let the content decide how many images");
     expect(prompt).toContain("Do not split a subject just to reach a count");
   });
 
-  it("pousse au regroupement, chaque image coutant un appel", () => {
+  it("pushes toward grouping, since each image costs a call", () => {
     expect(prompt).toContain("PREFER FEWER IMAGES");
     expect(prompt).toContain("merge them into a single image");
-    // Une consigne qualitative seule ramenait une image par paragraphe.
+    // A qualitative instruction alone brought back one image per paragraph.
     expect(prompt).toContain("never exceed that by more than one");
   });
 
-  it("interdit de repeter une phrase pour fabriquer un outro", () => {
+  it("forbids repeating a sentence to make up an outro", () => {
     expect(prompt).toContain("EXACTLY ONE beat");
     expect(prompt).toContain("never invent an intro or outro");
   });
 
-  it("demande des temps de narration par image", () => {
+  it("asks for narration beats per image", () => {
     expect(prompt).toContain("Split each image into beats");
     expect(prompt).toContain("durationSec");
   });
 
-  it("n'introduit le style visuel qu'ici", () => {
+  it("introduces the visual style only here", () => {
     expect(prompt).toContain("cinematic");
     expect(prompt).toContain("imagePrompt");
   });
 
-  it("demande les titres dans la langue du script", () => {
-    // Un titre anglais sous une narration francaise donnait un storyboard
-    // bilingue, visible par l'utilisateur.
+  it("asks for titles in the script's language", () => {
+    // An English title under a French narration produced a storyboard
+    // that was bilingual and visible to the user.
     expect(prompt).toContain("same language as the script (fr)");
   });
 
-  it("garde les prompts d'image en anglais", () => {
+  it("keeps image prompts in English", () => {
     expect(prompt).toContain("imagePrompt in English");
   });
 });
@@ -141,29 +141,29 @@ describe("suggestedImageCount", () => {
   const paragraph = (n: number) =>
     Array.from({ length: n }, (_, i) => `Paragraphe ${i}.`).join("\n\n");
 
-  it("vise un dessin pour deux paragraphes", () => {
+  it("aims for one drawing per two paragraphs", () => {
     expect(suggestedImageCount(paragraph(10))).toBe(5);
     expect(suggestedImageCount(paragraph(5))).toBe(3);
   });
 
-  it("n'ecrase jamais une video courte sur un seul plan", () => {
+  it("never squashes a short video into a single shot", () => {
     expect(suggestedImageCount(paragraph(1))).toBe(2);
     expect(suggestedImageCount("")).toBe(2);
   });
 
-  it("ignore les lignes vides en trop", () => {
+  it("ignores extra blank lines", () => {
     expect(suggestedImageCount("A.\n\n\n\nB.\n\n  \n\nC.\n\nD.")).toBe(2);
   });
 });
 
 describe("paragraphCountForFormat", () => {
-  it("distingue brief et explainer", () => {
+  it("distinguishes brief and explainer", () => {
     expect(paragraphCountForFormat("brief")).toBe(6);
     expect(paragraphCountForFormat("explainer")).toBe(10);
   });
 });
 
-describe("sceneNarration et sceneDuration", () => {
+describe("sceneNarration and sceneDuration", () => {
   const withBeats = scene({
     beats: [
       { narration: "Premier temps.", durationSec: 4 },
@@ -171,30 +171,30 @@ describe("sceneNarration et sceneDuration", () => {
     ],
   });
 
-  it("recompose la narration dans l'ordre des temps", () => {
+  it("rebuilds the narration in beat order", () => {
     expect(sceneNarration(withBeats)).toBe("Premier temps. Deuxieme temps.");
   });
 
-  it("fait la duree de la somme, jamais d'une constante", () => {
-    // Une image reste a l'ecran le temps de ce qu'elle porte : une idee
-    // developpee dure plus qu'une idee simple.
+  it("makes the duration the sum, never a constant", () => {
+    // An image stays on screen as long as what it carries: a developed
+    // idea lasts longer than a simple one.
     expect(sceneDuration(withBeats)).toBe(10);
     expect(sceneDuration(scene({ beats: [{ narration: "x", durationSec: 3 }] }))).toBe(3);
   });
 });
 
 describe("storyboardBreakdownSchema", () => {
-  it("accepte le decoupage attendu", () => {
+  it("accepts the expected breakdown", () => {
     expect(() =>
       storyboardBreakdownSchema.parse({ scenes: [scene({ clipType: "intro" })] }),
     ).not.toThrow();
   });
 
-  it("refuse un decoupage vide", () => {
+  it("rejects an empty breakdown", () => {
     expect(() => storyboardBreakdownSchema.parse({ scenes: [] })).toThrow();
   });
 
-  it("conserve ce qui sert au storyboard", () => {
+  it("keeps what the storyboard needs", () => {
     const parsed = storyboardBreakdownSchema.parse({
       scenes: [
         {
@@ -211,7 +211,7 @@ describe("storyboardBreakdownSchema", () => {
     expect(sceneDuration(parsed.scenes[0])).toBe(12);
   });
 
-  it("conserve la voix d'un temps a l'aller-retour", () => {
+  it("keeps a beat's voice on round trip", () => {
     const parsed = storyboardBreakdownSchema.parse({
       scenes: [
         {
@@ -237,7 +237,7 @@ describe("storyboardBreakdownSchema", () => {
     expect(parsed.scenes[0].beats[0].audioDurationMs).toBe(6552);
   });
 
-  it("refuse une image sans aucun temps de narration", () => {
+  it("rejects an image without any narration beat", () => {
     expect(() =>
       storyboardBreakdownSchema.parse({
         scenes: [{ index: 0, clipType: "intro", title: "t", imagePrompt: "p", beats: [] }],
@@ -247,14 +247,14 @@ describe("storyboardBreakdownSchema", () => {
 });
 
 describe("scriptBeatSchema", () => {
-  it("accepte un temps sans voix — le decoupage precede la synthese", () => {
+  it("accepts a beat without voice — the breakdown precedes synthesis", () => {
     const parsed = scriptBeatSchema.parse({ narration: "n", durationSec: 4 });
 
     expect(parsed.audioUrl).toBeUndefined();
     expect(parsed.audioDurationMs).toBeUndefined();
   });
 
-  it("refuse une duree d'audio negative", () => {
+  it("rejects a negative audio duration", () => {
     expect(() =>
       scriptBeatSchema.parse({
         narration: "n",
@@ -266,7 +266,7 @@ describe("scriptBeatSchema", () => {
 });
 
 describe("reindexScenes", () => {
-  it("renumerote apres une suppression", () => {
+  it("renumbers after a deletion", () => {
     const scenes = reindexScenes([
       scene({ index: 0, title: "A" }),
       scene({ index: 5, title: "B" }),
@@ -277,14 +277,14 @@ describe("reindexScenes", () => {
     expect(scenes.map((s) => s.title)).toEqual(["A", "B", "C"]);
   });
 
-  it("ne touche a rien d'autre que l'index", () => {
+  it("touches nothing but the index", () => {
     const [only] = reindexScenes([scene({ index: 7, imagePrompt: "garde-moi" })]);
 
     expect(only.imagePrompt).toBe("garde-moi");
     expect(only.index).toBe(0);
   });
 
-  it("accepte une liste vide", () => {
+  it("accepts an empty list", () => {
     expect(reindexScenes([])).toEqual([]);
   });
 });

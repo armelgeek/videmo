@@ -1,10 +1,10 @@
 import type { AnnotationPlan } from "@/lib/storyboard/annotation-planning";
 
 /**
- * Lit une image deja produite pour y situer les zones a reveler.
+ * Reads an already produced image to locate the areas to reveal.
  *
- * Separee d'ImageGenerator : produire une illustration et la relire sont deux
- * capacites distinctes, qu'un meme fournisseur n'offre pas forcement.
+ * Separate from ImageGenerator: producing an illustration and reading it back
+ * are two distinct capabilities, which one provider does not always offer.
  */
 export interface RegionReader {
   read(input: ReadRegionsInput): Promise<AnnotationPlan>;
@@ -26,7 +26,7 @@ export class RegionReadFailedError extends Error {
   }
 }
 
-/** Double de test : rend les regions qu'on lui donne, sans reseau. */
+/** Test double: returns the regions it is given, without network. */
 export class FakeRegionReader implements RegionReader {
   readonly calls: ReadRegionsInput[] = [];
 

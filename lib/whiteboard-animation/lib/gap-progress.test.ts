@@ -3,15 +3,15 @@ import { describe, expect, it } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Animation = require("./Animation");
 
-/** Canvas 2D reduit aux appels que withAnnotationAwareness effectue. */
+/** 2D canvas reduced to the calls withAnnotationAwareness makes. */
 const stubCtx = () =>
   new Proxy({}, { get: () => () => undefined }) as CanvasRenderingContext2D;
 
 const region = (x: number) => ({ x, y: 0, width: 40, height: 40 });
 
 /**
- * Deux annotations separees par une pause de 200 ms :
- * [0, 100[ ... pause ... [300, 400[
+ * Two annotations separated by a 200 ms gap:
+ * [0, 100[ ... gap ... [300, 400[
  */
 function runThroughGap() {
   const published: number[] = [];
@@ -34,7 +34,7 @@ function runThroughGap() {
     callbacks: { setProgress: (p: number) => published.push(p) },
   });
 
-  // 20 ticks de 20 ms : l'horloge traverse la pause [100, 300[.
+  // 20 ticks of 20 ms: the clock crosses the gap [100, 300[.
   const samples: { elapsed: number; progress: number | null }[] = [];
   for (let i = 0; i < 20; i++) {
     const before = published.length;
@@ -47,10 +47,10 @@ function runThroughGap() {
   return samples;
 }
 
-describe("progression pendant une pause entre annotations", () => {
-  it("publie la position sur chaque tick de la pause", () => {
-    // Sans cela l'horloge avance sans que personne ne la publie : le curseur
-    // se fige pendant la pause puis saute au debut de l'annotation suivante.
+describe("progress during a gap between annotations", () => {
+  it("publishes the position on every tick of the gap", () => {
+    // Otherwise the clock advances without anyone publishing it: the cursor
+    // freezes during the gap then jumps to the start of the next annotation.
     const inGap = runThroughGap().filter(
       (s) => s.elapsed > 100 && s.elapsed <= 300,
     );
@@ -59,7 +59,7 @@ describe("progression pendant une pause entre annotations", () => {
     expect(inGap.every((s) => s.progress !== null)).toBe(true);
   });
 
-  it("fait progresser la position pendant la pause", () => {
+  it("advances the position during the gap", () => {
     const inGap = runThroughGap()
       .filter((s) => s.elapsed > 100 && s.elapsed <= 300)
       .map((s) => s.progress as number);
@@ -69,9 +69,9 @@ describe("progression pendant une pause entre annotations", () => {
     }
   });
 
-  it("rapporte la position sur la timeline entiere, pas sur la region", () => {
-    // elapsed = 200 ms sur une timeline de 400 ms -> 0.5, et non 1.0 parce que
-    // la premiere region est finie.
+  it("reports the position over the whole timeline, not the region", () => {
+    // elapsed = 200 ms on a 400 ms timeline -> 0.5, not 1.0 because the
+    // first region is finished.
     const at200 = runThroughGap().find((s) => s.elapsed === 200);
     expect(at200?.progress).toBeCloseTo(0.5, 5);
   });

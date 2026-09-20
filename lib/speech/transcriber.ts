@@ -1,15 +1,15 @@
 import type { TranscriptWord } from "./beat-alignment";
 
 /**
- * Le contrat de transcription.
+ * The transcription contract.
  *
- * Meme forme que SpeechGenerator et RegionReader : la route ignore quel moteur
- * ecoute, les tests passent un double, et changer de fournisseur ne touche
- * qu'un adaptateur.
+ * Same shape as SpeechGenerator and RegionReader: the route does not know
+ * which engine listens, tests pass a double, and switching providers only
+ * touches one adapter.
  *
- * Ce qui compte ici n'est pas le texte — on le connait, il vient du script —
- * mais les INSTANTS. C'est la seule facon de savoir quand chaque temps de
- * narration est dit dans un enregistrement continu.
+ * What matters here is not the text — we know it, it comes from the script —
+ * but the TIMESTAMPS. It is the only way to know when each narration beat is
+ * spoken within a continuous recording.
  */
 export interface Transcriber {
   transcribe(input: TranscribeInput): Promise<TranscriptWord[]>;
@@ -17,7 +17,7 @@ export interface Transcriber {
 
 export interface TranscribeInput {
   audio: Uint8Array;
-  /** Code ISO de la langue parlee : le moteur devine mal sur une phrase seule. */
+  /** ISO code of the spoken language: the engine guesses poorly on a single sentence. */
   language?: string;
 }
 
@@ -38,7 +38,7 @@ export class TranscriptionFailedError extends Error {
   }
 }
 
-/** Double de test : rend les mots qu'on lui donne, sans reseau. */
+/** Test double: returns the words it is given, without network. */
 export class FakeTranscriber implements Transcriber {
   readonly calls: TranscribeInput[] = [];
 

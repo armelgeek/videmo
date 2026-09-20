@@ -7,13 +7,13 @@ import { promisify } from "node:util";
 const run = promisify(execFile);
 
 /**
- * La duree reelle d'un audio, en millisecondes.
+ * The actual duration of an audio clip, in milliseconds.
  *
- * Le decoupage estime la duree de chaque temps de narration a trois mots par
- * seconde. C'est bon pour repartir le texte, mais faux au dixieme de seconde :
- * caler les annotations dessus faisait deriver le trace par rapport a la voix,
- * et l'ecart s'accumulait d'un temps au suivant. Seul le fichier produit dit la
- * verite.
+ * The split estimates each narration beat's duration at three words per
+ * second. Good enough to distribute the text, but wrong to the tenth of a
+ * second: syncing annotations on it made the drawing drift from the voice,
+ * and the gap accumulated from one beat to the next. Only the produced file
+ * tells the truth.
  */
 export async function measureAudioDurationMs(
   audio: Uint8Array,

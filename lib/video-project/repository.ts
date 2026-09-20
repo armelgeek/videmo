@@ -34,9 +34,9 @@ export interface Viewer {
 }
 
 /**
- * La part de la doctrine qui ne dépend d'aucun projet. Les routes de liste et de
- * création n'ont pas d'id à fournir : sans ce point d'entrée partagé, elles
- * réécrivaient les mêmes deux gardes, et rien ne comparait les deux versions.
+ * The part of the doctrine that depends on no project. The list and create
+ * routes have no id to provide: without this shared entry point they
+ * rewrote the same two guards, and nothing compared the two versions.
  */
 export async function requireOrganizationRole(
   viewer: Viewer,
@@ -51,9 +51,9 @@ export async function requireOrganizationRole(
 }
 
 /**
- * Tout ce qui n'est pas « membre à qui son rôle refuse l'action » rend
- * NotFound : répondre Forbidden confirmerait l'existence d'un projet que
- * l'appelant n'a pas le droit de voir.
+ * Anything other than "a member whose role forbids the action" yields
+ * NotFound: answering Forbidden would confirm the existence of a project the
+ * caller is not allowed to see.
  */
 export async function requireProjectAccess(
   projectId: string,

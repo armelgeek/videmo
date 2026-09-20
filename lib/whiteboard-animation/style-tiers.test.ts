@@ -2,26 +2,26 @@ import { describe, expect, it } from "vitest";
 import { isPremiumStyle, premiumStylesIn } from "./style-tiers";
 
 describe("isPremiumStyle", () => {
-  it("laisse passer les quatre styles gratuits, quelle que soit leur graphie", () => {
+  it("lets the four free styles through, whatever their spelling", () => {
     for (const s of ["chunkjump", "chunk-jump", "Contour", "scanner", "outlineonly"]) {
       expect(isPremiumStyle(s)).toBe(false);
     }
   });
 
-  it("traite tout autre style comme premium, meme inconnu", () => {
+  it("treats any other style as premium, even unknown", () => {
     for (const s of ["scribble", "illust-fill", "spec-text", "nouveau-style"]) {
       expect(isPremiumStyle(s)).toBe(true);
     }
   });
 
-  it("n'exige rien quand aucun style n'est choisi", () => {
+  it("requires nothing when no style is chosen", () => {
     expect(isPremiumStyle(undefined)).toBe(false);
     expect(isPremiumStyle("")).toBe(false);
   });
 });
 
 describe("premiumStylesIn", () => {
-  it("trouve un style premium cache dans une annotation de calque", () => {
+  it("finds a premium style hidden in a layer annotation", () => {
     const project = {
       animStyle: "contour",
       scenes: [
@@ -32,7 +32,7 @@ describe("premiumStylesIn", () => {
     expect(premiumStylesIn(project).sort()).toEqual(["gesture", "scribble"]);
   });
 
-  it("ne signale rien pour un projet tout en styles gratuits", () => {
+  it("flags nothing for a project using only free styles", () => {
     expect(premiumStylesIn({ scenes: [{ animStyle: "outlineonly" }] })).toEqual([]);
   });
 });

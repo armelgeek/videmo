@@ -11,10 +11,10 @@ export class AudioManager {
   private durationMs = 0;
 
   /**
-   * Un echec de chargement ou de lecture, pour qu'un appelant le montre a
-   * l'utilisateur. Sans ca, un enregistrement introuvable (404, reseau) ne
-   * laissait qu'une ligne en `console.error` — la voix manquait sans
-   * qu'aucune explication n'atteigne l'ecran.
+   * A load or playback failure, so a caller can show it to the user.
+   * Without this, a missing recording (404, network) only left a
+   * `console.error` line — the voice was missing without any explanation
+   * reaching the screen.
    */
   constructor(private onError: (message: string) => void = () => {}) {
     this.el = new Audio();
@@ -57,9 +57,9 @@ export class AudioManager {
   }
 
   /**
-   * Suivre l'horloge du projet. Une piste unique n'a rien a suivre : sa
-   * position EST celle du projet. La methode existe pour que le lecteur par
-   * temps, lui, puisse changer de morceau au meme appel.
+   * Follow the project clock. A single track has nothing to follow: its
+   * position IS the project's. The method exists so the per-beat player can
+   * switch parts on the same call.
    */
   follow(_positionMs: number): void {}
 
@@ -68,11 +68,10 @@ export class AudioManager {
   }
 
   /**
-   * Rattraper un petit ecart en douceur, sans coupure : jouer legerement plus
-   * vite ou plus lentement plutot que sauter. Un saut se coupe et se reprend,
-   * ce qui s'entend ; un tempo a peine modifie ne se remarque pas, et vaut
-   * mieux qu'un decrochage audible pour un ecart que quelques secondes de
-   * lecture suffisent a resorber.
+   * Catch up a small gap smoothly, without a cut: play slightly faster or
+   * slower rather than jump. A jump cuts and resumes, which is audible; a
+   * barely changed tempo goes unnoticed, and beats an audible glitch for a
+   * gap that a few seconds of playback are enough to absorb.
    */
   setPlaybackRate(rate: number): void {
     if (this.el.playbackRate !== rate) this.el.playbackRate = rate;
@@ -83,13 +82,13 @@ export class AudioManager {
   }
 
   /**
-   * Un saut est en cours : l'element n'a pas encore fini de se replacer.
+   * A seek is in progress: the element has not finished repositioning yet.
    *
-   * Utilise par le lecteur multi-pistes pour NE PAS redemander un saut tant
-   * que le precedent n'a pas abouti — sans cette garde, un flux pas encore
-   * mis en tampon reste toujours "en retard" pendant qu'il rattrape, et
-   * chaque frame relancait un nouveau saut avant que le premier n'ait eu le
-   * temps de charger. La voix ne finissait jamais de se stabiliser.
+   * Used by the multi-track player to NOT request another seek until the
+   * previous one has completed — without this guard, a stream not yet
+   * buffered always stays "late" while it catches up, and every frame
+   * started a new seek before the first had time to load. The voice never
+   * settled.
    */
   isSeeking(): boolean {
     return this.el.seeking;

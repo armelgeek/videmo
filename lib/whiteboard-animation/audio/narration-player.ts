@@ -6,128 +6,126 @@ import {
   partAt,
 } from "./narration-schedule";
 
-/** Au-dela, la coupure vaut mieux qu'une derive qui durerait des secondes. */
-const SAUT_BRUTAL_MS = 1500;
+/** Beyond this, a cut is better than a drift that would last for seconds. */
+const HARD_SEEK_MS = 1500;
 
 /**
- * Tempo FIXE d'un rattrapage. Chaque changement de playbackRate relance
- * l'etireur de temps du navigateur et s'entend comme un petit clic : un nudge
- * recalcule a chaque frame en produisait des dizaines par seconde.
+ * FIXED catch-up tempo. Every playbackRate change restarts the browser's
+ * time stretcher and is heard as a small click: a nudge recomputed every
+ * frame produced dozens per second.
  */
 const NUDGE = 0.03;
 
 /**
- * Un rattrapage engage court jusqu'a ce seuil, bien sous celui qui l'a
- * declenche : sans cette hysteresis, l'ecart oscillait autour du seuil et le
- * tempo basculait sans cesse entre 1 et le nudge.
+ * An engaged catch-up runs down to this threshold, well below the one that
+ * triggered it: without this hysteresis, the gap oscillated around the
+ * threshold and the tempo kept flipping between 1 and the nudge.
  */
-const RETOUR_MS = 25;
+const RELEASE_MS = 25;
 
 /**
- * Joue la narration enregistrement par enregistrement, en presentant a la
- * boucle de rendu l'interface d'UNE piste continue.
+ * Plays the narration recording by recording, while presenting the render
+ * loop with the interface of ONE continuous track.
  *
- * La boucle raisonne sur l'horloge du PROJET : elle demande la position
- * courante et recale quand le son derive. Ici cette position devient « quel
- * enregistrement, a quel endroit », si bien que la boucle n'a pas a savoir que
- * la voix vient de plusieurs fichiers.
+ * The loop reasons on the PROJECT clock: it asks for the current position and
+ * resyncs when the sound drifts. Here that position becomes "which recording,
+ * at what point", so the loop does not need to know the voice comes from
+ * several files.
  *
- * DEUX elements, et non un : charger au moment de basculer coutait un temps
- * mort mesure — trois chargements en 200 ms, et 65 ms de l'attaque suivante
- * sautees, parce que la boucle recalait la voix sur un dessin qui, lui,
- * n'attendait pas. Pendant qu'un element joue, l'autre prepare la suite ; la
- * bascule n'est plus qu'un echange.
+ * TWO elements, not one: loading at switch time cost measured dead time —
+ * three loads in 200 ms, and 65 ms of the next attack skipped, because the
+ * loop resynced the voice onto a drawing that did not wait. While one element
+ * plays, the other prepares the next; the switch is just a swap.
  *
- * La decision vit dans `nextNarrationAction`, testee seule : jsdom n'implemente
- * ni `play` ni `load`, donc ce lecteur ne se prouve pas directement.
+ * The decision lives in `nextNarrationAction`, tested on its own: jsdom
+ * implements neither `play` nor `load`, so this player cannot be proven directly.
  */
 export class NarrationPlayer {
   private managers: [AudioManager, AudioManager];
-  /** Quel enregistrement chaque element porte, `null` s'il n'en porte aucun. */
-  private porte: (number | null)[] = [null, null];
-  private actif = 0;
+  /** Which recording each element holds, `null` if it holds none. */
+  private holds: (number | null)[] = [null, null];
+  private active = 0;
   private index: number | null = null;
-  private voulu = false;
+  private wantsPlay = false;
   private volume = 1;
-  private muet = false;
+  private muted = false;
   /**
-   * L'endroit vise, tant que la source n'est pas prete. Sans lui, la position
-   * de l'element reste a zero pendant le chargement, l'ecart parait enorme, et
-   * chaque frame redemande un recalage.
+   * The target position, while the source is not ready. Without it, the
+   * element's position stays at zero during loading, the gap looks huge, and
+   * every frame requests another resync.
    */
-  private attendu: number | null = null;
+  private expectedMs: number | null = null;
 
   constructor(
     private parts: NarrationPart[],
     onError: (message: string) => void = () => {},
   ) {
-    // Les DEUX elements partagent le meme canal : l'utilisateur n'a pas
-    // besoin de savoir lequel des deux echoue, seulement qu'un enregistrement
-    // n'a pas charge.
+    // BOTH elements share the same channel: the user does not need to know
+    // which of the two failed, only that a recording did not load.
     this.managers = [new AudioManager(onError), new AudioManager(onError)];
   }
 
   private get manager(): AudioManager {
-    return this.managers[this.actif];
+    return this.managers[this.active];
   }
 
   /**
-   * Charge le premier enregistrement, et prepare le suivant.
+   * Loads the first recording, and prepares the next.
    *
-   * Sans cela le chargement commencait AU CLIC : le dessin partait pendant ce
-   * temps et la boucle alignait ensuite la voix sur lui, en sautant ce qui
-   * s'etait ecoule — 117 ms mesurees, soit l'attaque du premier mot perdue.
+   * Without this, loading started ON CLICK: the drawing started meanwhile and
+   * the loop then aligned the voice onto it, skipping what had elapsed —
+   * 117 ms measured, i.e. the attack of the first word lost.
    */
   prepare(): void {
     if (this.parts.length === 0) return;
-    this.actif = 0;
+    this.active = 0;
     this.index = 0;
-    this.attendu = 0;
-    this.charger(0, 0);
-    this.preparerSuivant(0);
+    this.expectedMs = 0;
+    this.loadInto(0, 0);
+    this.prepareNext(0);
   }
 
-  private charger(part: number, sur: number): void {
-    if (this.porte[sur] === part) return;
-    this.porte[sur] = part;
-    void this.managers[sur].load(this.parts[part].url);
+  private loadInto(part: number, slot: number): void {
+    if (this.holds[slot] === part) return;
+    this.holds[slot] = part;
+    void this.managers[slot].load(this.parts[part].url);
   }
 
-  /** L'element libre prend l'enregistrement d'apres, pendant que l'autre joue. */
-  private preparerSuivant(part: number): void {
-    const suivant = part + 1;
-    if (suivant >= this.parts.length) return;
-    this.charger(suivant, 1 - this.actif);
+  /** The free element takes the next recording while the other plays. */
+  private prepareNext(part: number): void {
+    const next = part + 1;
+    if (next >= this.parts.length) return;
+    this.loadInto(next, 1 - this.active);
   }
 
   getElement(): HTMLAudioElement {
     return this.manager.getElement();
   }
 
-  /** Toute la narration, du debut du premier enregistrement a la fin du dernier. */
+  /** The whole narration, from the start of the first recording to the end of the last. */
   getDurationMs(): number {
     return narrationEndMs(this.parts);
   }
 
-  /** La position sur l'horloge du PROJET, et non dans l'enregistrement courant. */
+  /** The position on the PROJECT clock, not within the current recording. */
   getCurrentMs(): number {
     if (this.index === null) return 0;
     return this.parts[this.index].startMs + this.manager.getCurrentMs();
   }
 
   /**
-   * Se placer a cet instant du projet : echanger d'element s'il faut changer
-   * d'enregistrement, se recaler sinon, se taire dans un trou.
+   * Move to this instant of the project: swap elements if the recording must
+   * change, resync otherwise, go silent in a gap.
    */
   seekMs(positionMs: number): void {
-    const pret = this.manager.getElement().readyState > 0;
+    const ready = this.manager.getElement().readyState > 0;
     const offsetMs =
       this.index === null
         ? 0
-        : !pret && this.attendu !== null
-          ? this.attendu
+        : !ready && this.expectedMs !== null
+          ? this.expectedMs
           : this.manager.getCurrentMs();
-    if (pret) this.attendu = null;
+    if (ready) this.expectedMs = null;
 
     const action = nextNarrationAction(
       { index: this.index, offsetMs },
@@ -135,98 +133,98 @@ export class NarrationPlayer {
       positionMs,
     );
 
-    if (action.type === "rien") {
+    if (action.type === "none") {
       const rate = this.manager.getPlaybackRate();
       if (rate === 1) return;
-      // Le rattrapage continue tant que l'ecart n'est pas resorbe, et s'arrete
-      // s'il le depasse dans l'autre sens.
-      const cible = partAt(this.parts, positionMs);
-      const ecartMs = cible ? cible.offsetMs - offsetMs : 0;
-      if (Math.abs(ecartMs) <= RETOUR_MS || Math.sign(ecartMs) !== Math.sign(rate - 1)) {
+      // The catch-up continues until the gap is absorbed, and stops if it
+      // overshoots in the other direction.
+      const target = partAt(this.parts, positionMs);
+      const gapMs = target ? target.offsetMs - offsetMs : 0;
+      if (Math.abs(gapMs) <= RELEASE_MS || Math.sign(gapMs) !== Math.sign(rate - 1)) {
         this.manager.setPlaybackRate(1);
       }
       return;
     }
 
-    if (action.type === "taire") {
+    if (action.type === "silence") {
       this.manager.pause();
       this.manager.setPlaybackRate(1);
       this.index = null;
-      this.attendu = null;
+      this.expectedMs = null;
       return;
     }
 
-    if (action.type === "charger") {
-      // L'element qui ne joue pas porte deja la suite, en general : la bascule
-      // n'est alors qu'un echange, sans chargement ni temps mort.
-      const ancien = this.actif;
-      const autre = 1 - this.actif;
-      if (this.porte[autre] !== action.index) this.charger(action.index, autre);
-      this.actif = autre;
+    if (action.type === "load") {
+      // The idle element usually already holds the next recording: the switch
+      // is then just a swap, with no loading or dead time.
+      const previous = this.active;
+      const other = 1 - this.active;
+      if (this.holds[other] !== action.index) this.loadInto(action.index, other);
+      this.active = other;
 
       this.index = action.index;
-      this.attendu = action.offsetMs;
+      this.expectedMs = action.offsetMs;
       this.manager.setVolume(this.volume);
-      this.manager.setMuted(this.muet);
+      this.manager.setMuted(this.muted);
       this.manager.setPlaybackRate(1);
 
-      // Si l'element est deja calé sur la position voulue (ex: début à 0),
-      // eviter un seekMs asynchrone qui fige la lecture du navigateur.
+      // If the element is already at the desired position (e.g. start at 0),
+      // avoid an async seekMs that freezes browser playback.
       if (Math.abs(this.manager.getCurrentMs() - action.offsetMs) > 20) {
         this.manager.seekMs(action.offsetMs);
       }
 
-      if (this.voulu) {
+      if (this.wantsPlay) {
         this.manager.play().catch((error) => {
           console.error("Failed to start narration playback:", error);
         });
       }
-      this.managers[ancien].pause();
-      this.preparerSuivant(action.index);
+      this.managers[previous].pause();
+      this.prepareNext(action.index);
       return;
     }
 
-    // Le precedent saut n'a pas fini de charger : en redemander un maintenant
-    // ne ferait que le repousser encore, sans jamais laisser la voix rattraper
-    // son retard. On attend la frame suivante, ou il aura peut-etre abouti.
+    // The previous seek has not finished loading: requesting another now would
+    // only push it back again, never letting the voice catch up. Wait for the
+    // next frame, when it may have completed.
     if (this.manager.isSeeking()) return;
 
-    const ecartMs = action.offsetMs - offsetMs;
+    const gapMs = action.offsetMs - offsetMs;
 
-    // Un ecart enorme (retour d'onglet mis en veille, saut manuel) ne se
-    // rattrape pas en douceur dans un delai raisonnable : la coupure y est
-    // moins genante qu'une derive qui durerait plusieurs secondes.
-    if (Math.abs(ecartMs) > SAUT_BRUTAL_MS) {
-      this.attendu = action.offsetMs;
+    // A huge gap (returning to a sleeping tab, manual seek) cannot be caught up
+    // smoothly in a reasonable time: a cut is less annoying there than a drift
+    // lasting several seconds.
+    if (Math.abs(gapMs) > HARD_SEEK_MS) {
+      this.expectedMs = action.offsetMs;
       this.manager.setPlaybackRate(1);
       this.manager.seekMs(action.offsetMs);
       return;
     }
 
-    // En-dessous, on rattrape par le TEMPO plutot que par un saut : jouer
-    // legerement plus vite ou plus lentement quelques secondes ne s'entend
-    // pas, la ou chaque coupure s'entend. Voir AudioManager.setPlaybackRate.
-    this.manager.setPlaybackRate(ecartMs > 0 ? 1 + NUDGE : 1 - NUDGE);
+    // Below that, catch up via TEMPO rather than a jump: playing slightly
+    // faster or slower for a few seconds is inaudible, whereas every cut is
+    // heard. See AudioManager.setPlaybackRate.
+    this.manager.setPlaybackRate(gapMs > 0 ? 1 + NUDGE : 1 - NUDGE);
   }
 
-  /** Suivre l'horloge du projet, a chaque frame. */
+  /** Follow the project clock, every frame. */
   follow(positionMs: number): void {
     this.seekMs(positionMs);
   }
 
   /**
-   * Demarrer. Sans enregistrement charge — le projet commence par un trou — on
-   * note seulement l'intention : le prochain `seekMs` qui tombe sur une voix
-   * lancera la lecture.
+   * Start. With no recording loaded — the project starts with a gap — only
+   * the intent is recorded: the next `seekMs` that lands on a voice will start
+   * playback.
    */
   async play(): Promise<void> {
-    this.voulu = true;
+    this.wantsPlay = true;
     if (this.index === null) return;
     await this.manager.play();
   }
 
   pause(): void {
-    this.voulu = false;
+    this.wantsPlay = false;
     for (const m of this.managers) m.pause();
   }
 
@@ -236,22 +234,22 @@ export class NarrationPlayer {
   }
 
   setMuted(m: boolean): void {
-    this.muet = m;
+    this.muted = m;
     for (const manager of this.managers) manager.setMuted(m);
   }
 
   /**
-   * Requis par NarrationClock ; le rattrapage interne (voir seekMs) pilote
-   * deja le tempo de l'element actif. Un appelant externe n'a aujourd'hui
-   * aucune raison d'en imposer un, mais l'interface doit rester complete.
+   * Required by NarrationClock; the internal catch-up (see seekMs) already
+   * drives the active element's tempo. An external caller has no reason to
+   * force one today, but the interface must stay complete.
    */
   setPlaybackRate(rate: number): void {
     this.manager.setPlaybackRate(rate);
   }
 
   /**
-   * Un lecteur sans aucun enregistrement n'est pas une horloge utilisable : la
-   * boucle le laisse alors tranquille au lieu de l'attendre.
+   * A player with no recording is not a usable clock: the loop then leaves it
+   * alone instead of waiting for it.
    */
   isUsableClock(): boolean {
     return this.parts.length > 0;

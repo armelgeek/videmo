@@ -10,7 +10,7 @@ import {
   storyboardBreakdownSchema,
 } from "@/lib/storyboard/script-generation";
 
-// Le decoupage porte tout le script : il est plus long que l'ecriture.
+// The split covers the whole script: it takes longer than writing.
 export const maxDuration = 180;
 
 const requestSchema = z.object({
@@ -25,11 +25,11 @@ const requestSchema = z.object({
 });
 
 /**
- * Second temps du parcours : transformer le script valide en scenes.
+ * Second stage of the flow: turn the approved script into scenes.
  *
- * Il est separe de l'ecriture parce que l'utilisateur relit et corrige le texte
- * entre les deux. Decouper des la premiere generation figeait des scenes que
- * les corrections suivantes n'atteignaient plus.
+ * It is separate from writing because the user rereads and corrects the text
+ * in between. Splitting on the first generation froze scenes that later
+ * corrections no longer reached.
  */
 export async function POST(request: NextRequest) {
   try {

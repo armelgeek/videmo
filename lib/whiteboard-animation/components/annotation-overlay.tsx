@@ -8,32 +8,32 @@ import { useUnifiedEngineStore } from '@/lib/unified-engine/context';
 import { selectSceneAnnotations } from '@/lib/unified-engine/hooks/selectors';
 
 /**
- * Calque d'edition SPATIALE des annotations.
+  * SPATIAL editing layer for annotations.
  *
- * Il remplace le fillRect/strokeRect imperatif qu'ecrivait le renderer dans un
- * canvas `pointer-events-none` : ces rectangles etaient un simple repere, on ne
- * pouvait ni les saisir ni les redimensionner. Ici chaque region est un noeud
- * Konva deplacable, avec un Transformer pour la redimensionner.
- *
- * Les regions sont stockees en PIXELS CANVAS (voir use-whiteboard-renderer :
- * l'amorcage les projette sur le rectangle d'artwork puis reprojeterRegion les
- * transporte quand le canvas change de forme). Il n'y a donc aucun changement
- * de repere a faire : le Layer porte simplement l'echelle affichage/canvas, et
- * les noeuds vivent dans les memes coordonnees que le moteur.
+  * It replaces the imperative fillRect/strokeRect the renderer wrote into a
+  * `pointer-events-none` canvas: those rectangles were a mere marker, you could
+  * neither grab nor resize them. Here each region is a draggable Konva node,
+  * with a Transformer to resize it.
+  *
+  * Regions are stored in CANVAS PIXELS (see use-whiteboard-renderer: seeding
+  * projects them onto the artwork rectangle, then reprojectRegion carries them
+  * when the canvas changes shape). So there is no change of coordinate frame
+  * to make: the Layer simply carries the display/canvas scale, and the nodes
+  * live in the same coordinates as the engine.
  */
 
-/** Taille minimale d'une region, en pixels canvas. En dessous elle n'est plus
- *  saisissable, et le moteur ne tamponnerait rien de visible. */
+/** Minimum size of a region, in canvas pixels. Below it the region can no
+ *  longer be grabbed, and the engine would stamp nothing visible. */
 const MIN_REGION_PX = 24;
 
 const DEFAULT_STROKE = '#18181b';
 
 export interface AnnotationOverlayProps {
-  /** Largeur du repere canvas — celle des <canvas> empiles dessous. */
+  /** Width of the canvas frame — that of the <canvas> elements stacked below. */
   canvasWidth: number;
   canvasHeight: number;
-  /** Le calque est un outil d'edition : il masque le dessin qu'on regarde.
-   *  On le retire pendant la lecture et le scrub. */
+  /** The layer is an editing tool: it hides the drawing being watched.
+   *  It is removed during playback and scrubbing. */
   hidden?: boolean;
 }
 
@@ -42,8 +42,8 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
   canvasHeight,
   hidden = false,
 }) => {
-  // La scene active seulement : les index passes a updateAnnotation sont
-  // locaux a cette scene, le store les traduit dans le tableau complet.
+  // Active scene only: indices passed to updateAnnotation are local to this
+  // scene; the store maps them into the full array.
   const annotations = useUnifiedEngineStore(selectSceneAnnotations);
   const selectedIndex = useUnifiedEngineStore((s) => s.ui.selectedAnnotationIndex);
   const updateAnnotation = useUnifiedEngineStore((s) => s.updateAnnotation);
@@ -53,9 +53,9 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
   const trRef = useRef<Konva.Transformer>(null);
   const layerRef = useRef<Konva.Layer>(null);
 
-  // Taille AFFICHEE du canvas. Le Stage est rendu a cette taille et le Layer
-  // porte l'echelle : les poignees restent ainsi nettes a la resolution ecran
-  // au lieu d'etre un canvas 1920 etire par le CSS.
+  // DISPLAYED size of the canvas. The Stage is rendered at this size and the Layer
+  // carries the scale: the handles thus stay sharp at screen resolution
+  // instead of being a 1920 canvas stretched by CSS.
   const [display, setDisplay] = useState({ width: 0, height: 0 });
 
   useLayoutEffect(() => {
@@ -75,14 +75,13 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
 
   const scale = display.width > 0 ? display.width / canvasWidth : 0;
 
-  // Le Transformer suit la selection. Il est rattache imperativement : Konva
-  // veut le NOEUD, que React ne peut pas passer en prop.
+  // The Transformer follows the selection. It is attached imperatively: Konva
+  // wants the NODE, which React cannot pass as a prop.
   //
-  // Le noeud est RETROUVE PAR NOM, pas garde dans une Map de refs : la callback
-  // `ref` etant recreee a chaque rendu, React la detachait (null) et la
-  // rattachait sans cesse, et l'effet tombait sur une entree absente — le
-  // Transformer se retrouvait alors avec zero noeud et le redimensionnement
-  // n'emettait plus rien.
+  // The node is LOOKED UP BY NAME, not kept in a Map of refs: since the `ref`
+  // callback was recreated on every render, React kept detaching it (null) and
+  // reattaching it, and the effect hit a missing entry — the Transformer then
+  // ended up with zero nodes and resizing emitted nothing.
   useEffect(() => {
     const tr = trRef.current;
     const layer = layerRef.current;
@@ -97,8 +96,8 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
     tr.getLayer()?.batchDraw();
   }, [selectedIndex, annotations, scale]);
 
-  // Echap deselectionne. Sans cela les poignees restent sur une region qu'on a
-  // fini d'editer et masquent le dessin en dessous.
+  // Escape deselects. Without it the handles stay on a region you have
+  // finished editing and hide the drawing underneath.
   useEffect(() => {
     if (selectedIndex == null) return;
     const onKey = (e: KeyboardEvent) => {
@@ -108,7 +107,7 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedIndex, setSelectedAnnotation]);
 
-  /** Borne une region au canvas, en preservant sa taille quand c'est possible. */
+  /** Clamps a region to the canvas, preserving its size when possible. */
   const clampRegion = useCallback(
     (r: { x: number; y: number; width: number; height: number }) => {
       const width = Math.min(Math.max(r.width, MIN_REGION_PX), canvasWidth);
@@ -131,9 +130,9 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
         width: node.width(),
         height: node.height(),
       });
-      // Le noeud est repositionne sur la valeur bornee : sinon un drag hors du
-      // canvas laisserait le rectangle a l'ecran a un endroit que le store ne
-      // contient pas.
+      // The node is repositioned on the clamped value: otherwise a drag outside
+      // the canvas would leave the on-screen rectangle at a place the store does
+      // not contain.
       node.position({ x: region.x, y: region.y });
       updateAnnotation(index, { region });
     },
@@ -142,9 +141,9 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
 
   const handleTransformEnd = useCallback(
     (index: number, node: Konva.Rect) => {
-      // Le Transformer travaille en ECHELLE, pas en taille. On la cuit dans
-      // width/height et on la remet a 1, sinon elle se composerait au
-      // redimensionnement suivant et le trait grossirait avec la region.
+      // The Transformer works in SCALE, not size. We bake it into
+      // width/height and reset it to 1, otherwise it would compound on the
+      // next resize and the stroke would thicken with the region.
       const scaleX = node.scaleX();
       const scaleY = node.scaleY();
       node.scaleX(1);
@@ -163,8 +162,8 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
     [clampRegion, updateAnnotation]
   );
 
-  // Konva ne rend rien tant qu'il ne connait pas sa taille, et un Stage 0x0
-  // ferait clignoter le calque au montage.
+  // Konva renders nothing until it knows its size, and a 0x0 Stage
+  // would make the layer flicker on mount.
   const ready = display.width > 0 && display.height > 0;
 
   return (
@@ -180,8 +179,8 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
         <Stage
           width={display.width}
           height={display.height}
-          // Cliquer dans le vide deselectionne. On compare la cible au Stage
-          // lui-meme : un clic sur une region remonte jusqu'ici aussi.
+          // Clicking empty space deselects. We compare the target to the Stage
+          // itself: a click on a region bubbles up here too.
           onMouseDown={(e) => {
             if (e.target === e.target.getStage()) setSelectedAnnotation(null);
           }}
@@ -204,9 +203,9 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
                     height={region.height}
                     fill={fill}
                     stroke={stroke}
-                    // Le Layer met tout a l'echelle : un trait divise par elle
-                    // ressort donc a son epaisseur nominale a l'ecran, quelle
-                    // que soit la taille de la preview.
+                    // The Layer scales everything: a stroke divided by the scale
+                    // thus comes out at its nominal thickness on screen, whatever
+                    // the preview size.
                     strokeWidth={(annot.style?.strokeWidth ?? 2) / scale}
                     opacity={annot.style?.opacity ?? 1}
                     draggable
@@ -256,9 +255,9 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
               rotateEnabled={false}
               flipEnabled={false}
               ignoreStroke
-              // PAS divise par `scale` : le Transformer annule lui-meme
-              // l'echelle du Layer pour se caler sur la position absolue de sa
-              // cible, donc ces tailles sont deja en pixels ECRAN.
+              // NOT divided by `scale`: the Transformer itself cancels
+              // the Layer's scale to align with its target's absolute position,
+              // so these sizes are already in SCREEN pixels.
               anchorSize={9}
               anchorCornerRadius={2}
               anchorStrokeWidth={1.5}
@@ -267,8 +266,8 @@ export const AnnotationOverlay: React.FC<AnnotationOverlayProps> = ({
               borderDash={[4, 4]}
               anchorStroke="#18181b"
               anchorFill="#ffde59"
-              // Les bornes sont en coordonnees ABSOLUES du Stage, donc a
-              // l'echelle de l'affichage — d'ou le facteur.
+              // Bounds are in ABSOLUTE Stage coordinates, hence at
+              // display scale — thus the factor.
               boundBoxFunc={(oldBox, newBox) => {
                 if (
                   newBox.width < MIN_REGION_PX * scale ||

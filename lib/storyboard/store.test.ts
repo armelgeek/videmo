@@ -9,8 +9,8 @@ import type { AudioTrack, TranscriptCue } from "@/lib/whiteboard-animation/audio
 import type { StoryboardStoreState } from "./store";
 
 function resetStore() {
-  // Part du vrai defaut : la copie a la main oubliait chaque champ ajoute
-  // depuis, et le test du defaut portait alors sur `undefined`.
+  // Start from the real default: the hand-written copy forgot every field added
+  // since, and the default test then asserted on `undefined`.
   useStoryboardStore.setState({
     whiteboardConfig: {
       ...DEFAULT_WHITEBOARD_CONFIG,
@@ -41,13 +41,13 @@ describe("whiteboardConfig.audio", () => {
     expect(useStoryboardStore.getState().whiteboardConfig.audio).toEqual(track);
   });
 
-  it("setNarrationParts garde la voix par temps, sans toucher a la piste unique", () => {
+  it("setNarrationParts keeps the per-beat voice without touching the single track", () => {
     const parts = [{ url: "/0.mp3", startMs: 0, durationMs: 1200 }];
     useStoryboardStore.getState().setNarrationParts(parts);
 
     const config = useStoryboardStore.getState().whiteboardConfig;
     expect(config.narration).toEqual(parts);
-    // `audio` reste le televersement a la main : les deux coexistent.
+    // `audio` remains the manual upload: both coexist.
     expect(config.audio).toBeNull();
   });
 
@@ -136,8 +136,8 @@ describe("mergeStoryboardStorePersistedState", () => {
 
     expect(merged.whiteboardConfig.audio).toBeNull();
     expect(merged.whiteboardConfig.transcript).toEqual([]);
-    // Le merge de zustand remplace l'objet en bloc : sans la fusion d'un cran
-    // plus profond, un champ ajoute apres coup revient `undefined`, pas `[]`.
+    // Zustand's merge replaces the object wholesale: without merging one level
+    // deeper, a field added later comes back `undefined`, not `[]`.
     expect(merged.whiteboardConfig.transcription).toEqual([]);
   });
 

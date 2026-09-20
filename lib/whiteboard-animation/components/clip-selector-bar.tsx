@@ -15,11 +15,11 @@ function ClipSelectorBarImpl() {
   const activeClipIndex = useStoryboardStore((s) => s.activeClipIndex);
   const setActiveClipIndex = useStoryboardStore((s) => s.setActiveClipIndex);
 
-  // Pendant la lecture, le clip actif SUIT l'horloge : whiteboard-editor-step
-  // le recale a chaque frame sur le clip joue. Un clic etait donc annule au
-  // 16e de seconde suivant. Choisir un clip a la main est une intention de
-  // navigation, pas de lecture : on met en pause d'abord, l'effet de seek de
-  // l'editeur amene ensuite la tete de lecture sur ce clip.
+  // During playback the active clip FOLLOWS the clock: whiteboard-editor-step
+  // resyncs it every frame to the clip being played. A click was thus undone
+  // a 16th of a second later. Picking a clip by hand is a navigation intent,
+  // not playback: we pause first, then the editor's seek effect brings the
+  // playhead onto that clip.
   const handleSelect = useCallback(
     (idx: number) => {
       const engine = useUnifiedEngineStore.getState();
@@ -34,20 +34,20 @@ function ClipSelectorBarImpl() {
     [setActiveClipIndex, storyboardPanels],
   );
 
-  // Centre la scene active dans la liste a chaque changement — au clic comme
-  // au fil de la lecture, ou l'auto-avance de l'editeur change activeClipIndex
-  // sans jamais passer par handleSelect. scrollIntoView({block:'nearest'}) ne
-  // bouge que si l'element deborde, donc une scene active mais deja visible
-  // (en haut ou en bas de la liste) n'etait jamais recentree.
+  // Centre the active scene in the list on every change — on click as well
+  // as during playback, where the editor's auto-advance changes activeClipIndex
+  // without ever going through handleSelect. scrollIntoView({block:'nearest'})
+  // only moves if the element overflows, so an active but already visible scene
+  // (at the top or bottom of the list) was never recentred.
   const listRef = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const list = listRef.current;
     const active = activeRef.current;
     if (!list || !active) return;
-    const cible =
+    const targetTop =
       active.offsetTop - list.clientHeight / 2 + active.offsetHeight / 2;
-    list.scrollTo({ top: Math.max(0, cible), behavior: "smooth" });
+    list.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
   }, [activeClipIndex]);
 
   if (!storyboardPanels || storyboardPanels.length === 0) return null;
@@ -92,8 +92,8 @@ interface ClipThumbProps {
   annotationCount: number;
   imageUrl: string;
   onSelect: (idx: number) => void;
-  // React 19 transmet `ref` comme une prop ordinaire aux composants fonction ;
-  // forwardRef n'est plus necessaire.
+  // React 19 passes `ref` as an ordinary prop to function components;
+  // forwardRef is no longer needed.
   ref?: Ref<HTMLButtonElement>;
 }
 

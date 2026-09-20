@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Annotation } from "@/lib/unified-engine/types";
 import type { TimelineClip } from "@/lib/editor/types";
-import { poserPositionLecture } from "@/lib/editor/playback-clock";
+import { setPlaybackPosition } from "@/lib/editor/playback-clock";
 import { useUnifiedEngineStore } from "@/lib/unified-engine/context";
 import { selectSceneAnnotations } from "@/lib/unified-engine/hooks/selectors";
 import { useStoryboardStore } from "@/lib/storyboard/store";
@@ -13,7 +13,7 @@ import { deriveTimeline } from "./derive-timeline";
 import { interpretClipUpdate } from "./interpret-clip-update";
 import { toEditorTimeline } from "./to-editor-timeline";
 import { annotationPleineImage } from "./panel-fallback-annotation";
-import { tailleCanvas } from "../canvas-size";
+import { canvasSize } from "../canvas-size";
 
 /**
  * Retrouve le panneau proprietaire d'un id d'annotation de la chaine globale,
@@ -61,7 +61,7 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
   // change aussi quand on scrube ou qu'on choisit un clip, et ces
   // deplacements-la doivent s'afficher comme les autres.
   useEffect(() => {
-    const publier = (ms: number) => poserPositionLecture(ms / 1000);
+    const publier = (ms: number) => setPlaybackPosition(ms / 1000);
     publier(useUnifiedEngineStore.getState().timeline.currentTime);
     return useUnifiedEngineStore.subscribe((s) =>
       publier(s.timeline.currentTime),
@@ -144,7 +144,7 @@ export function useAnnotationTimeline(globalAnnotations?: Annotation[]) {
         const locales =
           existantes.length > 0
             ? existantes
-            : [annotationPleineImage(panel, tailleCanvas(aspectRatio))];
+            : [annotationPleineImage(panel, canvasSize(aspectRatio))];
 
         // Reconstruit un TimelineEdit purement LOCAL a ce panneau : les ids
         // globaux (pN-xxx) redeviennent les ids locaux que ce panneau connait.

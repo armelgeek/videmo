@@ -8,12 +8,12 @@ const panneau = {
 };
 
 describe("storyboardPanelSchema", () => {
-  it("accepte un panneau sans transition — les projets existants restent valides", () => {
+  it("accepts a panel without transition — existing projects stay valid", () => {
     const parsed = storyboardPanelSchema.parse(panneau);
     expect(parsed.transition).toBeUndefined();
   });
 
-  it("accepte une transition complete", () => {
+  it("accepts a complete transition", () => {
     const parsed = storyboardPanelSchema.parse({
       ...panneau,
       transition: { type: "slideup", durationMs: 300 },
@@ -21,7 +21,7 @@ describe("storyboardPanelSchema", () => {
     expect(parsed.transition).toEqual({ type: "slideup", durationMs: 300 });
   });
 
-  it("refuse un nom de transition inconnu", () => {
+  it("rejects an unknown transition name", () => {
     expect(() =>
       storyboardPanelSchema.parse({
         ...panneau,
@@ -31,10 +31,10 @@ describe("storyboardPanelSchema", () => {
   });
 
   /**
-   * z.object retire ce qu'il ne declare pas : sans ce champ, la voix produite
-   * par temps disparaissait au premier enregistrement, sans erreur.
+   * z.object strips what it does not declare: without this field, the voice produced
+   * per beat vanished on the first save, without any error.
    */
-  it("conserve les temps de narration et leur voix", () => {
+  it("keeps the narration beats and their voice", () => {
     const parsed = storyboardPanelSchema.parse({
       ...panneau,
       beats: [
@@ -51,11 +51,11 @@ describe("storyboardPanelSchema", () => {
     expect(parsed.beats?.[0].audioDurationMs).toBe(6552);
   });
 
-  it("accepte un panneau sans temps — les projets anterieurs restent valides", () => {
+  it("accepts a panel without beats — older projects stay valid", () => {
     expect(storyboardPanelSchema.parse(panneau).beats).toBeUndefined();
   });
 
-  it("refuse une duree negative", () => {
+  it("rejects a negative duration", () => {
     expect(() =>
       storyboardPanelSchema.parse({
         ...panneau,

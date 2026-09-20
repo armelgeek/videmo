@@ -5,11 +5,11 @@ import { markerGeometry, type TransitionMarker } from "../timeline/transition-ma
 import type { ClipWindow } from "../timeline/clip-transitions";
 import { TRACK_HEADER_PX } from "../timeline/annotation-timeline";
 
-/** Une couleur distincte par type, pour reconnaitre la transition d'un coup d'oeil. */
+/** A distinct colour per type, to recognise the transition at a glance. */
 const RULER_HEIGHT_PX = 32;
 const ANNOTATION_ROW_HEIGHT_PX = 44;
 
-const COULEUR_PAR_TYPE: Record<string, string> = {
+const COLOR_BY_TYPE: Record<string, string> = {
   fade: "#a855f7",
   slideup: "#38bdf8",
   slidedown: "#38bdf8",
@@ -19,20 +19,20 @@ const COULEUR_PAR_TYPE: Record<string, string> = {
 
 export interface ClipTransitionMarkersProps {
   clips: ClipWindow[];
-  /** Meme forme que TimelinePlayhead : viewport partage de la timeline. */
+  /** Same shape as TimelinePlayhead: the timeline's shared viewport. */
   viewport?: {
     scrollEl: HTMLElement | null;
     contentWidth: number;
     zoomLevel: number;
   };
-  /** Duree en ms proposee pour le panneau `panelIdx`. */
+  /** Proposed duration in ms for panel `panelIdx`. */
   onResize?: (panelIdx: number, durationMs: number) => void;
 }
 
 /**
-  * Une carte par frontiere de clip transitionnee, superposee a la timeline —
-  * utilise le suivi imperatif du scroll (comme AudioTrackRow et TimelinePlayhead)
-  * pour eviter la latence React pendant le defilement.
+    * One card per transitioned clip boundary, overlaid on the timeline —
+    * uses imperative scroll tracking (like AudioTrackRow and TimelinePlayhead)
+    * to avoid React latency while scrolling.
   */
 function ClipTransitionMarkersImpl({ clips, viewport, onResize }: ClipTransitionMarkersProps) {
   const scrollEl = viewport?.scrollEl ?? null;
@@ -79,8 +79,8 @@ function ClipTransitionMarkersImpl({ clips, viewport, onResize }: ClipTransition
 
   if (!viewport || zoomLevel <= 0) return null;
 
-  const pxParMs = zoomLevel / 1000;
-  const marqueurs = markerGeometry(clips, pxParMs);
+  const pxPerMs = zoomLevel / 1000;
+  const markers = markerGeometry(clips, pxPerMs);
 
   return (
     <div
@@ -98,15 +98,15 @@ function ClipTransitionMarkersImpl({ clips, viewport, onResize }: ClipTransition
         className="relative h-full"
         style={{ width: viewport.contentWidth }}
       >
-        {marqueurs.map((m) => {
+        {markers.map((m) => {
           const left = m.x;
           return (
             <TransitionCard
               key={m.panelIdx}
-              marqueur={m}
+              marker={m}
               left={left}
               type={clips[m.panelIdx]?.transition?.type ?? "fade"}
-              pxParMs={pxParMs}
+              pxPerMs={pxPerMs}
               onResize={onResize}
             />
           );
@@ -116,47 +116,47 @@ function ClipTransitionMarkersImpl({ clips, viewport, onResize }: ClipTransition
   );
 }
 
-/** Ne suit pas l'horloge : memo evite un re-rendu au rythme de son parent. */
+/** Does not follow the clock: memo avoids re-rendering at its parent's pace. */
 export const ClipTransitionMarkers = memo(ClipTransitionMarkersImpl);
 
 function TransitionCard({
-  marqueur,
+  marker,
   left,
   type,
-  pxParMs,
+  pxPerMs,
   onResize,
 }: {
-  marqueur: TransitionMarker;
+  marker: TransitionMarker;
   left: number;
   type: string;
-  pxParMs: number;
+  pxPerMs: number;
   onResize?: (panelIdx: number, durationMs: number) => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const couleur = COULEUR_PAR_TYPE[type] ?? COULEUR_PAR_TYPE.fade;
+  const color = COLOR_BY_TYPE[type] ?? COLOR_BY_TYPE.fade;
 
   const startDrag = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (pxParMs <= 0 || !onResize) return;
+    if (pxPerMs <= 0 || !onResize) return;
 
     const x0 = e.clientX;
-    const largeurInitialeMs = marqueur.width / pxParMs;
-    let latestDureeMs = Math.max(50, Math.round(largeurInitialeMs));
+    const initialWidthMs = marker.width / pxPerMs;
+    let latestDurationMs = Math.max(50, Math.round(initialWidthMs));
     let rafId: number | null = null;
 
     const onMove = (ev: MouseEvent) => {
-      const deltaMs = (ev.clientX - x0) / pxParMs;
-      latestDureeMs = Math.max(50, Math.round(largeurInitialeMs + deltaMs));
+      const deltaMs = (ev.clientX - x0) / pxPerMs;
+      latestDurationMs = Math.max(50, Math.round(initialWidthMs + deltaMs));
 
       if (cardRef.current) {
-        cardRef.current.style.width = `${Math.max(4, latestDureeMs * pxParMs)}px`;
+        cardRef.current.style.width = `${Math.max(4, latestDurationMs * pxPerMs)}px`;
       }
 
       if (rafId === null) {
         rafId = requestAnimationFrame(() => {
           rafId = null;
-          onResize(marqueur.panelIdx, latestDureeMs);
+          onResize(marker.panelIdx, latestDurationMs);
         });
       }
     };
@@ -168,7 +168,7 @@ function TransitionCard({
       }
       document.removeEventListener("mousemove", onMove);
       document.removeEventListener("mouseup", onUp);
-      onResize(marqueur.panelIdx, latestDureeMs);
+      onResize(marker.panelIdx, latestDurationMs);
     };
 
     document.addEventListener("mousemove", onMove);
@@ -181,8 +181,8 @@ function TransitionCard({
       className="absolute top-0 bottom-0 rounded-sm pointer-events-auto"
       style={{
         left,
-        width: Math.max(4, marqueur.width),
-        backgroundColor: couleur,
+        width: Math.max(4, marker.width),
+        backgroundColor: color,
         opacity: 0.55,
       }}
       title={`Transition : ${type}`}

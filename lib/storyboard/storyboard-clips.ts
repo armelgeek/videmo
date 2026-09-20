@@ -2,11 +2,11 @@ import type { ScriptBeat } from "./script-generation";
 import type { StoryboardPanel } from "./schema";
 
 /**
- * La forme editable d'un clip a l'etape Storyboard.
+ * The editable shape of a clip at the Storyboard step.
  *
- * Distincte de StoryboardPanel : elle porte `isSection`, qui n'existe que dans
- * l'editeur, et pas d'image — celle-ci vit dans un tableau parallele indexe de
- * la meme facon.
+ * Distinct from StoryboardPanel: it carries `isSection`, which only exists in
+ * the editor, and no image — that lives in a parallel array indexed the
+ * same way.
  */
 export interface EditableClip {
   id: string;
@@ -17,10 +17,10 @@ export interface EditableClip {
   visualPrompt: string;
   duration: number;
   isSection: boolean;
-  /** La voix de l'image entiere : elle est dite d'une traite. */
+  /** The voice of the whole image: it is spoken in one take. */
   audioUrl?: string;
   audioDurationMs?: number;
-  /** Ses temps de narration, chacun portant la sienne. */
+  /** Its narration beats, each carrying its own. */
   beats?: ScriptBeat[];
 }
 
@@ -30,11 +30,11 @@ export interface StoryboardStepState {
 }
 
 /**
- * Rouvre l'etape a partir des panneaux enregistres.
+ * Reopens the step from the saved panels.
  *
- * C'est le seul chemin qui rend le travail deja fait : sans lui, un simple
- * rechargement repartait des donnees de demonstration, et la premiere frappe
- * suivante les ecrivait en base par-dessus le vrai projet.
+ * It is the only path that restores work already done: without it, a simple
+ * reload restarted from the demo data, and the next keystroke
+ * wrote them to the database over the real project.
  */
 export function panelsToStepState(
   panels: StoryboardPanel[],

@@ -17,8 +17,8 @@ export async function POST(
     const now = new Date();
     const expiresAt = new Date(now.getTime() + LOCK_TTL_MS);
 
-    // La condition est dans le WHERE, pas dans une lecture préalable : deux
-    // membres qui cliquent en même temps ne peuvent pas l'obtenir tous deux.
+    // The condition is in the WHERE, not in a prior read: two members
+    // clicking at the same time cannot both obtain it.
     const { count } = await prisma.videoProject.updateMany({
       where: {
         id,
@@ -38,8 +38,8 @@ export async function POST(
         where: { id },
         select: { deletedAt: true, lockedById: true, lockExpiresAt: true },
       });
-      // deletedAt fait partie du select : sans lui, un projet supprimé dans la
-      // course rendrait « verrouillé » alors qu'il n'existe plus.
+      // deletedAt is part of the select: without it, a project deleted during the
+      // race would return « locked » even though it no longer exists.
       if (!holder || holder.deletedAt) throw new ProjectNotFoundError();
       throw new ProjectLockedError(holder.lockedById, holder.lockExpiresAt);
     }

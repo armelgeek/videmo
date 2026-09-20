@@ -23,7 +23,7 @@ export class ProjectLockedError extends Error {
   }
 }
 
-/** Une `data:` ou une `blob:` URL : contenu inline, ou lien mort hors onglet. */
+/** A `data:` or `blob:` URL: inline content, or a link that dies outside the tab. */
 export class EphemeralUrlRejectedError extends Error {
   constructor(readonly path: string) {
     super(`A data: or blob: URL is not accepted (at ${path})`);

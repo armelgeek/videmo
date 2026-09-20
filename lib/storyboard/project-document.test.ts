@@ -32,7 +32,7 @@ const slice: ProjectSlice = {
 };
 
 describe("toProjectPatch", () => {
-  it("porte le titre, l'etape et le ratio dans leurs colonnes", () => {
+  it("carries the title, step and ratio in their columns", () => {
     const patch = toProjectPatch(slice);
 
     expect(patch.title).toBe("Mon projet");
@@ -40,16 +40,16 @@ describe("toProjectPatch", () => {
     expect(patch.aspectRatio).toBe("9:16");
   });
 
-  it("porte le script comme un texte, sans decoupage", () => {
+  it("carries the script as text, without a breakdown", () => {
     const { script } = toProjectPatch(slice);
 
     expect(script.title).toBe("La torrefaction");
     expect(script.text).toContain("Tout commence par un grain vert.");
-    // Les scenes appartiennent au storyboard, pas au script.
+    // Scenes belong to the storyboard, not to the script.
     expect(script).not.toHaveProperty("scenes");
   });
 
-  it("fait voyager dans params ce qui n'a pas de colonne", () => {
+  it("carries in params what has no column", () => {
     const { params } = toProjectPatch(slice);
 
     expect(params.promptContent).toBe("Une video sur le cafe");
@@ -59,7 +59,7 @@ describe("toProjectPatch", () => {
 });
 
 describe("stripEphemeralUrls", () => {
-  it("laisse intacte une URL durable", () => {
+  it("leaves a durable URL untouched", () => {
     const panels = stripEphemeralUrls([
       { id: "p1", imageUrl: "/scene.png", prompt: "x" },
     ]);
@@ -67,7 +67,7 @@ describe("stripEphemeralUrls", () => {
     expect(panels[0]).toMatchObject({ imageUrl: "/scene.png" });
   });
 
-  it("vide une imageUrl data: sans perdre le reste du panneau", () => {
+  it("empties a data: imageUrl without losing the rest of the panel", () => {
     const panels = stripEphemeralUrls([
       { id: "p1", imageUrl: "data:image/png;base64,AAAA", prompt: "garde-moi" },
     ]);
@@ -75,7 +75,7 @@ describe("stripEphemeralUrls", () => {
     expect(panels[0]).toMatchObject({ imageUrl: "", prompt: "garde-moi" });
   });
 
-  it("retire une blob: sur les URL optionnelles", () => {
+  it("strips a blob: from the optional URLs", () => {
     const [panel] = stripEphemeralUrls([
       {
         id: "p1",
@@ -89,7 +89,7 @@ describe("stripEphemeralUrls", () => {
     expect(panel.audioUrl).toBeUndefined();
   });
 
-  it("nettoie aussi les URL portees par les annotations", () => {
+  it("also cleans the URLs carried by annotations", () => {
     const [panel] = stripEphemeralUrls([
       {
         id: "p1",
@@ -103,18 +103,18 @@ describe("stripEphemeralUrls", () => {
   });
 });
 
-describe("toProjectPatch face au schema du serveur", () => {
-  it("conserve promptContent et selectedVoice apres validation", () => {
-    // z.object retire les cles qu'il ne declare pas : sans
-    // persistedProjectParamsSchema, le PATCH repondait 200 en ayant perdu le
-    // prompt, et l'editeur rouvrait sur un champ vide.
+describe("toProjectPatch against the server schema", () => {
+  it("keeps promptContent and selectedVoice after validation", () => {
+    // z.object strips keys it does not declare: without
+    // persistedProjectParamsSchema, the PATCH answered 200 having lost the
+    // prompt, and the editor reopened on an empty field.
     const parsed = updateVideoProjectSchema.parse(toProjectPatch(slice));
 
     expect(parsed.params?.promptContent).toBe("Une video sur le cafe");
     expect(parsed.params?.selectedVoice).toBe("onyx");
   });
 
-  it("survit a un aller-retour complet a travers le schema", () => {
+  it("survives a full round trip through the schema", () => {
     const parsed = updateVideoProjectSchema.parse(toProjectPatch(slice));
     const back = fromLoadedProject(parsed as never);
 
@@ -123,8 +123,8 @@ describe("toProjectPatch face au schema du serveur", () => {
   });
 });
 
-describe("toProjectPatch face au garde du serveur", () => {
-  it("produit un patch qu'assertNoEphemeralUrl accepte", () => {
+describe("toProjectPatch against the server guard", () => {
+  it("produces a patch that assertNoEphemeralUrl accepts", () => {
     const patch = toProjectPatch({
       ...slice,
       storyboardPanels: [
@@ -138,7 +138,7 @@ describe("toProjectPatch face au garde du serveur", () => {
 });
 
 describe("fromLoadedProject", () => {
-  it("refait le tour complet sans rien perdre", () => {
+  it("does the full round trip without losing anything", () => {
     const patch = toProjectPatch(slice);
     const back = fromLoadedProject(patch);
 
@@ -151,7 +151,7 @@ describe("fromLoadedProject", () => {
     expect(back.step).toBe(slice.step);
   });
 
-  it("ouvre un projet dont la ligne n'a pas de script", () => {
+  it("opens a project whose row has no script", () => {
     const back = fromLoadedProject({
       title: "Ancien",
       step: "prompt",
@@ -165,7 +165,7 @@ describe("fromLoadedProject", () => {
     expect(back.scriptTitle).toBe("");
   });
 
-  it("defaute les champs absents d'une ligne ancienne", () => {
+  it("defaults the fields missing from an old row", () => {
     const back = fromLoadedProject({
       title: "Ancien",
       step: "prompt",
@@ -181,9 +181,9 @@ describe("fromLoadedProject", () => {
     expect(back.whiteboardConfig.transcript).toEqual([]);
   });
 
-  it("remplace une voix heritee par une voix qui existe", () => {
-    // Les projets d'avant portaient des identifiants inventes : les rendre
-    // tels quels ferait echouer la synthese sur chaque scene.
+  it("replaces a legacy voice with one that exists", () => {
+    // Older projects carried made-up identifiers: passing them
+    // as-is would make synthesis fail on every scene.
     const back = fromLoadedProject({
       title: "x",
       step: "voiceChoice",
@@ -196,7 +196,7 @@ describe("fromLoadedProject", () => {
     expect(back.selectedVoice).toBe("nova");
   });
 
-  it("ramene une etape retiree du parcours vers une etape qui existe", () => {
+  it("maps a step removed from the flow to one that exists", () => {
     const back = fromLoadedProject({
       title: "x",
       step: "editor",

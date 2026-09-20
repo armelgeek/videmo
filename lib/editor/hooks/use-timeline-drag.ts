@@ -33,9 +33,9 @@ interface UseTimelineDragOptions {
   onDragStart: () => void
   onOverwriteClips: (movedClipIds: string[]) => void
   /**
-   * Duree exploitable du media d'un clip, en secondes, ou `undefined` si elle
-   * n'est pas connue. Sans elle, `trim-end` etirait un clip au-dela de sa source
-   * (maxStartDelta valant +Infinity) et le lecteur affichait une frame gelee.
+   * Usable media duration of a clip, in seconds, or `undefined` if unknown.
+   * Without it, `trim-end` stretched a clip past its source (maxStartDelta
+   * being +Infinity) and the player showed a frozen frame.
    */
   getClipMaxDuration?: (clip: TimelineClip) => number | undefined
 }
@@ -111,14 +111,14 @@ export function useTimelineDrag({
       const isRangeSelect = e.shiftKey
       const isAlreadySelected = selectedClipIds.includes(clip.id)
 
-      // La selection resultante est calculee UNE fois, puis servie a la fois a
-      // onSelectClips et au drag.
+      // The resulting selection is computed ONCE, then fed to both
+      // onSelectClips and the drag.
       //
-      // `activeClipIds` derivait auparavant de la prop `selectedClipIds`, celle
-      // du render PRECEDENT — onSelectClips venait pourtant d'etre appele juste
-      // au-dessus. Deux consequences visibles : un Shift+clic selectionnait la
-      // plage a l'ecran mais ne deplacait que l'ancienne selection, et un
-      // Ctrl+clic de deselection continuait de trainer le clip deselectionne.
+      // `activeClipIds` used to derive from the `selectedClipIds` prop, the one
+      // from the PREVIOUS render — even though onSelectClips had just been
+      // called above. Two visible consequences: a Shift+click selected the
+      // range on screen but only moved the old selection, and a deselecting
+      // Ctrl+click kept dragging the deselected clip.
       let nextSelection: string[]
       if (isRangeSelect && lastClickedClipId) {
         const sortedClips = [...clips].sort((a, b) => a.start - b.start)
@@ -148,8 +148,8 @@ export function useTimelineDrag({
 
       if (e.button === 2) return // Right click
 
-      // On ne glisse que ce qui est reellement selectionne apres ce clic. Un
-      // Ctrl+clic qui deselectionne ne doit rien deplacer du tout.
+      // Only drag what is actually selected after this click. A deselecting
+      // Ctrl+click must not move anything at all.
       const activeClipIds = nextSelection.includes(clip.id) ? nextSelection : []
       if (activeClipIds.length === 0) return
 
@@ -158,10 +158,9 @@ export function useTimelineDrag({
       // Only constraint is clips can't go before 0
       const initialStates: Record<string, { start: number; duration: number; offset: number }> = {}
 
-      // Seuls les ids VIVANTS entrent dans le drag. Un id selectionne mais absent
-      // de `clips` (media supprime, clip fusionne) laissait un trou dans
-      // initialStates, et handleDragMove dereferencait `undefined` en plein
-      // mouvement.
+      // Only LIVE ids enter the drag. An id that is selected but missing from
+      // `clips` (deleted media, merged clip) left a hole in initialStates, and
+      // handleDragMove dereferenced `undefined` mid-move.
       const liveClipIds = activeClipIds.filter((id) => {
         const c = clips.find((x) => x.id === id)
         if (!c) return false
@@ -269,8 +268,8 @@ export function useTimelineDrag({
       if (!state) return
 
       const maxDelta = state.duration - 0.5
-      // Le clip ne peut pas reculer avant 0, ni avant sa propre tete de source
-      // (offset negatif) : deux bornes basses, on prend la plus contraignante.
+      // The clip cannot move back before 0, nor before its own source head
+      // (negative offset): two lower bounds, take the tighter one.
       const minAllowedStart = Math.max(0, state.start + ds.minStartDelta, state.start - state.offset)
       const minDelta = minAllowedStart - state.start
 
@@ -287,11 +286,11 @@ export function useTimelineDrag({
         }
       }
 
-      // start, duration et offset derivent TOUS du meme `validDelta` deja borne.
-      // L'ancien code clampait `newStart` a 0 en dernier, apres avoir calcule
-      // duree et offset sur un delta non borne : le clip se retrouvait a une
-      // position qui ne correspondait plus a son extrait source (image et son
-      // desynchronises).
+      // start, duration and offset ALL derive from the same already-bounded
+      // `validDelta`. The old code clamped `newStart` to 0 last, after computing
+      // duration and offset on an unbounded delta: the clip ended up at a
+      // position that no longer matched its source excerpt (picture and sound
+      // out of sync).
       onClipUpdateRef.current(id, {
         start: state.start + validDelta,
         duration: state.duration - validDelta,
@@ -302,9 +301,9 @@ export function useTimelineDrag({
       const state = ds.initialStates[id]
       if (!state) return
 
-      // Borne haute REELLE : ce qui reste de la source apres l'offset. Sans elle
-      // (maxStartDelta valant +Infinity) on etirait le clip au-dela du media, et
-      // le lecteur affichait une frame gelee jusqu'a la fin.
+      // ACTUAL upper bound: what remains of the source after the offset.
+      // Without it (maxStartDelta being +Infinity) the clip stretched past the
+      // media, and the player showed a frozen frame until the end.
       const clip = clipsRef.current.find((c) => c.id === id)
       const sourceDuration = clip ? getClipMaxDurationRef.current?.(clip) : undefined
       const maxAllowedDuration = Math.min(

@@ -51,8 +51,8 @@ export function BlogList({
   const [isPending, startTransition] = useTransition();
   const [searchInput, setSearchInput] = useState(query);
 
-  // L'URL est la source de verite : un retour arriere doit reafficher la
-  // recherche qui a produit la page, pas la derniere frappe.
+  // The URL is the source of truth: going back must show the search that
+  // produced the page again, not the last keystroke.
   useEffect(() => {
     setSearchInput(query);
   }, [query]);

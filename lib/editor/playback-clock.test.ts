@@ -1,57 +1,57 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  abonnerPositionLecture,
-  lirePositionLecture,
-  poserPositionLecture,
+  subscribeToPlaybackPosition,
+  readPlaybackPosition,
+  setPlaybackPosition,
 } from "./playback-clock";
 
-describe("horloge de lecture", () => {
+describe("playback clock", () => {
   beforeEach(() => {
-    poserPositionLecture(0);
+    setPlaybackPosition(0);
   });
 
-  it("rend la derniere position posee", () => {
-    poserPositionLecture(12.5);
-    expect(lirePositionLecture()).toBe(12.5);
+  it("returns the last position set", () => {
+    setPlaybackPosition(12.5);
+    expect(readPlaybackPosition()).toBe(12.5);
   });
 
-  it("ne reveille personne quand la valeur ne change pas", () => {
-    // La boucle appelle a chaque frame, y compris quand rien n'avance : une
-    // position inchangee ne doit declencher aucun rendu.
-    const vu: number[] = [];
-    const desabonner = abonnerPositionLecture(() => vu.push(lirePositionLecture()));
+  it("wakes nobody when the value does not change", () => {
+    // The loop calls every frame, even when nothing moves: an unchanged
+    // position must trigger no render.
+    const seen: number[] = [];
+    const unsubscribe = subscribeToPlaybackPosition(() => seen.push(readPlaybackPosition()));
 
-    poserPositionLecture(1);
-    poserPositionLecture(1);
-    poserPositionLecture(2);
+    setPlaybackPosition(1);
+    setPlaybackPosition(1);
+    setPlaybackPosition(2);
 
-    desabonner();
-    expect(vu).toEqual([1, 2]);
+    unsubscribe();
+    expect(seen).toEqual([1, 2]);
   });
 
-  it("cesse de reveiller apres desabonnement, mais garde la valeur", () => {
-    const abonne = vi.fn();
-    const desabonner = abonnerPositionLecture(abonne);
+  it("stops waking after unsubscribe, but keeps the value", () => {
+    const subscriber = vi.fn();
+    const unsubscribe = subscribeToPlaybackPosition(subscriber);
 
-    poserPositionLecture(3);
-    desabonner();
-    poserPositionLecture(4);
+    setPlaybackPosition(3);
+    unsubscribe();
+    setPlaybackPosition(4);
 
-    expect(abonne).toHaveBeenCalledTimes(1);
-    expect(lirePositionLecture()).toBe(4);
+    expect(subscriber).toHaveBeenCalledTimes(1);
+    expect(readPlaybackPosition()).toBe(4);
   });
 
-  it("sert plusieurs abonnes", () => {
+  it("serves several subscribers", () => {
     const a = vi.fn();
     const b = vi.fn();
-    const da = abonnerPositionLecture(a);
-    const db = abonnerPositionLecture(b);
+    const unsubA = subscribeToPlaybackPosition(a);
+    const unsubB = subscribeToPlaybackPosition(b);
 
-    poserPositionLecture(7);
+    setPlaybackPosition(7);
 
-    da();
-    db();
+    unsubA();
+    unsubB();
     expect(a).toHaveBeenCalledTimes(1);
     expect(b).toHaveBeenCalledTimes(1);
   });

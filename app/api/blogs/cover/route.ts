@@ -10,9 +10,9 @@ import { getObjectStorage } from "@/lib/storage/s3-storage";
 const MAX_BYTES = 5 * 1024 * 1024;
 
 /**
- * Le type est deduit du contenu, jamais de ce que le client declare : un
- * `Content-Type` d'image sur un fichier arbitraire ferait servir n'importe quoi
- * depuis le bac. SVG est exclu volontairement (il porte du script).
+ * The type is inferred from the content, never from what the client declares: an
+ * image `Content-Type` on an arbitrary file would let the bucket serve anything.
+ * SVG is deliberately excluded (it carries script).
  */
 function sniffImageType(bytes: Uint8Array): { contentType: string; extension: string } | null {
   const startsWith = (offset: number, signature: number[]) =>

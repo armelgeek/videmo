@@ -10,8 +10,8 @@ import { normalizeVoice } from "@/lib/speech/speech-generator";
 import { projectParamsSchema } from "./schema";
 
 /**
- * La part du store qui appartient au projet enregistre. Le reste de l'etat
- * (isGenerating, activeClipIndex) decrit l'ecran courant, pas le document.
+ * The part of the store that belongs to the saved project. The rest of the state
+ * (isGenerating, activeClipIndex) describes the current screen, not the document.
  */
 export type ProjectSlice = Pick<
   StoryboardStoreState,
@@ -27,10 +27,10 @@ export type ProjectSlice = Pick<
 >;
 
 /**
- * Le corps d'un PATCH /api/video-projects/[id].
+ * The body of a PATCH /api/video-projects/[id].
  *
- * `promptContent` et `selectedVoice` n'ont pas de colonne : ils voyagent dans
- * `params`, seul document libre que updateVideoProjectSchema accepte tel quel.
+ * `promptContent` and `selectedVoice` have no column: they travel in
+ * `params`, the only free-form document updateVideoProjectSchema accepts as-is.
  */
 export interface ProjectPatch {
   title: string;
@@ -43,11 +43,11 @@ export interface ProjectPatch {
 }
 
 /**
- * Une `data:` ou `blob:` URL fait echouer TOUT le PATCH en 400
- * (assertNoEphemeralUrl, app/api/video-projects/[id]/route.ts:74). Un panneau
- * dont l'image n'est pas encore hebergee ne doit pas emporter avec lui le
- * script et les annotations de la sauvegarde : on enregistre le panneau sans
- * son URL ephemere plutot que de perdre le tour entier.
+ * A `data:` or `blob:` URL fails the WHOLE PATCH with a 400
+ * (assertNoEphemeralUrl, app/api/video-projects/[id]/route.ts:74). A panel
+ * whose image is not hosted yet must not drag down the script and annotations
+ * of the save with it: we save the panel without its ephemeral URL rather
+ * than lose the whole round.
  */
 const EPHEMERAL_URL = /^\s*(?:data|blob):/i;
 
@@ -69,8 +69,8 @@ export function stripEphemeralUrls(panels: unknown[]): unknown[] {
     const copy: Record<string, unknown> = { ...(panel as object) };
     for (const field of PANEL_URL_FIELDS) {
       if (isEphemeral(copy[field])) {
-        // imageUrl est requis par storyboardPanelSchema : la chaine vide passe
-        // la validation la ou undefined la ferait echouer.
+        // imageUrl is required by storyboardPanelSchema: the empty string passes
+        // validation where undefined would fail it.
         copy[field] = field === "imageUrl" ? "" : undefined;
       }
     }
@@ -120,10 +120,10 @@ export interface LoadedProject {
 }
 
 /**
- * L'inverse : la ligne relue devient l'etat du store.
+ * The reverse: the reloaded row becomes the store state.
  *
- * Chaque champ retombe sur le defaut du store quand la ligne ne le porte pas,
- * pour qu'un projet cree avant l'ajout d'un champ s'ouvre quand meme.
+ * Each field falls back to the store default when the row does not carry it,
+ * so that a project created before a field was added still opens.
  */
 export function fromLoadedProject(project: LoadedProject): ProjectSlice {
   const { promptContent, selectedVoice, ...params } = project.params ?? {};
@@ -136,8 +136,8 @@ export function fromLoadedProject(project: LoadedProject): ProjectSlice {
     scriptTitle: project.script?.title ?? "",
     scriptText: project.script?.text ?? "",
     storyboardPanels: (project.panels ?? []) as ProjectSlice["storyboardPanels"],
-    // Les projets enregistres portent d'anciens identifiants inventes
-    // (en-us-male-1) : les rendre tels quels ferait echouer la synthese.
+    // Saved projects carry old made-up identifiers
+    // (en-us-male-1): passing them as-is would make synthesis fail.
     selectedVoice: normalizeVoice(selectedVoice),
     whiteboardConfig: {
       ...DEFAULT_WHITEBOARD_CONFIG,

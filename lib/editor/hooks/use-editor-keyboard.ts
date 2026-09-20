@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { lirePositionLecture } from "@/lib/editor/playback-clock"
+import { readPlaybackPosition } from "@/lib/editor/playback-clock"
 
 import { useEffect, useCallback } from "react"
 
@@ -60,9 +60,9 @@ export function useEditorKeyboard({
         ctx.imageSmoothingEnabled = false
         ctx.drawImage(videoElement, 0, 0, width, height)
 
-        // Position LUE ici : elle ne sert qu'a nommer le fichier. En prop,
-        // elle recreait ce callback a chaque frame de lecture.
-        const position = lirePositionLecture()
+        // Position READ here: it is only used to name the file. As a prop,
+        // it recreated this callback on every playback frame.
+        const position = readPlaybackPosition()
         const mins = Math.floor(position / 60)
         const secs = Math.floor(position % 60)
         const ms = Math.floor((position % 1) * 1000)

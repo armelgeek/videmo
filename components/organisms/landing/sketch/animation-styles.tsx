@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { HandArrow } from "./hand-arrow";
 
 /**
- * Les styles tels que le moteur les connait : `id` est la valeur passee a
- * AnimationFactory, pas une etiquette marketing. Une carte qui annonce un style
- * introuvable enverrait l'utilisateur vers un rendu en chunkjump sans le dire.
+ * Styles as the engine knows them: `id` is the value passed to
+ * AnimationFactory, not a marketing label. A card advertising an unknown style
+ * would silently send the user to a chunkjump render.
  */
 export interface AnimationStyleCard {
   id: string;

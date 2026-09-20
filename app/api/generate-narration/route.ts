@@ -20,24 +20,24 @@ import { requireProjectAccess } from "@/lib/video-project/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
 
-// Environ trois secondes par scene, plus l'envoi au bac.
+// About three seconds per scene, plus uploading to the bucket.
 export const maxDuration = 120;
 
 const requestSchema = z.object({
   projectId: z.string().min(1),
   sceneIndex: z.number().int().nonnegative(),
   beatIndex: z.number().int().nonnegative().optional(),
-  // 4096 est la limite du moteur : la refuser en deca privait de sa voix une
-  // image que l'appelant avait pourtant deja decoupee sous ce budget.
+  // 4096 is the engine's limit: rejecting below it deprived an image of its
+  // voice even though the caller had already split it under that budget.
   text: z.string().min(1).max(4096),
   voice: z.string().default("nova"),
   /**
-   * Les temps de narration que ce texte contient, dans l'ordre.
+   * The narration beats this text contains, in order.
    *
-   * Quand ils sont fournis, l'enregistrement est transcrit et chaque temps est
-   * RETROUVE dedans. C'est ce qui remplace la synthese temps par temps : on
-   * enregistre d'une traite — donc avec les liaisons et l'elan d'une vraie
-   * lecture — et on mesure ensuite, au lieu de decouper pour pouvoir mesurer.
+   * When provided, the recording is transcribed and each beat is FOUND in it.
+   * This replaces beat-by-beat synthesis: we record in one take (so with the
+   * linking and momentum of a real reading) and measure afterwards, instead of
+   * splitting in order to measure.
    */
   beats: z.array(z.object({ narration: z.string() })).optional(),
   language: z.string().optional(),
@@ -50,12 +50,12 @@ export async function POST(request: NextRequest) {
     if (!limit.success) return tooManyGenerations(limit.resetAt);
     const input = requestSchema.parse(await request.json());
 
-    // Synthetiser coute de l'argent : le droit d'ecrire sur CE projet est
-    // verifie avant d'appeler le moteur, pas apres.
+    // Synthesizing costs money: the right to write to THIS project is checked
+    // before calling the engine, not after.
     await requireProjectAccess(input.projectId, viewer, "update");
 
-    // Moteur et bac resolus d'abord : une configuration incomplete doit se
-    // voir avant d'avoir paye un audio qu'on n'aurait nulle part ou ecrire.
+    // Engine and bucket resolved first: an incomplete configuration must show
+    // up before paying for audio we would have nowhere to write.
     const speech = getSpeechGenerator();
     const storage = getObjectStorage();
 
@@ -67,25 +67,25 @@ export async function POST(request: NextRequest) {
       async () => {
         const audio = await speech.speak({ text: input.text, voice: input.voice });
 
-        // Mesuree sur le fichier, jamais estimee : les annotations se calent
-        // dessus, et un ecart s'accumulerait d'un temps de narration au suivant.
+        // Measured on the file, never estimated: annotations align to it, and any
+        // drift would accumulate from one narration beat to the next.
         let durationMs: number | null = null;
         try {
           durationMs = await measureAudioDurationMs(audio);
         } catch (cause) {
-          // Une mesure ratee ne doit pas priver la scene de sa voix : le calage
-          // retombera sur l'estimation du decoupage.
+          // A failed measurement must not deprive the scene of its voice: alignment
+          // falls back to the split's estimate.
           console.error("Could not measure narration duration:", cause);
         }
 
-        // Les temps sont retrouves dans l'enregistrement, jamais decoupes avant.
-        // Un echec ne prive pas la scene de sa voix : le calage retombe sur
-        // l'estimation du decoupage.
+        // Beats are found in the recording, never split beforehand. A failure
+        // does not deprive the scene of its voice: alignment falls back to the
+        // split's estimate.
         let beats: Awaited<ReturnType<typeof alignBeats>> | null = null;
-        // La transcription sert a recaler, mais elle porte l'instant de CHAQUE mot.
-        // La jeter obligeait a repayer une transcription du meme enregistrement des
-        // qu'on en veut autre chose — des sous-titres, par exemple. Elle sort donc
-        // avec le reste.
+        // The transcription is used to realign, but it carries the timing of EVERY word.
+        // Throwing it away meant paying again to transcribe the same recording as soon
+        // as we want something else from it (subtitles, for example). So it is
+        // returned with the rest.
         let words: TranscriptWord[] = [];
         if (input.beats?.length && durationMs) {
           try {

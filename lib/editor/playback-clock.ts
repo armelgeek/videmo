@@ -3,81 +3,81 @@
 import { useCallback, useSyncExternalStore } from "react";
 
 /**
- * L'horloge de lecture, tenue HORS du cycle de rendu React.
+ * The playback clock, kept OUTSIDE the React render cycle.
  *
- * POURQUOI
- * La position de lecture change a chaque frame. Tant qu'elle vivait dans un
- * useState de l'editeur, chaque avance rendait tout ce qui pend sous lui —
- * la timeline et ses dizaines de clips, l'apercu, les dialogues — a la cadence
- * de la boucle. Meme ramenee a 30 Hz, c'est un rendu complet de l'editeur 30
- * fois par seconde pour deplacer un curseur de quelques pixels.
+ * WHY
+ * The playback position changes every frame. While it lived in a useState of
+ * the editor, every tick re-rendered everything below it — the timeline and
+ * its dozens of clips, the preview, the dialogs — at the loop's rate. Even
+ * throttled to 30 Hz, that is a full editor render 30 times per second to move
+ * a cursor a few pixels.
  *
- * COMMENT
- * La valeur vit ici, dans un module. Qui en a besoin s'abonne, et seul
- * l'abonne se rend : le curseur, la reglette, l'incrustation de texte. Qui n'en
- * a besoin qu'au moment d'agir — poser un marqueur, couper un clip, un
- * raccourci clavier — la LIT au moment ou il agit, sans s'abonner du tout.
+ * HOW
+ * The value lives here, in a module. Whoever needs it subscribes, and only the
+ * subscriber re-renders: the cursor, the ruler, the text overlay. Whoever only
+ * needs it when acting — dropping a marker, splitting a clip, a keyboard
+ * shortcut — READS it at that moment, without subscribing at all.
  *
- * C'est le meme parti que `onViewportChange` dans la timeline, qui remet le
- * defilement a l'appelant plutot que de le pousser dans l'etat React : une
- * valeur qui change a la frame ne traverse pas le rendu.
+ * Same approach as `onViewportChange` in the timeline, which hands scrolling
+ * back to the caller instead of pushing it into React state: a value that
+ * changes every frame does not go through rendering.
  */
 
 let position = 0;
-const abonnes = new Set<() => void>();
+const subscribers = new Set<() => void>();
 
-/** La position courante, en secondes. Lecture ponctuelle, sans abonnement. */
-export function lirePositionLecture(): number {
+/** The current position, in seconds. One-off read, no subscription. */
+export function readPlaybackPosition(): number {
   return position;
 }
 
 /**
- * Pose la position et reveille les abonnes.
+ * Sets the position and wakes the subscribers.
  *
- * Sans changement de valeur, personne n'est reveille : la boucle peut appeler
- * a chaque frame, une lecture en pause ne rend rien.
+ * If the value is unchanged, nobody is woken: the loop can call this every
+ * frame, and a paused playback renders nothing.
  */
-export function poserPositionLecture(valeur: number): void {
-  if (valeur === position) return;
-  position = valeur;
-  for (const abonne of abonnes) abonne();
+export function setPlaybackPosition(value: number): void {
+  if (value === position) return;
+  position = value;
+  for (const subscriber of subscribers) subscriber();
 }
 
 /**
- * S'abonner aux avances de l'horloge. Rend la fonction de desabonnement.
- * Exporte parce que tout n'est pas un composant : un effet ou une couche
- * dessinee imperativement s'y branche de la meme facon.
+ * Subscribes to clock ticks. Returns the unsubscribe function.
+ * Exported because not everything is a component: an effect or an
+ * imperatively drawn layer hooks in the same way.
  */
-export function abonnerPositionLecture(surChangement: () => void): () => void {
-  abonnes.add(surChangement);
+export function subscribeToPlaybackPosition(onChange: () => void): () => void {
+  subscribers.add(onChange);
   return () => {
-    abonnes.delete(surChangement);
+    subscribers.delete(onChange);
   };
 }
 
 /**
- * S'abonner a l'horloge. Le composant qui appelle ceci se rend a chaque
- * avance : a reserver aux feuilles — un curseur, un compteur — jamais a un
- * composant qui porte un sous-arbre.
+ * Subscribes to the clock. The calling component re-renders on every tick:
+ * reserve it for leaves — a cursor, a counter — never for a component that
+ * owns a subtree.
  */
-export function usePositionLecture(): number {
+export function usePlaybackPosition(): number {
   return useSyncExternalStore(
-    abonnerPositionLecture,
-    lirePositionLecture,
-    lirePositionLecture,
+    subscribeToPlaybackPosition,
+    readPlaybackPosition,
+    readPlaybackPosition,
   );
 }
 
 /**
- * S'abonner a une valeur DERIVEE de l'horloge, en ne se rendant que lorsque
- * cette valeur change.
+ * Subscribes to a value DERIVED from the clock, re-rendering only when that
+ * value changes.
  *
- * Le cas type est « quel clip est sous le curseur » : la position change a
- * chaque frame, la reponse quelques fois par minute. `choisir` doit rendre une
- * valeur comparable par identite — une primitive, ou un objet deja stable
- * comme un element du tableau de clips.
+ * The typical case is "which clip is under the cursor": the position changes
+ * every frame, the answer a few times per minute. `select` must return a value
+ * comparable by identity — a primitive, or an already stable object such as an
+ * element of the clips array.
  */
-export function useValeurALaPosition<T>(choisir: (positionMs: number) => T): T {
-  const lire = useCallback(() => choisir(position), [choisir]);
-  return useSyncExternalStore(abonnerPositionLecture, lire, lire);
+export function useDerivedPlaybackValue<T>(select: (positionMs: number) => T): T {
+  const read = useCallback(() => select(position), [select]);
+  return useSyncExternalStore(subscribeToPlaybackPosition, read, read);
 }

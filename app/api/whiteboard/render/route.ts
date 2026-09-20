@@ -30,30 +30,30 @@ import {
 } from "@/lib/whiteboard-animation/server/render-store";
 import { notifyRenderReady } from "@/lib/whiteboard-animation/server/render-notify";
 
-/** Rendus simultanes sur tout le parc : l'etat est en base, partage. */
+/** Concurrent renders across the whole fleet: state lives in the DB, shared. */
 const MAX_CONCURRENT_RENDERS = Number(process.env.MAX_CONCURRENT_RENDERS) || 2;
-/** Rendus sur CETTE instance ; chacun occupe un coeur CPU entier. */
+/** Renders on THIS instance; each one takes a full CPU core. */
 const MAX_RENDERS_PER_INSTANCE = Number(process.env.MAX_RENDERS_PER_INSTANCE) || 2;
 const MAX_RENDERS_PER_USER = 1;
-/** Une video exportee reste telechargeable 24 h, puis quitte le bac. */
+/** An exported video stays downloadable for 24 h, then leaves the bucket. */
 const RENDER_TTL_MS = 24 * 60 * 60 * 1000;
-/** Signal de vie : sans lui pendant STALE_AFTER_MS, le job est tenu pour mort. */
+/** Heartbeat: without it for STALE_AFTER_MS, the job is considered dead. */
 const HEARTBEAT_MS = 30_000;
-/** Ecrire chaque progression en base ferait une requete par frame. */
+/** Writing every progress update to the DB would mean one query per frame. */
 const PROGRESS_WRITE_MS = 1000;
 
-// La video n'est ecrite ici que le temps du rendu, puis part dans le bac : une
-// autre instance doit pouvoir la servir, et le disque ne se remplit plus.
+// The video is only written here during the render, then moves to the bucket:
+// another instance must be able to serve it, and the disk no longer fills up.
 const LOCAL_DIR =
   process.env.RENDER_OUTPUT_DIR || join(tmpdir(), "whiteboard-renders");
 
-// Le worker est un fichier reel sur le disque, pas un module du bundle.
+// The worker is a real file on disk, not a bundle module.
 //
-// spawn et non fork : Turbopack analyse STATIQUEMENT le premier argument de
-// fork() et tente de le resoudre comme un import, ce qui fait echouer le build
-// ("server relative imports are not implemented yet"). Passe a spawn, le chemin
-// n'est plus qu'un argument de ligne de commande. Le canal 'ipc' rend
-// child.send() et les messages, donc le protocole du worker est inchange.
+// spawn rather than fork: Turbopack STATICALLY analyses fork()'s first argument
+// and tries to resolve it as an import, which breaks the build
+// ("server relative imports are not implemented yet"). With spawn, the path is
+// just a command-line argument. The 'ipc' channel provides child.send() and
+// messages, so the worker protocol is unchanged.
 const WORKER = join(
   process.cwd(),
   "lib/whiteboard-animation/server/render-worker.js",
@@ -67,7 +67,7 @@ const { projectDurationMs } = require("../../../../lib/whiteboard-animation/lib/
 const logError = (context: string) => (error: unknown) =>
   console.error(`[render] ${context}:`, error);
 
-/** Retire du bac les videos expirees. Hors du chemin de la requete. */
+/** Removes expired videos from the bucket. Off the request path. */
 async function purgeExpiredRenders() {
   const storage = getObjectStorage();
   for (const job of await takeExpiredRenders(RENDER_TTL_MS)) {
@@ -202,25 +202,24 @@ export async function POST(request: NextRequest) {
     void reportRenderProgress(job.id, null).catch(logError("heartbeat"));
   }, HEARTBEAT_MS);
 
-  // Un message terminal est-il arrive ? process.send etant asynchrone, un
-  // 'done' peut se perdre si le worker sort avant de l'avoir vide. Le job
-  // restait alors fige sur sa derniere progression — observe a 88 % alors que
-  // la video etait complete sur le disque.
-  let conclu = false;
+  // Has a terminal message arrived? Since process.send is async, a 'done' can
+  // be lost if the worker exits before flushing it. The job then stayed stuck
+  // on its last progress — seen at 88% while the video was complete on disk.
+  let finished = false;
   let lastProgressWrite = 0;
 
-  const conclure = (patch: RenderPatch) => {
-    conclu = true;
+  const finish = (patch: RenderPatch) => {
+    finished = true;
     clearInterval(heartbeat);
     rmSync(outputPath, { force: true });
     void finalizeRenderJob(job.id, patch).catch(logError("finalize"));
   };
 
-  const livrer = async () => {
-    conclu = true;
+  const deliver = async () => {
+    finished = true;
     clearInterval(heartbeat);
     try {
-      // Annule pendant les dernieres secondes : rien a envoyer.
+      // Cancelled during the last seconds: nothing to send.
       if (!(await reportRenderProgress(job.id, 100))) return;
       const outputKey = buildRenderKey(userId, job.id);
       await storage.putFile({ key: outputKey, path: outputPath, contentType: "video/mp4" });
@@ -251,38 +250,38 @@ export async function POST(request: NextRequest) {
         void reportRenderProgress(job.id, msg.value ?? 0).catch(logError("progress"));
       }
     }
-    if (msg?.type === "done" && !conclu) {
-      void livrer();
+    if (msg?.type === "done" && !finished) {
+      void deliver();
     }
-    if (msg?.type === "error" && !conclu) {
-      conclure({ status: "error", error: msg.message ?? null });
+    if (msg?.type === "error" && !finished) {
+      finish({ status: "error", error: msg.message ?? null });
     }
   });
 
-  // SANS ce handler, un echec de spawn TUE LE SERVEUR : un 'error' sans
-  // ecouteur est reemis en exception par EventEmitter, hors de toute pile de
-  // requete, donc hors d'atteinte d'un try/catch ici. Il suffit que le fichier
-  // du worker manque (un build qui ne copie pas lib/), ou que le systeme
-  // refuse un process de plus sous charge (EAGAIN), pour que tout Next tombe.
+  // WITHOUT this handler, a spawn failure KILLS THE SERVER: an 'error' with no
+  // listener is rethrown as an exception by EventEmitter, outside any request
+  // stack, so out of reach of a try/catch here. A missing worker file (a build
+  // that doesn't copy lib/) or the OS refusing another process under load
+  // (EAGAIN) is enough to bring all of Next down.
   child.on("error", (err) => {
-    if (conclu) return;
-    conclure({ status: "error", error: `Worker impossible a lancer : ${err.message}` });
+    if (finished) return;
+    finish({ status: "error", error: `Worker impossible a lancer : ${err.message}` });
   });
 
   child.on("exit", (code, signal) => {
-    if (conclu) return;
+    if (finished) return;
 
-    // Le worker est parti sans conclure. Le disque tranche : un fichier non
-    // vide signifie que ffmpeg est alle au bout, et l'utilisateur a droit a sa
-    // video meme si le message s'est perdu.
-    const abouti =
+    // The worker left without concluding. The disk decides: a non-empty file
+    // means ffmpeg finished, and the user is entitled to their video even if
+    // the message was lost.
+    const completed =
       code === 0 && existsSync(outputPath) && statSync(outputPath).size > 0;
 
-    if (abouti) {
-      void livrer();
+    if (completed) {
+      void deliver();
       return;
     }
-    conclure({
+    finish({
       status: "error",
       error: signal
         ? `Rendu interrompu (${signal})`

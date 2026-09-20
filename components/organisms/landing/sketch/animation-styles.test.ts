@@ -8,48 +8,47 @@ import { isPremiumStyle } from '../../../../lib/whiteboard-animation/style-tiers
 import { AnimationFactory } from '../../../../lib/whiteboard-animation/AnimationFactory';
 
 /**
- * La landing a longtemps annonce des styles inventes — sharpie, chalk,
- * watercolor — qui n'existaient nulle part dans le moteur. Un visiteur qui les
- * choisissait tombait sur un rendu en chunkjump, sans que rien ne le signale :
- * la factory retombe silencieusement sur son defaut. Ce fichier lie la vitrine
- * au moteur pour que la derive ne puisse pas revenir.
+ * The landing long advertised made-up styles — sharpie, chalk, watercolor —
+ * that existed nowhere in the engine. A visitor who picked them got a chunkjump
+ * render with no warning: the factory silently falls back to its default. This
+ * file ties the showcase to the engine so the drift cannot come back.
  */
-describe('styles annonces sur la landing', () => {
-  it('sont tous connus de la factory', () => {
-    const inconnus = ANIMATION_STYLES.filter(
+describe('styles advertised on the landing', () => {
+  it('are all known to the factory', () => {
+    const unknown = ANIMATION_STYLES.filter(
       (s) => !AnimationFactory.isStyleAvailable(s.id),
     );
 
-    expect(inconnus.map((s) => s.id)).toEqual([]);
+    expect(unknown.map((s) => s.id)).toEqual([]);
   });
 
-  it('ont chacun leur demo et son image de garde', () => {
-    const racine = join(process.cwd(), 'public', 'demos', 'styles');
-    const manquants: string[] = [];
+  it('each have their demo and its poster image', () => {
+    const root = join(process.cwd(), 'public', 'demos', 'styles');
+    const missing: string[] = [];
 
     for (const s of ANIMATION_STYLES) {
-      if (!existsSync(join(racine, `${s.id}.mp4`))) manquants.push(`${s.id}.mp4`);
-      if (!existsSync(join(racine, `${s.id}.webp`))) manquants.push(`${s.id}.webp`);
+      if (!existsSync(join(root, `${s.id}.mp4`))) missing.push(`${s.id}.mp4`);
+      if (!existsSync(join(root, `${s.id}.webp`))) missing.push(`${s.id}.webp`);
     }
 
-    expect(manquants).toEqual([]);
+    expect(missing).toEqual([]);
   });
 
-  it('proposent au moins un style gratuit et un style premium', () => {
+  it('offer at least one free style and one premium style', () => {
     const tiers = new Set(ANIMATION_STYLES.map((s) => s.tier));
     expect(tiers.has('free')).toBe(true);
     expect(tiers.has('premium')).toBe(true);
   });
 
-  it('n annoncent pas deux fois le meme style', () => {
+  it('do not advertise the same style twice', () => {
     const ids = ANIMATION_STYLES.map((s) => s.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('affichent le meme badge free/pro que la regle appliquee a l export', () => {
-    const ecarts = ANIMATION_STYLES.filter(
+  it('show the same free/pro badge as the rule applied at export', () => {
+    const mismatches = ANIMATION_STYLES.filter(
       (s) => (s.tier === 'premium') !== isPremiumStyle(s.id),
     );
-    expect(ecarts.map((s) => s.id)).toEqual([]);
+    expect(mismatches.map((s) => s.id)).toEqual([]);
   });
 });

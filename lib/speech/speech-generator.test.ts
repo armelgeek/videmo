@@ -35,15 +35,15 @@ function stubFetch(response: {
 }
 
 describe("normalizeVoice", () => {
-  it("accepte les voix du catalogue", () => {
+  it("accepts catalog voices", () => {
     expect(normalizeVoice("onyx")).toBe("onyx");
     expect(VOICES).toContain(DEFAULT_VOICE);
   });
 
-  it("ramene un choix inconnu sur la voix par defaut", () => {
-    // Les projets enregistres portent d'anciens identifiants inventes
-    // (en-us-male-1) : les envoyer tels quels ferait echouer l'appel et
-    // laisserait une scene muette au milieu du montage.
+  it("maps an unknown choice to the default voice", () => {
+    // Saved projects carry old invented ids (en-us-male-1): sending them as-is
+    // would make the call fail and leave a silent scene in the middle of the
+    // edit.
     expect(normalizeVoice("en-us-male-1")).toBe(DEFAULT_VOICE);
     expect(normalizeVoice(undefined)).toBe(DEFAULT_VOICE);
     expect(normalizeVoice("")).toBe(DEFAULT_VOICE);
@@ -51,10 +51,10 @@ describe("normalizeVoice", () => {
 });
 
 describe("readOpenAiSpeechConfig", () => {
-  it("nomme la variable manquante", () => {
+  it("names the missing variable", () => {
     try {
       readOpenAiSpeechConfig({});
-      expect.unreachable("aurait du lever");
+      expect.unreachable("should have thrown");
     } catch (error) {
       expect(error).toBeInstanceOf(SpeechGeneratorNotConfiguredError);
       expect((error as SpeechGeneratorNotConfiguredError).missing).toEqual([
@@ -63,7 +63,7 @@ describe("readOpenAiSpeechConfig", () => {
     }
   });
 
-  it("laisse choisir le modele sans toucher au code", () => {
+  it("lets the model be chosen without touching code", () => {
     expect(readOpenAiSpeechConfig({ OPENAI_API_KEY: "k" }).model).toBe(
       "gpt-4o-mini-tts",
     );
@@ -75,7 +75,7 @@ describe("readOpenAiSpeechConfig", () => {
 });
 
 describe("OpenAiSpeechGenerator", () => {
-  it("rend les octets audio", async () => {
+  it("returns the audio bytes", async () => {
     const { impl } = stubFetch({});
     const audio = await new OpenAiSpeechGenerator(config, impl).speak({
       text: "Bonjour",
@@ -85,7 +85,7 @@ describe("OpenAiSpeechGenerator", () => {
     expect(audio.length).toBeGreaterThan(0);
   });
 
-  it("demande du mp3 avec la voix choisie", async () => {
+  it("requests mp3 with the chosen voice", async () => {
     const { impl, calls } = stubFetch({});
     await new OpenAiSpeechGenerator(config, impl).speak({
       text: "Bonjour",
@@ -100,7 +100,7 @@ describe("OpenAiSpeechGenerator", () => {
     });
   });
 
-  it("remplace une voix heritee plutot que d'echouer", async () => {
+  it("replaces a legacy voice rather than failing", async () => {
     const { impl, calls } = stubFetch({});
     await new OpenAiSpeechGenerator(config, impl).speak({
       text: "x",
@@ -110,7 +110,7 @@ describe("OpenAiSpeechGenerator", () => {
     expect(JSON.parse(calls[0].init.body as string).voice).toBe(DEFAULT_VOICE);
   });
 
-  it("leve une erreur typee sur refus du moteur", async () => {
+  it("throws a typed error when the engine refuses", async () => {
     const { impl } = stubFetch({ ok: false, status: 429, text: "rate limited" });
 
     await expect(
@@ -118,7 +118,7 @@ describe("OpenAiSpeechGenerator", () => {
     ).rejects.toBeInstanceOf(SpeechGenerationFailedError);
   });
 
-  it("refuse un audio vide plutot que d'ecrire un fichier muet", async () => {
+  it("rejects empty audio rather than writing a silent file", async () => {
     const { impl } = stubFetch({ audio: new Uint8Array(0) });
 
     await expect(
@@ -128,18 +128,18 @@ describe("OpenAiSpeechGenerator", () => {
 });
 
 describe("FakeSpeechGenerator", () => {
-  it("rend un MP3 valide sans reseau", async () => {
+  it("returns a valid MP3 without network", async () => {
     const audio = await new FakeSpeechGenerator().speak({
       text: "x",
       voice: "nova",
     });
 
-    // En-tete de trame MPEG : les octets doivent passer un vrai lecteur.
+    // MPEG frame header: the bytes must pass a real player.
     expect(audio[0]).toBe(0xff);
     expect(audio[1] & 0xe0).toBe(0xe0);
   });
 
-  it("retient ce qui lui a ete demande", async () => {
+  it("records what it was asked", async () => {
     const fake = new FakeSpeechGenerator();
     await fake.speak({ text: "une narration", voice: "sage" });
 

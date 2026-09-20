@@ -74,17 +74,17 @@ export async function PATCH(
     assertNoEphemeralUrl(patch);
 
     const now = new Date();
-    // Une frappe continue renouvelle le bail d'elle-même : le chantier 3 n'a
-    // pas besoin d'un battement séparé tant que l'utilisateur écrit.
+    // Continuous typing renews the lease on its own: workstream 3 does not
+    // need a separate heartbeat while the user is writing.
     const renewed = {
       lockedById: viewer.userId,
       lockExpiresAt: new Date(now.getTime() + LOCK_TTL_MS),
     };
 
     const { params: docParams, script, panels, whiteboardConfig, ...rest } = patch;
-    // La detention du bail est une condition du WHERE, comme dans lock/route.ts :
-    // relue puis ecrite, elle pourrait expirer entre les deux et cette ecriture
-    // volerait le bail que quelqu'un d'autre vient de prendre.
+    // Holding the lease is a WHERE condition, as in lock/route.ts: read then
+    // written, it could expire in between and this write would steal the
+    // lease someone else just took.
     const { count } = await prisma.videoProject.updateMany({
       where: {
         id,
@@ -115,8 +115,8 @@ export async function PATCH(
         where: { id },
         select: { deletedAt: true, lockedById: true, lockExpiresAt: true },
       });
-      // deletedAt fait partie du select : sans lui, un projet supprimé dans la
-      // course rendrait « verrouillé » alors qu'il n'existe plus.
+      // deletedAt is part of the select: without it, a project deleted during the
+      // race would return « locked » even though it no longer exists.
       if (!holder || holder.deletedAt) throw new ProjectNotFoundError();
       throw new ProjectLockedError(holder.lockedById, holder.lockExpiresAt);
     }
@@ -151,8 +151,8 @@ export async function DELETE(
       data: { deletedAt: new Date() },
     });
 
-    // Un corps, et non 204 : apiCall (lib/client.ts:21) appelle toujours
-    // response.json(), donc une réponse vide ferait échouer api.delete.
+    // A body, not 204: apiCall (lib/client.ts:21) always calls
+    // response.json(), so an empty response would make api.delete fail.
     return NextResponse.json({ success: true });
   } catch (error) {
     return toErrorResponse(error);

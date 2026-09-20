@@ -23,9 +23,9 @@ export const projectParamsSchema = z.object({
 export type ProjectParams = z.infer<typeof projectParamsSchema>;
 
 /**
- * `satisfies` verrouille cette liste sur le type de clip-transitions : ajouter
- * ici un nom qu'il ne connait pas casse la compilation, plutot que de laisser
- * les deux definitions diverger en silence.
+ * `satisfies` locks this list to the clip-transitions type: adding a name
+ * here that it does not know breaks compilation, rather than letting
+ * the two definitions silently diverge.
  */
 const TRANSITION_NAMES = [
   "none",
@@ -55,18 +55,18 @@ export const storyboardPanelSchema = z.object({
   videoUrl: z.string().optional(),
   audioUrl: z.string().optional(),
   /**
-   * La duree mesuree de cet enregistrement.
+   * The measured duration of this recording.
    *
-   * L'image est dite d'une traite : cette duree est celle de sa voix entiere,
-   * et les temps s'y reperent par leur `startMs`.
+   * The image is spoken in one take: this duration is that of its whole voice,
+   * and the beats are located in it by their `startMs`.
    */
   audioDurationMs: z.number().nonnegative().optional(),
   /**
-   * Les temps de narration de l'image, avec la voix produite pour chacun.
+   * The image's narration beats, with the voice produced for each.
    *
-   * Declares ici parce que z.object retire ce qu'il ne connait pas : sans ce
-   * champ le PATCH repondait 200 et les temps disparaissaient a la relecture,
-   * comme c'etait deja arrive a `promptContent`.
+   * Declared here because z.object strips what it does not know: without this
+   * field the PATCH answered 200 and the beats vanished on reload,
+   * as had already happened to `promptContent`.
    */
   beats: z.array(scriptBeatSchema).optional(),
   isGenerating: z.boolean().default(false),
@@ -77,7 +77,7 @@ export const storyboardPanelSchema = z.object({
 });
 export type StoryboardPanel = z.infer<typeof storyboardPanelSchema>;
 
-// Ordre du parcours simplifié : prompt (script inline) → storyboard → whiteboard
+// Simplified flow order: prompt (inline script) → storyboard → whiteboard
 export const workflowStepSchema = z.enum([
   "prompt",
   "storyboard",

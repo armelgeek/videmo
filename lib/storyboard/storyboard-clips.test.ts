@@ -17,7 +17,7 @@ const panel = (over: Partial<StoryboardPanel> = {}): StoryboardPanel =>
   }) as StoryboardPanel;
 
 describe("panelsToStepState", () => {
-  it("rend le travail enregistre, visuels compris", () => {
+  it("restores the saved work, visuals included", () => {
     const state = panelsToStepState([panel()]);
 
     expect(state.clips[0].title).toBe("Ma vraie scene");
@@ -25,7 +25,7 @@ describe("panelsToStepState", () => {
     expect(state.images).toEqual(["/mon-vrai-visuel.png"]);
   });
 
-  it("aligne images et clips index par index", () => {
+  it("aligns images and clips index by index", () => {
     const state = panelsToStepState([
       panel({ id: "a", imageUrl: "/a.png" }),
       panel({ id: "b", imageUrl: "" }),
@@ -37,7 +37,7 @@ describe("panelsToStepState", () => {
     expect(state.clips.map((c) => c.index)).toEqual([0, 1, 2]);
   });
 
-  it("comble un panneau ancien sans titre ni duree", () => {
+  it("fills in an old panel with no title or duration", () => {
     const [clip] = panelsToStepState([
       { id: "", imageUrl: "", prompt: "p" } as StoryboardPanel,
     ]).clips;
@@ -47,7 +47,7 @@ describe("panelsToStepState", () => {
     expect(clip.duration).toBe(5);
   });
 
-  it("rend les temps de narration et la voix deja produite", () => {
+  it("restores narration beats and the already-produced voice", () => {
     const [clip] = panelsToStepState([
       panel({
         audioUrl: "/scene.mp3",
@@ -67,7 +67,7 @@ describe("panelsToStepState", () => {
     expect(clip.beats?.[0].audioDurationMs).toBe(6552);
   });
 
-  it("laisse un panneau sans temps sans en inventer", () => {
+  it("leaves a panel without beats without inventing any", () => {
     expect(panelsToStepState([panel()]).clips[0].beats).toBeUndefined();
   });
 });

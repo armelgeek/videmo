@@ -52,15 +52,15 @@ const validPlan = {
 };
 
 describe("readOpenAiVisionConfig", () => {
-  it("nomme la variable manquante", () => {
+  it("names the missing variable", () => {
     expect(() => readOpenAiVisionConfig({})).toThrow(
       ImageGeneratorNotConfiguredError,
     );
   });
 
-  it("cadre les regions avec gpt-4o par defaut", () => {
-    // gpt-4o-mini situe juste mais cadre mal : verifie sur de vraies images,
-    // ses rectangles couvraient 2 a 5 % de l'image au milieu du sujet.
+  it("frames regions with gpt-4o by default", () => {
+    // gpt-4o-mini locates correctly but frames poorly: checked on real images,
+    // its rectangles covered 2 to 5% of the image in the middle of the subject.
     expect(readOpenAiVisionConfig({ OPENAI_API_KEY: "k" }).model).toBe("gpt-4o");
     expect(
       readOpenAiVisionConfig({
@@ -72,7 +72,7 @@ describe("readOpenAiVisionConfig", () => {
 });
 
 describe("OpenAiRegionReader", () => {
-  it("rend le plan de regions avec son etiquette", async () => {
+  it("returns the region plan with its label", async () => {
     const { impl } = stubFetch({ json: validPlan });
     const plan = await new OpenAiRegionReader(config, impl).read({
       imageUrl: "https://cdn.test/a.png",
@@ -89,7 +89,7 @@ describe("OpenAiRegionReader", () => {
     });
   });
 
-  it("joint l'image et la consigne dans le meme message", async () => {
+  it("attaches the image and the instruction in the same message", async () => {
     const { impl, calls } = stubFetch({ json: validPlan });
     await new OpenAiRegionReader(config, impl).read({
       imageUrl: "https://cdn.test/a.png",
@@ -102,7 +102,7 @@ describe("OpenAiRegionReader", () => {
     expect(content[1].image_url.url).toBe("https://cdn.test/a.png");
   });
 
-  it("impose un format de reponse, pour n'avoir rien a parser", async () => {
+  it("enforces a response format, so there is nothing to parse", async () => {
     const { impl, calls } = stubFetch({ json: validPlan });
     await new OpenAiRegionReader(config, impl).read({
       imageUrl: "https://cdn.test/a.png",
@@ -117,7 +117,7 @@ describe("OpenAiRegionReader", () => {
     ).toContain("label");
   });
 
-  it("leve une erreur typee sur refus du moteur", async () => {
+  it("throws a typed error when the engine refuses", async () => {
     const { impl } = stubFetch({ ok: false, status: 429, text: "rate limited" });
 
     await expect(
@@ -125,7 +125,7 @@ describe("OpenAiRegionReader", () => {
     ).rejects.toBeInstanceOf(RegionReadFailedError);
   });
 
-  it("refuse une reponse hors schema", async () => {
+  it("rejects a response outside the schema", async () => {
     const { impl } = stubFetch({
       json: { choices: [{ message: { content: JSON.stringify({ regions: [] }) } }] },
     });
@@ -135,7 +135,7 @@ describe("OpenAiRegionReader", () => {
     ).rejects.toBeInstanceOf(RegionReadFailedError);
   });
 
-  it("refuse une reponse sans contenu", async () => {
+  it("rejects a response without content", async () => {
     const { impl } = stubFetch({ json: { choices: [] } });
 
     await expect(
@@ -145,7 +145,7 @@ describe("OpenAiRegionReader", () => {
 });
 
 describe("FakeRegionReader", () => {
-  it("rend un plan sans reseau et retient les demandes", async () => {
+  it("returns a plan without network and records requests", async () => {
     const fake = new FakeRegionReader();
     const plan = await fake.read({ imageUrl: "u", prompt: "p" });
 

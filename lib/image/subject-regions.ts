@@ -1,55 +1,55 @@
 /**
- * Les rectangles des sujets dessines, mesures sur l'image.
+ * The rectangles of the drawn subjects, measured on the image.
  *
- * Demander ses coordonnees a un modele de vision ne marche pas : verifie sur de
- * vraies illustrations, il rend un point pose au milieu du sujet, ou un cadre
- * decale d'un sujet a l'autre. Or une illustration porte ses propres bornes —
- * il suffit de les lire. Le modele n'a plus alors qu'a APPARIER un temps de
- * narration a l'un de ces rectangles, ce qu'il fait bien.
+ * Asking a vision model for coordinates does not work: checked on real
+ * illustrations, it returns a point in the middle of the subject, or a frame
+ * shifted from one subject to another. Yet an illustration carries its own
+ * bounds — reading them is enough. The model then only has to MATCH a narration
+ * beat to one of these rectangles, which it does well.
  *
- * Ce qui compte n'est pas la couleur mais l'ECART AU FOND : un trait noir sur
- * papier blanc, une silhouette claire sur fond sombre ou un aplat colore se
- * mesurent de la meme facon. Restreindre la lecture aux pixels sombres ne
- * marchait que sur un whiteboard.
+ * What matters is not the color but the CONTRAST TO BACKGROUND: a black stroke
+ * on white paper, a light silhouette on a dark background or a flat colored
+ * area are measured the same way. Restricting the reading to dark pixels only
+ * worked on a whiteboard.
  */
 export interface SubjectRegion {
   x: number;
   y: number;
   width: number;
   height: number;
-  /** Le nombre de pixels du sujet : sert a ecarter les poussieres. */
+  /** The subject's pixel count: used to discard specks. */
   pixels: number;
 }
 
 export interface SubjectRegionsInput {
   /**
-   * L'ecart au fond, par pixel, ligne par ligne : 0 = la couleur du fond,
-   * 255 = son oppose. `contrastToBackground` le construit depuis une image.
+   * Contrast to background, per pixel, row by row: 0 = the background color,
+   * 255 = its opposite. `contrastToBackground` builds it from an image.
    */
   contrast: Uint8Array;
   width: number;
   height: number;
-  /** Au-dela de quoi un pixel appartient a un sujet, et non au fond. */
+  /** Above which a pixel belongs to a subject, not to the background. */
   threshold?: number;
   /**
-   * La distance en pixels sous laquelle deux traits appartiennent au meme
-   * sujet. Sans elle, le contour d'un grain et sa fente interieure comptaient
-   * pour deux dessins.
+   * The pixel distance under which two strokes belong to the same subject.
+   * Without it, the outline of a grain and its inner slit counted as two
+   * drawings.
    */
   gap?: number;
   /**
-   * La part de l'image sous laquelle un amas est du bruit — une poussiere du
-   * papier, un point de trame — et non un sujet.
+   * The image fraction under which a cluster is noise — a speck on the
+   * paper, a halftone dot — and not a subject.
    */
   minSubjectRatio?: number;
 }
 
 /**
- * Regroupe ce qui se detache du fond en sujets, et rend le rectangle de chacun.
+ * Groups what stands out from the background into subjects, and returns each one's rectangle.
  *
- * Le regroupement passe par une grille grossiere plutot que par les pixels :
- * deux traits voisins tombent dans des cases voisines, donc se rejoignent, et
- * l'image entiere se parcourt une fois au lieu d'etre dilatee.
+ * Grouping goes through a coarse grid rather than pixels: two neighboring
+ * strokes fall into neighboring cells, so they merge, and the whole image is
+ * scanned once instead of being dilated.
  */
 export function subjectRegions(input: SubjectRegionsInput): SubjectRegion[] {
   const { contrast, width, height } = input;
@@ -60,7 +60,7 @@ export function subjectRegions(input: SubjectRegionsInput): SubjectRegion[] {
   const cols = Math.ceil(width / gap);
   const rows = Math.ceil(height / gap);
 
-  // Par case : la quantite de sujet, et les bornes reelles de ses pixels.
+  // Per cell: the amount of subject, and the actual bounds of its pixels.
   const dense = new Int32Array(cols * rows);
   const minX = new Int32Array(cols * rows).fill(width);
   const minY = new Int32Array(cols * rows).fill(height);
@@ -86,9 +86,9 @@ export function subjectRegions(input: SubjectRegionsInput): SubjectRegion[] {
   for (let start = 0; start < dense.length; start++) {
     if (seen[start] || dense[start] === 0) continue;
 
-    // Parcours en largeur sur les cases voisines, diagonales comprises : un
-    // trait oblique ne doit pas casser le sujet en deux.
-    const pile = [start];
+    // Traversal over neighboring cells, diagonals included: an oblique
+    // stroke must not split the subject in two.
+    const stack = [start];
     seen[start] = 1;
     let x0 = width;
     let y0 = height;
@@ -96,8 +96,8 @@ export function subjectRegions(input: SubjectRegionsInput): SubjectRegion[] {
     let y1 = -1;
     let pixels = 0;
 
-    while (pile.length > 0) {
-      const cell = pile.pop() as number;
+    while (stack.length > 0) {
+      const cell = stack.pop() as number;
       pixels += dense[cell];
       if (minX[cell] < x0) x0 = minX[cell];
       if (minY[cell] < y0) y0 = minY[cell];
@@ -114,7 +114,7 @@ export function subjectRegions(input: SubjectRegionsInput): SubjectRegion[] {
           const next = ny * cols + nx;
           if (seen[next] || dense[next] === 0) continue;
           seen[next] = 1;
-          pile.push(next);
+          stack.push(next);
         }
       }
     }
@@ -129,59 +129,59 @@ export function subjectRegions(input: SubjectRegionsInput): SubjectRegion[] {
     });
   }
 
-  // Le sujet le plus dessine d'abord : c'est celui dont un temps parle en
-  // general, et la liste soumise au modele est plafonnee.
+  // Most-drawn subject first: it is usually the one a beat talks about, and
+  // the list sent to the model is capped.
   return regions.sort((a, b) => b.pixels - a.pixels);
 }
 
 /**
- * La couleur du fond, et l'ecart de chaque pixel a cette couleur.
+ * The background color, and each pixel's contrast to that color.
  *
- * Le fond se lit sur le BORD de l'image : une illustration y laisse sa marge,
- * et c'est la seule zone dont on sait d'avance qu'elle n'est pas le sujet. La
- * mediane, et non la moyenne, pour qu'un sujet qui touche le bord ne deplace
- * pas la reference.
+ * The background is read on the image EDGE: an illustration leaves its margin
+ * there, and it is the only area known in advance not to be the subject. The
+ * median, not the mean, so a subject touching the edge does not shift the
+ * reference.
  *
- * L'ecart est pris canal par canal, au plus grand des trois : une silhouette
- * rouge sur fond vert a la meme luminance que lui et disparaissait quand on ne
- * regardait que le gris.
+ * Contrast is taken channel by channel, the largest of the three: a red
+ * silhouette on a green background has the same luminance and vanished when
+ * only grayscale was considered.
  *
- * Une image sans fond uni — une peinture pleine page — rend des ecarts partout,
- * donc un seul sujet couvrant tout. C'est le repli voulu : une zone trop large
- * plutot qu'aucune annotation.
+ * An image without a flat background — a full-page painting — yields contrast
+ * everywhere, hence a single subject covering everything. That is the intended
+ * fallback: an area too large rather than no annotation.
  */
 export function contrastToBackground(input: {
-  /** Les pixels en RGBA, comme les rend un canvas. */
+  /** The pixels in RGBA, as a canvas returns them. */
   rgba: Uint8ClampedArray | Uint8Array;
   width: number;
   height: number;
 }): { contrast: Uint8Array; background: [number, number, number] } {
   const { rgba, width, height } = input;
-  const bords: [number[], number[], number[]] = [[], [], []];
+  const edges: [number[], number[], number[]] = [[], [], []];
 
-  const noter = (x: number, y: number) => {
+  const sample = (x: number, y: number) => {
     const p = (y * width + x) * 4;
-    bords[0].push(rgba[p]);
-    bords[1].push(rgba[p + 1]);
-    bords[2].push(rgba[p + 2]);
+    edges[0].push(rgba[p]);
+    edges[1].push(rgba[p + 1]);
+    edges[2].push(rgba[p + 2]);
   };
   for (let x = 0; x < width; x++) {
-    noter(x, 0);
-    noter(x, height - 1);
+    sample(x, 0);
+    sample(x, height - 1);
   }
   for (let y = 1; y < height - 1; y++) {
-    noter(0, y);
-    noter(width - 1, y);
+    sample(0, y);
+    sample(width - 1, y);
   }
 
-  const mediane = (valeurs: number[]) => {
-    valeurs.sort((a, b) => a - b);
-    return valeurs[Math.floor(valeurs.length / 2)] ?? 255;
+  const median = (values: number[]) => {
+    values.sort((a, b) => a - b);
+    return values[Math.floor(values.length / 2)] ?? 255;
   };
   const background: [number, number, number] = [
-    mediane(bords[0]),
-    mediane(bords[1]),
-    mediane(bords[2]),
+    median(edges[0]),
+    median(edges[1]),
+    median(edges[2]),
   ];
 
   const contrast = new Uint8Array(width * height);

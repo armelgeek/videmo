@@ -1,11 +1,11 @@
 /**
- * Le contrat de generation d'images.
+ * The image generation contract.
  *
- * L'interface existe pour la meme raison qu'ObjectStorage : la route ignore
- * quel fournisseur produit l'image, les tests passent un double, et changer de
- * moteur ne touche qu'un fichier. Sans elle, `api.openai.com` et le format de
- * reponse etaient ecrits en dur dans la route, et aucun test ne pouvait couvrir
- * la generation sans appel payant.
+ * The interface exists for the same reason as ObjectStorage: the route does not
+ * know which provider produces the image, tests pass a double, and switching
+ * engines touches only one file. Without it, `api.openai.com` and the response
+ * format were hardcoded in the route, and no test could cover generation
+ * without a paid call.
  */
 export interface ImageGenerator {
   generate(input: GenerateImageInput): Promise<Uint8Array>;
@@ -13,12 +13,12 @@ export interface ImageGenerator {
 
 export interface GenerateImageInput {
   prompt: string;
-  /** Deja traduite dans une taille que le moteur accepte. */
+  /** Already translated into a size the engine accepts. */
   size: string;
   /**
-   * La case de reference, quand la serie doit garder le meme trait. Tous les
-   * moteurs ne savent pas s'en servir : un adaptateur qui l'ignore reste
-   * conforme, il perd la coherence de style, pas l'image.
+   * The reference panel, when the series must keep the same stroke. Not every
+   * engine can use it: an adapter that ignores it stays compliant, it loses
+   * style consistency, not the image.
    */
   reference?: Uint8Array;
 }
@@ -30,7 +30,7 @@ export class ImageGeneratorNotConfiguredError extends Error {
   }
 }
 
-/** Le moteur a repondu, mais sans image exploitable. */
+/** The engine responded, but without a usable image. */
 export class ImageGenerationFailedError extends Error {
   constructor(
     message: string,
@@ -42,8 +42,8 @@ export class ImageGenerationFailedError extends Error {
 }
 
 /**
- * Le plus petit PNG valide : un pixel transparent. Les tests ont besoin
- * d'octets qu'un decodeur accepte, pas d'une vraie illustration.
+ * The smallest valid PNG: one transparent pixel. Tests need bytes a decoder
+ * accepts, not a real illustration.
  */
 export const TRANSPARENT_PNG = Uint8Array.from(
   Buffer.from(
@@ -53,8 +53,8 @@ export const TRANSPARENT_PNG = Uint8Array.from(
 );
 
 /**
- * Double de test : rend un PNG valide sans appel reseau, et garde la trace des
- * demandes pour que les tests puissent verifier ce qui a ete demande.
+ * Test double: returns a valid PNG without a network call, and records requests
+ * so tests can check what was asked.
  */
 export class FakeImageGenerator implements ImageGenerator {
   readonly calls: GenerateImageInput[] = [];

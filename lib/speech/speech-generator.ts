@@ -1,9 +1,9 @@
 /**
- * Le contrat de synthese vocale.
+ * The speech synthesis contract.
  *
- * Meme forme qu'ObjectStorage et ImageGenerator : la route ignore quel moteur
- * parle, les tests passent un double, et changer de fournisseur ne touche qu'un
- * adaptateur.
+ * Same shape as ObjectStorage and ImageGenerator: the route does not know which
+ * engine speaks, tests pass a double, and switching providers only touches one
+ * adapter.
  */
 export interface SpeechGenerator {
   speak(input: SpeakInput): Promise<Uint8Array>;
@@ -11,7 +11,7 @@ export interface SpeechGenerator {
 
 export interface SpeakInput {
   text: string;
-  /** Un identifiant du catalogue ci-dessous, jamais une valeur libre. */
+  /** An id from the catalog below, never a free value. */
   voice: string;
 }
 
@@ -33,13 +33,13 @@ export class SpeechGenerationFailedError extends Error {
 }
 
 /**
- * Les voix reellement disponibles.
+ * The voices actually available.
  *
- * Elles sont multilingues : la meme voix lit le francais et l'anglais. L'ecran
- * les rangeait auparavant par langue, avec des personas inventes — un choix
- * fait sur une fiction, et deux personas differents pouvaient rendre le meme
- * son. Aucune description de timbre ici : l'apercu audio est la source de
- * verite, et decrire une voix qu'on n'a pas ecoutee recreerait la fiction.
+ * They are multilingual: the same voice reads French and English. The screen
+ * used to group them by language, with invented personas — a choice made on a
+ * fiction, and two different personas could produce the same sound. No timbre
+ * description here: the audio preview is the source of truth, and describing a
+ * voice nobody listened to would recreate the fiction.
  */
 export const VOICES = [
   "alloy",
@@ -59,20 +59,20 @@ export type VoiceId = (typeof VOICES)[number];
 
 export const DEFAULT_VOICE: VoiceId = "nova";
 
-/** Ramene un choix enregistre vers une voix qui existe encore. */
+/** Maps a saved choice to a voice that still exists. */
 export function normalizeVoice(voice: unknown): VoiceId {
   return VOICES.includes(voice as VoiceId) ? (voice as VoiceId) : DEFAULT_VOICE;
 }
 
 /**
- * Le plus petit MP3 valide : une trame silencieuse. Les tests ont besoin
- * d'octets qu'un lecteur accepte, pas d'une vraie narration.
+ * The smallest valid MP3: one silent frame. Tests need bytes a player
+ * accepts, not a real narration.
  */
 export const SILENT_MP3 = Uint8Array.from([
   0xff, 0xfb, 0x90, 0x64, 0x00, 0x00, 0x00, 0x00,
 ]);
 
-/** Double de test : rend un MP3 valide sans reseau et retient les demandes. */
+/** Test double: returns a valid MP3 without network and records requests. */
 export class FakeSpeechGenerator implements SpeechGenerator {
   readonly calls: SpeakInput[] = [];
 
