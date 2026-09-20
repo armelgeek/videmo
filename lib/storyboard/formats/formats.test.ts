@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   BUILT_IN_FORMATS,
@@ -28,11 +30,17 @@ describe("shipped video formats", () => {
     expect(builtInFormat(undefined).id).toBe(DEFAULT_FORMAT_ID);
   });
 
-  it("gives story formats a character and explainer formats none", () => {
-    for (const f of BUILT_IN_FORMATS) {
-      if (f.family === "story") expect(f.character).toBeDefined();
-      else expect(f.character).toBeUndefined();
-    }
+  it("has a recurring character only where the format tells a story", () => {
+    expect(BUILT_IN_FORMATS.filter((f) => f.usesCharacter).map((f) => f.id)).toEqual(["story"]);
+  });
+
+  it("never points at a thumbnail that does not exist", () => {
+    // The first version referenced seven /formats/*.webp images that were never
+    // created and stored them in the database. A path is fine; a dead one is not.
+    const dead = BUILT_IN_FORMATS.filter(
+      (f) => f.thumbnailUrl && !existsSync(join(process.cwd(), "public", f.thumbnailUrl)),
+    );
+    expect(dead.map((f) => f.id)).toEqual([]);
   });
 
   it("gives every format a structure and breakdown rules to work from", () => {
@@ -50,8 +58,6 @@ describe("shipped video formats", () => {
       expect(f.label).toBeTruthy();
       expect(f.hint).toBeTruthy();
       expect(f.script.defaultTone).toBeTruthy();
-      expect(f.visual.vocabulary.length).toBeGreaterThan(0);
-      expect(f.visual.accentColors.length).toBeGreaterThan(0);
     }
   });
 });

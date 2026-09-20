@@ -161,11 +161,6 @@ describe("buildBreakdownPrompt", () => {
     expect(prompt).toContain("imagePrompt in English");
   });
 
-  it("carries the format's drawing vocabulary and accents", () => {
-    for (const word of explainer.visual.vocabulary) expect(prompt).toContain(word);
-    for (const colour of explainer.visual.accentColors) expect(prompt).toContain(colour);
-  });
-
   it("carries the format's own breakdown rules", () => {
     for (const rule of explainer.breakdown.rules) expect(prompt).toContain(rule);
   });
@@ -177,13 +172,14 @@ describe("buildBreakdownPrompt", () => {
       script: "Alex ouvre la porte.",
       params: { ...params, format: "story" },
       format: story,
+      character: { name: "Alex", description: "a tall woman with a red scarf" },
     });
 
-    expect(storyPrompt).toContain(story.character?.description ?? "");
+    expect(storyPrompt).toContain("a tall woman with a red scarf");
     expect(storyPrompt).toContain("word for word");
   });
 
-  it("says nothing about a character for a format that has none", () => {
+  it("says nothing about a character when none was picked", () => {
     expect(prompt).not.toContain("RECURRING CHARACTER");
   });
 });

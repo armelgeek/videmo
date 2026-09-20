@@ -1,4 +1,3 @@
-import { EDUCATIONAL_PRESET } from "./visual-presets";
 import type { VideoFormat } from "./types";
 
 export const educationalFormat: VideoFormat = {
@@ -6,8 +5,7 @@ export const educationalFormat: VideoFormat = {
   version: 1,
   label: "Educational",
   hint: "Teach a concept, build understanding progressively.",
-  family: "explainer",
-  thumbnailUrl: "/formats/educational.webp",
+  thumbnailUrl: null,
   script: {
     paragraphs: 11,
     structure: [
@@ -36,5 +34,5 @@ export const educationalFormat: VideoFormat = {
       "Include memory aids or mnemonics",
     ],
   },
-  visual: EDUCATIONAL_PRESET,
+  usesCharacter: false,
 };

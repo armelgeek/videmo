@@ -1,4 +1,3 @@
-import { EXPLAINER_PRESET } from "./visual-presets";
 import type { VideoFormat } from "./types";
 
 export const briefFormat: VideoFormat = {
@@ -6,8 +5,7 @@ export const briefFormat: VideoFormat = {
   version: 1,
   label: "Brief",
   hint: "Short and punchy, one key message.",
-  family: "explainer",
-  thumbnailUrl: "/formats/brief.webp",
+  thumbnailUrl: null,
   script: {
     paragraphs: 6,
     structure: [
@@ -27,5 +25,5 @@ export const briefFormat: VideoFormat = {
       "End with clear next step",
     ],
   },
-  visual: EXPLAINER_PRESET,
+  usesCharacter: false,
 };

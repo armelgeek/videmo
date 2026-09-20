@@ -10,14 +10,7 @@
  * import `listFormatsFor` / `resolveFormat` from `./repository`.
  */
 
-export type {
-  FormatCharacter,
-  FormatFamily,
-  LabelPolicy,
-  ManagedFormat,
-  VideoFormat,
-  VisualPreset,
-} from "./types";
+export type { ManagedFormat, VideoFormat } from "./types";
 
 export {
   BUILT_IN_FORMATS,

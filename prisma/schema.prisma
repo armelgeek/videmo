@@ -299,7 +299,6 @@ model VideoFormat {
   version      Int     @default(1)
   label        String  @db.VarChar(120)
   hint         String  @db.VarChar(255)
-  family       String  @default("explainer") @db.VarChar(32)
   thumbnailUrl String?
 
   /// Target paragraph count, and the movements the script must cover.
@@ -310,11 +309,9 @@ model VideoFormat {
   /// What the breakdown must respect beyond the rules common to all formats.
   breakdownRules Json
 
-  /// Drawing vocabulary, accent colours and labelling policy.
-  visual Json
-
-  /// The recurring character, for the formats that tell a story.
-  character Json?
+  /// Whether this format tells a story around a recurring character, picked from
+  /// the character library when the project is created.
+  usesCharacter Boolean @default(false)
 
   /// Shipped formats cannot be deleted, only overridden.
   isBuiltIn Boolean @default(false)

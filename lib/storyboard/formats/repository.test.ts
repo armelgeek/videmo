@@ -11,20 +11,12 @@ const row = (over: Record<string, unknown> = {}) => ({
   version: 1,
   label: "Tutorial",
   hint: "Step by step.",
-  family: "explainer",
   thumbnailUrl: null,
   paragraphs: 8,
   structure: ["Intro", "Steps"],
   defaultTone: "instructional",
   breakdownRules: ["Number the steps"],
-  visual: {
-    id: "tutorial-steps",
-    vocabulary: ["numbers"],
-    accentColors: ["green"],
-    labels: "key-subjects",
-    defaultAnimationStyle: "sequential",
-  },
-  character: null,
+  usesCharacter: false,
   ...over,
 });
 
@@ -67,9 +59,9 @@ describe("listFormatsFor", () => {
   });
 
   it("skips a row it cannot read instead of breaking the whole list", async () => {
-    // Formats are user-written: one malformed `visual` must not take the
+    // Formats are user-written: one malformed `structure` must not take the
     // format picker down with it.
-    findMany.mockResolvedValue([row(), row({ key: "broken", visual: { nope: true } })]);
+    findMany.mockResolvedValue([row(), row({ key: "broken", structure: { nope: true } })]);
 
     const formats = await listFormatsFor("org-1");
 

@@ -1,4 +1,3 @@
-import { PRODUCT_PRESET } from "./visual-presets";
 import type { VideoFormat } from "./types";
 
 export const productDemoFormat: VideoFormat = {
@@ -6,8 +5,7 @@ export const productDemoFormat: VideoFormat = {
   version: 1,
   label: "Product Demo",
   hint: "Show features in action, focus on value and user benefits.",
-  family: "explainer",
-  thumbnailUrl: "/formats/product-demo.webp",
+  thumbnailUrl: null,
   script: {
     paragraphs: 9,
     structure: [
@@ -33,5 +31,5 @@ export const productDemoFormat: VideoFormat = {
       "Keep pace dynamic to hold attention",
     ],
   },
-  visual: PRODUCT_PRESET,
+  usesCharacter: false,
 };

@@ -1,4 +1,3 @@
-import { EXPLAINER_PRESET } from "./visual-presets";
 import type { VideoFormat } from "./types";
 
 export const explainerFormat: VideoFormat = {
@@ -6,8 +5,7 @@ export const explainerFormat: VideoFormat = {
   version: 1,
   label: "Explainer",
   hint: "Step by step, the whole idea.",
-  family: "explainer",
-  thumbnailUrl: "/formats/explainer.webp",
+  thumbnailUrl: null,
   script: {
     paragraphs: 10,
     structure: [
@@ -32,5 +30,5 @@ export const explainerFormat: VideoFormat = {
       "Highlight key points with visual emphasis",
     ],
   },
-  visual: EXPLAINER_PRESET,
+  usesCharacter: false,
 };

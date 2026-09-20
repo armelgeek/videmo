@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { listManagedFormats } from "@/actions/video-formats/list-managed-formats";
 import { deleteVideoFormat } from "@/actions/video-formats/delete-video-format";
 import { isBuiltInFormat } from "@/lib/storyboard/formats";
-import type { ManagedFormat, VideoFormat } from "@/lib/storyboard/formats";
+import type { ManagedFormat } from "@/lib/storyboard/formats";
 import { ORGANIZATION_CHANGED_EVENT } from "@/lib/app-shell/organization-events";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
 /**
  * The organization's video types.
  *
@@ -152,16 +153,10 @@ export function FormatsView() {
                     <dt className="inline">Movements: </dt>
                     <dd className="inline font-medium">{format.script.structure.length}</dd>
                   </div>
-                  <div>
-                    <dt className="inline">Family: </dt>
-                    <dd className="inline font-medium">{format.family}</dd>
-                  </div>
-                  {format.character && (
+                  {format.usesCharacter && (
                     <div>
                       <dt className="inline">Character: </dt>
-                      <dd className="inline font-medium">
-                        {format.character.name ?? "yes"}
-                      </dd>
+                      <dd className="inline font-medium">recurring</dd>
                     </div>
                   )}
                 </dl>

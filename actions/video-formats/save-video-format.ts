@@ -1,7 +1,6 @@
 'use server'
 
 import { z } from 'zod'
-import { Prisma } from '@prisma/client'
 import { db as prisma } from '@/lib/db'
 import { videoFormatInputSchema } from '@/lib/storyboard/formats/schema'
 import { ProjectUnauthorizedError, requireSessionViewer } from '@/lib/video-project/session'
@@ -39,16 +38,12 @@ export async function saveVideoFormat(input: unknown): Promise<SaveVideoFormatRe
       key: data.key,
       label: data.label,
       hint: data.hint,
-      family: data.family,
       thumbnailUrl: data.thumbnailUrl,
       paragraphs: data.paragraphs,
       structure: data.structure,
       defaultTone: data.defaultTone,
       breakdownRules: data.breakdownRules,
-      visual: data.visual as Prisma.InputJsonObject,
-      // A nullable Json column distinguishes "no value" from the JSON literal
-      // `null`; only DbNull clears it.
-      character: (data.character ?? Prisma.DbNull) as Prisma.InputJsonValue,
+      usesCharacter: data.usesCharacter,
     }
 
     const saved = existing

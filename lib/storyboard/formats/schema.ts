@@ -19,7 +19,6 @@ export const videoFormatInputSchema = z.object({
   key: formatKeySchema,
   label: z.string().min(1).max(120),
   hint: z.string().min(1).max(255),
-  family: z.enum(["explainer", "story"]).default("explainer"),
   // A path, not necessarily an absolute URL: the shipped formats point at
   // `/formats/*.webp`, and overriding one must not have to rewrite that.
   thumbnailUrl: z.string().max(500).nullable().default(null),
@@ -29,22 +28,7 @@ export const videoFormatInputSchema = z.object({
   defaultTone: z.string().min(1).max(64),
   breakdownRules: z.array(z.string().min(1).max(300)).max(20).default([]),
 
-  visual: z.object({
-    id: z.string().min(1).max(64),
-    vocabulary: z.array(z.string().min(1).max(40)).min(1).max(20),
-    accentColors: z.array(z.string().min(1).max(40)).min(1).max(10),
-    labels: z.enum(["every-subject", "key-subjects", "none"]),
-    defaultAnimationStyle: z.string().min(1).max(40),
-  }),
-
-  character: z
-    .object({
-      name: z.string().max(80).optional(),
-      description: z.string().min(1).max(600),
-      referenceImageUrl: z.string().max(500),
-    })
-    .nullable()
-    .default(null),
+  usesCharacter: z.boolean().default(false),
 });
 
 export type VideoFormatInput = z.infer<typeof videoFormatInputSchema>;

@@ -1,5 +1,4 @@
 import "dotenv/config";
-import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma";
 import { BUILT_IN_FORMATS } from "../lib/storyboard/formats/built-in";
 
@@ -21,16 +20,12 @@ async function main() {
       version: format.version,
       label: format.label,
       hint: format.hint,
-      family: format.family,
-      thumbnailUrl: format.thumbnailUrl || null,
+      thumbnailUrl: format.thumbnailUrl,
       paragraphs: format.script.paragraphs,
       structure: format.script.structure,
       defaultTone: format.script.defaultTone,
       breakdownRules: format.breakdown.rules,
-      visual: format.visual as unknown as Prisma.InputJsonObject,
-      // A nullable Json column distinguishes "no value" from the JSON literal
-      // `null`; only DbNull clears it.
-      character: (format.character ?? Prisma.DbNull) as unknown as Prisma.InputJsonValue,
+      usesCharacter: format.usesCharacter,
       isBuiltIn: true,
     };
 

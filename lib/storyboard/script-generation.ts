@@ -161,36 +161,24 @@ export function buildScriptPrompt(
   ].join("\n");
 }
 
-const LABEL_INSTRUCTIONS: Record<string, string> = {
-  "every-subject": "Label every subject drawn in the image.",
-  "key-subjects": "Label only the subjects the narration names.",
-  none: "Draw no written labels: the narration carries the words.",
-};
-
-/** The look the format asks for: drawing vocabulary, accents, labelling. */
-function formatVisualInstructions({ visual }: VideoFormat): string[] {
-  return [
-    `Draw with this vocabulary: ${visual.vocabulary.join(", ")}.`,
-    `Use these accent colours, sparingly: ${visual.accentColors.join(", ")}.`,
-    LABEL_INSTRUCTIONS[visual.labels],
-    "",
-  ];
+/** A ready-to-use character from the library, repeated word for word in images. */
+export interface PromptCharacter {
+  name: string;
+  description: string;
 }
 
 /**
- * The recurring character, for the formats that ship one.
+ * The recurring character, for the projects that picked one.
  *
  * The agent already knows how to keep a character stable across clips; what it
- * cannot invent is WHICH character, so the format hands it a fixed description
+ * cannot invent is WHICH character, so the library hands it a fixed description
  * to copy verbatim rather than letting each image drift into someone else.
  */
-function formatCharacterInstructions({ character }: VideoFormat): string[] {
+function characterInstructions(character: PromptCharacter | undefined): string[] {
   if (!character) return [];
-
-  const name = character.name ?? "the protagonist";
   return [
-    `RECURRING CHARACTER — ${name}: ${character.description}`,
-    `Every image showing ${name} repeats that description word for word in its`,
+    `RECURRING CHARACTER — ${character.name}: ${character.description}`,
+    `Every image showing ${character.name} repeats that description word for word in its`,
     "imagePrompt, so the same person is drawn from the first image to the last.",
     "",
   ];
@@ -216,6 +204,7 @@ export function buildBreakdownPrompt(input: {
   script: string;
   params: ScriptParams;
   format: VideoFormat;
+  character?: PromptCharacter;
 }): string {
   return [
     "Break this narration script into video clips.",
@@ -226,8 +215,7 @@ export function buildBreakdownPrompt(input: {
     `Visual style for the image prompts: ${input.params.style}`,
     `Aspect ratio: the video is ${input.params.format} format`,
     "",
-    ...formatVisualInstructions(input.format),
-    ...formatCharacterInstructions(input.format),
+    ...characterInstructions(input.character),
     ...formatBreakdownRules(input.format),
     "Group the script into IMAGES, indexed from 0. An image is one drawing:",
     "group together everything that a single illustration can carry, and start",

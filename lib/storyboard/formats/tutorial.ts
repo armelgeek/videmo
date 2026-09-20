@@ -1,4 +1,3 @@
-import { TUTORIAL_PRESET } from "./visual-presets";
 import type { VideoFormat } from "./types";
 
 export const tutorialFormat: VideoFormat = {
@@ -6,8 +5,7 @@ export const tutorialFormat: VideoFormat = {
   version: 1,
   label: "Tutorial",
   hint: "Step-by-step guide to accomplish a task.",
-  family: "explainer",
-  thumbnailUrl: "/formats/tutorial.webp",
+  thumbnailUrl: null,
   script: {
     paragraphs: 8,
     structure: [
@@ -30,5 +28,5 @@ export const tutorialFormat: VideoFormat = {
       "Highlight warnings or common mistakes",
     ],
   },
-  visual: TUTORIAL_PRESET,
+  usesCharacter: false,
 };

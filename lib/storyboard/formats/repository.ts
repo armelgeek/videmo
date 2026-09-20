@@ -7,37 +7,21 @@ import type { ManagedFormat, VideoFormat } from "./types";
  * The shape of the JSON columns.
  *
  * A format can be written by a user through the editor, so what comes back
- * from the database is input, not internal state: a `visual` without its
- * `vocabulary` array would throw inside the prompt builder, far from the row
+ * from the database is input, not internal state: a `structure` that is not an
+ * array of strings would throw inside the prompt builder, far from the row
  * that caused it.
  */
-const visualSchema = z.object({
-  id: z.string(),
-  vocabulary: z.array(z.string()),
-  accentColors: z.array(z.string()),
-  labels: z.enum(["every-subject", "key-subjects", "none"]),
-  defaultAnimationStyle: z.string(),
-});
-
-const characterSchema = z.object({
-  name: z.string().optional(),
-  description: z.string(),
-  referenceImageUrl: z.string(),
-});
-
 const rowSchema = z.object({
   key: z.string(),
   version: z.number(),
   label: z.string(),
   hint: z.string(),
-  family: z.enum(["explainer", "story"]),
   thumbnailUrl: z.string().nullable(),
   paragraphs: z.number(),
   structure: z.array(z.string()),
   defaultTone: z.string(),
   breakdownRules: z.array(z.string()),
-  visual: visualSchema,
-  character: characterSchema.nullable(),
+  usesCharacter: z.boolean(),
 });
 
 /** A stored row, in the shape the prompt builders expect. */
@@ -51,16 +35,14 @@ function toFormat(row: unknown): VideoFormat | null {
     version: r.version,
     label: r.label,
     hint: r.hint,
-    family: r.family,
-    thumbnailUrl: r.thumbnailUrl ?? "",
+    thumbnailUrl: r.thumbnailUrl,
     script: {
       paragraphs: r.paragraphs,
       structure: r.structure,
       defaultTone: r.defaultTone,
     },
     breakdown: { rules: r.breakdownRules },
-    visual: r.visual,
-    ...(r.character ? { character: r.character } : {}),
+    usesCharacter: r.usesCharacter,
   };
 }
 

@@ -11,22 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 
 /** One entry per line, blanks dropped: the shape a structure is read in. */
 const toLines = (text: string) =>
   text.split("\n").map((l) => l.trim()).filter(Boolean);
 const fromLines = (items: readonly string[]) => items.join("\n");
-
-const toWords = (text: string) =>
-  text.split(",").map((w) => w.trim()).filter(Boolean);
-const fromWords = (items: readonly string[]) => items.join(", ");
 
 /** A key is generated from the label so the common case needs no thought. */
 const slugify = (label: string) =>
@@ -42,34 +32,22 @@ interface FormState {
   key: string;
   label: string;
   hint: string;
-  family: "explainer" | "story";
   paragraphs: string;
   defaultTone: string;
   structure: string;
   breakdownRules: string;
-  vocabulary: string;
-  accentColors: string;
-  labels: "every-subject" | "key-subjects" | "none";
-  defaultAnimationStyle: string;
-  characterName: string;
-  characterDescription: string;
+  usesCharacter: boolean;
 }
 
 const EMPTY: FormState = {
   key: "",
   label: "",
   hint: "",
-  family: "explainer",
   paragraphs: "8",
   defaultTone: "professional",
   structure: "",
   breakdownRules: "",
-  vocabulary: "arrows, circles, boxes",
-  accentColors: "red, blue",
-  labels: "key-subjects",
-  defaultAnimationStyle: "chunkjump",
-  characterName: "",
-  characterDescription: "",
+  usesCharacter: false,
 };
 
 function toFormState(format: VideoFormat): FormState {
@@ -77,17 +55,11 @@ function toFormState(format: VideoFormat): FormState {
     key: format.id,
     label: format.label,
     hint: format.hint,
-    family: format.family,
     paragraphs: String(format.script.paragraphs),
     defaultTone: format.script.defaultTone,
     structure: fromLines(format.script.structure),
     breakdownRules: fromLines(format.breakdown.rules),
-    vocabulary: fromWords(format.visual.vocabulary),
-    accentColors: fromWords(format.visual.accentColors),
-    labels: format.visual.labels,
-    defaultAnimationStyle: format.visual.defaultAnimationStyle,
-    characterName: format.character?.name ?? "",
-    characterDescription: format.character?.description ?? "",
+    usesCharacter: format.usesCharacter,
   };
 }
 
@@ -101,10 +73,10 @@ interface FormatEditorProps {
 }
 
 /**
- * Writes a video format.
+ * Writes a video format: what a script is about, in which order, for how long.
  *
- * A page rather than a dialog: the form is long enough that a modal made the
- * save button something you had to scroll to find.
+ * How the video LOOKS is not decided here — that is the whiteboard style,
+ * picked separately, so any type of video works with any look.
  */
 export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
   const router = useRouter();
@@ -123,28 +95,12 @@ export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
         key: form.key,
         label: form.label,
         hint: form.hint,
-        family: form.family,
-        thumbnailUrl: initial?.thumbnailUrl || null,
+        thumbnailUrl: initial?.thumbnailUrl ?? null,
         paragraphs: Number(form.paragraphs),
         structure: toLines(form.structure),
         defaultTone: form.defaultTone,
         breakdownRules: toLines(form.breakdownRules),
-        visual: {
-          // Derived rather than asked for: a preset id the user never reads.
-          id: form.key || "custom",
-          vocabulary: toWords(form.vocabulary),
-          accentColors: toWords(form.accentColors),
-          labels: form.labels,
-          defaultAnimationStyle: form.defaultAnimationStyle,
-        },
-        character:
-          form.family === "story" && form.characterDescription.trim()
-            ? {
-                name: form.characterName.trim() || undefined,
-                description: form.characterDescription.trim(),
-                referenceImageUrl: initial?.character?.referenceImageUrl ?? "",
-              }
-            : null,
+        usesCharacter: form.usesCharacter,
       });
 
       if (!result.success) {
@@ -180,148 +136,69 @@ export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
         <p className="text-sm text-muted-foreground mt-1">
           {isOverride
             ? "This saves your own copy under the same key. The shipped format stays untouched for everyone else."
-            : "The structure steers what the script says; the drawing section steers how it looks."}
+            : "The structure steers what the script says. How the video looks is chosen separately."}
         </p>
       </div>
 
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 items-start">
-        <div className="space-y-6">
-          <section className="space-y-4 p-6 border rounded-lg bg-card">
-            <h2 className="text-sm font-semibold">Identity</h2>
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-label">Name</Label>
-                <Input
-                  id="fmt-label"
-                  value={form.label}
-                  placeholder="SaaS onboarding"
-                  onChange={(e) => {
-                    const label = e.target.value;
-                    setForm((f) => ({
-                      ...f,
-                      label,
-                      // Only while creating: changing the key of a saved format
-                      // would orphan every project that stores it.
-                      key: !initial ? slugify(label) : f.key,
-                    }));
-                  }}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-key">Key</Label>
-                <Input
-                  id="fmt-key"
-                  value={form.key}
-                  disabled={initial !== null}
-                  onChange={(e) => set("key", e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {initial
-                    ? "Fixed: projects are stored against it."
-                    : "Lowercase letters, digits and dashes."}
-                </p>
-              </div>
-
-              <div className="col-span-1 md:col-span-2 grid gap-2">
-                <Label htmlFor="fmt-hint">One-line description</Label>
-                <Input
-                  id="fmt-hint"
-                  value={form.hint}
-                  placeholder="Walk a new user through first value."
-                  onChange={(e) => set("hint", e.target.value)}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-family">Family</Label>
-                <Select
-                  value={form.family}
-                  onValueChange={(v) => set("family", v as FormState["family"])}
-                >
-                  <SelectTrigger id="fmt-family">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="explainer">Explainer</SelectItem>
-                    <SelectItem value="story">Story</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  A story carries a recurring character.
-                </p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-tone">Default tone</Label>
-                <Input
-                  id="fmt-tone"
-                  value={form.defaultTone}
-                  placeholder="instructional"
-                  onChange={(e) => set("defaultTone", e.target.value)}
-                />
-              </div>
+        <section className="space-y-4 p-6 border rounded-lg bg-card">
+          <h2 className="text-sm font-semibold">Identity</h2>
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="fmt-label">Name</Label>
+              <Input
+                id="fmt-label"
+                value={form.label}
+                placeholder="SaaS onboarding"
+                onChange={(e) => {
+                  const label = e.target.value;
+                  setForm((f) => ({
+                    ...f,
+                    label,
+                    // Only while creating: changing the key of a saved format
+                    // would orphan every project that stores it.
+                    key: !initial ? slugify(label) : f.key,
+                  }));
+                }}
+              />
             </div>
-          </section>
 
-          <section className="space-y-4 p-6 border rounded-lg bg-card">
-            <h2 className="text-sm font-semibold">Drawing</h2>
-            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-vocabulary">Vocabulary</Label>
-                <Input
-                  id="fmt-vocabulary"
-                  value={form.vocabulary}
-                  placeholder="arrows, circles, boxes"
-                  onChange={(e) => set("vocabulary", e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Comma separated.</p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-colors">Accent colours</Label>
-                <Input
-                  id="fmt-colors"
-                  value={form.accentColors}
-                  placeholder="red, blue"
-                  onChange={(e) => set("accentColors", e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Used sparingly.</p>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-labels">Labelling</Label>
-                <Select
-                  value={form.labels}
-                  onValueChange={(v) => set("labels", v as FormState["labels"])}
-                >
-                  <SelectTrigger id="fmt-labels">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="every-subject">Label every subject</SelectItem>
-                    <SelectItem value="key-subjects">Label key subjects only</SelectItem>
-                    <SelectItem value="none">No written labels</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-animation">Animation style</Label>
-                <Input
-                  id="fmt-animation"
-                  value={form.defaultAnimationStyle}
-                  onChange={(e) => set("defaultAnimationStyle", e.target.value)}
-                />
-              </div>
+            <div className="grid gap-2">
+              <Label htmlFor="fmt-key">Key</Label>
+              <Input
+                id="fmt-key"
+                value={form.key}
+                disabled={initial !== null}
+                onChange={(e) => set("key", e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {initial
+                  ? "Fixed: projects are stored against it."
+                  : "Lowercase letters, digits and dashes."}
+              </p>
             </div>
-          </section>
-        </div>
 
-        <div className="space-y-6">
-          <section className="space-y-4 p-6 border rounded-lg bg-card">
-            <h2 className="text-sm font-semibold">Script</h2>
-            <div className="grid gap-2 max-w-[12rem]">
+            <div className="col-span-1 md:col-span-2 grid gap-2">
+              <Label htmlFor="fmt-hint">One-line description</Label>
+              <Input
+                id="fmt-hint"
+                value={form.hint}
+                placeholder="Walk a new user through first value."
+                onChange={(e) => set("hint", e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="fmt-tone">Default tone</Label>
+              <Input
+                id="fmt-tone"
+                value={form.defaultTone}
+                placeholder="instructional"
+                onChange={(e) => set("defaultTone", e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
               <Label htmlFor="fmt-paragraphs">Paragraphs</Label>
               <Input
                 id="fmt-paragraphs"
@@ -333,66 +210,55 @@ export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="fmt-structure">Narrative movements</Label>
-              <Textarea
-                id="fmt-structure"
-                rows={8}
-                value={form.structure}
-                placeholder={"Hook\nProblem\nSolution\nCall to action"}
-                onChange={(e) => set("structure", e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                One per line, in order. This is what makes a format differ from
-                another — without it, only the length changes.
-              </p>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="fmt-rules">Breakdown rules</Label>
-              <Textarea
-                id="fmt-rules"
-                rows={4}
-                value={form.breakdownRules}
-                placeholder={"Show the product UI, never a metaphor\nOne feature per scene"}
-                onChange={(e) => set("breakdownRules", e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                One per line. Added to the rules every format already follows.
-              </p>
-            </div>
-          </section>
-
-          {form.family === "story" && (
-            <section className="space-y-4 p-6 border rounded-lg bg-card">
-              <h2 className="text-sm font-semibold">Recurring character</h2>
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-char-name">Name</Label>
-                <Input
-                  id="fmt-char-name"
-                  value={form.characterName}
-                  placeholder="Alex"
-                  onChange={(e) => set("characterName", e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="fmt-char-desc">Description</Label>
-                <Textarea
-                  id="fmt-char-desc"
-                  rows={3}
-                  value={form.characterDescription}
-                  placeholder="A relatable protagonist who experiences the journey"
-                  onChange={(e) => set("characterDescription", e.target.value)}
-                />
+            <div className="col-span-1 md:col-span-2 flex items-start justify-between gap-4 rounded-lg border p-4">
+              <div className="grid gap-1">
+                <Label htmlFor="fmt-character">Recurring character</Label>
                 <p className="text-xs text-muted-foreground">
-                  Repeated word for word in every image prompt, so the same
-                  person is drawn from the first scene to the last. Leave empty
-                  for none.
+                  The video follows one character, picked from your library when
+                  the project is created and drawn the same way in every scene.
                 </p>
               </div>
-            </section>
-          )}
-        </div>
+              <Switch
+                id="fmt-character"
+                checked={form.usesCharacter}
+                onCheckedChange={(v) => set("usesCharacter", v)}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="space-y-4 p-6 border rounded-lg bg-card">
+          <h2 className="text-sm font-semibold">Script</h2>
+
+          <div className="grid gap-2">
+            <Label htmlFor="fmt-structure">Narrative movements</Label>
+            <Textarea
+              id="fmt-structure"
+              rows={9}
+              value={form.structure}
+              placeholder={"Hook\nProblem\nSolution\nCall to action"}
+              onChange={(e) => set("structure", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              One per line, in order. This is what makes a format differ from
+              another — without it, only the length changes.
+            </p>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="fmt-rules">Breakdown rules</Label>
+            <Textarea
+              id="fmt-rules"
+              rows={4}
+              value={form.breakdownRules}
+              placeholder={"Show the product UI, never a metaphor\nOne feature per scene"}
+              onChange={(e) => set("breakdownRules", e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              One per line. Added to the rules every format already follows.
+            </p>
+          </div>
+        </section>
       </div>
 
       <div className="flex justify-end gap-2">
