@@ -2,27 +2,21 @@
 
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
-import { auth } from '@/lib/auth';
+import { requireSessionViewer } from '@/lib/video-project/session';
 
 export async function createNewVideoProject(script?: string) {
-  const session = await auth.getSession();
-  if (!session?.user?.id) {
-    throw new Error('Unauthorized');
-  }
+  // `auth.getSession()` never existed, and the user's organization stopped
+  // being a column on User: both are resolved here, in one place.
+  const viewer = await requireSessionViewer();
 
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { primaryOrganizationId: true },
-  });
-
-  if (!user?.primaryOrganizationId) {
+  if (!viewer.organizationId) {
     throw new Error('No organization found');
   }
 
   const project = await db.videoProject.create({
     data: {
-      organizationId: user.primaryOrganizationId,
-      createdById: session.user.id,
+      organizationId: viewer.organizationId,
+      createdById: viewer.userId,
       title: `Project ${new Date().toLocaleDateString()}`,
       aspectRatio: '16:9',
       params: {

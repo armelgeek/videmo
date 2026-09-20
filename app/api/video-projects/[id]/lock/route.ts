@@ -36,12 +36,23 @@ export async function POST(
     if (count === 0) {
       const holder = await prisma.videoProject.findUnique({
         where: { id },
-        select: { deletedAt: true, lockedById: true, lockExpiresAt: true },
+        select: {
+          deletedAt: true,
+          lockedById: true,
+          lockExpiresAt: true,
+          // The response shows who holds the lock: an id alone means nothing
+          // to the member who is locked out.
+          lockedBy: { select: { name: true } },
+        },
       });
       // deletedAt is part of the select: without it, a project deleted during the
       // race would return « locked » even though it no longer exists.
       if (!holder || holder.deletedAt) throw new ProjectNotFoundError();
-      throw new ProjectLockedError(holder.lockedById, holder.lockExpiresAt);
+      throw new ProjectLockedError(
+        holder.lockedById,
+        holder.lockedBy?.name ?? null,
+        holder.lockExpiresAt,
+      );
     }
 
     return NextResponse.json({ lockedById: viewer.userId, expiresAt });

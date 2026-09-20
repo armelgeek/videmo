@@ -21,8 +21,22 @@ describe("toErrorResponse", () => {
   });
 
   it("maps a lock held by another to 409", () => {
-    const error = new ProjectLockedError("u2", new Date());
+    const error = new ProjectLockedError("u2", "Ada", new Date());
     expect(toErrorResponse(error).status).toBe(409);
+  });
+
+  it("names who holds the lock, falling back to the id", async () => {
+    // The call sites used to pass the expiry where the name goes, so the
+    // member locked out was told a date was editing their project.
+    const named = await toErrorResponse(
+      new ProjectLockedError("u2", "Ada", null),
+    ).json();
+    expect(named.lockedBy).toBe("Ada");
+
+    const anonymous = await toErrorResponse(
+      new ProjectLockedError("u2", null, null),
+    ).json();
+    expect(anonymous.lockedBy).toBe("u2");
   });
 
   it("maps a rejected data: or blob: url to 400", () => {

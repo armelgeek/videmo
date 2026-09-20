@@ -84,7 +84,7 @@ describe('attachPoints', () => {
     const initial = [p1Glyphe, p2Glyphe, mot, p1Point, p2Point];
     const ordonnes = attachPoints(initial);
 
-    expect(ordonnes.map((c) => c.id)).toEqual(['g1', 'd1', 'g2', 'd2', 'mot']);
+    expect(ordonnes.map((c: { id: string }) => c.id)).toEqual(['g1', 'd1', 'g2', 'd2', 'mot']);
   });
 
   it('ne modifie pas les formes sans points ou les aplats', () => {
