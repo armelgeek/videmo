@@ -685,7 +685,10 @@ export function usePlayback({
   // Moving the playhead from outside must update all THREE representations:
   // the loop's clock, the external clock the cursor subscribes to, and the
   // React state a few screens still read.
-  const setPlaybackPosition = useCallback((time: number) => {
+  // Named apart from the imported `setPlaybackPosition`: sharing the name made
+  // this shadow the import, so it called itself instead of the clock — and the
+  // five other call sites above stopped reaching the clock at all.
+  const movePlayhead = useCallback((time: number) => {
     currentTimeRef.current = time
     seekTargetRef.current = time
     setPlaybackPosition(time)
@@ -694,7 +697,7 @@ export function usePlayback({
 
   return {
     currentTime,
-    setCurrentTime: setPlaybackPosition,
+    setCurrentTime: movePlayhead,
     isPlaying,
     setIsPlaying,
     isPreviewPlayback,
