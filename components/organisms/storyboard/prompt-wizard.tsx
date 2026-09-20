@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Pencil, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { Segmented } from "./settings-controls";
+import { listVideoFormats } from "@/actions/video-formats/list-video-formats";
+import { BUILT_IN_FORMATS } from "@/lib/storyboard/formats";
 import type { ProjectParams } from "@/lib/storyboard/schema";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +23,17 @@ type Props = {
   isGenerating?: boolean;
   aside?: React.ReactNode;
 };
+
+type FormatOption = { value: string; label: string; hint: string };
+
+const toOption = (f: { id: string; label: string; hint: string }): FormatOption => ({
+  value: f.id,
+  label: f.label,
+  hint: f.hint,
+});
+
+/** What the wizard offers before the database answers, and if it never does. */
+const BUILT_IN_OPTIONS: readonly FormatOption[] = BUILT_IN_FORMATS.map(toOption);
 
 const STEPS = [
   { key: "about", label: "About", question: ["What's your video", "about?"], note: "then set the type, the screen and the length" },
@@ -86,6 +99,19 @@ export function PromptWizard({
   aside,
 }: Props) {
   const [index, setIndex] = useState(0);
+  // Starts on the shipped formats so the picker is never empty, then swaps in
+  // what the organization actually has: its own formats, and its overrides.
+  const [formatOptions, setFormatOptions] = useState<readonly FormatOption[]>(BUILT_IN_OPTIONS);
+  useEffect(() => {
+    let cancelled = false;
+    listVideoFormats().then((result) => {
+      if (cancelled || !result.success || !result.data?.length) return;
+      setFormatOptions(result.data.map(toOption));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const step = STEPS[index];
   const hasBrief = brief.trim().length > 0;
   const isLast = index === STEPS.length - 1;
@@ -144,7 +170,7 @@ export function PromptWizard({
           className="group mx-auto flex max-w-xl items-center gap-2 rounded-md bg-highlight px-3 py-1.5 text-left text-sm text-highlight-foreground shadow-[2px_3px_0_hsl(0_0%_0%/0.2)] -rotate-1"
         >
           <span className="line-clamp-1">
-            <b>{params.format === "brief" ? "Brief" : "Explainer"}:</b> “{brief}”
+            <b>{formatOptions.find((o) => o.value === params.format)?.label ?? params.format}:</b> “{brief}”
           </span>
           <Pencil className="h-3.5 w-3.5 shrink-0 opacity-70 group-hover:opacity-100" />
           <span className="sr-only">Edit the brief</span>
@@ -191,10 +217,7 @@ export function PromptWizard({
                   label="Video type"
                   value={params.format}
                   onChange={(v) => set({ format: v })}
-                  options={[
-                    { value: "brief", label: "Brief", hint: "Short and punchy, one key message." },
-                    { value: "explainer", label: "Explainer", hint: "Step by step, the whole idea." },
-                  ]}
+                  options={formatOptions}
                 />
               </Field>
               <Field title="Format">
