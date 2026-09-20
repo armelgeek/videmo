@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { VideoFormat } from "./formats/types";
 
 /**
  * The script: a continuous narrative text, nothing else.
@@ -123,10 +124,6 @@ export function suggestedImageCount(script: string): number {
   return Math.max(2, Math.ceil(paragraphs / 2));
 }
 
-/** The target paragraph count for the script, depending on the format. */
-export function paragraphCountForFormat(format: string): number {
-  return format === "brief" ? 6 : 10;
-}
 
 /**
  * First call: write the text.
@@ -134,21 +131,79 @@ export function paragraphCountForFormat(format: string): number {
  * No formatting instruction — no scene headings, no markers. The
  * split comes afterwards, on the text the user will have approved.
  */
-export function buildScriptPrompt(input: ScriptParams): string {
+export function buildScriptPrompt(
+  input: ScriptParams,
+  format: VideoFormat,
+): string {
   return [
     `Write the narration script for a video about: ${input.content}`,
     "",
-    `Format: ${input.format}`,
+    `Format: ${format.label} — ${format.hint}`,
     `Target duration: ${input.duration}`,
     `Audience: ${input.targetAudience}`,
     `Tone: ${input.tone}`,
     `Write the narration in this language (ISO code): ${input.language}`,
+    // The structure is what makes one format differ from another: without it
+    // every format produced the same script at a different length.
+    ...(format.script.structure.length > 0
+      ? [
+          "",
+          "Cover these movements, in this order, one short paragraph each:",
+          ...format.script.structure.map((step, i) => `${i + 1}. ${step}`),
+          "The numbering is for you alone: it must not appear in the script.",
+        ]
+      : []),
     "",
     "Return continuous prose the narrator will read aloud, split into short",
-    `paragraphs — aim for about ${paragraphCountForFormat(input.format)} of them.`,
+    `paragraphs — aim for about ${format.script.paragraphs} of them.`,
     "No scene headings, no labels, no stage directions, no markdown:",
     "only the spoken words.",
   ].join("\n");
+}
+
+const LABEL_INSTRUCTIONS: Record<string, string> = {
+  "every-subject": "Label every subject drawn in the image.",
+  "key-subjects": "Label only the subjects the narration names.",
+  none: "Draw no written labels: the narration carries the words.",
+};
+
+/** The look the format asks for: drawing vocabulary, accents, labelling. */
+function formatVisualInstructions({ visual }: VideoFormat): string[] {
+  return [
+    `Draw with this vocabulary: ${visual.vocabulary.join(", ")}.`,
+    `Use these accent colours, sparingly: ${visual.accentColors.join(", ")}.`,
+    LABEL_INSTRUCTIONS[visual.labels],
+    "",
+  ];
+}
+
+/**
+ * The recurring character, for the formats that ship one.
+ *
+ * The agent already knows how to keep a character stable across clips; what it
+ * cannot invent is WHICH character, so the format hands it a fixed description
+ * to copy verbatim rather than letting each image drift into someone else.
+ */
+function formatCharacterInstructions({ character }: VideoFormat): string[] {
+  if (!character) return [];
+
+  const name = character.name ?? "the protagonist";
+  return [
+    `RECURRING CHARACTER — ${name}: ${character.description}`,
+    `Every image showing ${name} repeats that description word for word in its`,
+    "imagePrompt, so the same person is drawn from the first image to the last.",
+    "",
+  ];
+}
+
+/** What this format wants from the split, beyond the rules common to all. */
+function formatBreakdownRules({ breakdown }: VideoFormat): string[] {
+  if (breakdown.rules.length === 0) return [];
+  return [
+    "This format also asks for:",
+    ...breakdown.rules.map((rule) => `- ${rule}`),
+    "",
+  ];
 }
 
 /**
@@ -160,6 +215,7 @@ export function buildScriptPrompt(input: ScriptParams): string {
 export function buildBreakdownPrompt(input: {
   script: string;
   params: ScriptParams;
+  format: VideoFormat;
 }): string {
   return [
     "Break this narration script into video clips.",
@@ -170,6 +226,9 @@ export function buildBreakdownPrompt(input: {
     `Visual style for the image prompts: ${input.params.style}`,
     `Aspect ratio: the video is ${input.params.format} format`,
     "",
+    ...formatVisualInstructions(input.format),
+    ...formatCharacterInstructions(input.format),
+    ...formatBreakdownRules(input.format),
     "Group the script into IMAGES, indexed from 0. An image is one drawing:",
     "group together everything that a single illustration can carry, and start",
     "a new one when the subject genuinely changes.",

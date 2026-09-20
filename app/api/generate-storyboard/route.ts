@@ -9,6 +9,8 @@ import {
   reindexScenes,
   storyboardBreakdownSchema,
 } from "@/lib/storyboard/script-generation";
+import { DEFAULT_FORMAT_ID } from "@/lib/storyboard/formats/built-in";
+import { resolveFormat } from "@/lib/storyboard/formats/repository";
 
 // The split covers the whole script: it takes longer than writing.
 export const maxDuration = 180;
@@ -17,7 +19,9 @@ const requestSchema = z.object({
   script: z.string().min(10).max(50_000),
   content: z.string().default(""),
   style: z.string().default("cinematic"),
-  format: z.enum(["brief", "explainer"]).default("explainer"),
+  // Not an enum any more: formats live in the database, and an organization
+  // writes its own. An unknown key falls back at resolution.
+  format: z.string().max(64).default(DEFAULT_FORMAT_ID),
   language: z.string().default("en"),
   duration: z.string().default("3-5 minutes"),
   targetAudience: z.string().default("general"),
@@ -38,10 +42,11 @@ export async function POST(request: NextRequest) {
     if (!limit.success) return tooManyGenerations(limit.resetAt);
 
     const { script, ...params } = requestSchema.parse(await request.json());
+    const format = await resolveFormat(params.format, viewer.organizationId);
 
     return await chargeFor(viewer, "generate_storyboard", async () => {
       const result = await storyboardAgent.generate(
-        buildBreakdownPrompt({ script, params }),
+        buildBreakdownPrompt({ script, params, format }),
         { structuredOutput: { schema: storyboardBreakdownSchema } },
       );
 

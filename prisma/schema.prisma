@@ -272,8 +272,58 @@ model Organization {
   creditPurchases    CreditPurchase[]
   apiKeys            ApiKey[]
   storedObjects      StoredObject[]
+  videoFormats       VideoFormat[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
+}
+
+/// A video type: the narrative structure and look a script is written against.
+///
+/// Formats are data, not code: an organization writes its own without a
+/// deploy. The shipped ones are seeded with no organization, which is what
+/// makes them visible to everyone; an organization overrides one by saving its
+/// own format under the same `key`.
+model VideoFormat {
+  id String @id @default(cuid())
+
+  /// Stable identifier stored in project params and sent to the API
+  /// ("explainer", "tutorial"). Unique per organization, never renamed.
+  key String @db.VarChar(64)
+
+  /// Null for the formats shipped with the product, shared by every
+  /// organization. Set for a format an organization wrote for itself.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  version      Int     @default(1)
+  label        String  @db.VarChar(120)
+  hint         String  @db.VarChar(255)
+  family       String  @default("explainer") @db.VarChar(32)
+  thumbnailUrl String?
+
+  /// Target paragraph count, and the movements the script must cover.
+  paragraphs  Int
+  structure   Json
+  defaultTone String @db.VarChar(64)
+
+  /// What the breakdown must respect beyond the rules common to all formats.
+  breakdownRules Json
+
+  /// Drawing vocabulary, accent colours and labelling policy.
+  visual Json
+
+  /// The recurring character, for the formats that tell a story.
+  character Json?
+
+  /// Shipped formats cannot be deleted, only overridden.
+  isBuiltIn Boolean @default(false)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([organizationId, deletedAt])
+  @@index([key])
 }
 
 model OrganizationMember {

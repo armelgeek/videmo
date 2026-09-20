@@ -4,7 +4,6 @@ import {
   buildScriptPrompt,
   generatedScriptSchema,
   reindexScenes,
-  paragraphCountForFormat,
   suggestedImageCount,
   sceneDuration,
   sceneNarration,
@@ -13,6 +12,11 @@ import {
   scriptBeatSchema,
   storyboardBreakdownSchema,
 } from "./script-generation";
+import { builtInFormat } from "./formats/built-in";
+
+const explainer = builtInFormat("explainer");
+const brief = builtInFormat("brief");
+const story = builtInFormat("story");
 
 const params: ScriptParams = {
   content: "La torrefaction du cafe",
@@ -54,7 +58,7 @@ describe("generatedScriptSchema", () => {
 });
 
 describe("buildScriptPrompt", () => {
-  const prompt = buildScriptPrompt(params);
+  const prompt = buildScriptPrompt(params, explainer);
 
   it("carries the parameters chosen at the Prompt step", () => {
     expect(prompt).toContain("La torrefaction du cafe");
@@ -76,8 +80,28 @@ describe("buildScriptPrompt", () => {
   });
 
   it("adjusts the length to the format", () => {
-    expect(buildScriptPrompt({ ...params, format: "brief" })).toContain("6 of them");
+    expect(buildScriptPrompt(params, brief)).toContain("6 of them");
     expect(prompt).toContain("10 of them");
+  });
+
+  it("carries the format's narrative structure", () => {
+    // Without it a format only changed the LENGTH: a tutorial and a story came
+    // out reading exactly the same.
+    for (const step of explainer.script.structure) {
+      expect(prompt).toContain(step);
+    }
+  });
+
+  it("keeps the structure out of the delivered script", () => {
+    // The numbering steers the model; leaving it in the prose would put
+    // headings back into a text meant to be read aloud.
+    expect(prompt).toContain("must not appear in the script");
+  });
+
+  it("gives a different structure to a different format", () => {
+    const tutorial = buildScriptPrompt(params, builtInFormat("tutorial"));
+    expect(tutorial).toContain("Prerequisites (tools, knowledge)");
+    expect(tutorial).not.toContain("Root cause");
   });
 });
 
@@ -85,6 +109,7 @@ describe("buildBreakdownPrompt", () => {
   const prompt = buildBreakdownPrompt({
     script: "Le cafe commence par un grain vert. Puis vient la chaleur.",
     params,
+    format: explainer,
   });
 
   it("passes the approved script", () => {
@@ -135,6 +160,32 @@ describe("buildBreakdownPrompt", () => {
   it("keeps image prompts in English", () => {
     expect(prompt).toContain("imagePrompt in English");
   });
+
+  it("carries the format's drawing vocabulary and accents", () => {
+    for (const word of explainer.visual.vocabulary) expect(prompt).toContain(word);
+    for (const colour of explainer.visual.accentColors) expect(prompt).toContain(colour);
+  });
+
+  it("carries the format's own breakdown rules", () => {
+    for (const rule of explainer.breakdown.rules) expect(prompt).toContain(rule);
+  });
+
+  it("pins the recurring character of a story format", () => {
+    // The agent knows how to keep a character stable; what it cannot invent is
+    // WHICH character, so the format hands it one to copy verbatim.
+    const storyPrompt = buildBreakdownPrompt({
+      script: "Alex ouvre la porte.",
+      params: { ...params, format: "story" },
+      format: story,
+    });
+
+    expect(storyPrompt).toContain(story.character?.description ?? "");
+    expect(storyPrompt).toContain("word for word");
+  });
+
+  it("says nothing about a character for a format that has none", () => {
+    expect(prompt).not.toContain("RECURRING CHARACTER");
+  });
 });
 
 describe("suggestedImageCount", () => {
@@ -153,13 +204,6 @@ describe("suggestedImageCount", () => {
 
   it("ignores extra blank lines", () => {
     expect(suggestedImageCount("A.\n\n\n\nB.\n\n  \n\nC.\n\nD.")).toBe(2);
-  });
-});
-
-describe("paragraphCountForFormat", () => {
-  it("distinguishes brief and explainer", () => {
-    expect(paragraphCountForFormat("brief")).toBe(6);
-    expect(paragraphCountForFormat("explainer")).toBe(10);
   });
 });
 
