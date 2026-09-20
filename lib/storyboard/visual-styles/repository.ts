@@ -4,6 +4,7 @@ import {
   BUILT_IN_VISUAL_STYLES,
   DEFAULT_VISUAL_STYLE_ID,
   builtInVisualStyle,
+  isBuiltInVisualStyle,
 } from "./built-in";
 import type { ManagedVisualStyle, VisualStyle } from "./types";
 
@@ -82,10 +83,44 @@ export async function resolveVisualStyle(
   key: string | undefined,
   organizationId: string | null,
 ): Promise<VisualStyle> {
-  const styles = await listVisualStylesFor(organizationId);
-  const wanted = styles.find((s) => s.id === (key ?? DEFAULT_VISUAL_STYLE_ID));
-  if (wanted) return wanted;
+  const targetKey = key ?? DEFAULT_VISUAL_STYLE_ID;
+
+  const rows = await prisma.visualStyle.findMany({
+    where: {
+      key: targetKey,
+      deletedAt: null,
+      OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])],
+    },
+    orderBy: [{ organizationId: "asc" }, { createdAt: "asc" }],
+  });
+
+  let found: VisualStyle | null = null;
+  for (const row of rows) {
+    const style = toStyle(row);
+    if (style) found = style;
+  }
+
+  if (found) return found;
+
+  if (isBuiltInVisualStyle(targetKey)) {
+    return builtInVisualStyle(targetKey);
+  }
 
   if (key) console.warn(`Unknown visual style "${key}", falling back to a default`);
-  return styles.find((s) => s.id === DEFAULT_VISUAL_STYLE_ID) ?? builtInVisualStyle(undefined);
+
+  const defaultRows = await prisma.visualStyle.findMany({
+    where: {
+      key: DEFAULT_VISUAL_STYLE_ID,
+      deletedAt: null,
+      OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])],
+    },
+    orderBy: [{ organizationId: "asc" }, { createdAt: "asc" }],
+  });
+
+  for (const row of defaultRows) {
+    const style = toStyle(row);
+    if (style) return style;
+  }
+
+  return builtInVisualStyle(undefined);
 }

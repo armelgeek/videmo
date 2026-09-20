@@ -20,19 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { slugify } from "@/lib/storyboard/slug";
+
 const toWords = (text: string) =>
   text.split(",").map((w) => w.trim()).filter(Boolean);
 const fromWords = (items: readonly string[]) => items.join(", ");
-
-/** A key is generated from the label so the common case needs no thought. */
-const slugify = (label: string) =>
-  label
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 64);
 
 interface FormState {
   key: string;

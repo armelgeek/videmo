@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { db as prisma } from "@/lib/db";
-import { BUILT_IN_FORMATS, DEFAULT_FORMAT_ID, builtInFormat } from "./built-in";
+import {
+  BUILT_IN_FORMATS,
+  DEFAULT_FORMAT_ID,
+  builtInFormat,
+  isBuiltInFormat,
+} from "./built-in";
 import type { ManagedFormat, VideoFormat } from "./types";
 
 /**
@@ -113,10 +118,44 @@ export async function resolveFormat(
   key: string | undefined,
   organizationId: string | null,
 ): Promise<VideoFormat> {
-  const formats = await listFormatsFor(organizationId);
-  const wanted = formats.find((f) => f.id === (key ?? DEFAULT_FORMAT_ID));
-  if (wanted) return wanted;
+  const targetKey = key ?? DEFAULT_FORMAT_ID;
+
+  const rows = await prisma.videoFormat.findMany({
+    where: {
+      key: targetKey,
+      deletedAt: null,
+      OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])],
+    },
+    orderBy: [{ organizationId: "asc" }, { label: "asc" }],
+  });
+
+  let found: VideoFormat | null = null;
+  for (const row of rows) {
+    const format = toFormat(row);
+    if (format) found = format;
+  }
+
+  if (found) return found;
+
+  if (isBuiltInFormat(targetKey)) {
+    return builtInFormat(targetKey);
+  }
 
   if (key) console.warn(`Unknown video format "${key}", falling back to a default`);
-  return formats.find((f) => f.id === DEFAULT_FORMAT_ID) ?? builtInFormat(undefined);
+
+  const defaultRows = await prisma.videoFormat.findMany({
+    where: {
+      key: DEFAULT_FORMAT_ID,
+      deletedAt: null,
+      OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])],
+    },
+    orderBy: [{ organizationId: "asc" }, { label: "asc" }],
+  });
+
+  for (const row of defaultRows) {
+    const format = toFormat(row);
+    if (format) return format;
+  }
+
+  return builtInFormat(undefined);
 }

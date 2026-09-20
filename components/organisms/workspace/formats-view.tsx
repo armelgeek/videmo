@@ -1,14 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Copy, Pencil, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 import { listManagedFormats } from "@/actions/video-formats/list-managed-formats";
 import { deleteVideoFormat } from "@/actions/video-formats/delete-video-format";
 import { isBuiltInFormat } from "@/lib/storyboard/formats";
 import type { ManagedFormat } from "@/lib/storyboard/formats";
-import { ORGANIZATION_CHANGED_EVENT } from "@/lib/app-shell/organization-events";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,6 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useManagedCollection } from "@/hooks/use-managed-collection";
 
 /**
  * The organization's video types.
@@ -30,55 +28,23 @@ import {
  * organization's own copy under the same key, which then wins at resolution.
  */
 export function FormatsView() {
-  const [formats, setFormats] = useState<ManagedFormat[]>([]);
-  const [canWrite, setCanWrite] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [pendingDelete, setPendingDelete] = useState<ManagedFormat | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const load = useCallback(async () => {
-    const result = await listManagedFormats();
-    if (!result.success || !result.data) {
-      toast.error(result.error ?? "Video formats could not be loaded.");
-      setIsLoading(false);
-      return;
-    }
-    setFormats(result.data);
-    setCanWrite(Boolean(result.canWrite));
-    setIsLoading(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-    // Formats belong to the organization: switching it changes the whole list.
-    const onChange = () => {
-      setIsLoading(true);
-      load();
-    };
-    window.addEventListener(ORGANIZATION_CHANGED_EVENT, onChange);
-    return () => window.removeEventListener(ORGANIZATION_CHANGED_EVENT, onChange);
-  }, [load]);
-
-  const confirmDelete = async () => {
-    if (!pendingDelete?.rowId) return;
-    setIsDeleting(true);
-    try {
-      const result = await deleteVideoFormat(pendingDelete.rowId);
-      if (!result.success) {
-        toast.error(result.error ?? "Could not delete the format");
-        return;
-      }
-      toast.success(
-        isBuiltInFormat(pendingDelete.format.id)
-          ? `Reverted to the shipped “${pendingDelete.format.label}”`
-          : `“${pendingDelete.format.label}” deleted`,
-      );
-      setPendingDelete(null);
-      load();
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  const {
+    items: formats,
+    canWrite,
+    isLoading,
+    pendingDelete,
+    setPendingDelete,
+    isDeleting,
+    confirmDelete,
+  } = useManagedCollection<ManagedFormat>({
+    fetchList: listManagedFormats,
+    deleteItem: deleteVideoFormat,
+    isBuiltIn: isBuiltInFormat,
+    getItemId: (entry) => entry.format.id,
+    getItemLabel: (entry) => entry.format.label,
+    getItemRowId: (entry) => entry.rowId,
+    errorMessage: "Video formats could not be loaded.",
+  });
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 space-y-6">

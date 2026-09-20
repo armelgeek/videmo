@@ -13,25 +13,18 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 
+import { slugify } from "@/lib/storyboard/slug";
+
 /** One entry per line, blanks dropped: the shape a structure is read in. */
 const toLines = (text: string) =>
   text.split("\n").map((l) => l.trim()).filter(Boolean);
 const fromLines = (items: readonly string[]) => items.join("\n");
 
-/** A key is generated from the label so the common case needs no thought. */
-const slugify = (label: string) =>
-  label
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 64);
-
 interface FormState {
   key: string;
   label: string;
   hint: string;
+  thumbnailUrl: string;
   paragraphs: string;
   defaultTone: string;
   structure: string;
@@ -43,6 +36,7 @@ const EMPTY: FormState = {
   key: "",
   label: "",
   hint: "",
+  thumbnailUrl: "",
   paragraphs: "8",
   defaultTone: "professional",
   structure: "",
@@ -55,6 +49,7 @@ function toFormState(format: VideoFormat): FormState {
     key: format.id,
     label: format.label,
     hint: format.hint,
+    thumbnailUrl: format.thumbnailUrl ?? "",
     paragraphs: String(format.script.paragraphs),
     defaultTone: format.script.defaultTone,
     structure: fromLines(format.script.structure),
@@ -95,7 +90,7 @@ export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
         key: form.key,
         label: form.label,
         hint: form.hint,
-        thumbnailUrl: initial?.thumbnailUrl ?? null,
+        thumbnailUrl: form.thumbnailUrl.trim() || null,
         paragraphs: Number(form.paragraphs),
         structure: toLines(form.structure),
         defaultTone: form.defaultTone,
@@ -186,6 +181,19 @@ export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
                 placeholder="Walk a new user through first value."
                 onChange={(e) => set("hint", e.target.value)}
               />
+            </div>
+
+            <div className="col-span-1 md:col-span-2 grid gap-2">
+              <Label htmlFor="fmt-thumb">Thumbnail URL (optional)</Label>
+              <Input
+                id="fmt-thumb"
+                value={form.thumbnailUrl}
+                placeholder="/formats/explainer.webp or https://..."
+                onChange={(e) => set("thumbnailUrl", e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Path to an image asset or full URL shown in the format picker.
+              </p>
             </div>
 
             <div className="grid gap-2">

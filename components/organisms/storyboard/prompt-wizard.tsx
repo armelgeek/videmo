@@ -1,15 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, ArrowRight, Pencil, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { Segmented } from "./settings-controls";
-import { listVideoFormats } from "@/actions/video-formats/list-video-formats";
-import { listVisualStyles } from "@/actions/visual-styles/list-visual-styles";
-import { BUILT_IN_FORMATS } from "@/lib/storyboard/formats";
+import { useVideoFormats } from "@/hooks/use-video-formats";
+import { useVisualStyles } from "@/hooks/use-visual-styles";
 import type { VideoFormat } from "@/lib/storyboard/formats";
-import { BUILT_IN_VISUAL_STYLES } from "@/lib/storyboard/visual-styles/built-in";
 import type { VisualStyle } from "@/lib/storyboard/visual-styles/types";
 import type { ProjectParams } from "@/lib/storyboard/schema";
 import { cn } from "@/lib/utils";
@@ -99,20 +97,8 @@ export function PromptWizard({
   const [index, setIndex] = useState(0);
   // Both lists start on the shipped rows so a picker is never empty, then swap
   // in what the organization actually has: its own rows and its overrides.
-  const [formats, setFormats] = useState<readonly VideoFormat[]>(BUILT_IN_FORMATS);
-  const [styles, setStyles] = useState<readonly VisualStyle[]>(BUILT_IN_VISUAL_STYLES);
-  useEffect(() => {
-    let cancelled = false;
-    listVideoFormats().then((result) => {
-      if (!cancelled && result.success && result.data?.length) setFormats(result.data);
-    });
-    listVisualStyles().then((result) => {
-      if (!cancelled && result.success && result.data?.length) setStyles(result.data);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { formats } = useVideoFormats({ withFallback: true });
+  const { styles } = useVisualStyles({ withFallback: true });
   const step = STEPS[index];
   const hasBrief = brief.trim().length > 0;
   const isLast = index === STEPS.length - 1;

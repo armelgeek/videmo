@@ -1,9 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { listVideoFormats } from '@/actions/video-formats/list-video-formats'
+import { useVideoFormats } from '@/hooks/use-video-formats'
 import type { VideoFormat } from '@/lib/storyboard/formats'
-import { toast } from 'sonner'
 
 interface FormatSelectorProps {
   value?: string
@@ -18,23 +16,7 @@ interface FormatSelectorProps {
  * of the format it replaces.
  */
 export function FormatSelector({ value, onChange }: FormatSelectorProps) {
-  const [formats, setFormats] = useState<VideoFormat[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-
-    listVideoFormats().then((result) => {
-      if (cancelled) return
-      if (result.success && result.data) setFormats(result.data)
-      else toast.error(result.error ?? 'Failed to load video formats')
-      setIsLoading(false)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const { formats, isLoading } = useVideoFormats()
 
   if (isLoading) {
     return (
@@ -48,7 +30,7 @@ export function FormatSelector({ value, onChange }: FormatSelectorProps) {
 
   return (
     <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-      {formats.map((format) => {
+      {formats.map((format: VideoFormat) => {
         const isSelected = format.id === value
         return (
           <button
