@@ -55,3 +55,7 @@ PLAYWRIGHT_QA_AUDIT_REPORT.md
 
 # Espace de travail des exécutions de plan (superpowers)
 .superpowers/
+
+# Journaux temporaires SQLite de Mastra : recrees a chaque execution
+mastra.db-shm
+mastra.db-wal
