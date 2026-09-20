@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Plus, Copy, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { listManagedFormats } from "@/actions/video-formats/list-managed-formats";
@@ -20,13 +21,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FormatEditorDialog } from "./formats/format-editor-dialog";
-
-interface EditorTarget {
-  initial: VideoFormat | null;
-  isOverride: boolean;
-}
-
 /**
  * The organization's video types.
  *
@@ -38,7 +32,6 @@ export function FormatsView() {
   const [formats, setFormats] = useState<ManagedFormat[]>([]);
   const [canWrite, setCanWrite] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [editor, setEditor] = useState<EditorTarget | null>(null);
   const [pendingDelete, setPendingDelete] = useState<ManagedFormat | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -96,13 +89,21 @@ export function FormatsView() {
             or start from one of ours.
           </p>
         </div>
-        <Button
-          onClick={() => setEditor({ initial: null, isOverride: false })}
-          disabled={!canWrite}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New format
-        </Button>
+        {/* `disabled` does nothing to an anchor, so without an organization the
+            button is rendered as a plain one that goes nowhere. */}
+        {canWrite ? (
+          <Button asChild>
+            <Link href="/workspace/formats/new">
+              <Plus className="w-4 h-4 mr-2" />
+              New format
+            </Link>
+          </Button>
+        ) : (
+          <Button disabled>
+            <Plus className="w-4 h-4 mr-2" />
+            New format
+          </Button>
+        )}
       </header>
 
       {!isLoading && !canWrite && (
@@ -168,13 +169,11 @@ export function FormatsView() {
                 <div className="flex gap-2 mt-auto pt-2">
                   {isOwn ? (
                     <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setEditor({ initial: format, isOverride: false })}
-                      >
-                        <Pencil className="w-3.5 h-3.5 mr-1.5" />
-                        Edit
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/workspace/formats/${format.id}/edit`}>
+                          <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                          Edit
+                        </Link>
                       </Button>
                       <Button
                         size="sm"
@@ -187,14 +186,18 @@ export function FormatsView() {
                       </Button>
                     </>
                   ) : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={!canWrite}
-                      onClick={() => setEditor({ initial: format, isOverride: true })}
-                    >
-                      <Copy className="w-3.5 h-3.5 mr-1.5" />
-                      Customize
+                    <Button size="sm" variant="outline" asChild={canWrite} disabled={!canWrite}>
+                      {canWrite ? (
+                        <Link href={`/workspace/formats/${format.id}/edit`}>
+                          <Copy className="w-3.5 h-3.5 mr-1.5" />
+                          Customize
+                        </Link>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 mr-1.5" />
+                          Customize
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>
@@ -202,16 +205,6 @@ export function FormatsView() {
             );
           })}
         </div>
-      )}
-
-      {editor && (
-        <FormatEditorDialog
-          key={`${editor.initial?.id ?? "new"}:${editor.isOverride}`}
-          initial={editor.initial}
-          isOverride={editor.isOverride}
-          onOpenChange={(open) => !open && setEditor(null)}
-          onSaved={load}
-        />
       )}
 
       <AlertDialog
