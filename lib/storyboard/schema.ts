@@ -12,7 +12,9 @@ export const videoModelSchema = z.enum([
 export type VideoModel = z.infer<typeof videoModelSchema>;
 
 export const projectParamsSchema = z.object({
-  style: z.string().default("cinematic"),
+  // A key of the WhiteboardStyle table. The 25 free-text styles it replaces
+  // mapped to nothing in the engine and rendered as the default.
+  visualStyle: z.string().min(1).max(64).default("doodle"),
   // Not an enum: formats live in the database and an organization writes its
   // own. A key that no longer exists falls back to the default at resolution.
   format: z.string().min(1).max(64).default("explainer"),

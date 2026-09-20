@@ -4,6 +4,8 @@ import {
   generateImageRequestSchema,
   imageSizeForAspectRatio,
 } from "./image-generation";
+import { BUILT_IN_VISUAL_STYLES, builtInVisualStyle } from "./visual-styles/built-in";
+import type { VisualStyle } from "./visual-styles/types";
 
 describe("imageSizeForAspectRatio", () => {
   it("traduit les trois formats du projet", () => {
@@ -145,5 +147,64 @@ describe("generateImageRequestSchema", () => {
         prompt: "",
       }),
     ).toThrow();
+  });
+});
+
+describe("buildImagePrompt — visual styles", () => {
+  const scene = { scenePrompt: "A coffee bean turning brown" };
+  const custom: VisualStyle = {
+    id: "custom",
+    label: "Custom",
+    hint: "x",
+    artDirection: "Bold felt-tip marker drawing, thick rounded strokes",
+    accentColors: ["orange", "teal"],
+    vocabulary: ["stars", "underlines"],
+    labels: "key-subjects",
+  };
+
+  it("keeps the engine's constraints whatever the style", () => {
+    // The pen animation binarises the image and thins it to a skeleton: these
+    // are what it needs, not an aesthetic choice, so a style can never move them.
+    for (const style of BUILT_IN_VISUAL_STYLES) {
+      const prompt = buildImagePrompt({ ...scene, style });
+      expect(prompt, style.id).toContain("pure white #FFFFFF");
+      expect(prompt, style.id).toContain("continuous");
+      expect(prompt, style.id).toContain("SEPARATED");
+      expect(prompt, style.id).toContain("No shadow and no gradient?");
+      expect(prompt, style.id).toContain("Photorealism, photographic detail, 3D rendering");
+    }
+  });
+
+  it("uses the style's art direction, colours and vocabulary", () => {
+    const prompt = buildImagePrompt({ ...scene, style: custom });
+
+    expect(prompt).toContain("Bold felt-tip marker drawing");
+    expect(prompt).toContain("small flat accents of orange and teal");
+    expect(prompt).toContain("hand-drawn stars and underlines");
+    expect(prompt).not.toContain("pencil-sketch");
+  });
+
+  it("asks for uncoloured line work when a style has no accent", () => {
+    const prompt = buildImagePrompt({ ...scene, style: { ...custom, accentColors: [] } });
+    expect(prompt).toContain("Color: none");
+    expect(prompt).not.toContain("flat accents");
+  });
+
+  it("labels only the key subjects when the style says so", () => {
+    const prompt = buildImagePrompt({ ...scene, style: custom });
+    expect(prompt).toContain("only to the");
+    expect(prompt).not.toContain("EVERY drawn subject");
+    expect(prompt).not.toContain("left unlabelled");
+  });
+
+  it("bans written words entirely when the style has no labels", () => {
+    const prompt = buildImagePrompt({ ...scene, style: { ...custom, labels: "none" } });
+    expect(prompt).toContain("draw NO written words at all");
+    expect(prompt).toContain("Any written word, letter or number");
+    expect(prompt).not.toContain("keyword label");
+  });
+
+  it("falls back to the default style when none is given", () => {
+    expect(buildImagePrompt(scene)).toBe(buildImagePrompt({ ...scene, style: builtInVisualStyle("doodle") }));
   });
 });

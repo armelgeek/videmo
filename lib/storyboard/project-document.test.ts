@@ -16,7 +16,7 @@ const slice: ProjectSlice = {
   projectTitle: "Mon projet",
   promptContent: "Une video sur le cafe",
   projectParams: {
-    style: "cinematic",
+    visualStyle: "doodle",
     format: "explainer",
     aspectRatio: "9:16",
     language: "fr",
@@ -54,7 +54,7 @@ describe("toProjectPatch", () => {
 
     expect(params.promptContent).toBe("Une video sur le cafe");
     expect(params.selectedVoice).toBe("onyx");
-    expect(params.style).toBe("cinematic");
+    expect(params.visualStyle).toBe("doodle");
   });
 });
 

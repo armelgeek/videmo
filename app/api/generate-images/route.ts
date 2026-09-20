@@ -19,6 +19,7 @@ import {
 import { billingErrorResponse, chargeFor } from "@/lib/billing/with-credits";
 import { assertStorageAvailable, recordStoredObject } from "@/lib/billing/org-usage";
 import { requireProjectAccess } from "@/lib/video-project/repository";
+import { resolveVisualStyle } from "@/lib/storyboard/visual-styles/repository";
 import { requireViewer, toErrorResponse } from "@/lib/video-project/session";
 import { aiGenerationRateLimit, tooManyGenerations } from "@/lib/security/rate-limiter";
 
@@ -61,6 +62,10 @@ export async function POST(request: NextRequest) {
 
     if (viewer.organizationId) await assertStorageAvailable(viewer.organizationId);
 
+    // Resolved before the paid call, like the engine and the bucket: an unknown
+    // key falls back to the default rather than failing after the charge.
+    const style = await resolveVisualStyle(input.visualStyle, viewer.organizationId);
+
     return await chargeFor(
       viewer,
       "generate_image",
@@ -75,6 +80,7 @@ export async function POST(request: NextRequest) {
             aspectRatio: input.aspectRatio,
             language: input.language,
             hasReference: reference !== undefined,
+            style,
           }),
           size: imageSizeForAspectRatio(input.aspectRatio),
           reference,

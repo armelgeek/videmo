@@ -507,6 +507,7 @@ export default function StoryboardPage() {
         prompt: clip.visualPrompt || clip.summary || clip.title || "",
         aspectRatio: projectParams.aspectRatio,
         language: projectParams.language,
+        visualStyle: projectParams.visualStyle,
         referenceUrl,
       }),
     });

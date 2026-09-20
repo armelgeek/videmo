@@ -273,7 +273,7 @@ model Organization {
   apiKeys            ApiKey[]
   storedObjects      StoredObject[]
   videoFormats       VideoFormat[]
-  whiteboardStyles   WhiteboardStyle[]
+  visualStyles       VisualStyle[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }
@@ -652,15 +652,16 @@ model ShowcaseVideo {
   @@map("showcase_videos")
 }
 
-/// How the whiteboard looks while it draws: which hand holds the pen and which
-/// animation engine lays the strokes down.
+/// How the drawings themselves look: the art direction, the accent colours, the
+/// vocabulary and whether subjects are labelled.
 ///
-/// Both point at things the engine really has — `animStyle` is checked against
-/// AnimationFactory and `handStyle` against the hand sprites — because a style
-/// naming something the engine lacks silently renders as the default. Rows with
-/// no organization ship with the product; an organization overrides one by
-/// saving its own under the same `key`.
-model WhiteboardStyle {
+/// Every style stays a doodle the engine can trace — clean continuous line work
+/// on a pure white background, no gradients or shadows — so those constraints
+/// are NOT columns here: they live in the image prompt and never vary. A style
+/// only changes what is left free. Rows with no organization ship with the
+/// product; an organization overrides one by saving its own under the same
+/// `key`.
+model VisualStyle {
   id String @id @default(cuid())
 
   /// Stable identifier stored in project params. Unique per organization.
@@ -672,10 +673,15 @@ model WhiteboardStyle {
   label String @db.VarChar(120)
   hint  String @db.VarChar(255)
 
-  /// An id known to AnimationFactory ("chunkjump", "contour", ...).
-  animStyle String @db.VarChar(40)
-  /// A hand sprite key ("custom1" .. "custom4").
-  handStyle String @db.VarChar(20)
+  /// One sentence naming the character of the drawing, e.g. "bold felt-tip
+  /// marker, thick rounded strokes, chunky simple shapes".
+  artDirection String @db.Text
+  /// Colours allowed as small flat accents. The drawing is otherwise uncoloured.
+  accentColors Json
+  /// What the drawing is made of: "arrows", "circles", "boxes"...
+  vocabulary Json
+  /// "every-subject" | "key-subjects" | "none"
+  labels String @db.VarChar(16)
 
   isBuiltIn Boolean @default(false)
 

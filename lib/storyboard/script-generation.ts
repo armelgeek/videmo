@@ -97,8 +97,8 @@ export function sceneDuration(scene: ScriptScene): number {
 
 export interface ScriptParams {
   content: string;
-  style: string;
   format: string;
+  aspectRatio: string;
   language: string;
   duration: string;
   targetAudience: string;
@@ -212,8 +212,16 @@ export function buildBreakdownPrompt(input: {
     "SCRIPT:",
     input.script.trim(),
     "",
-    `Visual style for the image prompts: ${input.params.style}`,
-    `Aspect ratio: the video is ${input.params.format} format`,
+    `Aspect ratio of every image: ${input.params.aspectRatio}`,
+    "",
+    // The look is the whiteboard style, applied by the engine — not something
+    // the model should describe. Naming a style or lighting here made it into
+    // the imagePrompt, and the image model then drew shadows and gradients that
+    // the pen animation cannot trace.
+    "Each imagePrompt describes ONE hand-drawn whiteboard drawing: name the",
+    "subjects and how they relate. Never name an artistic style, a medium or",
+    "lighting (no cinematic, watercolor, photorealistic, shadows, gradients):",
+    "the drawing is traced by a pen, which can only follow clean line work.",
     "",
     ...characterInstructions(input.character),
     ...formatBreakdownRules(input.format),

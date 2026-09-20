@@ -16,7 +16,7 @@ export const maxDuration = 120;
 
 const requestSchema = z.object({
   content: z.string().min(10).max(50_000),
-  style: z.string().default("cinematic"),
+  aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
   // Not an enum any more: formats live in the database, and an organization
   // writes its own. An unknown key falls back at resolution.
   format: z.string().max(64).default(DEFAULT_FORMAT_ID),

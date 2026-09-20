@@ -20,8 +20,8 @@ const story = builtInFormat("story");
 
 const params: ScriptParams = {
   content: "La torrefaction du cafe",
-  style: "cinematic",
   format: "explainer",
+  aspectRatio: "16:9",
   language: "fr",
   duration: "3-5 minutes",
   targetAudience: "debutants",
@@ -146,9 +146,19 @@ describe("buildBreakdownPrompt", () => {
     expect(prompt).toContain("durationSec");
   });
 
-  it("introduces the visual style only here", () => {
-    expect(prompt).toContain("cinematic");
+  it("keeps the look out of the image prompts", () => {
+    // The model used to be told a "visual style" (cinematic...) and wrote it
+    // into the imagePrompt, which the image model then rendered as shadows and
+    // gradients the pen cannot trace. The look is the whiteboard style now.
     expect(prompt).toContain("imagePrompt");
+    expect(prompt).toContain("Never name an artistic style");
+    expect(prompt).not.toContain("Visual style for the image prompts");
+  });
+
+  it("gives the real aspect ratio, not the video type", () => {
+    // It used to say "the video is explainer format" on the aspect ratio line.
+    expect(prompt).toContain("Aspect ratio of every image: 16:9");
+    expect(prompt).not.toContain("explainer format");
   });
 
   it("asks for titles in the script's language", () => {

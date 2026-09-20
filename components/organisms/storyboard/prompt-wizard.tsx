@@ -6,7 +6,11 @@ import { Button } from "@/components/ui/button";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { Segmented } from "./settings-controls";
 import { listVideoFormats } from "@/actions/video-formats/list-video-formats";
+import { listVisualStyles } from "@/actions/visual-styles/list-visual-styles";
 import { BUILT_IN_FORMATS } from "@/lib/storyboard/formats";
+import type { VideoFormat } from "@/lib/storyboard/formats";
+import { BUILT_IN_VISUAL_STYLES } from "@/lib/storyboard/visual-styles/built-in";
+import type { VisualStyle } from "@/lib/storyboard/visual-styles/types";
 import type { ProjectParams } from "@/lib/storyboard/schema";
 import { cn } from "@/lib/utils";
 
@@ -24,21 +28,15 @@ type Props = {
   aside?: React.ReactNode;
 };
 
-type FormatOption = { value: string; label: string; hint: string };
-
-const toOption = (f: { id: string; label: string; hint: string }): FormatOption => ({
-  value: f.id,
-  label: f.label,
-  hint: f.hint,
-});
-
-/** What the wizard offers before the database answers, and if it never does. */
-const BUILT_IN_OPTIONS: readonly FormatOption[] = BUILT_IN_FORMATS.map(toOption);
-
 const STEPS = [
-  { key: "about", label: "About", question: ["What's your video", "about?"], note: "then set the type, the screen and the length" },
+  { key: "type", label: "Type", question: ["What kind of", "video?"], note: "it decides how the script is built" },
+  { key: "about", label: "About", question: ["What's your video", "about?"], note: "then set the screen and the length" },
+  { key: "visual", label: "Visual", question: ["How should it", "look?"], note: "the look of every drawing" },
   { key: "voice", label: "Voice", question: ["Who's", "speaking?"], note: "pick the language, then the voice" },
 ] as const;
+
+/** The brief is what every later step depends on, so it is the gate. */
+const ABOUT_INDEX = STEPS.findIndex((s) => s.key === "about");
 
 const EXAMPLES = [
   { label: "New billing, 90s", text: "Introduce our new billing in 90 seconds: the problem, one-click export, and what it changes for the finance team." },
@@ -99,14 +97,17 @@ export function PromptWizard({
   aside,
 }: Props) {
   const [index, setIndex] = useState(0);
-  // Starts on the shipped formats so the picker is never empty, then swaps in
-  // what the organization actually has: its own formats, and its overrides.
-  const [formatOptions, setFormatOptions] = useState<readonly FormatOption[]>(BUILT_IN_OPTIONS);
+  // Both lists start on the shipped rows so a picker is never empty, then swap
+  // in what the organization actually has: its own rows and its overrides.
+  const [formats, setFormats] = useState<readonly VideoFormat[]>(BUILT_IN_FORMATS);
+  const [styles, setStyles] = useState<readonly VisualStyle[]>(BUILT_IN_VISUAL_STYLES);
   useEffect(() => {
     let cancelled = false;
     listVideoFormats().then((result) => {
-      if (cancelled || !result.success || !result.data?.length) return;
-      setFormatOptions(result.data.map(toOption));
+      if (!cancelled && result.success && result.data?.length) setFormats(result.data);
+    });
+    listVisualStyles().then((result) => {
+      if (!cancelled && result.success && result.data?.length) setStyles(result.data);
     });
     return () => {
       cancelled = true;
@@ -118,8 +119,11 @@ export function PromptWizard({
   const set = (patch: Partial<ProjectParams>) => onParamsChange({ ...params, ...patch });
   const currentLanguage = LANGUAGES.find(([code]) => code === params.language)?.[1] ?? "English";
 
+  // Picking a type comes before the brief exists; every step after it needs one.
+  const canAdvance = index < ABOUT_INDEX || hasBrief;
+
   const next = () => {
-    if (!hasBrief || isGenerating) return;
+    if (!canAdvance || isGenerating) return;
     if (isLast) onGenerate(brief);
     else setIndex((i) => i + 1);
   };
@@ -134,7 +138,7 @@ export function PromptWizard({
           </span>
           <div className="flex items-center gap-1.5">
             {STEPS.map((s, i) => {
-              const reachable = i === 0 || hasBrief;
+              const reachable = i <= ABOUT_INDEX || hasBrief;
               return (
                 <button
                   key={s.key}
@@ -163,14 +167,14 @@ export function PromptWizard({
         </div>
       </div>
 
-      {index > 0 && (
+      {index > ABOUT_INDEX && (
         <button
           type="button"
-          onClick={() => setIndex(0)}
+          onClick={() => setIndex(ABOUT_INDEX)}
           className="group mx-auto flex max-w-xl items-center gap-2 rounded-md bg-highlight px-3 py-1.5 text-left text-sm text-highlight-foreground shadow-[2px_3px_0_hsl(0_0%_0%/0.2)] -rotate-1"
         >
           <span className="line-clamp-1">
-            <b>{formatOptions.find((o) => o.value === params.format)?.label ?? params.format}:</b> “{brief}”
+            <b>{formats.find((f) => f.id === params.format)?.label ?? params.format}:</b> “{brief}”
           </span>
           <Pencil className="h-3.5 w-3.5 shrink-0 opacity-70 group-hover:opacity-100" />
           <span className="sr-only">Edit the brief</span>
@@ -212,14 +216,6 @@ export function PromptWizard({
               ))}
             </div>
             <div className="grid gap-4 border-t-2 border-dashed border-border pt-4 sm:grid-cols-2">
-              <Field title="Video type">
-                <Segmented
-                  label="Video type"
-                  value={params.format}
-                  onChange={(v) => set({ format: v })}
-                  options={formatOptions}
-                />
-              </Field>
               <Field title="Format">
                 <div role="radiogroup" aria-label="Format" className="flex flex-wrap gap-2">
                   {RATIOS.map((r) => {
@@ -267,6 +263,78 @@ export function PromptWizard({
         )}
 
 
+
+        {step.key === "type" && (
+          <div role="radiogroup" aria-label="Video type" className="grid gap-3 sm:grid-cols-2">
+            {formats.map((f) => {
+              const on = f.id === params.format;
+              const movements = f.script.structure.map((m) => m.replace(/\s*\(.*\)$/, ""));
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => set({ format: f.id })}
+                  className={cn(
+                    "grid content-start gap-1.5 rounded-lg border-2 p-4 text-left transition-all",
+                    on
+                      ? "border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]"
+                      : "border-border bg-card hover:border-ink",
+                  )}
+                >
+                  <span className="flex items-center justify-between gap-2 text-base font-bold">
+                    {f.label}
+                    {on && <span aria-hidden="true">✓</span>}
+                  </span>
+                  <span className="text-sm">{f.hint}</span>
+                  {movements.length > 0 && (
+                    <span className="line-clamp-2 text-xs opacity-70">
+                      {movements.slice(0, 5).join(" → ")}
+                      {movements.length > 5 ? " → …" : ""}
+                    </span>
+                  )}
+                  <span className="text-[11px] font-mono uppercase tracking-[0.1em] opacity-60">
+                    ~{f.script.paragraphs} paragraphs{f.usesCharacter ? " · recurring character" : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {step.key === "visual" && (
+          <div role="radiogroup" aria-label="Visual style" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {styles.map((st) => {
+              const on = st.id === params.visualStyle;
+              return (
+                <button
+                  key={st.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => set({ visualStyle: st.id })}
+                  className={cn(
+                    "grid content-start gap-2 rounded-lg border-2 p-4 text-left transition-all",
+                    on
+                      ? "border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]"
+                      : "border-border bg-card hover:border-ink",
+                  )}
+                >
+                  <span className="flex items-center justify-between gap-2 text-base font-bold">
+                    {st.label}
+                    {on && <span aria-hidden="true">✓</span>}
+                  </span>
+                  <span className="text-sm">{st.hint}</span>
+                  <span className="text-[11px] font-mono uppercase tracking-[0.1em] opacity-60">
+                    {st.labels === "none" ? "no written words" : st.labels === "key-subjects" ? "key labels" : "every subject labelled"}
+                    {st.accentColors.length > 0 ? ` · ${st.accentColors.join(", ")}` : " · line work only"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {step.key === "voice" && (
           <div className="grid gap-5 sm:grid-cols-[190px_1fr]">
@@ -362,7 +430,7 @@ export function PromptWizard({
               Back
             </Button>
           ) : (
-            <span className="text-xs text-muted-foreground">⌘/Ctrl + Enter to continue</span>
+            <span className="text-xs text-muted-foreground">You can change it later</span>
           )}
           <div className="flex items-center gap-3">
             {!isLast && hasBrief && (
@@ -375,7 +443,7 @@ export function PromptWizard({
                 Skip &amp; generate
               </button>
             )}
-            <Button variant="secondary" onClick={next} disabled={!hasBrief || isGenerating}>
+            <Button variant="secondary" onClick={next} disabled={!canAdvance || isGenerating}>
               {isLast ? "Generate my script" : "Next"}
               <ArrowRight className="h-4 w-4" />
             </Button>

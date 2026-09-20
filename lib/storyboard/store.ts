@@ -142,7 +142,7 @@ export interface StoryboardStoreState {
 }
 
 const DEFAULT_PROJECT_PARAMS: ProjectParams = {
-  style: "cinematic",
+  visualStyle: "doodle",
   format: "explainer",
   aspectRatio: "16:9",
   language: "en",
