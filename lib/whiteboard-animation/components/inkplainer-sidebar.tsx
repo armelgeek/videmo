@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play } from 'lucide-react';
 import { isPremiumStyle } from '../style-tiers';
+import { HAND_STYLES } from '../hand-styles';
 import { useCreditSummary } from '@/lib/billing/use-credit-summary';
 
 interface InkplainerSidebarProps {
@@ -53,12 +54,7 @@ export const InkplainerSidebar: React.FC<InkplainerSidebarProps> = ({
     { key: 'spec-text', label: 'Spec Text' },
   ];
 
-  const handStyles = [
-    { key: 'custom1', label: 'Pencil Hand (Male)' },
-    { key: 'custom2', label: 'Marker Hand (Female)' },
-    { key: 'custom3', label: 'Chalk Hand' },
-    { key: 'custom4', label: 'Stylus Hand' },
-  ];
+  const handStyles = HAND_STYLES;
 
   return (
     <aside className="w-[310px] shrink-0 border-r border-border bg-card flex flex-col h-full overflow-hidden select-none">

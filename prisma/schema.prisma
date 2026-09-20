@@ -273,6 +273,7 @@ model Organization {
   apiKeys            ApiKey[]
   storedObjects      StoredObject[]
   videoFormats       VideoFormat[]
+  whiteboardStyles   WhiteboardStyle[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }
@@ -652,4 +653,39 @@ model ShowcaseVideo {
   @@index([published, sector])
   @@index([sortOrder])
   @@map("showcase_videos")
+}
+
+/// How the whiteboard looks while it draws: which hand holds the pen and which
+/// animation engine lays the strokes down.
+///
+/// Both point at things the engine really has — `animStyle` is checked against
+/// AnimationFactory and `handStyle` against the hand sprites — because a style
+/// naming something the engine lacks silently renders as the default. Rows with
+/// no organization ship with the product; an organization overrides one by
+/// saving its own under the same `key`.
+model WhiteboardStyle {
+  id String @id @default(cuid())
+
+  /// Stable identifier stored in project params. Unique per organization.
+  key String @db.VarChar(64)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  label String @db.VarChar(120)
+  hint  String @db.VarChar(255)
+
+  /// An id known to AnimationFactory ("chunkjump", "contour", ...).
+  animStyle String @db.VarChar(40)
+  /// A hand sprite key ("custom1" .. "custom4").
+  handStyle String @db.VarChar(20)
+
+  isBuiltIn Boolean @default(false)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([organizationId, deletedAt])
+  @@index([key])
 }
