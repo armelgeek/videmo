@@ -14,6 +14,7 @@ export type {
   FormatCharacter,
   FormatFamily,
   LabelPolicy,
+  ManagedFormat,
   VideoFormat,
   VisualPreset,
 } from "./types";

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { db as prisma } from "@/lib/db";
 import { BUILT_IN_FORMATS, DEFAULT_FORMAT_ID, builtInFormat } from "./built-in";
-import type { VideoFormat } from "./types";
+import type { ManagedFormat, VideoFormat } from "./types";
 
 /**
  * The shape of the JSON columns.
@@ -72,9 +72,9 @@ function toFormat(row: unknown): VideoFormat | null {
  * Falls back to the code definitions when the table is empty, so a fresh
  * install can generate before anyone has run the seed.
  */
-export async function listFormatsFor(
+export async function listManagedFormatsFor(
   organizationId: string | null,
-): Promise<VideoFormat[]> {
+): Promise<ManagedFormat[]> {
   const rows = await prisma.videoFormat.findMany({
     where: {
       deletedAt: null,
@@ -85,14 +85,40 @@ export async function listFormatsFor(
     orderBy: [{ organizationId: "asc" }, { label: "asc" }],
   });
 
-  const byKey = new Map<string, VideoFormat>();
+  const byKey = new Map<string, ManagedFormat>();
   for (const row of rows) {
     const format = toFormat(row);
-    if (format) byKey.set(format.id, format);
+    if (!format) continue;
+
+    // The scalar columns are guaranteed by the table; only the JSON ones are
+    // worth validating, which is what `toFormat` already did.
+    const scalars = row as { id?: string; organizationId?: string | null; isBuiltIn?: boolean };
+    byKey.set(format.id, {
+      format,
+      rowId: scalars.id ?? null,
+      isOwn: scalars.organizationId != null && scalars.organizationId === organizationId,
+      isBuiltIn: Boolean(scalars.isBuiltIn),
+    });
   }
 
-  if (byKey.size === 0) return [...BUILT_IN_FORMATS];
+  if (byKey.size === 0) {
+    return BUILT_IN_FORMATS.map((format) => ({
+      format,
+      rowId: null,
+      isOwn: false,
+      isBuiltIn: true,
+    }));
+  }
+
   return [...byKey.values()];
+}
+
+/** The formats alone, for the places that only need to pick or resolve one. */
+export async function listFormatsFor(
+  organizationId: string | null,
+): Promise<VideoFormat[]> {
+  const managed = await listManagedFormatsFor(organizationId);
+  return managed.map((m) => m.format);
 }
 
 /**

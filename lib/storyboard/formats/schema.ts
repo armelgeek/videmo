@@ -20,7 +20,9 @@ export const videoFormatInputSchema = z.object({
   label: z.string().min(1).max(120),
   hint: z.string().min(1).max(255),
   family: z.enum(["explainer", "story"]).default("explainer"),
-  thumbnailUrl: z.string().url().nullable().default(null),
+  // A path, not necessarily an absolute URL: the shipped formats point at
+  // `/formats/*.webp`, and overriding one must not have to rewrite that.
+  thumbnailUrl: z.string().max(500).nullable().default(null),
 
   paragraphs: z.number().int().min(2).max(40),
   structure: z.array(z.string().min(1).max(200)).max(40).default([]),
