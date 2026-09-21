@@ -35,7 +35,7 @@ interface AppSidebarProps {
 }
 
 const NAV_ITEMS = [
-  { href: "/workspace", icon: Folder, label: "Projects", tour: "nav-projects" },
+  { href: "/workspace", icon: Folder, label: "Projects" },
   { href: "/workspace/members", icon: Users, label: "Members" },
   { href: "/billing", icon: CreditCard, label: "Billing" },
 ] as const;
@@ -44,9 +44,7 @@ const NAV_ITEMS = [
  * What the organization generates against, rather than what it is working on:
  * the logo, the formats and the styles, under the one name people look for.
  */
-const LIBRARY_ITEMS = [
-  { href: "/workspace/brand", icon: Palette, label: "Brand kit", tour: "nav-brand" },
-] as const;
+const LIBRARY_ITEMS = [{ href: "/workspace/brand", icon: Palette, label: "Brand kit" }] as const;
 
 interface PendingInvitation {
   id: string;
@@ -85,18 +83,15 @@ function NavLink({
   icon: Icon,
   label,
   isActive,
-  tour,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   isActive: boolean;
-  tour?: string;
 }) {
   return (
     <Link
       href={href}
-      data-tour={tour}
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "flex w-full items-center gap-2.5 rounded-lg border-2 px-3 py-2 text-sm font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-highlight",

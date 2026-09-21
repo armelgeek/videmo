@@ -10,9 +10,6 @@ import "./tour.css";
 export const TOUR_TARGET = {
   brief: "brief",
   examples: "examples",
-  wizardNav: "wizard-nav",
-  projects: "nav-projects",
-  brand: "nav-brand",
 } as const;
 
 const at = (name: string) => `[data-tour="${name}"]`;
@@ -20,9 +17,12 @@ const at = (name: string) => `[data-tour="${name}"]`;
 /**
  * The first walk through the studio.
  *
- * Every step points at something that exists on the prompt screen, so the tour
- * never talks about a button the account cannot see. It says what to do next
- * rather than naming what is on screen.
+ * Two steps, in front of the empty box, because that is the only moment the
+ * account is genuinely stuck: it does not know what to write. Everything after
+ * it — the format, the hand, the voice — the wizard already asks one question
+ * at a time, and a second guide narrating the first would be one voice too
+ * many. What comes after the script deserves its own short tour, on the screen
+ * where it happens.
  */
 const GROUP = "studio";
 
@@ -37,24 +37,7 @@ const STEPS = [
     target: at(TOUR_TARGET.examples),
     title: "Or borrow one of ours",
     content:
-      "No idea to test it on? Take an example brief and watch the whole thing run without writing anything.",
-  },
-  {
-    target: at(TOUR_TARGET.wizardNav),
-    title: "Four short questions",
-    content:
-      "What it is about, the type of video, the hand it is drawn in, the voice that reads it. The cost is shown before anything is spent.",
-  },
-  {
-    target: at(TOUR_TARGET.projects),
-    title: "Your videos live here",
-    content: "Every project you start is waiting in the workspace, at the step you left it on.",
-  },
-  {
-    target: at(TOUR_TARGET.brand),
-    title: "Then make it yours",
-    content:
-      "Your logo, the types of video you write and the hand they are drawn in. Set one as the default and every new video starts there.",
+      "Nothing to test it on? Take one of these and watch the whole thing run without writing a word.",
   },
 ];
 
@@ -81,13 +64,16 @@ export function StudioTour() {
       exitOnEscape: true,
       exitOnClickOutside: false,
       showStepProgress: true,
+      // Two steps: there is nothing to go back to from the first.
+      hidePrev: true,
       showStepDots: true,
       stepDotsPlacement: "footer",
-      backdropColor: "rgba(22, 22, 15, 0.55)",
+      // Warm grey over the cream page; the greener ink turned it khaki.
+      backdropColor: "rgba(28, 25, 23, 0.5)",
       targetPadding: 8,
       nextLabel: "Next",
       prevLabel: "Back",
-      finishLabel: "Got it",
+      finishLabel: "Start writing",
       dialogMaxWidth: 340,
       autoScrollSmooth: true,
     });

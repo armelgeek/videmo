@@ -438,10 +438,7 @@ export function PromptWizard({
           </div>
         )}
 
-        <div
-          data-tour="wizard-nav"
-          className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-border pt-4"
-        >
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-border pt-4">
           {index > 0 ? (
             <Button variant="ghost" onClick={() => setIndex((i) => i - 1)}>
               <ArrowLeft className="h-4 w-4" />
