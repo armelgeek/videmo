@@ -19,6 +19,8 @@ export const TOUR_TARGET = {
   examples: "examples",
   scenes: "scenes",
   redraw: "redraw",
+  mode: "editor-mode",
+  export: "export",
 } as const;
 
 export const at = (name: string) => `[data-tour="${name}"]`;

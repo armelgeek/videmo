@@ -41,6 +41,7 @@ import { PromptWizard } from "@/components/organisms/storyboard/prompt-wizard";
 import { exampleBriefText } from "@/lib/storyboard/example-briefs";
 import { StudioTour } from "@/components/organisms/onboarding/studio-tour";
 import { StoryboardTour } from "@/components/organisms/onboarding/storyboard-tour";
+import { AnimationTour } from "@/components/organisms/onboarding/animation-tour";
 import { appConfig } from "@/lib/config";
 import { ArrowDown, ArrowLeft, ArrowUp, Keyboard, Lock, MoreHorizontal } from "lucide-react";
 import {
@@ -1378,6 +1379,7 @@ export default function StoryboardPage() {
                   )}
                   <Hint label="turn it into an MP4 (⌘E)" side="bottom">
                     <Button
+                      data-tour="export"
                       variant="secondary"
                       size="sm"
                       onClick={() => setIsExportModalOpen(true)}
@@ -1799,13 +1801,15 @@ export default function StoryboardPage() {
 
           {/* Whiteboard Step */}
           {step === "whiteboard" && (
-            <WhiteboardEditorStep
-              config={whiteboardConfig}
-              aspectRatio={projectParams.aspectRatio}
-              onConfigChange={(updates) =>
-                setWhiteboardConfig(updates)
-              }
-            />
+            <>
+              {/* Both targets — the mode switch and Export — are on screen here. */}
+              <AnimationTour />
+              <WhiteboardEditorStep
+                config={whiteboardConfig}
+                aspectRatio={projectParams.aspectRatio}
+                onConfigChange={(updates) => setWhiteboardConfig(updates)}
+              />
+            </>
           )}
 
 

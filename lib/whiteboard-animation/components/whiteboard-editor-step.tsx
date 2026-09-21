@@ -775,6 +775,7 @@ export function WhiteboardEditorStep({
             </div>
 
             <div
+              data-tour="editor-mode"
               role="tablist"
               aria-label="Editor mode"
               className="flex items-center gap-1 rounded-full border-2 border-ink bg-card p-1 shadow-[2px_2px_0_hsl(var(--offset))]"
