@@ -7,6 +7,7 @@ import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { Segmented } from "./settings-controls";
 import { useVideoFormats } from "@/hooks/use-video-formats";
 import { useVisualStyles } from "@/hooks/use-visual-styles";
+import { StylePreview } from "@/components/molecules/workspace/style-preview";
 import type { VideoFormat } from "@/lib/storyboard/formats";
 import type { VisualStyle } from "@/lib/storyboard/visual-styles/types";
 import type { ProjectParams } from "@/lib/storyboard/schema";
@@ -301,20 +302,21 @@ export function PromptWizard({
                   aria-checked={on}
                   onClick={() => set({ visualStyle: st.id })}
                   className={cn(
-                    "grid content-start gap-2 rounded-lg border-2 p-4 text-left transition-all",
+                    "grid content-start overflow-hidden rounded-lg border-2 text-left transition-all",
                     on
                       ? "border-ink bg-highlight text-highlight-foreground shadow-[2px_2px_0_hsl(var(--offset))]"
                       : "border-border bg-card hover:border-ink",
                   )}
                 >
-                  <span className="flex items-center justify-between gap-2 text-base font-bold">
-                    {st.label}
-                    {on && <span aria-hidden="true">✓</span>}
+                  <span className="block aspect-[180/96] border-b-2 border-inherit bg-white">
+                    <StylePreview style={st} />
                   </span>
-                  <span className="text-sm">{st.hint}</span>
-                  <span className="text-[11px] font-mono uppercase tracking-[0.1em] opacity-60">
-                    {st.labels === "none" ? "no written words" : st.labels === "key-subjects" ? "key labels" : "every subject labelled"}
-                    {st.accentColors.length > 0 ? ` · ${st.accentColors.join(", ")}` : " · line work only"}
+                  <span className="grid content-start gap-1 p-3">
+                    <span className="flex items-center justify-between gap-2 text-base font-bold">
+                      {st.label}
+                      {on && <span aria-hidden="true">✓</span>}
+                    </span>
+                    <span className="text-sm">{st.hint}</span>
                   </span>
                 </button>
               );

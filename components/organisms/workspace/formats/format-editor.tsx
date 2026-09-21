@@ -1,34 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { saveVideoFormat } from "@/actions/video-formats/save-video-format";
 import type { VideoFormat } from "@/lib/storyboard/formats";
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { LineListField } from "@/components/molecules/workspace/line-list-field";
 
 import { slugify } from "@/lib/storyboard/slug";
+import { EditorScreen, PANEL, PanelTitle } from "../editor-screen";
 
-/** One entry per line, blanks dropped: the shape a structure is read in. */
-const toLines = (text: string) =>
-  text.split("\n").map((l) => l.trim()).filter(Boolean);
-const fromLines = (items: readonly string[]) => items.join("\n");
+/** The tones the shipped formats are written in. Anything else can be typed. */
+const TONES = [
+  "professional",
+  "instructional",
+  "narrative",
+  "persuasive",
+  "explanatory",
+  "casual",
+];
 
 interface FormState {
   key: string;
   label: string;
   hint: string;
-  thumbnailUrl: string;
-  paragraphs: string;
+  paragraphs: number;
   defaultTone: string;
-  structure: string;
-  breakdownRules: string;
+  structure: string[];
+  breakdownRules: string[];
   usesCharacter: boolean;
 }
 
@@ -36,11 +39,10 @@ const EMPTY: FormState = {
   key: "",
   label: "",
   hint: "",
-  thumbnailUrl: "",
-  paragraphs: "8",
+  paragraphs: 8,
   defaultTone: "professional",
-  structure: "",
-  breakdownRules: "",
+  structure: [""],
+  breakdownRules: [""],
   usesCharacter: false,
 };
 
@@ -49,11 +51,10 @@ function toFormState(format: VideoFormat): FormState {
     key: format.id,
     label: format.label,
     hint: format.hint,
-    thumbnailUrl: format.thumbnailUrl ?? "",
-    paragraphs: String(format.script.paragraphs),
+    paragraphs: format.script.paragraphs,
     defaultTone: format.script.defaultTone,
-    structure: fromLines(format.script.structure),
-    breakdownRules: fromLines(format.breakdown.rules),
+    structure: [...format.script.structure],
+    breakdownRules: [...format.breakdown.rules],
     usesCharacter: format.usesCharacter,
   };
 }
@@ -83,6 +84,8 @@ export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
   const set = <K extends keyof FormState>(field: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [field]: value }));
 
+  const isCustomTone = !TONES.includes(form.defaultTone);
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -90,11 +93,13 @@ export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
         key: form.key,
         label: form.label,
         hint: form.hint,
-        thumbnailUrl: form.thumbnailUrl.trim() || null,
-        paragraphs: Number(form.paragraphs),
-        structure: toLines(form.structure),
+        // Nothing renders it, but an override must not silently drop what the
+        // format it copies already had.
+        thumbnailUrl: initial?.thumbnailUrl ?? null,
+        paragraphs: form.paragraphs,
+        structure: form.structure.map((s) => s.trim()).filter(Boolean),
         defaultTone: form.defaultTone,
-        breakdownRules: toLines(form.breakdownRules),
+        breakdownRules: form.breakdownRules.map((r) => r.trim()).filter(Boolean),
         usesCharacter: form.usesCharacter,
       });
 
@@ -118,165 +123,190 @@ export function FormatEditor({ initial, isOverride }: FormatEditorProps) {
       : `Edit “${initial.label}”`;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-8 space-y-6">
-      <div>
-        <Link
-          href={BACK}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Formats
-        </Link>
-        <h1 className="text-2xl font-semibold mt-3">{title}</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {isOverride
-            ? "This saves your own copy under the same key. The shipped format stays untouched for everyone else."
-            : "The structure steers what the script says. How the video looks is chosen separately."}
-        </p>
-      </div>
+    <EditorScreen
+      backHref={BACK}
+      backLabel="Formats"
+      title={title}
+      lede={
+        isOverride
+          ? "This saves your own copy under the same key. The shipped format stays untouched for everyone else."
+          : "The structure steers what the script says. How the video looks is chosen separately."
+      }
+      saveLabel="Save format"
+      canSave={Boolean(form.label.trim())}
+      isSaving={isSaving}
+      onSave={handleSave}
+    >
+      <section className={PANEL}>
+        <PanelTitle>Identity</PanelTitle>
 
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-2 items-start">
-        <section className="space-y-4 p-6 border rounded-lg bg-card">
-          <h2 className="text-sm font-semibold">Identity</h2>
-          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-            <div className="grid gap-2">
-              <Label htmlFor="fmt-label">Name</Label>
-              <Input
-                id="fmt-label"
-                value={form.label}
-                placeholder="SaaS onboarding"
-                onChange={(e) => {
-                  const label = e.target.value;
-                  setForm((f) => ({
-                    ...f,
-                    label,
-                    // Only while creating: changing the key of a saved format
-                    // would orphan every project that stores it.
-                    key: !initial ? slugify(label) : f.key,
-                  }));
-                }}
-              />
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="fmt-label">Name</Label>
+            <Input
+              id="fmt-label"
+              value={form.label}
+              placeholder="SaaS onboarding"
+              className="h-12 text-lg font-semibold"
+              onChange={(e) => {
+                const label = e.target.value;
+                setForm((f) => ({
+                  ...f,
+                  label,
+                  // Only while creating: changing the key of a saved format
+                  // would orphan every project that stores it.
+                  key: !initial ? slugify(label) : f.key,
+                }));
+              }}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="fmt-hint">One-line description</Label>
+            <Input
+              id="fmt-hint"
+              value={form.hint}
+              placeholder="Walk a new user through first value."
+              onChange={(e) => set("hint", e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Label htmlFor="fmt-key" className="text-xs text-muted-foreground">
+              Key
+            </Label>
+            <Input
+              id="fmt-key"
+              value={form.key}
+              disabled={initial !== null}
+              onChange={(e) => set("key", e.target.value)}
+              className="h-8 w-48 font-mono text-xs shadow-none"
+            />
+            <span className="text-xs text-muted-foreground">
+              {initial
+                ? "Fixed: projects are stored against it."
+                : "Lowercase letters, digits and dashes."}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className={PANEL}>
+        <PanelTitle>Length and tone</PanelTitle>
+
+        <div className="grid gap-6">
+          <div className="grid gap-2">
+            <div className="flex items-baseline gap-3">
+              <span className="font-mono text-4xl font-bold leading-none text-foreground">
+                {form.paragraphs}
+              </span>
+              <Label htmlFor="fmt-paragraphs" className="text-sm text-muted-foreground">
+                paragraphs of script
+              </Label>
             </div>
+            <input
+              id="fmt-paragraphs"
+              type="range"
+              min={2}
+              max={40}
+              value={form.paragraphs}
+              onChange={(e) => set("paragraphs", Number(e.target.value))}
+              className="h-2 w-full cursor-pointer appearance-none rounded-full border-2 border-ink bg-accent accent-[hsl(var(--highlight))]"
+            />
+            <p className="text-xs text-muted-foreground">
+              Roughly one scene each. Short formats land harder; long ones teach.
+            </p>
+          </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="fmt-key">Key</Label>
-              <Input
-                id="fmt-key"
-                value={form.key}
-                disabled={initial !== null}
-                onChange={(e) => set("key", e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                {initial
-                  ? "Fixed: projects are stored against it."
-                  : "Lowercase letters, digits and dashes."}
-              </p>
+          <div className="grid gap-2">
+            <span id="fmt-tone-label" className="text-sm font-medium">
+              Default tone
+            </span>
+            <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby="fmt-tone-label">
+              {TONES.map((tone) => (
+                <button
+                  key={tone}
+                  type="button"
+                  aria-pressed={form.defaultTone === tone}
+                  onClick={() => set("defaultTone", tone)}
+                  className={cn(
+                    "rounded-full border-2 px-3 py-1 text-xs font-semibold transition-transform hover:-translate-y-px",
+                    form.defaultTone === tone
+                      ? "border-ink bg-highlight text-highlight-foreground"
+                      : "border-border bg-card text-muted-foreground hover:border-ink hover:text-foreground",
+                  )}
+                >
+                  {tone}
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-pressed={isCustomTone}
+                onClick={() => set("defaultTone", isCustomTone ? "professional" : "")}
+                className={cn(
+                  "rounded-full border-2 border-dashed px-3 py-1 text-xs font-semibold transition-transform hover:-translate-y-px",
+                  isCustomTone
+                    ? "border-ink bg-highlight text-highlight-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-ink hover:text-foreground",
+                )}
+              >
+                Something else
+              </button>
             </div>
-
-            <div className="col-span-1 md:col-span-2 grid gap-2">
-              <Label htmlFor="fmt-hint">One-line description</Label>
+            {isCustomTone && (
               <Input
-                id="fmt-hint"
-                value={form.hint}
-                placeholder="Walk a new user through first value."
-                onChange={(e) => set("hint", e.target.value)}
-              />
-            </div>
-
-            <div className="col-span-1 md:col-span-2 grid gap-2">
-              <Label htmlFor="fmt-thumb">Thumbnail URL (optional)</Label>
-              <Input
-                id="fmt-thumb"
-                value={form.thumbnailUrl}
-                placeholder="/formats/explainer.webp or https://..."
-                onChange={(e) => set("thumbnailUrl", e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Path to an image asset or full URL shown in the format picker.
-              </p>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="fmt-tone">Default tone</Label>
-              <Input
-                id="fmt-tone"
+                aria-label="Default tone"
                 value={form.defaultTone}
-                placeholder="instructional"
+                placeholder="deadpan"
                 onChange={(e) => set("defaultTone", e.target.value)}
+                className="mt-1 h-9 w-56"
               />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="fmt-paragraphs">Paragraphs</Label>
-              <Input
-                id="fmt-paragraphs"
-                type="number"
-                min={2}
-                max={40}
-                value={form.paragraphs}
-                onChange={(e) => set("paragraphs", e.target.value)}
-              />
-            </div>
-
-            <div className="col-span-1 md:col-span-2 flex items-start justify-between gap-4 rounded-lg border p-4">
-              <div className="grid gap-1">
-                <Label htmlFor="fmt-character">Recurring character</Label>
-                <p className="text-xs text-muted-foreground">
-                  The video follows one character, picked from your library when
-                  the project is created and drawn the same way in every scene.
-                </p>
-              </div>
-              <Switch
-                id="fmt-character"
-                checked={form.usesCharacter}
-                onCheckedChange={(v) => set("usesCharacter", v)}
-              />
-            </div>
+            )}
           </div>
-        </section>
 
-        <section className="space-y-4 p-6 border rounded-lg bg-card">
-          <h2 className="text-sm font-semibold">Script</h2>
-
-          <div className="grid gap-2">
-            <Label htmlFor="fmt-structure">Narrative movements</Label>
-            <Textarea
-              id="fmt-structure"
-              rows={9}
-              value={form.structure}
-              placeholder={"Hook\nProblem\nSolution\nCall to action"}
-              onChange={(e) => set("structure", e.target.value)}
+          <div className="flex items-start justify-between gap-4 rounded-lg border-2 border-dashed border-border p-4">
+            <div className="grid gap-1">
+              <Label htmlFor="fmt-character">Recurring character</Label>
+              <p className="text-xs text-muted-foreground">
+                The video follows one character, picked from your library when the
+                project is created and drawn the same way in every scene.
+              </p>
+            </div>
+            <Switch
+              id="fmt-character"
+              checked={form.usesCharacter}
+              onCheckedChange={(v) => set("usesCharacter", v)}
             />
-            <p className="text-xs text-muted-foreground">
-              One per line, in order. This is what makes a format differ from
-              another — without it, only the length changes.
-            </p>
           </div>
+        </div>
+      </section>
 
-          <div className="grid gap-2">
-            <Label htmlFor="fmt-rules">Breakdown rules</Label>
-            <Textarea
-              id="fmt-rules"
-              rows={4}
-              value={form.breakdownRules}
-              placeholder={"Show the product UI, never a metaphor\nOne feature per scene"}
-              onChange={(e) => set("breakdownRules", e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              One per line. Added to the rules every format already follows.
-            </p>
-          </div>
-        </section>
-      </div>
+      <section className={PANEL}>
+        <PanelTitle>The script it writes</PanelTitle>
+        <LineListField
+          id="fmt-structure"
+          label="Narrative movements"
+          ordered
+          items={form.structure}
+          onChange={(items) => set("structure", items)}
+          placeholder="Hook (why care)"
+          addLabel="Add a movement"
+          hint="In order, one beat each. This is what makes a format differ from another — without it, only the length changes."
+        />
+      </section>
 
-      <div className="flex justify-end gap-2">
-        <Button variant="ghost" asChild disabled={isSaving}>
-          <Link href={BACK}>Cancel</Link>
-        </Button>
-        <Button onClick={handleSave} disabled={isSaving || !form.label.trim()}>
-          {isSaving ? "Saving…" : "Save format"}
-        </Button>
-      </div>
-    </div>
+      <section className={PANEL}>
+        <PanelTitle>Breakdown rules</PanelTitle>
+        <LineListField
+          id="fmt-rules"
+          label="What the split must respect"
+          items={form.breakdownRules}
+          onChange={(items) => set("breakdownRules", items)}
+          placeholder="One feature per scene"
+          addLabel="Add a rule"
+          hint="Added to the rules every format already follows."
+        />
+      </section>
+    </EditorScreen>
   );
 }
