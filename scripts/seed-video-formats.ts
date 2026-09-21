@@ -17,7 +17,6 @@ async function main() {
   for (const format of BUILT_IN_FORMATS) {
     const row = {
       key: format.id,
-      version: format.version,
       label: format.label,
       hint: format.hint,
       thumbnailUrl: format.thumbnailUrl,

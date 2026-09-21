@@ -1,11 +1,6 @@
 import { z } from "zod";
 import { db as prisma } from "@/lib/db";
-import {
-  BUILT_IN_FORMATS,
-  DEFAULT_FORMAT_ID,
-  builtInFormat,
-  isBuiltInFormat,
-} from "./built-in";
+import { BUILT_IN_FORMATS, DEFAULT_FORMAT_ID, builtInFormat } from "./built-in";
 import type { ManagedFormat, VideoFormat } from "./types";
 
 /**
@@ -18,7 +13,6 @@ import type { ManagedFormat, VideoFormat } from "./types";
  */
 const rowSchema = z.object({
   key: z.string(),
-  version: z.number(),
   label: z.string(),
   hint: z.string(),
   thumbnailUrl: z.string().nullable(),
@@ -37,7 +31,6 @@ function toFormat(row: unknown): VideoFormat | null {
   const r = parsed.data;
   return {
     id: r.key,
-    version: r.version,
     label: r.label,
     hint: r.hint,
     thumbnailUrl: r.thumbnailUrl,
@@ -118,44 +111,11 @@ export async function resolveFormat(
   key: string | undefined,
   organizationId: string | null,
 ): Promise<VideoFormat> {
-  const targetKey = key ?? DEFAULT_FORMAT_ID;
-
-  const rows = await prisma.videoFormat.findMany({
-    where: {
-      key: targetKey,
-      deletedAt: null,
-      OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])],
-    },
-    orderBy: [{ organizationId: "asc" }, { label: "asc" }],
-  });
-
-  let found: VideoFormat | null = null;
-  for (const row of rows) {
-    const format = toFormat(row);
-    if (format) found = format;
-  }
-
+  const formats = await listFormatsFor(organizationId);
+  const found = formats.find((f) => f.id === (key ?? DEFAULT_FORMAT_ID));
   if (found) return found;
-
-  if (isBuiltInFormat(targetKey)) {
-    return builtInFormat(targetKey);
-  }
 
   if (key) console.warn(`Unknown video format "${key}", falling back to a default`);
 
-  const defaultRows = await prisma.videoFormat.findMany({
-    where: {
-      key: DEFAULT_FORMAT_ID,
-      deletedAt: null,
-      OR: [{ organizationId: null }, ...(organizationId ? [{ organizationId }] : [])],
-    },
-    orderBy: [{ organizationId: "asc" }, { label: "asc" }],
-  });
-
-  for (const row of defaultRows) {
-    const format = toFormat(row);
-    if (format) return format;
-  }
-
-  return builtInFormat(undefined);
+  return formats.find((f) => f.id === DEFAULT_FORMAT_ID) ?? builtInFormat(undefined);
 }

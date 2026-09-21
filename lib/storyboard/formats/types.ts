@@ -24,7 +24,6 @@ export interface ManagedFormat {
 export interface VideoFormat {
   /** Stored in the project params (`format`): never rename an existing id. */
   id: string;
-  version: number;
   label: string;
   hint: string;
   thumbnailUrl: string | null;

@@ -8,7 +8,6 @@ const { BUILT_IN_FORMATS, DEFAULT_FORMAT_ID } = await import("./built-in");
 
 const row = (over: Record<string, unknown> = {}) => ({
   key: "tutorial",
-  version: 1,
   label: "Tutorial",
   hint: "Step by step.",
   thumbnailUrl: null,
