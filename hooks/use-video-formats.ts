@@ -16,6 +16,8 @@ interface UseVideoFormatsOptions {
 
 interface UseVideoFormatsResult {
   formats: readonly VideoFormat[]
+  /** The format this organization starts new projects on, when it picked one. */
+  defaultKey: string | null
   isLoading: boolean
 }
 
@@ -30,6 +32,7 @@ export function useVideoFormats({ withFallback = false }: UseVideoFormatsOptions
   const [formats, setFormats] = useState<readonly VideoFormat[]>(
     withFallback ? BUILT_IN_FORMATS : [],
   )
+  const [defaultKey, setDefaultKey] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export function useVideoFormats({ withFallback = false }: UseVideoFormatsOptions
       if (cancelled) return
       if (result.success && result.data?.length) {
         setFormats(result.data)
+        setDefaultKey(result.defaultKey ?? null)
       }
       setIsLoading(false)
     })
@@ -48,5 +52,5 @@ export function useVideoFormats({ withFallback = false }: UseVideoFormatsOptions
     }
   }, [])
 
-  return { formats, isLoading }
+  return { formats, defaultKey, isLoading }
 }

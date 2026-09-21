@@ -102,6 +102,21 @@ export async function listFormatsFor(
 }
 
 /**
+ * The format this organization starts new projects on, when it has picked one.
+ * A key rather than a row id, so it can point at a shipped format too.
+ */
+export async function defaultFormatKeyFor(organizationId: string | null): Promise<string | null> {
+  if (!organizationId) return null;
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { defaultFormatKey: true },
+  });
+
+  return organization?.defaultFormatKey ?? null;
+}
+
+/**
  * One format, resolved for this organization.
  *
  * An unknown key falls back to the default rather than throwing: a project
@@ -112,7 +127,8 @@ export async function resolveFormat(
   organizationId: string | null,
 ): Promise<VideoFormat> {
   const formats = await listFormatsFor(organizationId);
-  const found = formats.find((f) => f.id === (key ?? DEFAULT_FORMAT_ID));
+  const wanted = key ?? (await defaultFormatKeyFor(organizationId)) ?? DEFAULT_FORMAT_ID;
+  const found = formats.find((f) => f.id === wanted);
   if (found) return found;
 
   if (key) console.warn(`Unknown video format "${key}", falling back to a default`);

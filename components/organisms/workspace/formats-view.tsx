@@ -1,11 +1,13 @@
 "use client";
 
 import { listManagedFormats } from "@/actions/video-formats/list-managed-formats";
+import { setDefaultFormat } from "@/actions/video-formats/set-default-format";
 import { deleteVideoFormat } from "@/actions/video-formats/delete-video-format";
 import { isBuiltInFormat } from "@/lib/storyboard/formats";
 import type { ManagedFormat } from "@/lib/storyboard/formats";
 import { useManagedCollection } from "@/hooks/use-managed-collection";
 import { BrandTabs } from "./brand-tabs";
+import { toast } from "sonner";
 import { FormatStrip } from "@/components/molecules/workspace/format-strip";
 import { Chip, CollectionScreen } from "./collection-screen";
 
@@ -27,6 +29,16 @@ export function FormatsView() {
     errorMessage: "Video formats could not be loaded.",
   });
 
+  const handleSetDefault = async (key: string) => {
+    const result = await setDefaultFormat(key);
+    if (!result.success) {
+      toast.error(result.error ?? "Could not set the default format");
+      return;
+    }
+    toast.success("New projects will start on this format");
+    await collection.load();
+  };
+
   return (
     <CollectionScreen
       tabs={<BrandTabs />}
@@ -37,6 +49,8 @@ export function FormatsView() {
       newHref="/workspace/brand/formats/new"
       editHref={(id) => `/workspace/brand/formats/${id}/edit`}
       collection={collection}
+      defaultId={collection.defaultKey}
+      onSetDefault={handleSetDefault}
       isBuiltIn={isBuiltInFormat}
       toEntry={({ format, rowId, isOwn }) => ({
         id: format.id,

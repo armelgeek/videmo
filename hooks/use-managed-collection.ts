@@ -8,6 +8,8 @@ interface ListResult<T> {
   success: boolean;
   data?: T[];
   canWrite?: boolean;
+  /** Which row the organization starts from, for collections that have one. */
+  defaultKey?: string | null;
   error?: string;
 }
 
@@ -37,6 +39,7 @@ export function useManagedCollection<T>({
 }: UseManagedCollectionOptions<T>) {
   const [items, setItems] = useState<T[]>([]);
   const [canWrite, setCanWrite] = useState(false);
+  const [defaultKey, setDefaultKey] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingDelete, setPendingDelete] = useState<T | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -50,6 +53,7 @@ export function useManagedCollection<T>({
     }
     setItems(result.data);
     setCanWrite(Boolean(result.canWrite));
+    setDefaultKey(result.defaultKey ?? null);
     setIsLoading(false);
   }, [fetchList, errorMessage]);
 
@@ -92,6 +96,7 @@ export function useManagedCollection<T>({
   return {
     items,
     canWrite,
+    defaultKey,
     isLoading,
     pendingDelete,
     setPendingDelete,

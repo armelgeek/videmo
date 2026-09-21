@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Pencil, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
@@ -98,10 +98,19 @@ export function PromptWizard({
   const [index, setIndex] = useState(0);
   // Both lists start on the shipped rows so a picker is never empty, then swap
   // in what the organization actually has: its own rows and its overrides.
-  const { formats } = useVideoFormats({ withFallback: true });
+  const { formats, defaultKey } = useVideoFormats({ withFallback: true });
   const { styles } = useVisualStyles({ withFallback: true });
   const step = STEPS[index];
   const hasBrief = brief.trim().length > 0;
+
+  // The organization's own default, applied once and only to a project that
+  // has not been written yet: reopening a saved brief must keep its format.
+  const defaultApplied = useRef(false);
+  useEffect(() => {
+    if (defaultApplied.current || !defaultKey || hasBrief) return;
+    defaultApplied.current = true;
+    if (defaultKey !== params.format) onParamsChange({ ...params, format: defaultKey });
+  }, [defaultKey, hasBrief, params, onParamsChange]);
   const isLast = index === STEPS.length - 1;
   const set = (patch: Partial<ProjectParams>) => onParamsChange({ ...params, ...patch });
   const currentLanguage = LANGUAGES.find(([code]) => code === params.language)?.[1] ?? "English";

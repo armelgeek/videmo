@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findMany = vi.fn();
-vi.mock("@/lib/db", () => ({ db: { videoFormat: { findMany } } }));
+const findUnique = vi.fn();
+vi.mock("@/lib/db", () => ({
+  db: { videoFormat: { findMany }, organization: { findUnique } },
+}));
 
 const { listFormatsFor, resolveFormat } = await import("./repository");
 const { BUILT_IN_FORMATS, DEFAULT_FORMAT_ID } = await import("./built-in");
@@ -19,7 +22,11 @@ const row = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-beforeEach(() => findMany.mockReset());
+beforeEach(() => {
+  findMany.mockReset();
+  findUnique.mockReset();
+  findUnique.mockResolvedValue(null);
+});
 
 describe("listFormatsFor", () => {
   it("returns what the database holds", async () => {
@@ -93,7 +100,22 @@ describe("resolveFormat", () => {
     warn.mockRestore();
   });
 
-  it("uses the default when no key is given", async () => {
+  it("starts on the organization's own default when no key is given", async () => {
+    // What "New project" opens on once an organization has picked a format.
+    findMany.mockResolvedValue([row(), row({ key: "brief", label: "Brief" })]);
+    findUnique.mockResolvedValue({ defaultFormatKey: "brief" });
+
+    expect((await resolveFormat(undefined, "org-1")).id).toBe("brief");
+  });
+
+  it("ignores the organization's default when a format is asked for by name", async () => {
+    findMany.mockResolvedValue([row(), row({ key: "brief", label: "Brief" })]);
+    findUnique.mockResolvedValue({ defaultFormatKey: "brief" });
+
+    expect((await resolveFormat("tutorial", "org-1")).id).toBe("tutorial");
+  });
+
+  it("uses the product default when no key is given", async () => {
     findMany.mockResolvedValue([]);
 
     expect((await resolveFormat(undefined, null)).id).toBe(DEFAULT_FORMAT_ID);

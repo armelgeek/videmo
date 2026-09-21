@@ -1,6 +1,6 @@
 'use server'
 
-import { listManagedFormatsFor } from '@/lib/storyboard/formats/repository'
+import { defaultFormatKeyFor, listManagedFormatsFor } from '@/lib/storyboard/formats/repository'
 import type { ManagedFormat } from '@/lib/storyboard/formats'
 import { ProjectUnauthorizedError, requireSessionViewer } from '@/lib/video-project/session'
 import { viewerCanCurate } from '@/lib/storyboard/library-access'
@@ -10,6 +10,8 @@ export interface ListManagedFormatsResponse {
   data?: ManagedFormat[]
   /** False unless the viewer is an owner or admin of an active organization. */
   canWrite?: boolean
+  /** The format new projects start on, null while the product default stands. */
+  defaultKey?: string | null
   error?: string
 }
 
@@ -25,6 +27,7 @@ export async function listManagedFormats(): Promise<ListManagedFormatsResponse> 
     return {
       success: true,
       canWrite: await viewerCanCurate(viewer.organizationId, viewer.userId),
+      defaultKey: await defaultFormatKeyFor(viewer.organizationId),
       data: await listManagedFormatsFor(viewer.organizationId),
     }
   } catch (error) {

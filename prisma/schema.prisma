@@ -274,6 +274,10 @@ model Organization {
   storedObjects      StoredObject[]
   videoFormats       VideoFormat[]
   visualStyles       VisualStyle[]
+
+  /// The format new projects start on. A key, not a relation: it may point at
+  /// a format shipped with the product, which has no row for this organization.
+  defaultFormatKey String? @db.VarChar(64)
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }

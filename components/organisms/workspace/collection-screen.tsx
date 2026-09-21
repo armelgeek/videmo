@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SketchHint } from "@/components/molecules/sketch-hint";
 import {
@@ -57,6 +57,9 @@ interface CollectionScreenProps<T> {
   /** A sample of the thing itself, drawn at the top of the card. */
   media?: (item: T) => React.ReactNode;
   facts?: (item: T) => React.ReactNode;
+  /** Marked on the card, when this collection has a default at all. */
+  defaultId?: string | null;
+  onSetDefault?: (id: string) => void;
   /** Shown under the header when there is no organization to write into. */
   readOnlyNote: string;
   revertDescription: string;
@@ -81,6 +84,8 @@ export function CollectionScreen<T>({
   collection,
   isBuiltIn,
   toEntry,
+  defaultId,
+  onSetDefault,
   media,
   facts,
   readOnlyNote,
@@ -143,6 +148,7 @@ export function CollectionScreen<T>({
             : items.map((item, index) => {
                 const { id, label, hint, rowId, isOwn } = toEntry(item);
                 const isCustomized = isOwn && isBuiltIn(id);
+                const isDefault = defaultId != null && defaultId === id;
 
                 return (
                   <article
@@ -167,10 +173,17 @@ export function CollectionScreen<T>({
                         </h2>
                         <p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">{hint}</p>
                       </div>
-                      {isOwn && (
-                        <span className="shrink-0 rounded-full border border-ink bg-highlight px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-highlight-foreground">
-                          {isCustomized ? "Yours" : "New"}
+                      {isDefault ? (
+                        <span className="flex shrink-0 items-center gap-1 rounded-full border border-ink bg-highlight px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-highlight-foreground">
+                          <Pin className="h-2.5 w-2.5" />
+                          Default
                         </span>
+                      ) : (
+                        isOwn && (
+                          <span className="shrink-0 rounded-full border border-border bg-accent px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                            {isCustomized ? "Yours" : "New"}
+                          </span>
+                        )
                       )}
                     </div>
 
@@ -203,6 +216,17 @@ export function CollectionScreen<T>({
                         <span className="px-1 text-[11px] italic text-muted-foreground">
                           shipped with the product
                         </span>
+                      )}
+
+                      {onSetDefault && canWrite && !isDefault && (
+                        <button
+                          type="button"
+                          onClick={() => onSetDefault(id)}
+                          className={cn(ACTION, "ml-auto border-transparent shadow-none hover:bg-accent")}
+                        >
+                          <Pin className="h-3.5 w-3.5" />
+                          Use by default
+                        </button>
                       )}
                     </div>
                   </article>
