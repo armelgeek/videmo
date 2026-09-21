@@ -38,6 +38,7 @@ import {
 import Image from "next/image";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { PromptWizard } from "@/components/organisms/storyboard/prompt-wizard";
+import { exampleBriefText } from "@/lib/storyboard/example-briefs";
 import { appConfig } from "@/lib/config";
 import { ArrowDown, ArrowLeft, ArrowUp, Keyboard, Lock, MoreHorizontal } from "lucide-react";
 import {
@@ -63,7 +64,7 @@ import { useToastContext } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/lib/app-shell";
 import { DevPanel } from "@/lib/dev-panel";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   useStoryboardStore,
   normalizeWorkflowStep,
@@ -144,6 +145,7 @@ const NARRATION_SHARE = 70;
 export default function StoryboardPage() {
   const { toast } = useToastContext();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Zustand Workflow Store
   const {
@@ -272,6 +274,18 @@ export default function StoryboardPage() {
       if (renderJobIdRef.current === jobId) setIsExporting(false);
     }
   };
+
+  // "See it on an example" from the entry points: the studio opens on a brief
+  // already written, so a first account watches the product work before it has
+  // to think of something to say. Never over a brief already in progress.
+  const exampleApplied = useRef(false);
+  useEffect(() => {
+    if (exampleApplied.current) return;
+    const text = exampleBriefText(searchParams.get("example"));
+    if (!text || promptContent.trim()) return;
+    exampleApplied.current = true;
+    setPromptContent(text);
+  }, [searchParams, promptContent, setPromptContent]);
 
   useEffect(() => {
     if (!renderStorageKey || renderJobIdRef.current) return;

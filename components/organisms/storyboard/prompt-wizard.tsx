@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, Pencil, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { Segmented } from "./settings-controls";
+import { EXAMPLE_BRIEFS } from "@/lib/storyboard/example-briefs";
 import { usePickerCollection } from "@/hooks/use-picker-collection";
 import { useCreditSummary } from "@/lib/billing/use-credit-summary";
 import { estimateVideoCost } from "@/lib/billing/estimate-video-cost";
@@ -39,12 +40,6 @@ const STEPS = [
 
 /** The brief is what every later step depends on, so it is the gate. */
 const ABOUT_INDEX = STEPS.findIndex((s) => s.key === "about");
-
-const EXAMPLES = [
-  { label: "New billing, 90s", text: "Introduce our new billing in 90 seconds: the problem, one-click export, and what it changes for the finance team." },
-  { label: "Onboarding in 3 steps", text: "Show new users how onboarding works in 3 simple steps." },
-  { label: "v2 launch teaser", text: "A LinkedIn teaser for our v2 launch: what's new for customers." },
-];
 
 const VOICES = [
   { id: "coral", name: "Coral", gender: "female" },
@@ -222,7 +217,7 @@ export function PromptWizard({
             />
             <div className="flex flex-wrap items-center gap-2">
               <span className="sk-scribble text-base">or try:</span>
-              {EXAMPLES.map((ex) => (
+              {EXAMPLE_BRIEFS.map((ex) => (
                 <button
                   key={ex.label}
                   type="button"

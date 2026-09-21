@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { LayoutGrid, Plus } from 'lucide-react';
+import Link from 'next/link';
+import { FEATURED_EXAMPLE } from '@/lib/storyboard/example-briefs';
 
 const menuItems = [
   {
@@ -32,6 +34,16 @@ export default function Dashboard() {
           <div className="text-center space-y-3">
             <h1 className="text-4xl md:text-5xl font-bold text-foreground">Welcome to Studio</h1>
             <p className="text-muted-foreground text-lg">Choose an action to get started</p>
+            <p className="pt-1 text-sm text-muted-foreground">
+              Never made one here?{' '}
+              <Link
+                href={`/storyboard?example=${FEATURED_EXAMPLE.key}`}
+                className="font-medium text-foreground underline decoration-highlight decoration-2 underline-offset-4"
+              >
+                See it work on an example
+              </Link>{' '}
+              — no writing needed.
+            </p>
           </div>
 
           {/* Menu Grid */}

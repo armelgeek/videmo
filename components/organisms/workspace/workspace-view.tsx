@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { FEATURED_EXAMPLE } from "@/lib/storyboard/example-briefs";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Loader2, Plus, X, List, Grid3X3 } from "lucide-react";
 import { toast } from "sonner";
@@ -384,9 +385,58 @@ function EmptyWorkspace({
           Create your first project
         </button>
       )}
+
+      {canCreate && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          or{" "}
+          <Link
+            href={`/storyboard?example=${FEATURED_EXAMPLE.key}`}
+            className="font-medium text-foreground underline decoration-highlight decoration-2 underline-offset-4"
+          >
+            see it work on an example
+          </Link>{" "}
+          first
+        </p>
+      )}
+
+      {/* What is worth doing once the first video exists, said plainly rather
+          than sprung later as a tour. */}
+      <ol className="mt-10 grid w-full max-w-lg gap-2 border-t-2 border-dashed border-border pt-6 text-left">
+        {NEXT_STEPS.map((next, i) => (
+          <li key={next.href} className="flex items-baseline gap-3 text-sm">
+            <span className="font-mono text-xs text-muted-foreground">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span className="text-muted-foreground">
+              <Link href={next.href} className="font-semibold text-foreground hover:underline">
+                {next.label}
+              </Link>{" "}
+              — {next.hint}
+            </span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }
+
+const NEXT_STEPS = [
+  {
+    href: "/storyboard",
+    label: "Make your first video",
+    hint: "a brief, a script, a storyboard, then the drawing",
+  },
+  {
+    href: "/workspace/brand/styles",
+    label: "Pick the hand it is drawn in",
+    hint: "six styles shipped, or write your own",
+  },
+  {
+    href: "/workspace/members",
+    label: "Invite the people who write with you",
+    hint: "they see the same projects and the same brand kit",
+  },
+] as const;
 
 function ProjectGridSkeleton() {
   return (
