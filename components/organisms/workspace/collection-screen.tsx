@@ -138,9 +138,9 @@ export function CollectionScreen<T>({
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-4">
           {isLoading
             ? [0, 1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className={cn(CARD, "h-36 animate-pulse bg-muted/40")} />
+                <div key={i} className={cn(CARD, "h-40 animate-pulse bg-muted/40")} />
               ))
-            : items.map((item) => {
+            : items.map((item, index) => {
                 const { id, label, hint, rowId, isOwn } = toEntry(item);
                 const isCustomized = isOwn && isBuiltIn(id);
 
@@ -149,63 +149,61 @@ export function CollectionScreen<T>({
                     key={id}
                     className={cn(
                       CARD,
-                      "flex flex-col overflow-hidden transition-transform hover:-translate-y-1",
+                      "group flex flex-col overflow-hidden transition-transform hover:rotate-0 hover:-translate-y-1",
+                      // Pinned to the wall by hand, not laid out by a grid.
+                      index % 3 === 0 ? "-rotate-[0.6deg]" : index % 3 === 1 ? "rotate-[0.5deg]" : "-rotate-[0.2deg]",
                     )}
                   >
                     {media && (
-                      <div className="aspect-[180/80] border-b-2 border-ink bg-white">
+                      <div className="aspect-[180/96] border-b-2 border-ink bg-white">
                         {media(item)}
                       </div>
                     )}
 
-                    <div className="flex flex-1 flex-col gap-2 p-3.5">
-                      <div className="flex items-start justify-between gap-3">
-                        <h2 className="text-sm font-bold leading-tight text-foreground">{label}</h2>
-                        <span
-                          className={cn(
-                            "shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em]",
-                            isOwn
-                              ? "border-ink bg-highlight text-highlight-foreground"
-                              : "border-border bg-accent text-muted-foreground",
-                          )}
-                        >
-                          {isCustomized ? "Customized" : isOwn ? "Yours" : "Shipped"}
+                    <div className="flex items-start justify-between gap-2 px-3 pt-2.5">
+                      <div className="min-w-0">
+                        <h2 className="truncate font-hand text-xl leading-none text-foreground">
+                          {label}
+                        </h2>
+                        <p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">{hint}</p>
+                      </div>
+                      {isOwn && (
+                        <span className="shrink-0 rounded-full border border-ink bg-highlight px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.08em] text-highlight-foreground">
+                          {isCustomized ? "Yours" : "New"}
                         </span>
-                      </div>
+                      )}
+                    </div>
 
-                      <p className="line-clamp-2 text-xs text-muted-foreground">{hint}</p>
+                    {facts && <div className="flex flex-wrap gap-1 px-3 pt-2">{facts(item)}</div>}
 
-                      {facts && <div className="flex flex-wrap gap-1">{facts(item)}</div>}
-
-                      <div className="mt-auto flex gap-1.5 border-t border-border/60 pt-2.5">
-                        {isOwn ? (
-                          <>
-                            <Link href={editHref(id)} className={ACTION}>
-                              <Pencil className="h-3.5 w-3.5" />
-                              Edit
-                            </Link>
-                            <button
-                              type="button"
-                              disabled={!rowId}
-                              onClick={() => setPendingDelete(item)}
-                              className={cn(ACTION, "border-border shadow-none hover:bg-accent")}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              {isCustomized ? "Revert" : "Delete"}
-                            </button>
-                          </>
-                        ) : canWrite ? (
+                    {/* The actions stay out of the way until the card is aimed at. */}
+                    <div className="mt-auto flex items-center gap-1 px-2 pb-2 pt-2 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                      {isOwn ? (
+                        <>
                           <Link href={editHref(id)} className={ACTION}>
-                            <Copy className="h-3.5 w-3.5" />
-                            Customize
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit
                           </Link>
-                        ) : (
-                          <button type="button" disabled className={ACTION}>
-                            <Copy className="h-3.5 w-3.5" />
-                            Customize
+                          <button
+                            type="button"
+                            disabled={!rowId}
+                            onClick={() => setPendingDelete(item)}
+                            className={cn(ACTION, "border-transparent shadow-none hover:bg-accent")}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {isCustomized ? "Revert" : "Delete"}
                           </button>
-                        )}
-                      </div>
+                        </>
+                      ) : canWrite ? (
+                        <Link href={editHref(id)} className={ACTION}>
+                          <Copy className="h-3.5 w-3.5" />
+                          Make it mine
+                        </Link>
+                      ) : (
+                        <span className="px-1 text-[11px] italic text-muted-foreground">
+                          shipped with the product
+                        </span>
+                      )}
                     </div>
                   </article>
                 );

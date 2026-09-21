@@ -6,6 +6,7 @@ import { isBuiltInFormat } from "@/lib/storyboard/formats";
 import type { ManagedFormat } from "@/lib/storyboard/formats";
 import { useManagedCollection } from "@/hooks/use-managed-collection";
 import { BrandTabs } from "./brand-tabs";
+import { FormatStrip } from "@/components/molecules/workspace/format-strip";
 import { Chip, CollectionScreen } from "./collection-screen";
 
 /**
@@ -44,12 +45,12 @@ export function FormatsView() {
         rowId,
         isOwn,
       })}
+      media={({ format }) => <FormatStrip format={format} />}
       facts={({ format }) => (
         <>
-          <Chip>{format.script.paragraphs} paragraphs</Chip>
-          <Chip>{format.script.structure.length} movements</Chip>
+          <Chip>{format.script.paragraphs} scenes</Chip>
           <Chip>{format.script.defaultTone}</Chip>
-          {format.usesCharacter && <Chip>recurring character</Chip>}
+          {format.usesCharacter && <Chip>a character</Chip>}
         </>
       )}
       readOnlyNote="Writing formats is for the owners and admins of an organization — one row is what every project here generates against. You can use the ones shipped with the product."
