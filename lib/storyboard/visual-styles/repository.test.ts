@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findMany = vi.fn();
-vi.mock("@/lib/db", () => ({ db: { visualStyle: { findMany } } }));
+const findUnique = vi.fn();
+vi.mock("@/lib/db", () => ({
+  db: { visualStyle: { findMany }, organization: { findUnique } },
+}));
 
 const { listManagedVisualStylesFor, resolveVisualStyle } = await import("./repository");
 const { BUILT_IN_VISUAL_STYLES, DEFAULT_VISUAL_STYLE_ID } = await import("./built-in");
@@ -20,7 +23,11 @@ const row = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-beforeEach(() => findMany.mockReset());
+beforeEach(() => {
+  findMany.mockReset();
+  findUnique.mockReset();
+  findUnique.mockResolvedValue(null);
+});
 
 describe("listManagedVisualStylesFor", () => {
   it("lets an organization's style override a shipped one of the same key", async () => {
@@ -75,6 +82,21 @@ describe("listManagedVisualStylesFor", () => {
 });
 
 describe("resolveVisualStyle", () => {
+  it("starts on the organization's own default when no key is given", async () => {
+    // What a new project is drawn in once an organization has picked a style.
+    findMany.mockResolvedValue([row(), row({ id: "row-2", key: "marker", label: "Marker" })]);
+    findUnique.mockResolvedValue({ defaultVisualStyleKey: "marker" });
+
+    expect((await resolveVisualStyle(undefined, "org-1")).id).toBe("marker");
+  });
+
+  it("ignores the organization's default when a style is asked for by name", async () => {
+    findMany.mockResolvedValue([row(), row({ id: "row-2", key: "marker", label: "Marker" })]);
+    findUnique.mockResolvedValue({ defaultVisualStyleKey: "marker" });
+
+    expect((await resolveVisualStyle("doodle", "org-1")).id).toBe("doodle");
+  });
+
   it("falls back to the default for a key that no longer exists", async () => {
     // A project saved against a deleted style must still generate images.
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

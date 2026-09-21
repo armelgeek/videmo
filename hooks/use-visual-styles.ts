@@ -15,6 +15,8 @@ interface UseVisualStylesOptions {
 
 interface UseVisualStylesResult {
   styles: readonly VisualStyle[]
+  /** The style this organization starts new projects on, when it picked one. */
+  defaultKey: string | null
   isLoading: boolean
 }
 
@@ -29,6 +31,7 @@ export function useVisualStyles({ withFallback = false }: UseVisualStylesOptions
   const [styles, setStyles] = useState<readonly VisualStyle[]>(
     withFallback ? BUILT_IN_VISUAL_STYLES : [],
   )
+  const [defaultKey, setDefaultKey] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -38,6 +41,7 @@ export function useVisualStyles({ withFallback = false }: UseVisualStylesOptions
       if (cancelled) return
       if (result.success && result.data?.length) {
         setStyles(result.data)
+        setDefaultKey(result.defaultKey ?? null)
       }
       setIsLoading(false)
     })
@@ -47,5 +51,5 @@ export function useVisualStyles({ withFallback = false }: UseVisualStylesOptions
     }
   }, [])
 
-  return { styles, isLoading }
+  return { styles, defaultKey, isLoading }
 }

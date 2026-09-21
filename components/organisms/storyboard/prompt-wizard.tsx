@@ -99,18 +99,24 @@ export function PromptWizard({
   // Both lists start on the shipped rows so a picker is never empty, then swap
   // in what the organization actually has: its own rows and its overrides.
   const { formats, defaultKey } = useVideoFormats({ withFallback: true });
-  const { styles } = useVisualStyles({ withFallback: true });
+  const { styles, defaultKey: defaultStyleKey } = useVisualStyles({ withFallback: true });
   const step = STEPS[index];
   const hasBrief = brief.trim().length > 0;
 
-  // The organization's own default, applied once and only to a project that
-  // has not been written yet: reopening a saved brief must keep its format.
-  const defaultApplied = useRef(false);
+  // The organization's own defaults, applied once and only to a project that
+  // has not been written yet: reopening a saved brief must keep what it was
+  // written against.
+  const defaultsApplied = useRef(false);
   useEffect(() => {
-    if (defaultApplied.current || !defaultKey || hasBrief) return;
-    defaultApplied.current = true;
-    if (defaultKey !== params.format) onParamsChange({ ...params, format: defaultKey });
-  }, [defaultKey, hasBrief, params, onParamsChange]);
+    if (defaultsApplied.current || hasBrief) return;
+    if (!defaultKey && !defaultStyleKey) return;
+    defaultsApplied.current = true;
+    onParamsChange({
+      ...params,
+      ...(defaultKey ? { format: defaultKey } : {}),
+      ...(defaultStyleKey ? { visualStyle: defaultStyleKey } : {}),
+    });
+  }, [defaultKey, defaultStyleKey, hasBrief, params, onParamsChange]);
   const isLast = index === STEPS.length - 1;
   const set = (patch: Partial<ProjectParams>) => onParamsChange({ ...params, ...patch });
   const currentLanguage = LANGUAGES.find(([code]) => code === params.language)?.[1] ?? "English";

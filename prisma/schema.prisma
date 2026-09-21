@@ -275,9 +275,11 @@ model Organization {
   videoFormats       VideoFormat[]
   visualStyles       VisualStyle[]
 
-  /// The format new projects start on. A key, not a relation: it may point at
-  /// a format shipped with the product, which has no row for this organization.
-  defaultFormatKey String? @db.VarChar(64)
+  /// What new projects start on. Keys, not relations: they may point at a
+  /// format or a style shipped with the product, which has no row for this
+  /// organization.
+  defaultFormatKey      String? @db.VarChar(64)
+  defaultVisualStyleKey String? @db.VarChar(64)
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 }

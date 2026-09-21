@@ -70,6 +70,23 @@ export async function listVisualStylesFor(organizationId: string | null): Promis
 }
 
 /**
+ * The style this organization starts new projects on, when it has picked one.
+ * A key rather than a row id, so it can point at a shipped style too.
+ */
+export async function defaultVisualStyleKeyFor(
+  organizationId: string | null,
+): Promise<string | null> {
+  if (!organizationId) return null;
+
+  const organization = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { defaultVisualStyleKey: true },
+  });
+
+  return organization?.defaultVisualStyleKey ?? null;
+}
+
+/**
  * One style, resolved for this organization. An unknown key falls back to the
  * default rather than throwing: a project saved against a style that has since
  * been deleted must still generate.
@@ -79,7 +96,8 @@ export async function resolveVisualStyle(
   organizationId: string | null,
 ): Promise<VisualStyle> {
   const styles = await listVisualStylesFor(organizationId);
-  const found = styles.find((s) => s.id === (key ?? DEFAULT_VISUAL_STYLE_ID));
+  const wanted = key ?? (await defaultVisualStyleKeyFor(organizationId)) ?? DEFAULT_VISUAL_STYLE_ID;
+  const found = styles.find((s) => s.id === wanted);
   if (found) return found;
 
   if (key) console.warn(`Unknown visual style "${key}", falling back to a default`);

@@ -1,6 +1,8 @@
 "use client";
 
+import { toast } from "sonner";
 import { listManagedVisualStyles } from "@/actions/visual-styles/list-visual-styles";
+import { setDefaultVisualStyle } from "@/actions/visual-styles/set-default-visual-style";
 import { deleteVisualStyle } from "@/actions/visual-styles/delete-visual-style";
 import { isBuiltInVisualStyle } from "@/lib/storyboard/visual-styles/built-in";
 import type { ManagedVisualStyle } from "@/lib/storyboard/visual-styles/types";
@@ -27,6 +29,16 @@ export function StylesView() {
     errorMessage: "Visual styles could not be loaded.",
   });
 
+  const handleSetDefault = async (key: string) => {
+    const result = await setDefaultVisualStyle(key);
+    if (!result.success) {
+      toast.error(result.error ?? "Could not set the default style");
+      return;
+    }
+    toast.success("New projects will be drawn in this style");
+    await collection.load();
+  };
+
   return (
     <CollectionScreen
       tabs={<BrandTabs />}
@@ -37,6 +49,8 @@ export function StylesView() {
       newHref="/workspace/brand/styles/new"
       editHref={(id) => `/workspace/brand/styles/${id}/edit`}
       collection={collection}
+      defaultId={collection.defaultKey}
+      onSetDefault={handleSetDefault}
       isBuiltIn={isBuiltInVisualStyle}
       toEntry={({ style, rowId, isOwn }) => ({
         id: style.id,
