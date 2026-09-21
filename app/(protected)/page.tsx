@@ -6,17 +6,17 @@ import { LayoutGrid, Plus } from 'lucide-react';
 
 const menuItems = [
   {
-    title: 'New Project',
-    description: 'Start a new video project',
+    title: 'New video',
+    description: 'Write a brief, get a script, a storyboard and a drawn video',
     icon: Plus,
     href: '/storyboard',
     highlighted: true,
   },
   {
-    title: 'Workspace',
-    description: 'Access your workspace',
+    title: 'Your projects',
+    description: 'Open what you have already made',
     icon: LayoutGrid,
-    href: '/storyboard',
+    href: '/workspace',
   },
 ];
 

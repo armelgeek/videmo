@@ -22,5 +22,7 @@ export async function getRedirectUrl(next?: string | null): Promise<string> {
     select: { isAdmin: true },
   });
 
-  return user?.isAdmin ? "/dashboard" : "/profile";
+  // Everyone else lands in the studio. /profile is a settings form: a poor
+  // first screen for an account that has never made a video.
+  return user?.isAdmin ? "/dashboard" : "/";
 }

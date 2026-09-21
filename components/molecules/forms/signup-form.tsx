@@ -2,6 +2,7 @@
 
 import { PhoneInput } from "@/components/ui/phone-input"
 import { signUp, emailOtp } from "@/lib/auth-client"
+import { getRedirectUrl } from "@/actions/users/get-redirect-url"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
@@ -41,7 +42,6 @@ function passwordScore(password: string) {
 }
 
 export function SignupForm({ redirectTo }: { redirectTo?: string }) {
-  const loginHref = redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : "/login"
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -103,7 +103,9 @@ export function SignupForm({ redirectTo }: { redirectTo?: string }) {
         return
       }
       toast.success("Email verified successfully!")
-      router.push(loginHref)
+      // Verifying signs the account in, so there is nothing to log into:
+      // getRedirectUrl hands back the login page if it somehow did not.
+      router.push(await getRedirectUrl(redirectTo))
     } catch (error: any) {
       toast.error(error.message || "Failed to verify email")
       setIsLoading(false)
