@@ -5,11 +5,12 @@ import { ArrowLeft, ArrowRight, Pencil, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { Segmented } from "./settings-controls";
-import { useVideoFormats } from "@/hooks/use-video-formats";
-import { useVisualStyles } from "@/hooks/use-visual-styles";
+import { usePickerCollection } from "@/hooks/use-picker-collection";
+import { listVideoFormats } from "@/actions/video-formats/list-video-formats";
+import { listVisualStyles } from "@/actions/visual-styles/list-visual-styles";
+import { BUILT_IN_FORMATS } from "@/lib/storyboard/formats";
+import { BUILT_IN_VISUAL_STYLES } from "@/lib/storyboard/visual-styles/built-in";
 import { StylePreview } from "@/components/molecules/workspace/style-preview";
-import type { VideoFormat } from "@/lib/storyboard/formats";
-import type { VisualStyle } from "@/lib/storyboard/visual-styles/types";
 import type { ProjectParams } from "@/lib/storyboard/schema";
 import { cn } from "@/lib/utils";
 
@@ -98,8 +99,14 @@ export function PromptWizard({
   const [index, setIndex] = useState(0);
   // Both lists start on the shipped rows so a picker is never empty, then swap
   // in what the organization actually has: its own rows and its overrides.
-  const { formats, defaultKey } = useVideoFormats({ withFallback: true });
-  const { styles, defaultKey: defaultStyleKey } = useVisualStyles({ withFallback: true });
+  const { items: formats, defaultKey: defaultFormatKey } = usePickerCollection(
+    listVideoFormats,
+    BUILT_IN_FORMATS,
+  );
+  const { items: styles, defaultKey: defaultStyleKey } = usePickerCollection(
+    listVisualStyles,
+    BUILT_IN_VISUAL_STYLES,
+  );
   const step = STEPS[index];
   const hasBrief = brief.trim().length > 0;
 
@@ -109,14 +116,14 @@ export function PromptWizard({
   const defaultsApplied = useRef(false);
   useEffect(() => {
     if (defaultsApplied.current || hasBrief) return;
-    if (!defaultKey && !defaultStyleKey) return;
+    if (!defaultFormatKey && !defaultStyleKey) return;
     defaultsApplied.current = true;
     onParamsChange({
       ...params,
-      ...(defaultKey ? { format: defaultKey } : {}),
+      ...(defaultFormatKey ? { format: defaultFormatKey } : {}),
       ...(defaultStyleKey ? { visualStyle: defaultStyleKey } : {}),
     });
-  }, [defaultKey, defaultStyleKey, hasBrief, params, onParamsChange]);
+  }, [defaultFormatKey, defaultStyleKey, hasBrief, params, onParamsChange]);
   const isLast = index === STEPS.length - 1;
   const set = (patch: Partial<ProjectParams>) => onParamsChange({ ...params, ...patch });
   const currentLanguage = LANGUAGES.find(([code]) => code === params.language)?.[1] ?? "English";
