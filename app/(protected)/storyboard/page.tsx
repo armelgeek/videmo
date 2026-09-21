@@ -40,6 +40,7 @@ import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { PromptWizard } from "@/components/organisms/storyboard/prompt-wizard";
 import { exampleBriefText } from "@/lib/storyboard/example-briefs";
 import { StudioTour } from "@/components/organisms/onboarding/studio-tour";
+import { StoryboardTour } from "@/components/organisms/onboarding/storyboard-tour";
 import { appConfig } from "@/lib/config";
 import { ArrowDown, ArrowLeft, ArrowUp, Keyboard, Lock, MoreHorizontal } from "lucide-react";
 import {
@@ -1480,6 +1481,8 @@ export default function StoryboardPage() {
 
           {step === "storyboard" && (
             <div className="max-w-7xl mx-auto px-4 pt-4 pb-12">
+              {/* Only here: both of its targets are on this screen. */}
+              <StoryboardTour />
               <div className="space-y-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-end gap-4">
@@ -1509,6 +1512,7 @@ export default function StoryboardPage() {
                       <Button
                         variant="ghost"
                         size="icon"
+                        data-tour="redraw"
                         onClick={() => void generateImagesProgressively({ force: true })}
                         disabled={isGeneratingImages || isGeneratingNarration}
                         aria-label="Redraw all visuals"
@@ -1568,6 +1572,7 @@ export default function StoryboardPage() {
                         </button>
                       ) : (
                         <button
+                          data-tour={i === 0 ? "scenes" : undefined}
                           key={item.id || `item-${i}`}
                           type="button"
                           onClick={() => setSelectedClipIndex(i)}
