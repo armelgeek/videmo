@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import type { useManagedCollection } from "@/hooks/use-managed-collection";
+import { BrandTour } from "@/components/organisms/onboarding/brand-tour";
 
 const CARD =
   "rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))]";
@@ -133,6 +134,9 @@ export function CollectionScreen<T>({
 
       {tabs}
 
+      {/* Both targets are on screen once a card exists. */}
+      {!isLoading && items.length > 0 && <BrandTour />}
+
       <div className="space-y-6 px-6 py-8 sm:px-8">
         {!isLoading && !canWrite && (
           <p className="rounded-lg border-2 border-dashed border-border bg-accent/40 p-4 text-sm text-muted-foreground">
@@ -152,6 +156,7 @@ export function CollectionScreen<T>({
 
                 return (
                   <article
+                    data-tour={index === 0 ? "library-card" : undefined}
                     key={id}
                     className={cn(
                       CARD,

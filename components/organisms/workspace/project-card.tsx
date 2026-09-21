@@ -24,18 +24,23 @@ const STEPS: { id: ProjectStep; label: string }[] = [
 
 interface ProjectCardProps {
   project: ProjectListItem;
+  /** Set on the first card only: what the workspace tour points at. */
+  isTourTarget?: boolean;
   canUpdate: boolean;
   canDelete: boolean;
   onRename: (project: ProjectListItem) => void;
   onDelete: (project: ProjectListItem) => void;
 }
 
-export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete }: ProjectCardProps) {
+export function ProjectCard({ project, canUpdate, canDelete, onRename, onDelete, isTourTarget }: ProjectCardProps) {
   const stepIndex = Math.max(0, STEPS.findIndex((step) => step.id === project.step));
   const editedBy = project.lock.state === "held-by-other" ? project.lock.by?.name ?? "Someone" : null;
 
   return (
-    <article className="group relative overflow-hidden rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))] transition-transform hover:-translate-y-1">
+    <article
+      data-tour={isTourTarget ? "project" : undefined}
+      className="group relative overflow-hidden rounded-lg border-2 border-ink bg-card shadow-[5px_5px_0_hsl(var(--offset))] transition-transform hover:-translate-y-1"
+    >
       <Link
         href={`/storyboard?project=${project.id}`}
         className="flex flex-col outline-none focus-visible:ring-2 focus-visible:ring-highlight"

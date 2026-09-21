@@ -23,6 +23,7 @@ export function BrandTabs() {
 
   return (
     <nav
+      data-tour="brand-tabs"
       aria-label="Brand kit"
       className="flex gap-1 border-b border-border px-6 pt-4 sm:px-8"
     >

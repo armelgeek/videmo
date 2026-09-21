@@ -21,6 +21,10 @@ export const TOUR_TARGET = {
   redraw: "redraw",
   mode: "editor-mode",
   export: "export",
+  project: "project",
+  newProject: "new-project",
+  libraryCard: "library-card",
+  brandTabs: "brand-tabs",
 } as const;
 
 export const at = (name: string) => `[data-tour="${name}"]`;

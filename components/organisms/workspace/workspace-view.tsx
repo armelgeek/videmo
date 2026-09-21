@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ProjectCard } from "./project-card";
+import { WorkspaceTour } from "@/components/organisms/onboarding/workspace-tour";
 import { WorkspaceControls } from "./workspace-controls";
 import { ProjectListView } from "./project-list-view";
 import { SketchHint } from "@/components/molecules/sketch-hint";
@@ -144,6 +145,7 @@ export function WorkspaceView() {
           {viewer?.canCreate && (
             <button
               type="button"
+              data-tour="new-project"
               onClick={() => setIsCreateOpen(true)}
               className="inline-flex h-10 items-center gap-2 rounded-lg border-2 border-ink bg-highlight px-4 text-sm font-bold text-highlight-foreground shadow-[3px_3px_0_hsl(var(--offset))] transition-transform hover:-translate-x-px hover:-translate-y-px"
             >
@@ -233,15 +235,19 @@ export function WorkspaceView() {
                 </div>
               </div>
 
+              {/* Both targets exist only once a project is on screen. */}
+              {viewMode === "grid" && projects.length > 0 && <WorkspaceTour />}
+
               {viewMode === "grid" ? (
                 <div>
                   <div
                     className={`grid grid-cols-1 gap-8 transition-opacity sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 ${isFetching ? "opacity-60" : ""}`}
                   >
-                    {projects.map((project) => (
+                    {projects.map((project, index) => (
                       <ProjectCard
                         key={project.id}
                         project={project}
+                        isTourTarget={index === 0}
                         canUpdate={viewer?.canUpdate ?? false}
                         canDelete={viewer?.canDelete ?? false}
                         onRename={setRenaming}
