@@ -3,11 +3,12 @@
 import { listManagedFormatsFor } from '@/lib/storyboard/formats/repository'
 import type { ManagedFormat } from '@/lib/storyboard/formats'
 import { ProjectUnauthorizedError, requireSessionViewer } from '@/lib/video-project/session'
+import { viewerCanCurate } from '@/lib/storyboard/library-access'
 
 export interface ListManagedFormatsResponse {
   success: boolean
   data?: ManagedFormat[]
-  /** False when no organization is active: nothing can be written yet. */
+  /** False unless the viewer is an owner or admin of an active organization. */
   canWrite?: boolean
   error?: string
 }
@@ -23,7 +24,7 @@ export async function listManagedFormats(): Promise<ListManagedFormatsResponse> 
     const viewer = await requireSessionViewer()
     return {
       success: true,
-      canWrite: viewer.organizationId !== null,
+      canWrite: await viewerCanCurate(viewer.organizationId, viewer.userId),
       data: await listManagedFormatsFor(viewer.organizationId),
     }
   } catch (error) {

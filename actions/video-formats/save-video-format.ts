@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db as prisma } from '@/lib/db'
 import { videoFormatInputSchema } from '@/lib/storyboard/formats/schema'
 import { ProjectUnauthorizedError, requireSessionViewer } from '@/lib/video-project/session'
+import { LIBRARY_FORBIDDEN, viewerCanCurate } from '@/lib/storyboard/library-access'
 
 export interface SaveVideoFormatResponse {
   success: boolean
@@ -24,6 +25,10 @@ export async function saveVideoFormat(input: unknown): Promise<SaveVideoFormatRe
     const viewer = await requireSessionViewer()
     if (!viewer.organizationId) {
       return { success: false, error: 'Select an organization before writing a format' }
+    }
+
+    if (!(await viewerCanCurate(viewer.organizationId, viewer.userId))) {
+      return { success: false, error: LIBRARY_FORBIDDEN }
     }
 
     const data = videoFormatInputSchema.parse(input)

@@ -3,6 +3,7 @@
 import { listManagedVisualStylesFor, listVisualStylesFor } from '@/lib/storyboard/visual-styles/repository'
 import type { ManagedVisualStyle, VisualStyle } from '@/lib/storyboard/visual-styles/types'
 import { ProjectUnauthorizedError, requireSessionViewer } from '@/lib/video-project/session'
+import { viewerCanCurate } from '@/lib/storyboard/library-access'
 
 export interface ListVisualStylesResponse {
   success: boolean
@@ -13,7 +14,7 @@ export interface ListVisualStylesResponse {
 export interface ListManagedVisualStylesResponse {
   success: boolean
   data?: ManagedVisualStyle[]
-  /** False when no organization is active: nothing can be written yet. */
+  /** False unless the viewer is an owner or admin of an active organization. */
   canWrite?: boolean
   error?: string
 }
@@ -36,7 +37,7 @@ export async function listManagedVisualStyles(): Promise<ListManagedVisualStyles
     const viewer = await requireSessionViewer()
     return {
       success: true,
-      canWrite: viewer.organizationId !== null,
+      canWrite: await viewerCanCurate(viewer.organizationId, viewer.userId),
       data: await listManagedVisualStylesFor(viewer.organizationId),
     }
   } catch (error) {

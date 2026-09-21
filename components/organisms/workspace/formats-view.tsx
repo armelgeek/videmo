@@ -50,7 +50,7 @@ export function FormatsView() {
           {format.usesCharacter && <Chip>recurring character</Chip>}
         </>
       )}
-      readOnlyNote="Select an organization to write your own formats. Until then you can only use the ones shipped with the product."
+      readOnlyNote="Writing formats is for the owners and admins of an organization — one row is what every project here generates against. You can use the ones shipped with the product."
       revertDescription="Your changes are dropped and the shipped format comes back. Projects keep working."
       deleteDescription="Projects already written against this format keep their script, and fall back to the default the next time they generate."
     />

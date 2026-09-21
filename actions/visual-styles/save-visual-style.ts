@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db as prisma } from '@/lib/db'
 import { visualStyleInputSchema } from '@/lib/storyboard/visual-styles/schema'
 import { ProjectUnauthorizedError, requireSessionViewer } from '@/lib/video-project/session'
+import { LIBRARY_FORBIDDEN, viewerCanCurate } from '@/lib/storyboard/library-access'
 
 export interface SaveVisualStyleResponse {
   success: boolean
@@ -23,6 +24,10 @@ export async function saveVisualStyle(input: unknown): Promise<SaveVisualStyleRe
     const viewer = await requireSessionViewer()
     if (!viewer.organizationId) {
       return { success: false, error: 'Select an organization before writing a style' }
+    }
+
+    if (!(await viewerCanCurate(viewer.organizationId, viewer.userId))) {
+      return { success: false, error: LIBRARY_FORBIDDEN }
     }
 
     const data = visualStyleInputSchema.parse(input)

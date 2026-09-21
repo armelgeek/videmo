@@ -37,9 +37,17 @@ interface AppSidebarProps {
 const NAV_ITEMS = [
   { href: "/workspace", icon: Folder, label: "Projects" },
   { href: "/workspace/members", icon: Users, label: "Members" },
+  { href: "/billing", icon: CreditCard, label: "Billing" },
+] as const;
+
+/**
+ * What the organization generates against, rather than what it is working on.
+ * Kept under its own heading so the daily work does not share a level with
+ * settings that are touched once a quarter.
+ */
+const LIBRARY_ITEMS = [
   { href: "/workspace/formats", icon: LayoutTemplate, label: "Formats" },
   { href: "/workspace/styles", icon: Palette, label: "Styles" },
-  { href: "/billing", icon: CreditCard, label: "Billing" },
 ] as const;
 
 interface PendingInvitation {
@@ -71,6 +79,35 @@ function SectionTitle({ id, children }: { id: string; children: React.ReactNode 
     <h2 id={id} className="sk-scribble mb-2 px-2 text-base">
       {children}
     </h2>
+  );
+}
+
+function NavLink({
+  href,
+  icon: Icon,
+  label,
+  isActive,
+}: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  isActive: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={isActive ? "page" : undefined}
+      className={cn(
+        "flex w-full items-center gap-2.5 rounded-lg border-2 px-3 py-2 text-sm font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-highlight",
+        isActive
+          ? "border-ink bg-card text-foreground shadow-[3px_3px_0_hsl(var(--offset))]"
+          : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+      )}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+      {isActive && <span aria-hidden="true" className="ml-auto h-2 w-2 rounded-full bg-highlight ring-2 ring-ink" />}
+    </Link>
   );
 }
 
@@ -107,27 +144,23 @@ export function AppSidebar(_props: AppSidebarProps) {
 
       <nav className="flex-1 space-y-6 overflow-y-auto border-t-2 border-dashed border-border px-3 py-4">
         <div className="space-y-1">
-          {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "flex w-full items-center gap-2.5 rounded-lg border-2 px-3 py-2 text-sm font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-highlight",
-                  isActive
-                    ? "border-ink bg-card text-foreground shadow-[3px_3px_0_hsl(var(--offset))]"
-                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {label}
-                {isActive && <span aria-hidden="true" className="ml-auto h-2 w-2 rounded-full bg-highlight ring-2 ring-ink" />}
-              </Link>
-            );
-          })}
+          {NAV_ITEMS.map((item) => (
+            <NavLink key={item.href} {...item} isActive={pathname === item.href} />
+          ))}
         </div>
+
+        <section aria-labelledby="library">
+          <SectionTitle id="library">library</SectionTitle>
+          <div className="space-y-1">
+            {LIBRARY_ITEMS.map((item) => (
+              <NavLink
+                key={item.href}
+                {...item}
+                isActive={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+              />
+            ))}
+          </div>
+        </section>
 
         {pendingInvitations.length > 0 && (
           <section aria-labelledby="pending-invitations">

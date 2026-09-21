@@ -44,7 +44,7 @@ export function StylesView() {
         isOwn,
       })}
       media={({ style }) => <StylePreview style={style} />}
-      readOnlyNote="Select an organization to write your own styles. Until then you can only use the ones shipped with the product."
+      readOnlyNote="Writing styles is for the owners and admins of an organization — one row is what every project here generates against. You can use the ones shipped with the product."
       revertDescription="Your changes are dropped and the shipped style comes back. Projects keep working."
       deleteDescription="Projects already using this style keep their images, and fall back to the default the next time they generate."
     />

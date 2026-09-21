@@ -2,6 +2,7 @@
 
 import { db as prisma } from '@/lib/db'
 import { ProjectUnauthorizedError, requireSessionViewer } from '@/lib/video-project/session'
+import { LIBRARY_FORBIDDEN, viewerCanCurate } from '@/lib/storyboard/library-access'
 
 export interface DeleteVisualStyleResponse {
   success: boolean
@@ -19,6 +20,9 @@ export async function deleteVisualStyle(id: string): Promise<DeleteVisualStyleRe
   try {
     const viewer = await requireSessionViewer()
     if (!viewer.organizationId) return { success: false, error: 'Unauthorized' }
+    if (!(await viewerCanCurate(viewer.organizationId, viewer.userId))) {
+      return { success: false, error: LIBRARY_FORBIDDEN }
+    }
 
     const { count } = await prisma.visualStyle.updateMany({
       where: { id, organizationId: viewer.organizationId, deletedAt: null },
