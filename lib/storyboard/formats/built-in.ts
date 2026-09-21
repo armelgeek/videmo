@@ -194,7 +194,15 @@ export const BUILT_IN_FORMATS: readonly VideoFormat[] = [
   },
 ];
 
-export const DEFAULT_FORMAT_ID = "explainer";
+/**
+ * The format a brand new account starts on.
+ *
+ * Brief, not Explainer: a video costs 5 + 10 credits plus 14 per scene, so a
+ * six-scene brief fits in the free plan's monthly allowance and a ten-scene
+ * explainer does not. A first video that stalls half-drawn is worse than a
+ * short one. `estimate-video-cost.test.ts` holds this to it.
+ */
+export const DEFAULT_FORMAT_ID = "brief";
 
 const BY_ID = new Map(BUILT_IN_FORMATS.map((f) => [f.id, f]));
 

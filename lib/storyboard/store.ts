@@ -24,6 +24,8 @@ function audioMediaId(panelKey: string): string {
   return `media-audio-${panelKey}`;
 }
 import type { TransitionType } from "@/lib/editor/types";
+import { DEFAULT_FORMAT_ID } from "./formats/built-in";
+import { DEFAULT_VISUAL_STYLE_ID } from "./visual-styles/built-in";
 
 export interface MediaItem {
   id: string;
@@ -142,8 +144,8 @@ export interface StoryboardStoreState {
 }
 
 const DEFAULT_PROJECT_PARAMS: ProjectParams = {
-  visualStyle: "doodle",
-  format: "explainer",
+  visualStyle: DEFAULT_VISUAL_STYLE_ID,
+  format: DEFAULT_FORMAT_ID,
   aspectRatio: "16:9",
   language: "en",
   duration: "3-5 minutes",

@@ -2,6 +2,8 @@ import { z } from "zod";
 import { AnnotationSchema } from "@/lib/whiteboard-animation/schema";
 import { scriptBeatSchema } from "./script-generation";
 import type { TransitionName } from "@/lib/whiteboard-animation/timeline/clip-transitions";
+import { DEFAULT_FORMAT_ID } from "./formats/built-in";
+import { DEFAULT_VISUAL_STYLE_ID } from "./visual-styles/built-in";
 
 export const videoModelSchema = z.enum([
   "veo3.1-fast",
@@ -14,10 +16,10 @@ export type VideoModel = z.infer<typeof videoModelSchema>;
 export const projectParamsSchema = z.object({
   // A key of the WhiteboardStyle table. The 25 free-text styles it replaces
   // mapped to nothing in the engine and rendered as the default.
-  visualStyle: z.string().min(1).max(64).default("doodle"),
+  visualStyle: z.string().min(1).max(64).default(DEFAULT_VISUAL_STYLE_ID),
   // Not an enum: formats live in the database and an organization writes its
   // own. A key that no longer exists falls back to the default at resolution.
-  format: z.string().min(1).max(64).default("explainer"),
+  format: z.string().min(1).max(64).default(DEFAULT_FORMAT_ID),
   aspectRatio: z.enum(["16:9", "9:16", "1:1"]).default("16:9"),
   language: z.string().default("en"),
   duration: z.string().default("3-5 minutes"),

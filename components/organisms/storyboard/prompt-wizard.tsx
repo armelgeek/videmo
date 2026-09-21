@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { Segmented } from "./settings-controls";
 import { usePickerCollection } from "@/hooks/use-picker-collection";
+import { useCreditSummary } from "@/lib/billing/use-credit-summary";
+import { estimateVideoCost } from "@/lib/billing/estimate-video-cost";
 import { listVideoFormats } from "@/actions/video-formats/list-video-formats";
 import { listVisualStyles } from "@/actions/visual-styles/list-visual-styles";
 import { BUILT_IN_FORMATS } from "@/lib/storyboard/formats";
@@ -109,6 +111,13 @@ export function PromptWizard({
   );
   const step = STEPS[index];
   const hasBrief = brief.trim().length > 0;
+
+  // What this video will cost, next to what is left: a first video that stops
+  // half-drawn for want of credits is the worst way to meet the paywall.
+  const { summary } = useCreditSummary();
+  const chosenFormat = formats.find((f) => f.id === params.format);
+  const estimate = estimateVideoCost(chosenFormat?.script.paragraphs ?? 0);
+  const overBudget = summary != null && estimate.total > summary.balance;
 
   // The organization's own defaults, applied once and only to a project that
   // has not been written yet: reopening a saved brief must keep what it was
@@ -441,6 +450,25 @@ export function PromptWizard({
             </Button>
           ) : (
             <span className="text-xs text-muted-foreground">You can change it later</span>
+          )}
+
+          {chosenFormat && (
+            <p
+              className={cn(
+                "order-last w-full text-xs sm:order-none sm:w-auto",
+                overBudget ? "font-semibold text-destructive" : "text-muted-foreground",
+              )}
+            >
+              <span className="font-mono">~{estimate.total}</span> credits for{" "}
+              {estimate.scenes} scenes
+              {summary && (
+                <>
+                  {" · "}
+                  <span className="font-mono">{summary.balance}</span> left
+                  {overBudget && " — pick a shorter format or top up"}
+                </>
+              )}
+            </p>
           )}
           <div className="flex items-center gap-3">
             {!isLast && hasBrief && (
