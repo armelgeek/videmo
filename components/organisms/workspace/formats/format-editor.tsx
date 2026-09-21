@@ -59,7 +59,7 @@ function toFormState(format: VideoFormat): FormState {
   };
 }
 
-const BACK = "/workspace/formats";
+const BACK = "/workspace/brand/formats";
 
 interface FormatEditorProps {
   /** The format to start from: an existing one to edit, or one to copy. */

@@ -1,12 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { AppShell } from '@/lib/app-shell';
-import { StylesView } from '@/components/organisms/workspace/styles-view';
-
+/** Styles moved into the brand kit; links and bookmarks still work. */
 export default function StylesPage() {
-  return (
-    <AppShell contentClassName="bg-background">
-      <StylesView />
-    </AppShell>
-  );
+  redirect('/workspace/brand/styles');
 }

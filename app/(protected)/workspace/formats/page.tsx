@@ -1,12 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { AppShell } from '@/lib/app-shell';
-import { FormatsView } from '@/components/organisms/workspace/formats-view';
-
+/** Formats moved into the brand kit; links and bookmarks still work. */
 export default function FormatsPage() {
-  return (
-    <AppShell contentClassName="bg-background">
-      <FormatsView />
-    </AppShell>
-  );
+  redirect('/workspace/brand/formats');
 }

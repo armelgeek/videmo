@@ -64,7 +64,7 @@ describe("StyleEditor", () => {
     type(/Art direction/, "Thin precise pen drawing, clean shapes");
     fireEvent.click(save());
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/workspace/styles"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/workspace/brand/styles"));
     expect(saveVisualStyle).toHaveBeenCalledWith(
       expect.objectContaining({ key: "blue-pen", accentColors: ["blue"], labels: "key-subjects" }),
     );

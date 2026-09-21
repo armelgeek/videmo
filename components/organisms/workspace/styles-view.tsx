@@ -6,6 +6,7 @@ import { isBuiltInVisualStyle } from "@/lib/storyboard/visual-styles/built-in";
 import type { ManagedVisualStyle } from "@/lib/storyboard/visual-styles/types";
 import { useManagedCollection } from "@/hooks/use-managed-collection";
 import { StylePreview } from "@/components/molecules/workspace/style-preview";
+import { BrandTabs } from "./brand-tabs";
 import { CollectionScreen } from "./collection-screen";
 
 /**
@@ -28,12 +29,13 @@ export function StylesView() {
 
   return (
     <CollectionScreen
+      tabs={<BrandTabs />}
       title="Visual styles"
       nudge="give your videos their own hand"
       lede="How the drawings look. Write your own, or start from one of ours."
       noun="style"
-      newHref="/workspace/styles/new"
-      editHref={(id) => `/workspace/styles/${id}/edit`}
+      newHref="/workspace/brand/styles/new"
+      editHref={(id) => `/workspace/brand/styles/${id}/edit`}
       collection={collection}
       isBuiltIn={isBuiltInVisualStyle}
       toEntry={({ style, rowId, isOwn }) => ({

@@ -63,7 +63,7 @@ function toFormState(style: VisualStyle): FormState {
   };
 }
 
-const BACK = "/workspace/styles";
+const BACK = "/workspace/brand/styles";
 
 interface StyleEditorProps {
   /** The style to start from: an existing one to edit, or one to copy. */

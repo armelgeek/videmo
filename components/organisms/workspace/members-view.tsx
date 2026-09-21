@@ -29,7 +29,6 @@ import {
 } from "@/lib/app-shell/organization-events";
 
 import {
-  BrandPanel,
   Confirmation,
   FullOrganization,
   Invitation,
@@ -302,17 +301,6 @@ export function MembersView() {
               busyId={busyId}
               onResend={handleResendInvitation}
               onCancel={handleCancelInvitation}
-            />
-          )}
-
-          {canManage && organization && (
-            <BrandPanel
-              key={organization.id}
-              organizationId={organization.id}
-              initialLogo={organization.logo ?? null}
-              onLogoChange={(newLogo) => {
-                setOrganization((current) => (current ? { ...current, logo: newLogo } : null));
-              }}
             />
           )}
 

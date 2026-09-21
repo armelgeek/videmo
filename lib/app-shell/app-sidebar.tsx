@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, Folder, LayoutTemplate, Loader2, LogOut, Mail, Palette, Plus, Settings, Users } from "lucide-react";
+import { CreditCard, Folder, Loader2, LogOut, Mail, Palette, Plus, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { appConfig } from "@/lib/config";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -41,14 +41,10 @@ const NAV_ITEMS = [
 ] as const;
 
 /**
- * What the organization generates against, rather than what it is working on.
- * Kept under its own heading so the daily work does not share a level with
- * settings that are touched once a quarter.
+ * What the organization generates against, rather than what it is working on:
+ * the logo, the formats and the styles, under the one name people look for.
  */
-const LIBRARY_ITEMS = [
-  { href: "/workspace/formats", icon: LayoutTemplate, label: "Formats" },
-  { href: "/workspace/styles", icon: Palette, label: "Styles" },
-] as const;
+const LIBRARY_ITEMS = [{ href: "/workspace/brand", icon: Palette, label: "Brand kit" }] as const;
 
 interface PendingInvitation {
   id: string;
@@ -150,7 +146,7 @@ export function AppSidebar(_props: AppSidebarProps) {
         </div>
 
         <section aria-labelledby="library">
-          <SectionTitle id="library">library</SectionTitle>
+          <SectionTitle id="library">brand</SectionTitle>
           <div className="space-y-1">
             {LIBRARY_ITEMS.map((item) => (
               <NavLink

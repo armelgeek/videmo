@@ -5,6 +5,7 @@ import { deleteVideoFormat } from "@/actions/video-formats/delete-video-format";
 import { isBuiltInFormat } from "@/lib/storyboard/formats";
 import type { ManagedFormat } from "@/lib/storyboard/formats";
 import { useManagedCollection } from "@/hooks/use-managed-collection";
+import { BrandTabs } from "./brand-tabs";
 import { Chip, CollectionScreen } from "./collection-screen";
 
 /**
@@ -27,12 +28,13 @@ export function FormatsView() {
 
   return (
     <CollectionScreen
+      tabs={<BrandTabs />}
       title="Video formats"
       nudge="write your own kind of video"
       lede="The types of video your scripts are written against. Write your own, or start from one of ours."
       noun="format"
-      newHref="/workspace/formats/new"
-      editHref={(id) => `/workspace/formats/${id}/edit`}
+      newHref="/workspace/brand/formats/new"
+      editHref={(id) => `/workspace/brand/formats/${id}/edit`}
       collection={collection}
       isBuiltIn={isBuiltInFormat}
       toEntry={({ format, rowId, isOwn }) => ({

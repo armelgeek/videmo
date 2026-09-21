@@ -44,6 +44,8 @@ interface Entry {
 interface CollectionScreenProps<T> {
   title: string;
   lede: string;
+  /** The brand-kit tab row, rendered under the header. */
+  tabs?: React.ReactNode;
   /** The handwritten nudge next to the title. */
   nudge: string;
   noun: string;
@@ -71,6 +73,7 @@ interface CollectionScreenProps<T> {
 export function CollectionScreen<T>({
   title,
   lede,
+  tabs,
   nudge,
   noun,
   newHref,
@@ -91,8 +94,8 @@ export function CollectionScreen<T>({
   const pendingIsBuiltIn = pending ? isBuiltIn(pending.id) : false;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-border px-6 py-4 sm:px-8">
+    <div className="flex flex-col">
+      <header className="flex flex-wrap items-end justify-between gap-4 px-6 pt-4 sm:px-8">
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Workspace
@@ -122,6 +125,8 @@ export function CollectionScreen<T>({
           </button>
         )}
       </header>
+
+      {tabs}
 
       <div className="space-y-6 px-6 py-8 sm:px-8">
         {!isLoading && !canWrite && (
