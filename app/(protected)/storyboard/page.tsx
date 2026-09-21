@@ -39,6 +39,7 @@ import Image from "next/image";
 import { HandArrow } from "@/components/organisms/landing/sketch/hand-arrow";
 import { PromptWizard } from "@/components/organisms/storyboard/prompt-wizard";
 import { exampleBriefText } from "@/lib/storyboard/example-briefs";
+import { StudioTour } from "@/components/organisms/onboarding/studio-tour";
 import { appConfig } from "@/lib/config";
 import { ArrowDown, ArrowLeft, ArrowUp, Keyboard, Lock, MoreHorizontal } from "lucide-react";
 import {
@@ -1400,6 +1401,9 @@ export default function StoryboardPage() {
           {/* Step Content */}
           {step === "prompt" && (
             <div className="px-4 py-8">
+              {/* Only on the prompt screen: every step of the tour points at
+                  something that is on it. */}
+              <StudioTour />
               <PromptWizard
                 brief={promptContent}
                 onBriefChange={setPromptContent}

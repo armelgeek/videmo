@@ -201,6 +201,7 @@ export function PromptWizard({
         {step.key === "about" && (
           <>
             <textarea
+              data-tour="brief"
               autoFocus
               value={brief}
               onChange={(e) => onBriefChange(e.target.value)}
@@ -215,7 +216,7 @@ export function PromptWizard({
               placeholder="The message, the key points, who it's for…"
               className="min-h-0 w-full resize-none rounded-lg border-2 border-dashed border-border bg-transparent p-3 text-base leading-relaxed outline-none placeholder:text-muted-foreground focus:border-ink"
             />
-            <div className="flex flex-wrap items-center gap-2">
+            <div data-tour="examples" className="flex flex-wrap items-center gap-2">
               <span className="sk-scribble text-base">or try:</span>
               {EXAMPLE_BRIEFS.map((ex) => (
                 <button
@@ -437,7 +438,10 @@ export function PromptWizard({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-border pt-4">
+        <div
+          data-tour="wizard-nav"
+          className="flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-border pt-4"
+        >
           {index > 0 ? (
             <Button variant="ghost" onClick={() => setIndex((i) => i - 1)}>
               <ArrowLeft className="h-4 w-4" />

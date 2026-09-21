@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { CreditCard, Folder, Loader2, LogOut, Mail, Palette, Plus, Settings, Users } from "lucide-react";
+import { CreditCard, Folder, HelpCircle, Loader2, LogOut, Mail, Palette, Plus, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { appConfig } from "@/lib/config";
 import { authClient, useSession } from "@/lib/auth-client";
@@ -35,7 +35,7 @@ interface AppSidebarProps {
 }
 
 const NAV_ITEMS = [
-  { href: "/workspace", icon: Folder, label: "Projects" },
+  { href: "/workspace", icon: Folder, label: "Projects", tour: "nav-projects" },
   { href: "/workspace/members", icon: Users, label: "Members" },
   { href: "/billing", icon: CreditCard, label: "Billing" },
 ] as const;
@@ -44,7 +44,9 @@ const NAV_ITEMS = [
  * What the organization generates against, rather than what it is working on:
  * the logo, the formats and the styles, under the one name people look for.
  */
-const LIBRARY_ITEMS = [{ href: "/workspace/brand", icon: Palette, label: "Brand kit" }] as const;
+const LIBRARY_ITEMS = [
+  { href: "/workspace/brand", icon: Palette, label: "Brand kit", tour: "nav-brand" },
+] as const;
 
 interface PendingInvitation {
   id: string;
@@ -83,15 +85,18 @@ function NavLink({
   icon: Icon,
   label,
   isActive,
+  tour,
 }: {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   isActive: boolean;
+  tour?: string;
 }) {
   return (
     <Link
       href={href}
+      data-tour={tour}
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "flex w-full items-center gap-2.5 rounded-lg border-2 px-3 py-2 text-sm font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-highlight",
@@ -183,8 +188,15 @@ export function AppSidebar(_props: AppSidebarProps) {
         )}
       </nav>
 
-      <div className="border-t-2 border-dashed border-border px-3 py-3">
+      <div className="space-y-2 border-t-2 border-dashed border-border px-3 py-3">
         <CreditBalanceBadge />
+        <Link
+          href="/storyboard?tour=1"
+          className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          Show me around
+        </Link>
       </div>
 
       {session?.user && (
